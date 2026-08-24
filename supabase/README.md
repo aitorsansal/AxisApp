@@ -28,23 +28,21 @@ you uses the app.
 Under **Project Settings → API**, copy:
 
 - **Project URL**
-- **anon / public key** (not the service_role key — that one must never ship
-  inside the app)
+- **Publishable key** (Supabase's newer key naming — `sb_publishable_...`,
+  replacing what used to be called the "anon" key; same role: safe to embed
+  client-side, everything it can do is still gated by RLS). Not the
+  **secret key** (`sb_secret_...`, née service_role) — that one must never
+  ship inside the app.
 
 ## 5. Wire them into the app
 
-`AxisApp/Services/NotConfiguredAuthService.cs` is a placeholder that lets the
-app boot before this step is done. Once you have the URL and anon key:
-
-1. Add a real `SupabaseAuthService : IAuthService` (and the
-   `I*Repository` implementations) that construct a `Supabase.Client` with
-   those two values.
-2. Don't hardcode them into a file that gets committed — read them from a
-   local config file that's gitignored (`appsettings.local.json` and
-   `Config.Local.cs` are already excluded — see `.gitignore`), or from
-   platform secure storage.
-3. Swap the `NotConfiguredAuthService` registration in `MauiProgram.cs` for
-   the real one.
+Copy `AxisApp/Config.Local.cs.example` to `AxisApp/Config.Local.cs`
+(gitignored, so your key never gets committed) and fill in the two constants
+with your project's URL and publishable key.
+`Services/SupabaseAuthService.cs` (registered in `MauiProgram.cs`) reads from
+that config to construct its `Supabase.Client`.
+`Services/NotConfiguredAuthService.cs` still exists, unregistered, as an
+example of the "app boots without a backend" placeholder pattern.
 
 ## Why RLS instead of a custom API
 
@@ -63,5 +61,5 @@ tightly-scoped function instead of loosening any table's RLS policy.
 Supabase ships as a self-hostable Docker Compose stack (Postgres + Auth +
 Realtime + Storage). If you self-host it later — e.g. on your NAS — "migrating"
 is just running this same `schema.sql` against the self-hosted instance and
-pointing the app at its URL/anon key instead. No data migration, no auth
-migration, because it's the same software either way.
+updating `Config.Local.cs` to point at its URL/key instead. No data
+migration, no auth migration, because it's the same software either way.

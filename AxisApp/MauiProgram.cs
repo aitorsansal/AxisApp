@@ -18,10 +18,9 @@ public static class MauiProgram
                 // Uses platform default fonts until custom fonts are added under Resources/Fonts.
             });
 
-        // TODO: once a Supabase project exists (see /supabase/README.md), replace this with a
-        // real SupabaseAuthService wired to the project URL + anon key, and register the
-        // Supabase-backed I*Repository implementations alongside it.
-        builder.Services.AddSingleton<IAuthService, NotConfiguredAuthService>();
+        // TODO: register the Supabase-backed I*Repository implementations alongside this
+        // once they exist (groups/payments/invites screens need them).
+        builder.Services.AddSingleton<IAuthService, SupabaseAuthService>();
 
         builder.Services.AddTransient<LoginViewModel>();
         builder.Services.AddTransient<LoginPage>();

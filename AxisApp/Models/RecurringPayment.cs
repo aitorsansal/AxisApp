@@ -1,5 +1,5 @@
-using Supabase.Postgrest.Attributes;
-using Supabase.Postgrest.Models;
+using Postgrest.Attributes;
+using Postgrest.Models;
 
 namespace AxisApp.Models;
 

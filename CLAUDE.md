@@ -24,21 +24,29 @@ they invite each other into.
 
 This repo is a scaffold, not a finished app. As of this commit:
 
-- The MAUI client builds and shows a Login page. Sign-in/sign-up are wired to
-  `IAuthService`, but the registered implementation
-  (`NotConfiguredAuthService`) always returns a "not configured yet" error —
-  there is no real Supabase project behind it.
-- `supabase/schema.sql` is designed and ready to run, but has not been run
-  against a real project.
+- A real Supabase project exists, `supabase/schema.sql` has been run against
+  it, and the project's URL + publishable key live in `Config.Local.cs`
+  (gitignored — see `Config.Local.cs.example` for the template).
+- `IAuthService` is registered as `SupabaseAuthService`
+  (`Services/SupabaseAuthService.cs`), which constructs a real
+  `Supabase.Client` and calls `SignUp`/`SignIn`/`SignOut` on its `Auth`
+  client. **This file's exact API surface (method/property names on
+  `client.Auth`) was written from fetched SDK docs, not verified against a
+  local build** — the `Postgrest` namespace on the Models was already wrong
+  once this same way (docs said `Supabase.Postgrest.*`, the installed package
+  actually exposes `Postgrest.*`). If this file doesn't compile, that's
+  expected until someone reports the actual compiler errors back.
+  `NotConfiguredAuthService` still exists as an unregistered fallback/example
+  of the "boots without a backend" pattern.
 - `I*Repository` interfaces exist (`Services/`) describing the data layer's
   shape; there are **no concrete implementations yet**. Nothing reads or
-  writes actual data.
+  writes actual data beyond auth.
 - Beyond the login screen, there is no group/payment/invite UI yet.
 
-Next real milestones, in order: (1) create the Supabase project and run the
-schema — see `/supabase/README.md`; (2) implement `SupabaseAuthService` and
-swap it in for `NotConfiguredAuthService`; (3) implement the Supabase-backed
-repositories; (4) build the groups/payments/invites screens.
+Next real milestones, in order: (1) get `SupabaseAuthService` actually
+compiling and confirm sign-up/sign-in work end to end against the real
+project; (2) implement the Supabase-backed repositories; (3) build the
+groups/payments/invites screens.
 
 ## The core design decision: members vs. accounts
 
@@ -78,11 +86,11 @@ custom backend), that's a new implementation of these interfaces registered
 in `MauiProgram.cs` — not a rewrite of every page and ViewModel. Keep it that
 way as the app grows.
 
-`Models/` are plain data classes decorated with `Supabase.Postgrest`
-attributes (`[Table]`, `[PrimaryKey]`, `[Column]`, base class `BaseModel`) so
-they double as both the app's domain model and the Postgrest ORM's row
-mapping. See `packages/Postgrest/README.md` in the `supabase-csharp` repo if
-the exact attribute shape is ever unclear — don't guess at it.
+`Models/` are plain data classes decorated with `Postgrest` attributes
+(`using Postgrest.Attributes;` / `using Postgrest.Models;` — **not**
+`Supabase.Postgrest.*`, despite what the SDK's own README examples show) —
+`[Table]`, `[PrimaryKey]`, `[Column]`, base class `BaseModel` — so they double
+as both the app's domain model and the Postgrest ORM's row mapping.
 
 ### MVVM + Dependency Injection
 
@@ -143,11 +151,14 @@ as RLS policies so Postgres enforces them uniformly.
 | `CommunityToolkit.Mvvm` | 8.4.0 | MVVM source generators |
 | `supabase-csharp` | 0.16.2 | Supabase client (Auth + Postgrest + Realtime) |
 
-Always verify API compatibility with these exact versions before suggesting
-usage of any package API — the Supabase C# SDK in particular has changed
-shape across versions; check `packages/Postgrest/README.md` and
-`packages/Gotrue/README.md` in the `supabase-community/supabase-csharp` repo
-rather than assuming.
+Be skeptical of the Supabase C# SDK's own README examples — they've been
+observed to not match what's actually installed (the Models' `Postgrest.*`
+vs. documented `Supabase.Postgrest.*` namespace is a confirmed case, and
+`SupabaseAuthService`'s `client.Auth.*` calls are unverified for the same
+reason). The reliable source of truth is a real local build's compiler
+errors/IntelliSense, not fetched docs — when in doubt, say so explicitly and
+let the human confirm from their own build rather than asserting an API
+shape with false confidence.
 
 ## Environment
 

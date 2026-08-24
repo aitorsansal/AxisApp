@@ -1,0 +1,11 @@
+namespace AxisApp;
+
+/// <summary>
+/// Copy this file to Config.Local.cs (gitignored) and fill in your own project's values —
+/// see /supabase/README.md step 4 for where to find them.
+/// </summary>
+internal static class SupabaseConfig
+{
+    public const string Url = "https://YOUR-PROJECT-REF.supabase.co";
+    public const string PublishableKey = "sb_publishable_...";
+}
