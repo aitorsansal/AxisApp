@@ -29,6 +29,10 @@ public partial class ActivityItem : ObservableObject
     public bool IsSettlement { get; init; }
     public DateTime OccurredAt { get; init; }
     public string RelativeDate { get; init; } = "";
+
+    /// <summary>Set for expense-sourced rows, null for settlement/payment rows — editing a
+    /// payment isn't part of this screen's scope, only expenses.</summary>
+    public Guid? ExpenseId { get; init; }
 }
 
 public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
@@ -123,7 +127,8 @@ public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
                     AmountText = $"${expense.Amount:0.00}",
                     IsSettlement = false,
                     OccurredAt = expense.OccurredAt,
-                    RelativeDate = FormatRelative(expense.OccurredAt)
+                    RelativeDate = FormatRelative(expense.OccurredAt),
+                    ExpenseId = expense.Id
                 });
             }
 
@@ -172,6 +177,15 @@ public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
     [RelayCommand]
     private async Task AddExpense() =>
         await Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={groupId}");
+
+    /// <summary>Tapping an activity row opens it for editing — but only expenses; editing a
+    /// settle-up payment isn't in scope here.</summary>
+    [RelayCommand]
+    private async Task OpenActivity(ActivityItem? item)
+    {
+        if (item?.ExpenseId is not { } expenseId) return;
+        await Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={groupId}&expenseId={expenseId}");
+    }
 
     [RelayCommand]
     private async Task InvitePeople() =>

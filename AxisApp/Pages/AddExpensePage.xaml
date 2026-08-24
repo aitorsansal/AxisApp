@@ -25,7 +25,7 @@
 
             <Label
                 Grid.Column="1"
-                Text="Add expense"
+                Text="{Binding PageTitle}"
                 Style="{StaticResource SectionHeader}"
                 HorizontalOptions="Center"
                 VerticalOptions="Center"
@@ -253,13 +253,18 @@
             </VerticalStackLayout>
         </ScrollView>
 
-        <Button
-            Grid.Row="2"
-            Text="Save expense"
-            Command="{Binding SaveCommand}"
-            IsEnabled="{Binding CanSave}"
-            Style="{StaticResource BtnPrimaryStyle}"
-            Margin="{StaticResource SpacingM}" />
+        <VerticalStackLayout Grid.Row="2" Spacing="{StaticResource SpacingS}" Margin="{StaticResource SpacingM}">
+            <Button
+                Text="Save expense"
+                Command="{Binding SaveCommand}"
+                IsEnabled="{Binding CanSave}"
+                Style="{StaticResource BtnPrimaryStyle}" />
+            <Button
+                Text="Delete expense"
+                Command="{Binding DeleteCommand}"
+                Style="{StaticResource BtnOutlineDanger}"
+                IsVisible="{Binding IsEditMode}" />
+        </VerticalStackLayout>
 
         <ActivityIndicator
             Grid.Row="0" Grid.RowSpan="3"

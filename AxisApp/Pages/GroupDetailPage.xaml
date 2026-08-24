@@ -85,6 +85,11 @@
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="vm:ActivityItem">
                                         <Border Style="{StaticResource ListItemCard}">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupDetailViewModel}}, Path=OpenActivityCommand}"
+                                                    CommandParameter="{Binding .}" />
+                                            </Border.GestureRecognizers>
                                             <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
                                                 <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="36" HeightRequest="36">
                                                     <Label

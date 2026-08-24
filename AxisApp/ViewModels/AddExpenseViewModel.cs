@@ -78,6 +78,7 @@ public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
     private readonly IAuthService authService;
 
     private Guid groupId;
+    private Guid? editingExpenseId;
     private bool redistributing;
 
     [ObservableProperty] private ObservableCollection<ExpenseParticipant> participants = [];
@@ -94,6 +95,8 @@ public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
     [ObservableProperty] private string occurredOnDisplay = "Today";
     [ObservableProperty] private bool isManualSplit;
     [ObservableProperty] private bool isBusy;
+    [ObservableProperty] private bool isEditMode;
+    [ObservableProperty] private string pageTitle = "Add expense";
 
     public AddExpenseViewModel(
         IMembersRepository membersRepository,
@@ -109,21 +112,34 @@ public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)
     {
-        if (query.TryGetValue("groupId", out var value) && Guid.TryParse(value?.ToString(), out var id))
-            _ = LoadAsync(id);
+        Guid? expenseId = query.TryGetValue("expenseId", out var expenseValue)
+            && Guid.TryParse(expenseValue?.ToString(), out var parsedExpenseId)
+                ? parsedExpenseId
+                : null;
+
+        if (query.TryGetValue("groupId", out var groupValue) && Guid.TryParse(groupValue?.ToString(), out var groupIdValue))
+            _ = LoadAsync(groupIdValue, expenseId);
     }
 
-    /// <summary>Loads the group's members as the default participant set (everyone included,
-    /// equal split) and its category list.</summary>
-    public async Task LoadAsync(Guid forGroupId)
+    /// <summary>Loads the group's members as the participant set and its category list. In add
+    /// mode (forExpenseId omitted) everyone defaults to an equal split; in edit mode, the existing
+    /// expense's amount/description/category/payer/date and per-member shares are loaded on top,
+    /// overriding the equal-split defaults built for the member list.</summary>
+    public async Task LoadAsync(Guid forGroupId, Guid? forExpenseId = null)
     {
         groupId = forGroupId;
+        editingExpenseId = forExpenseId;
+        IsEditMode = forExpenseId is not null;
+        PageTitle = IsEditMode ? "Edit expense" : "Add expense";
+
         IsBusy = true;
         try
         {
             var loadMembers = membersRepository.GetForGroupAsync(groupId);
             var loadCategories = categoriesRepository.GetAllAsync();
-            await Task.WhenAll(loadMembers, loadCategories);
+            var loadExpense = forExpenseId is { } id ? expensesRepository.GetByIdAsync(id) : Task.FromResult<Expense?>(null);
+            var loadShares = forExpenseId is { } sharesId ? expensesRepository.GetSharesAsync(sharesId) : Task.FromResult(new List<ExpenseShare>());
+            await Task.WhenAll(loadMembers, loadCategories, loadExpense, loadShares);
 
             foreach (var participant in Participants)
                 participant.PropertyChanged -= ParticipantChanged;
@@ -142,20 +158,72 @@ public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
                 PayerOptions.Add(new PayerOption { Member = member, Initials = initials });
             }
 
-            var myPayerOption = PayerOptions.FirstOrDefault(p => p.Member.AccountId == authService.CurrentAccountId)
-                ?? PayerOptions.FirstOrDefault();
-            if (myPayerOption is not null)
-                SelectPayer(myPayerOption);
-
             CategoryChips = new ObservableCollection<CategoryChip>(
                 loadCategories.Result.Select(c => new CategoryChip { Name = c.Name }));
 
-            RedistributeEqually();
+            var existingExpense = loadExpense.Result;
+            if (existingExpense is not null)
+                LoadExistingExpense(existingExpense, loadShares.Result);
+            else
+            {
+                var myPayerOption = PayerOptions.FirstOrDefault(p => p.Member.AccountId == authService.CurrentAccountId)
+                    ?? PayerOptions.FirstOrDefault();
+                if (myPayerOption is not null)
+                    SelectPayer(myPayerOption);
+
+                RedistributeEqually();
+            }
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>Overlays a previously-saved expense's data onto the freshly-built participant/payer
+    /// lists. IsManualSplit is set first so the AmountText assignment below doesn't trigger an
+    /// equal-split redistribution that would clobber the real per-member shares being loaded.</summary>
+    private void LoadExistingExpense(Expense expense, List<ExpenseShare> shares)
+    {
+        IsManualSplit = true;
+
+        redistributing = true;
+        try
+        {
+            var sharesByMember = shares.ToDictionary(s => s.MemberId, s => s.ShareAmount);
+            foreach (var participant in Participants)
+            {
+                if (sharesByMember.TryGetValue(participant.Member.Id, out var shareAmount))
+                {
+                    participant.IsIncluded = true;
+                    participant.Owes = shareAmount;
+                }
+                else
+                {
+                    participant.IsIncluded = false;
+                    participant.Owes = 0;
+                }
+            }
+        }
+        finally
+        {
+            redistributing = false;
+        }
+
+        Description = expense.Description;
+        OccurredOn = expense.OccurredAt;
+        AmountText = expense.Amount.ToString("0.00", CultureInfo.InvariantCulture);
+
+        SelectedCategory = expense.Category;
+        var matchingChip = CategoryChips.FirstOrDefault(c => c.Name == expense.Category);
+        if (matchingChip is not null)
+            matchingChip.IsSelected = true;
+
+        var payerOption = PayerOptions.FirstOrDefault(p => p.Member.Id == expense.PaidByMemberId);
+        if (payerOption is not null)
+            SelectPayer(payerOption);
+
+        RecalcRemaining();
     }
 
     partial void OnAmountTextChanged(string value) =>
@@ -290,7 +358,33 @@ public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
                 .Select(p => new ExpenseShare { MemberId = p.Member.Id, ShareAmount = p.Owes })
                 .ToList();
 
-            await expensesRepository.AddAsync(expense, shares);
+            if (IsEditMode && editingExpenseId is { } id)
+            {
+                expense.Id = id;
+                await expensesRepository.UpdateAsync(expense, shares);
+            }
+            else
+            {
+                await expensesRepository.AddAsync(expense, shares);
+            }
+
+            await Shell.Current.GoToAsync("..");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task Delete()
+    {
+        if (!IsEditMode || editingExpenseId is not { } id) return;
+
+        IsBusy = true;
+        try
+        {
+            await expensesRepository.DeleteAsync(id);
             await Shell.Current.GoToAsync("..");
         }
         finally

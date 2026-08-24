@@ -393,6 +393,17 @@ create policy "delete shares of your expenses" on public.expense_shares
         )
     )
   );
+create policy "update shares of your expenses" on public.expense_shares
+  for update using (
+    exists (
+      select 1 from expenses e
+      where e.id = expense_shares.expense_id
+        and (
+          (e.group_id is null and e.created_by = auth.uid())
+          or (e.group_id is not null and is_group_member(e.group_id))
+        )
+    )
+  );
 
 -- group_balances: net balance per member per group, combining direct
 -- payments and N-way expense shares, so the client queries one view instead
