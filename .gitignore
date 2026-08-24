@@ -1,0 +1,70 @@
+####################################
+# OS / Editor junk
+####################################
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+####################################
+# Visual Studio / Rider
+####################################
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+####################################
+# Build outputs
+####################################
+bin/
+obj/
+artifacts/
+
+####################################
+# .NET MAUI generated files
+####################################
+**/*.Android.csproj.user
+**/*.iOS.csproj.user
+**/*.Windows.csproj.user
+**/*.MacCatalyst.csproj.user
+
+####################################
+# Logs
+####################################
+*.log
+
+####################################
+# Local secrets (Supabase URL/anon key, etc.)
+####################################
+appsettings.local.json
+**/Config.Local.cs
+
+####################################
+# NuGet
+####################################
+*.nupkg
+*.snupkg
+.nuget/packages/
+.nuget/temp/
+.nuget/cache/
+
+####################################
+# Rider specific
+####################################
+*.sln.iml
+
+####################################
+# VS Code (if ever used)
+####################################
+.vscode/
+
+####################################
+# Temporary / backup files
+####################################
+*.tmp
+*.bak
+*.swp

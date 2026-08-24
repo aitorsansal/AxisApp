@@ -1,0 +1,109 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <Color x:Key="Primary">#3D6BFF</Color>
+    <Color x:Key="PrimaryHover">#5C82FF</Color>
+    <Color x:Key="Secondary">#F2A93C</Color>
+
+    <!-- Backgrounds & Surfaces -->
+    <Color x:Key="BgPrimary">#0B1220</Color>
+    <Color x:Key="Surface">#101826</Color>
+    <Color x:Key="SurfaceElevated">#16202F</Color>
+    <Color x:Key="SurfaceEmphasis">#1C2838</Color>
+    <Color x:Key="BgDeep">#070B12</Color>
+
+    <!-- Text Colors -->
+    <Color x:Key="TextPrimary">#F2F5FA</Color>
+    <Color x:Key="TextSecondary">#C3CCDA</Color>
+    <Color x:Key="TextTertiary">#8D97A8</Color>
+    <Color x:Key="TextDisabled">#626C7C</Color>
+    <Color x:Key="TextOnAccent">#08101F</Color>
+
+    <!-- Primary Buttons -->
+    <Color x:Key="BtnPrimary">#3D6BFF</Color>
+    <Color x:Key="BtnPrimaryHover">#5C82FF</Color>
+    <Color x:Key="BtnPrimaryPressed">#2E56D9</Color>
+    <Color x:Key="BtnPrimaryDisabledBg">#23304A</Color>
+    <Color x:Key="BtnPrimaryDisabledText">#7885A0</Color>
+    <Color x:Key="BtnPrimaryDisabledBorder">#35405C</Color>
+
+    <!-- Secondary Buttons -->
+    <Color x:Key="BtnSecondary">#F2A93C</Color>
+    <Color x:Key="BtnSecondaryHover">#F6BD65</Color>
+    <Color x:Key="BtnSecondaryPressed">#D9922A</Color>
+    <Color x:Key="BtnSecondaryDisabledBg">#3A311F</Color>
+    <Color x:Key="BtnSecondaryDisabledText">#A99B7D</Color>
+    <Color x:Key="BtnSecondaryDisabledBorder">#4F4127</Color>
+
+    <!-- Outline Buttons -->
+    <Color x:Key="BtnOutlinePrimaryBorder">#3B4E85</Color>
+    <Color x:Key="BtnOutlineSecondaryBorder">#6E5A2E</Color>
+    <Color x:Key="BtnOutlineDisabledBorder">#2C3549</Color>
+    <Color x:Key="BtnOutlineDisabledText">#6D7789</Color>
+
+    <!-- Switches -->
+    <Color x:Key="SwitchTrackOn">#3D6BFF</Color>
+    <Color x:Key="SwitchThumbOn">#F2F5FA</Color>
+    <Color x:Key="SwitchTrackOff">#232E42</Color>
+    <Color x:Key="SwitchThumbOff">#8D97A8</Color>
+    <Color x:Key="SwitchDisabled">#626C7C</Color>
+
+    <!-- Checkboxes -->
+    <Color x:Key="CheckboxChecked">#3D6BFF</Color>
+    <Color x:Key="CheckboxUnchecked">#232E42</Color>
+    <Color x:Key="CheckboxHover">#5C82FF</Color>
+    <Color x:Key="CheckboxDisabled">#626C7C</Color>
+    <Color x:Key="CheckboxCheckmark">#08101F</Color>
+
+    <!-- Input Fields -->
+    <Color x:Key="InputBg">#16202F</Color>
+    <Color x:Key="InputBorder">#232E42</Color>
+    <Color x:Key="InputBorderFocused">#3D6BFF</Color>
+    <Color x:Key="InputBorderError">#FF5C6C</Color>
+    <Color x:Key="InputText">#F2F5FA</Color>
+    <Color x:Key="InputPlaceholder">#6B7688</Color>
+    <Color x:Key="InputCursor">#3D6BFF</Color>
+    <Color x:Key="InputDisabledBg">#131B27</Color>
+
+    <!-- Borders & Dividers -->
+    <Color x:Key="Border">#232E42</Color>
+    <Color x:Key="BorderSubtle">#1B2434</Color>
+    <Color x:Key="Divider">#1C2838</Color>
+    <Color x:Key="BorderAccent">#3B4E85</Color>
+    <Color x:Key="Focus">#9FB4FF</Color>
+
+    <!-- Status Colors -->
+    <Color x:Key="Success">#38D998</Color>
+    <Color x:Key="Warning">#F2C94C</Color>
+    <Color x:Key="Danger">#FF5C6C</Color>
+    <Color x:Key="DarkerDanger">#B8102B</Color>
+    <Color x:Key="Info">#6EA8FF</Color>
+
+    <!-- Progress & Loading -->
+    <Color x:Key="ProgressFill">#3D6BFF</Color>
+    <Color x:Key="ProgressTrack">#232E42</Color>
+    <Color x:Key="LoaderPrimary">#3D6BFF</Color>
+
+    <!-- Sliders -->
+    <Color x:Key="SliderThumb">#3D6BFF</Color>
+    <Color x:Key="SliderTrackActive">#3D6BFF</Color>
+    <Color x:Key="SliderTrackInactive">#232E42</Color>
+    <Color x:Key="StepperBg">#16202F</Color>
+    <Color x:Key="StepperIcon">#3D6BFF</Color>
+
+    <!-- Navigation -->
+    <Color x:Key="NavBarBg">#101826</Color>
+    <Color x:Key="NavItemActive">#3D6BFF</Color>
+    <Color x:Key="NavItemInactive">#8D97A8</Color>
+    <Color x:Key="TabIndicator">#3D6BFF</Color>
+    <Color x:Key="TabTextActive">#F2F5FA</Color>
+    <Color x:Key="TabTextInactive">#C3CCDA</Color>
+
+    <!-- Badges & Chips -->
+    <Color x:Key="BadgePrimary">#F2A93C</Color>
+    <Color x:Key="BadgeText">#08101F</Color>
+    <Color x:Key="BadgeNotification">#FF5C6C</Color>
+    <Color x:Key="ChipBg">#16202F</Color>
+    <Color x:Key="ChipText">#C3CCDA</Color>
+
+</ResourceDictionary>

@@ -1,0 +1,519 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- =======================
+         Base Typography
+         ======================= -->
+    <Style TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style x:Key="LabelSecondary" TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style x:Key="LabelTertiary" TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <!-- =======================
+         Page / Layout Defaults
+         ======================= -->
+    <Style TargetType="ContentPage">
+        <Setter Property="BackgroundColor" Value="{StaticResource BgPrimary}" />
+    </Style>
+
+    <Style x:Key="SurfaceFrame" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="14" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="14" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ElevatedCard" TargetType="Border" BasedOn="{StaticResource SurfaceFrame}">
+        <Setter Property="Background" Value="{StaticResource SurfaceElevated}" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="16" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SectionDivider" TargetType="BoxView">
+        <Setter Property="Color" Value="{StaticResource BorderSubtle}" />
+        <Setter Property="HeightRequest" Value="1" />
+        <Setter Property="Opacity" Value="1" />
+        <Setter Property="HorizontalOptions" Value="Fill" />
+    </Style>
+
+    <!-- =======================
+         Entries / Editors
+         ======================= -->
+    <!-- Note: Border/Entry styling differs per platform. This approach uses a Border wrapper style
+         + Entry/Editor styles for text/placeholder/cursor. -->
+
+    <Style x:Key="InputBorderStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource InputBg}" />
+        <Setter Property="Stroke" Value="{StaticResource InputBorder}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="12" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="InputBorderFocused" TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+        <Setter Property="Stroke" Value="{StaticResource Primary}" />
+    </Style>
+
+    <Style x:Key="InputBorderError" TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+        <Setter Property="Stroke" Value="{StaticResource Danger}" />
+    </Style>
+
+    <Style x:Key="InputBorderDisabled" TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
+        <Setter Property="Background" Value="{StaticResource InputDisabledBg}" />
+        <Setter Property="Stroke" Value="{StaticResource BorderSubtle}" />
+        <Setter Property="Opacity" Value="0.38" />
+    </Style>
+
+    <Style TargetType="Entry">
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource InputPlaceholder}" />
+        <Setter Property="CursorPosition" Value="0" />
+        <Setter Property="ClearButtonVisibility" Value="WhileEditing" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+    </Style>
+
+    <Style x:Key="ValidEntryStyle" TargetType="Entry">
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+    </Style>
+
+    <Style x:Key="InvalidEntryStyle" TargetType="Entry">
+        <Setter Property="TextColor" Value="{StaticResource Danger}" />
+    </Style>
+
+    <Style TargetType="Editor">
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource InputPlaceholder}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="AutoSize" Value="TextChanges" />
+    </Style>
+
+    <!-- =======================
+         Buttons
+         ======================= -->
+    <!-- Implicit Button style: press feedback for any unstyled Button. Styled variants below
+         redefine the CommonStates VSM, so each also sets Scale=0.97 in its own Pressed state. -->
+    <Style TargetType="Button">
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Scale" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="Scale" Value="0.97" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BtnBase" TargetType="Button">
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="14,12" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="BorderWidth" Value="0" />
+        <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+    </Style>
+
+    <!-- Primary -->
+    <Style x:Key="BtnPrimaryStyle" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+        <Setter Property="BackgroundColor" Value="{StaticResource BtnPrimary}" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Scale" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{StaticResource BtnPrimaryHover}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{StaticResource BtnPrimaryPressed}" />
+                            <Setter Property="Scale" Value="0.97" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{StaticResource BtnPrimaryDisabledBg}" />
+                            <Setter Property="TextColor" Value="{StaticResource BtnPrimaryDisabledText}" />
+                            <Setter Property="BorderWidth" Value="1" />
+                            <Setter Property="BorderColor" Value="{StaticResource BtnPrimaryDisabledBorder}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- Secondary -->
+    <Style x:Key="BtnSecondaryStyle" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+        <Setter Property="BackgroundColor" Value="{StaticResource Secondary}" />
+        <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Scale" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{StaticResource BtnSecondaryHover}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{StaticResource BtnSecondaryPressed}" />
+                            <Setter Property="Scale" Value="0.97" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{StaticResource BtnSecondaryDisabledBg}" />
+                            <Setter Property="TextColor" Value="{StaticResource BtnSecondaryDisabledText}" />
+                            <Setter Property="BorderWidth" Value="1" />
+                            <Setter Property="BorderColor" Value="{StaticResource BtnSecondaryDisabledBorder}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- Outline Primary -->
+    <Style x:Key="BtnOutlinePrimary" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="BorderWidth" Value="1" />
+        <Setter Property="BorderColor" Value="{StaticResource BtnOutlinePrimaryBorder}" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Scale" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BorderColor" Value="{StaticResource Primary}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BorderColor" Value="{StaticResource BtnPrimaryPressed}" />
+                            <Setter Property="Scale" Value="0.97" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BorderColor" Value="{StaticResource BtnOutlineDisabledBorder}" />
+                            <Setter Property="TextColor" Value="{StaticResource BtnOutlineDisabledText}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- Outline Secondary -->
+    <Style x:Key="BtnOutlineSecondary" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="BorderWidth" Value="1" />
+        <Setter Property="BorderColor" Value="{StaticResource BtnOutlineSecondaryBorder}" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Scale" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BorderColor" Value="{StaticResource Secondary}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BorderColor" Value="{StaticResource BtnSecondaryPressed}" />
+                            <Setter Property="Scale" Value="0.97" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BorderColor" Value="{StaticResource BtnOutlineDisabledBorder}" />
+                            <Setter Property="TextColor" Value="{StaticResource BtnOutlineDisabledText}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- =======================
+         Borders (utility)
+         ======================= -->
+    <Style x:Key="BorderThin" TargetType="Border">
+        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="5,3"/>
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="12" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Chip border: transparent when unselected, Primary fill/stroke when selected (via DataTrigger on IsSelected binding) -->
+    <Style x:Key="ChipBorderStyle" TargetType="Border" BasedOn="{StaticResource BorderThin}">
+        <Setter Property="Padding" Value="14,6"/>
+        <Setter Property="BackgroundColor" Value="Transparent"/>
+        <Setter Property="Stroke" Value="{StaticResource Border}"/>
+        <Style.Triggers>
+            <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                <Setter Property="BackgroundColor" Value="{StaticResource Primary}"/>
+                <Setter Property="Stroke" Value="{StaticResource Primary}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="BorderFocusRing" TargetType="Border" BasedOn="{StaticResource BorderThin}">
+        <Setter Property="Stroke" Value="{StaticResource Focus}" />
+        <Setter Property="StrokeThickness" Value="2" />
+    </Style>
+
+
+    <Style x:Key="BorderOwns" TargetType="Border" BasedOn="{StaticResource BorderThin}">
+        <Setter Property="Stroke" Value="{StaticResource BtnOutlineSecondaryBorder}"/>
+        <Setter Property="StrokeThickness" Value="2"/>
+    </Style>
+
+    <Style x:Key="BorderOwe" TargetType="Border" BasedOn="{StaticResource BorderOwns}">
+        <Setter Property="Stroke" Value="{StaticResource InputBorderError}"/>
+    </Style>
+
+    <!-- =======================
+         Bottom Nav Bar
+         ======================= -->
+    <!-- Usage: wrap your nav in a Border/Grid and apply these -->
+    <Style x:Key="BottomNavContainer" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="10,10" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="16,16,0,0" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BottomNavItemLabel" TargetType="Label">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="BottomNavItemLabelActive" TargetType="Label" BasedOn="{StaticResource BottomNavItemLabel}">
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+    </Style>
+
+    <!-- If you use ImageButton icons -->
+    <Style x:Key="BottomNavIcon" TargetType="ImageButton">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="HeightRequest" Value="24" />
+        <Setter Property="WidthRequest" Value="24" />
+        <Setter Property="Opacity" Value="0.78" />
+    </Style>
+
+    <Style x:Key="BottomNavIconActive" TargetType="ImageButton" BasedOn="{StaticResource BottomNavIcon}">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <!-- =======================
+         ViewBox "Limiter" (utility)
+         ======================= -->
+    <!-- MAUI doesn't have a direct limiter style, but you can standardize containers -->
+    <Style x:Key="LimiterSurface" TargetType="Border" BasedOn="{StaticResource ElevatedCard}">
+        <Setter Property="Padding" Value="12" />
+    </Style>
+
+    <!-- =======================
+         Section Headers
+         ======================= -->
+    <Style x:Key="SectionHeader" TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="Margin" Value="0,4,0,2" />
+    </Style>
+
+    <Style x:Key="SectionHeaderTertiary" TargetType="Label" BasedOn="{StaticResource SectionHeader}">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontAttributes" Value="None" />
+        <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+        <Setter Property="CharacterSpacing" Value="1" />
+    </Style>
+
+    <!-- =======================
+         List Item Card
+         ======================= -->
+    <Style x:Key="ListItemCard" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SurfaceElevated}" />
+        <Setter Property="Stroke" Value="{StaticResource BorderSubtle}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="14,12" />
+        <Setter Property="Margin" Value="0,3" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="12" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- =======================
+         Danger Button
+         ======================= -->
+    <Style x:Key="BtnDangerStyle" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+        <Setter Property="BackgroundColor" Value="{StaticResource Danger}" />
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Scale" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.85" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.7" />
+                            <Setter Property="Scale" Value="0.97" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- Outline Danger -->
+    <Style x:Key="BtnOutlineDanger" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{StaticResource Danger}" />
+        <Setter Property="BorderWidth" Value="1" />
+        <Setter Property="BorderColor" Value="{StaticResource Danger}" />
+    </Style>
+
+    <!-- Primary-colored circular ImageButton (for icon-only action buttons) -->
+    <Style x:Key="ImageButtonPrimaryStyle" TargetType="ImageButton">
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}"/>
+        <Setter Property="CornerRadius" Value="20"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="WidthRequest" Value="40"/>
+        <Setter Property="HeightRequest" Value="40"/>
+    </Style>
+
+    <!-- =======================
+         Receive / Pay Component
+         ======================= -->
+    <!-- Replaces plain Green/Red with palette-aligned gradients.
+         Apply style to each Border in your sample. -->
+
+    <!-- Receive -->
+    <LinearGradientBrush x:Key="ReceiveGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="{StaticResource Success}" Offset="0.10" />
+        <GradientStop Color="{StaticResource Secondary}" Offset="1.00" />
+    </LinearGradientBrush>
+
+    <!-- Pay -->
+    <LinearGradientBrush x:Key="PayGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="{StaticResource Danger}" Offset="0.10" />
+        <GradientStop Color="{StaticResource DarkerDanger}" Offset="1.00" />
+    </LinearGradientBrush>
+
+    <Style x:Key="ReceivePayTileBase" TargetType="Border">
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="Black" Opacity="0.35" Radius="12" Offset="0,6" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ReceiveTile" TargetType="Border" BasedOn="{StaticResource ReceivePayTileBase}">
+        <Setter Property="Background" Value="{StaticResource ReceiveGradient}" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="8,0,8,0" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="PayTile" TargetType="Border" BasedOn="{StaticResource ReceivePayTileBase}">
+        <Setter Property="Background" Value="{StaticResource PayGradient}" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="0,8,0,8" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ReceivePayTitle" TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="ReceivePayAmount" TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+    </Style>
+
+</ResourceDictionary>

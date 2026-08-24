@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    x:Class="AxisApp.Pages.LoginPage"
+    x:DataType="vm:LoginViewModel"
+    Title="Axis">
+
+    <Grid>
+        <VerticalStackLayout
+            Padding="{StaticResource SpacingL}"
+            Spacing="{StaticResource SpacingM}"
+            VerticalOptions="Center">
+
+            <Label
+                Text="Axis"
+                FontSize="{StaticResource TypeDisplay}"
+                FontAttributes="Bold"
+                HorizontalOptions="Center"
+                Margin="0,0,0,24" />
+
+            <Border Style="{StaticResource InputBorderStyle}">
+                <Entry
+                    Text="{Binding Email}"
+                    Placeholder="Email"
+                    Keyboard="Email" />
+            </Border>
+
+            <Border Style="{StaticResource InputBorderStyle}">
+                <Entry
+                    Text="{Binding Password}"
+                    Placeholder="Password"
+                    IsPassword="True" />
+            </Border>
+
+            <Label
+                Text="{Binding ErrorMessage}"
+                TextColor="{StaticResource Danger}"
+                FontSize="{StaticResource TypeCaption}"
+                IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+
+            <Button
+                Text="Sign In"
+                Command="{Binding SignInCommand}"
+                Style="{StaticResource BtnPrimaryStyle}" />
+
+            <Button
+                Text="Create Account"
+                Command="{Binding SignUpCommand}"
+                Style="{StaticResource BtnOutlinePrimary}" />
+
+        </VerticalStackLayout>
+
+        <ActivityIndicator
+            IsRunning="{Binding IsBusy}"
+            IsVisible="{Binding IsBusy}"
+            Color="{StaticResource Primary}"
+            HorizontalOptions="Center"
+            VerticalOptions="Center" />
+
+    </Grid>
+</ContentPage>
