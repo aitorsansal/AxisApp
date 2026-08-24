@@ -21,6 +21,9 @@ public class Payment : BaseModel
     [Column("amount")]
     public decimal Amount { get; set; }
 
+    [Column("currency")]
+    public string Currency { get; set; } = "EUR";
+
     [Column("description")]
     public string Description { get; set; } = "";
 

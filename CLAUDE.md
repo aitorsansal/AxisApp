@@ -38,15 +38,32 @@ This repo is a scaffold, not a finished app. As of this commit:
   expected until someone reports the actual compiler errors back.
   `NotConfiguredAuthService` still exists as an unregistered fallback/example
   of the "boots without a backend" pattern.
-- `I*Repository` interfaces exist (`Services/`) describing the data layer's
-  shape; there are **no concrete implementations yet**. Nothing reads or
-  writes actual data beyond auth.
-- Beyond the login screen, there is no group/payment/invite UI yet.
+- Every `I*Repository` now has a concrete `Supabase*Repository`
+  implementation (`Services/Supabase{Members,Groups,Payments,Expenses,
+  Balances,Categories,RecurringPayments,Invites,DeviceTokens}Repository.cs`),
+  registered as singletons in `MauiProgram.cs` alongside a single shared
+  `Supabase.Client` (also registered there — `SupabaseAuthService` and every
+  repository take that same instance rather than each opening its own).
+  **Same caveat as `SupabaseAuthService`: the exact Postgrest query call
+  shapes (`.Filter`/`.Insert`/`.Update`/`.Get`/`.Single`, the
+  `Postgrest.Constants.Operator`/`Ordering` enum members, and especially
+  `SupabaseInvitesRepository.RedeemAsync`'s use of `client.Rpc(...)`) are
+  grounded against the public postgrest-csharp source, not a local build of
+  this exact installed version — expect compiler errors, report them back
+  the same way.** Includes `expenses`/`expense_shares` (N-way splitting,
+  separate from the pairwise `payments` table), a `group_balances` view/
+  repository, and a `device_tokens` table/repository for the push feature —
+  see `/SCOPE.md`. **The corresponding schema additions at the bottom of
+  `supabase/schema.sql` haven't been run against the live project yet** —
+  run that new block before testing any of this against real data.
+- Beyond the login screen, there is no group/payment/invite UI yet — the
+  data layer above is ready for it, but no screens consume it.
 
-Next real milestones, in order: (1) get `SupabaseAuthService` actually
-compiling and confirm sign-up/sign-in work end to end against the real
-project; (2) implement the Supabase-backed repositories; (3) build the
-groups/payments/invites screens.
+Next real milestones, in order: (1) run the new block at the bottom of
+`supabase/schema.sql` against the live project; (2) get everything actually
+compiling and confirm auth + a repository call work end to end (report back
+compiler errors as they come up — see the caveats above); (3) build the
+groups/payments/invites screens described in `/SCOPE.md`.
 
 See **`SCOPE.md`** for the full product scope and phased roadmap (the
 debt-tracker vertical currently being built, plus the events/calendar and

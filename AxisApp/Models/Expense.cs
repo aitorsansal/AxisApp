@@ -3,8 +3,13 @@ using Postgrest.Models;
 
 namespace AxisApp.Models;
 
-[Table("recurring_payments")]
-public class RecurringPayment : BaseModel
+/// <summary>
+/// A bill one member fronted, split across participants via <see cref="ExpenseShare"/> rows.
+/// Distinct from <see cref="Payment"/>, which is a direct pairwise settle-up with no splitting
+/// concept — see SCOPE.md for why these stay as two separate transaction shapes.
+/// </summary>
+[Table("expenses")]
+public class Expense : BaseModel
 {
     [PrimaryKey("id")]
     public Guid Id { get; set; }
@@ -12,11 +17,8 @@ public class RecurringPayment : BaseModel
     [Column("group_id")]
     public Guid? GroupId { get; set; }
 
-    [Column("payer_member_id")]
-    public Guid PayerMemberId { get; set; }
-
-    [Column("payee_member_id")]
-    public Guid PayeeMemberId { get; set; }
+    [Column("paid_by_member_id")]
+    public Guid PaidByMemberId { get; set; }
 
     [Column("amount")]
     public decimal Amount { get; set; }
@@ -30,17 +32,11 @@ public class RecurringPayment : BaseModel
     [Column("category")]
     public string Category { get; set; } = "";
 
-    [Column("frequency")]
-    public string Frequency { get; set; } = "monthly";
+    [Column("occurred_at")]
+    public DateTime OccurredAt { get; set; }
 
-    [Column("start_date")]
-    public DateTime StartDate { get; set; }
-
-    [Column("last_processed_date")]
-    public DateTime? LastProcessedDate { get; set; }
-
-    [Column("is_active")]
-    public bool IsActive { get; set; } = true;
+    [Column("receipt_path")]
+    public string? ReceiptPath { get; set; }
 
     [Column("created_by")]
     public Guid CreatedBy { get; set; }

@@ -10,7 +10,7 @@ namespace AxisApp.Services;
 /// almost certainly just renaming a method/property to whatever IntelliSense actually offers
 /// on `client.Auth` — report the exact error back the same way you did for the Models imports.
 /// </summary>
-public class SupabaseAuthService : IAuthService, IDisposable
+public class SupabaseAuthService : IAuthService
 {
     private readonly Client client;
 
@@ -23,14 +23,12 @@ public class SupabaseAuthService : IAuthService, IDisposable
 
     public event EventHandler? AuthStateChanged;
 
-    public SupabaseAuthService()
+    /// <summary>Takes the shared Client instance (registered once in MauiProgram) rather than
+    /// constructing its own, so every Supabase*Repository talks to the same authenticated
+    /// session instead of each service holding an independent, unauthenticated client.</summary>
+    public SupabaseAuthService(Client client)
     {
-        var options = new SupabaseOptions
-        {
-            AutoRefreshToken = true,
-            AutoConnectRealtime = false
-        };
-        client = new Client(SupabaseConfig.Url, SupabaseConfig.PublishableKey, options);
+        this.client = client;
         client.Auth.AddStateChangedListener((_, _) => AuthStateChanged?.Invoke(this, EventArgs.Empty));
     }
 
@@ -65,6 +63,4 @@ public class SupabaseAuthService : IAuthService, IDisposable
     /// <summary>Must run once before any other call — wires up the child clients and restores
     /// a persisted session if one exists. Called from App's constructor.</summary>
     public async Task RestoreSessionAsync() => await client.InitializeAsync();
-
-    public void Dispose() => client.Dispose();
 }

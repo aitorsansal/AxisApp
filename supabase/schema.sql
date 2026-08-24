@@ -291,3 +291,158 @@ begin
   return v_invite.group_id;
 end;
 $$;
+
+-- ============================================================
+-- Phase 1 additions (see /SCOPE.md): N-way expense splitting, a computed
+-- balances view, currency reservation, and push device tokens. This whole
+-- block is additive — run it once against the already-live project on top
+-- of everything above; nothing here alters existing rows.
+-- ============================================================
+
+-- Reserve a currency column on the money tables while the schema is still
+-- young, even with no conversion logic yet — see SCOPE.md's "multi-currency"
+-- note. New tables below get the column baked in from the start.
+alter table public.payments add column currency char(3) not null default 'EUR';
+alter table public.recurring_payments add column currency char(3) not null default 'EUR';
+
+-- expenses: a bill one member fronted, split across participants via
+-- expense_shares. Distinct from `payments`, which is a direct pairwise
+-- settle-up ("I paid you back $20") with no splitting concept — that stays
+-- exactly as it was above.
+create table public.expenses (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid references public.groups(id) on delete set null,
+  paid_by_member_id uuid not null references public.members(id),
+  amount numeric(12,2) not null check (amount > 0),
+  currency char(3) not null default 'EUR',
+  description text not null default '',
+  category text not null default '',
+  occurred_at timestamptz not null default now(),
+  receipt_path text,
+  created_by uuid not null references auth.users(id),
+  created_at timestamptz not null default now()
+);
+
+create table public.expense_shares (
+  expense_id uuid not null references public.expenses(id) on delete cascade,
+  member_id uuid not null references public.members(id),
+  share_amount numeric(12,2) not null check (share_amount >= 0),
+  primary key (expense_id, member_id)
+);
+
+create index on public.expenses (group_id);
+create index on public.expenses (paid_by_member_id);
+create index on public.expense_shares (member_id);
+
+alter table public.expenses enable row level security;
+alter table public.expense_shares enable row level security;
+
+-- expenses: same visibility/mutation shape as payments
+create policy "select expenses in your groups" on public.expenses
+  for select using (
+    (group_id is null and created_by = auth.uid())
+    or (group_id is not null and is_group_member(group_id))
+  );
+create policy "insert expenses in your groups" on public.expenses
+  for insert with check (
+    (group_id is null and created_by = auth.uid())
+    or (group_id is not null and is_group_member(group_id))
+  );
+create policy "update expenses in your groups" on public.expenses
+  for update using (
+    (group_id is null and created_by = auth.uid())
+    or (group_id is not null and is_group_member(group_id))
+  );
+create policy "delete expenses in your groups" on public.expenses
+  for delete using (
+    (group_id is null and created_by = auth.uid())
+    or (group_id is not null and is_group_member(group_id))
+  );
+
+-- expense_shares: visible/writable by whoever can see/write the parent expense
+create policy "select shares of visible expenses" on public.expense_shares
+  for select using (
+    exists (
+      select 1 from expenses e
+      where e.id = expense_shares.expense_id
+        and (
+          (e.group_id is null and e.created_by = auth.uid())
+          or (e.group_id is not null and is_group_member(e.group_id))
+        )
+    )
+  );
+create policy "insert shares of your expenses" on public.expense_shares
+  for insert with check (
+    exists (
+      select 1 from expenses e
+      where e.id = expense_shares.expense_id
+        and (
+          (e.group_id is null and e.created_by = auth.uid())
+          or (e.group_id is not null and is_group_member(e.group_id))
+        )
+    )
+  );
+create policy "delete shares of your expenses" on public.expense_shares
+  for delete using (
+    exists (
+      select 1 from expenses e
+      where e.id = expense_shares.expense_id
+        and (
+          (e.group_id is null and e.created_by = auth.uid())
+          or (e.group_id is not null and is_group_member(e.group_id))
+        )
+    )
+  );
+
+-- group_balances: net balance per member per group, combining direct
+-- payments and N-way expense shares, so the client queries one view instead
+-- of aggregating both tables itself. security_invoker so it enforces RLS as
+-- the querying user, not the view owner (Postgres 15+, which Supabase runs).
+create view public.group_balances
+with (security_invoker = true) as
+with payment_net as (
+  select group_id, payee_member_id as member_id, amount as delta
+  from payments
+  where group_id is not null
+  union all
+  select group_id, payer_member_id as member_id, -amount as delta
+  from payments
+  where group_id is not null
+),
+expense_payer_net as (
+  select group_id, paid_by_member_id as member_id, amount as delta
+  from expenses
+  where group_id is not null
+),
+expense_share_net as (
+  select e.group_id, es.member_id, -es.share_amount as delta
+  from expense_shares es
+  join expenses e on e.id = es.expense_id
+  where e.group_id is not null
+)
+select group_id, member_id, sum(delta) as balance
+from (
+  select * from payment_net
+  union all
+  select * from expense_payer_net
+  union all
+  select * from expense_share_net
+) all_deltas
+group by group_id, member_id;
+
+-- device_tokens: per-account push tokens (e.g. OneSignal player IDs), for
+-- the notification feature. A token can only be registered once.
+create table public.device_tokens (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid not null references auth.users(id) on delete cascade,
+  push_token text not null unique,
+  platform text not null check (platform in ('android', 'windows')),
+  created_at timestamptz not null default now()
+);
+
+create index on public.device_tokens (account_id);
+
+alter table public.device_tokens enable row level security;
+
+create policy "manage your own device tokens" on public.device_tokens
+  for all using (account_id = auth.uid()) with check (account_id = auth.uid());
