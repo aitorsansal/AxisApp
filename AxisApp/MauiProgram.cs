@@ -40,6 +40,10 @@ public static class MauiProgram
         builder.Services.AddTransient<LoginViewModel>();
         builder.Services.AddTransient<LoginPage>();
 
+        // No AddExpensePage yet (screens are the next milestone — see SCOPE.md); registering the
+        // ViewModel now so it's ready to inject once that page exists.
+        builder.Services.AddTransient<AddExpenseViewModel>();
+
 #if DEBUG
         builder.Logging.AddDebug();
 #endif
