@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    x:Class="AxisApp.Pages.AddExpensePage"
+    x:DataType="vm:AddExpenseViewModel"
+    Shell.NavBarIsVisible="False"
+    Title="Add expense">
+
+    <Grid RowDefinitions="60,*,Auto">
+
+        <!-- Top bar: Cancel / title / Save -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="16,0">
+            <Button
+                Grid.Column="0"
+                Text="Cancel"
+                Command="{Binding CancelCommand}"
+                Style="{StaticResource BtnOutlinePrimary}"
+                BackgroundColor="Transparent"
+                BorderWidth="0"
+                TextColor="{StaticResource Secondary}"
+                Padding="0"
+                VerticalOptions="Center" />
+
+            <Label
+                Grid.Column="1"
+                Text="Add expense"
+                Style="{StaticResource SectionHeader}"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                Margin="0" />
+
+            <Button
+                Grid.Column="2"
+                Text="Save"
+                Command="{Binding SaveCommand}"
+                IsEnabled="{Binding CanSave}"
+                Style="{StaticResource BtnOutlinePrimary}"
+                BackgroundColor="Transparent"
+                BorderWidth="0"
+                TextColor="{StaticResource Primary}"
+                FontAttributes="Bold"
+                Padding="0"
+                VerticalOptions="Center" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
+
+                <!-- Amount hero -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingXS}" HorizontalOptions="Center">
+                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="4">
+                        <Label
+                            Text="$"
+                            FontSize="22"
+                            FontAttributes="Bold"
+                            TextColor="{StaticResource TextTertiary}"
+                            VerticalOptions="Center" />
+                        <Entry
+                            Text="{Binding AmountText}"
+                            Keyboard="Numeric"
+                            FontSize="36"
+                            FontAttributes="Bold"
+                            TextColor="{StaticResource TextPrimary}"
+                            BackgroundColor="Transparent"
+                            HorizontalTextAlignment="Center"
+                            WidthRequest="180" />
+                    </HorizontalStackLayout>
+                    <BoxView HeightRequest="2" WidthRequest="120" Color="{StaticResource Primary}" HorizontalOptions="Center" />
+                </VerticalStackLayout>
+
+                <!-- Description -->
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Entry Text="{Binding Description}" Placeholder="Description" />
+                </Border>
+
+                <!-- Paid by -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                    <Label Text="Paid by" Style="{StaticResource SectionHeaderTertiary}" />
+                    <CollectionView ItemsSource="{Binding PayerOptions}" HeightRequest="76">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="{StaticResource SpacingM}" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PayerOption">
+                                <VerticalStackLayout Spacing="4" WidthRequest="60">
+                                    <VerticalStackLayout.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:AddExpenseViewModel}}, Path=SelectPayerCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </VerticalStackLayout.GestureRecognizers>
+                                    <Border
+                                        Style="{StaticResource AvatarCircle}"
+                                        WidthRequest="44" HeightRequest="44"
+                                        HorizontalOptions="Center">
+                                        <Border.Triggers>
+                                            <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="Stroke" Value="{StaticResource PrimaryHover}" />
+                                                <Setter Property="StrokeThickness" Value="2" />
+                                            </DataTrigger>
+                                        </Border.Triggers>
+                                        <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="14" />
+                                    </Border>
+                                    <Label
+                                        Text="{Binding Member.DisplayName}"
+                                        FontSize="{StaticResource TypeLabel}"
+                                        TextColor="{StaticResource TextTertiary}"
+                                        HorizontalTextAlignment="Center"
+                                        LineBreakMode="TailTruncation">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+                                                <Setter Property="FontAttributes" Value="Bold" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+
+                <!-- Split -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="Split" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
+                        <Border Grid.Column="1" Style="{StaticResource SegmentPillContainer}">
+                            <HorizontalStackLayout Spacing="2">
+                                <Button
+                                    Text="Equally"
+                                    Command="{Binding SplitEquallyCommand}"
+                                    Style="{StaticResource SegmentButtonUnselected}">
+                                    <Button.Triggers>
+                                        <DataTrigger TargetType="Button" Binding="{Binding IsManualSplit}" Value="False">
+                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                        </DataTrigger>
+                                    </Button.Triggers>
+                                </Button>
+                                <Button
+                                    Text="Manually"
+                                    Command="{Binding SplitManuallyCommand}"
+                                    Style="{StaticResource SegmentButtonUnselected}">
+                                    <Button.Triggers>
+                                        <DataTrigger TargetType="Button" Binding="{Binding IsManualSplit}" Value="True">
+                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                        </DataTrigger>
+                                    </Button.Triggers>
+                                </Button>
+                            </HorizontalStackLayout>
+                        </Border>
+                    </Grid>
+
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Participants}" Spacing="{StaticResource SpacingXS}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ExpenseParticipant">
+                                <Grid ColumnDefinitions="Auto,Auto,*,90" ColumnSpacing="{StaticResource SpacingS}" Padding="0,4">
+                                    <Border
+                                        Grid.Column="0"
+                                        Style="{StaticResource SplitCheckboxStyle}"
+                                        VerticalOptions="Center">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding ToggleIncludedCommand}" />
+                                        </Border.GestureRecognizers>
+                                        <Label
+                                            Text="&#10003;"
+                                            IsVisible="{Binding IsIncluded}"
+                                            TextColor="{StaticResource TextOnAccent}"
+                                            FontSize="12"
+                                            FontAttributes="Bold"
+                                            HorizontalOptions="Center"
+                                            VerticalOptions="Center" />
+                                    </Border>
+
+                                    <Border
+                                        Grid.Column="1"
+                                        Style="{StaticResource AvatarCircle}"
+                                        WidthRequest="26" HeightRequest="26">
+                                        <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="11" />
+                                    </Border>
+
+                                    <Label
+                                        Grid.Column="2"
+                                        Text="{Binding Member.DisplayName}"
+                                        VerticalOptions="Center"
+                                        LineBreakMode="TailTruncation" />
+
+                                    <Border Grid.Column="3" Style="{StaticResource InputBorderStyle}" Padding="8,4">
+                                        <Entry
+                                            Text="{Binding OwesText}"
+                                            Keyboard="Numeric"
+                                            FontFamily="{StaticResource MonoFontFamily}"
+                                            HorizontalTextAlignment="End"
+                                            FontSize="{StaticResource TypeCaption}" />
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+
+                    <Label
+                        Text="{Binding Remaining, StringFormat='Remaining: {0:0.00}'}"
+                        Style="{StaticResource LabelTertiary}"
+                        IsVisible="{Binding IsManualSplit}" />
+                </VerticalStackLayout>
+
+                <!-- Category -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                    <Label Text="Category" Style="{StaticResource SectionHeaderTertiary}" />
+                    <CollectionView ItemsSource="{Binding CategoryChips}" HeightRequest="40">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="{StaticResource SpacingS}" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CategoryChip">
+                                <Border Style="{StaticResource ChipBorderStyle}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:AddExpenseViewModel}}, Path=SelectCategoryCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Label Text="{Binding Name}" FontSize="{StaticResource TypeCaption}" TextColor="{StaticResource TextSecondary}" />
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+
+                <!-- Date: the visible row is decorative; a full-size transparent DatePicker on
+                     top of it is the actual tap target, so the whole row opens the picker. -->
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Grid>
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
+                            <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
+                            <Label Grid.Column="1" Text="{Binding OccurredOnDisplay}" VerticalOptions="Center" />
+                            <Label Grid.Column="2" Text="&#8250;" TextColor="{StaticResource TextTertiary}" VerticalOptions="Center" />
+                        </Grid>
+                        <DatePicker Date="{Binding OccurredOn}" Opacity="0" />
+                    </Grid>
+                </Border>
+
+                <!-- Receipt photo (upload not wired yet - see SCOPE.md's Storage/receipts note) -->
+                <Border Style="{StaticResource ReceiptDropZone}">
+                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="4">
+                        <Label Text="&#128247;" HorizontalOptions="Center" FontSize="20" />
+                        <Label
+                            Text="Add receipt photo (optional)"
+                            Style="{StaticResource LabelTertiary}"
+                            HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Button
+            Grid.Row="2"
+            Text="Save expense"
+            Command="{Binding SaveCommand}"
+            IsEnabled="{Binding CanSave}"
+            Style="{StaticResource BtnPrimaryStyle}"
+            Margin="{StaticResource SpacingM}" />
+
+        <ActivityIndicator
+            Grid.Row="0" Grid.RowSpan="3"
+            IsRunning="{Binding IsBusy}"
+            IsVisible="{Binding IsBusy}"
+            Color="{StaticResource Primary}"
+            HorizontalOptions="Center"
+            VerticalOptions="Center" />
+
+    </Grid>
+</ContentPage>

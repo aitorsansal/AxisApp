@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    x:Class="AxisApp.Pages.JoinGroupPage"
+    x:DataType="vm:JoinGroupViewModel"
+    Shell.NavBarIsVisible="False"
+    Title="Invite people">
+
+    <Grid RowDefinitions="60,*">
+
+        <!-- Top bar: back / title -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Padding="16,0" ColumnSpacing="8">
+            <Label
+                Grid.Column="0"
+                Text="&#8249;"
+                FontSize="24"
+                TextColor="{StaticResource TextPrimary}"
+                VerticalOptions="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped" />
+                </Label.GestureRecognizers>
+            </Label>
+            <Label
+                Grid.Column="1"
+                Text="Invite people"
+                Style="{StaticResource SectionHeader}"
+                Margin="0" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
+
+                <!-- Share invite card -->
+                <Border Style="{StaticResource ElevatedCard}" IsVisible="{Binding HasActiveGroup}">
+                    <VerticalStackLayout Spacing="{StaticResource SpacingM}" HorizontalOptions="Center">
+                        <Border
+                            BackgroundColor="White"
+                            WidthRequest="132" HeightRequest="132"
+                            StrokeThickness="0">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <!-- QR generation not wired yet; placeholder swatch -->
+                            <Label Text="QR" TextColor="{StaticResource BgPrimary}" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" />
+                        </Border>
+
+                        <HorizontalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Label
+                                Text="{Binding InviteCode}"
+                                FontFamily="{StaticResource MonoFontFamily}"
+                                FontSize="{StaticResource TypeTitle}"
+                                FontAttributes="Bold"
+                                VerticalOptions="Center" />
+                            <Label Text="&#128203;" VerticalOptions="Center">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding CopyLinkCommand}" />
+                                </Label.GestureRecognizers>
+                            </Label>
+                        </HorizontalStackLayout>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource SpacingS}" HorizontalOptions="Fill">
+                            <Button
+                                Grid.Column="0"
+                                Text="Copy link"
+                                Command="{Binding CopyLinkCommand}"
+                                Style="{StaticResource BtnOutlinePrimary}" />
+                            <Button
+                                Grid.Column="1"
+                                Text="Share"
+                                Command="{Binding ShareCommand}"
+                                Style="{StaticResource BtnPrimaryStyle}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Divider -->
+                <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="{StaticResource SpacingS}" VerticalOptions="Center">
+                    <BoxView Grid.Column="0" Style="{StaticResource SectionDivider}" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="or join a group" Style="{StaticResource LabelTertiary}" />
+                    <BoxView Grid.Column="2" Style="{StaticResource SectionDivider}" VerticalOptions="Center" />
+                </Grid>
+
+                <!-- Join by code -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                    <Border Grid.Column="0" Style="{StaticResource InputBorderStyle}">
+                        <Entry Text="{Binding JoinCodeInput}" Placeholder="Enter invite code" />
+                    </Border>
+                    <Button
+                        Grid.Column="1"
+                        Text="Join"
+                        Command="{Binding JoinByCodeCommand}"
+                        Style="{StaticResource BtnPrimaryStyle}"
+                        Padding="18,10" />
+                </Grid>
+
+                <Label
+                    Text="{Binding ErrorMessage}"
+                    TextColor="{StaticResource Danger}"
+                    FontSize="{StaticResource TypeCaption}"
+                    IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+
+                <!-- Pending invites -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding HasActiveGroup}">
+                    <Label Text="Pending invites" Style="{StaticResource SectionHeaderTertiary}" />
+
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding PendingInvites}" Spacing="{StaticResource SpacingS}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PendingInviteItem">
+                                <Border Style="{StaticResource ListItemCard}">
+                                    <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                                        <Border Grid.Column="0" Style="{StaticResource AvatarCirclePhantom}" WidthRequest="40" HeightRequest="40">
+                                            <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="14" />
+                                        </Border>
+                                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                            <Label Text="{Binding Member.DisplayName}" FontAttributes="Bold" />
+                                            <Label Text="Phantom member" Style="{StaticResource LabelTertiary}" />
+                                        </VerticalStackLayout>
+                                        <Button
+                                            Grid.Column="2"
+                                            Text="Resend"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:JoinGroupViewModel}}, Path=ResendCommand}"
+                                            CommandParameter="{Binding .}"
+                                            Style="{StaticResource BtnOutlinePrimary}"
+                                            FontSize="{StaticResource TypeCaption}"
+                                            Padding="10,6"
+                                            VerticalOptions="Center" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <ActivityIndicator
+            Grid.Row="0" Grid.RowSpan="2"
+            IsRunning="{Binding IsBusy}"
+            IsVisible="{Binding IsBusy}"
+            Color="{StaticResource Primary}"
+            HorizontalOptions="Center"
+            VerticalOptions="Center" />
+
+    </Grid>
+</ContentPage>

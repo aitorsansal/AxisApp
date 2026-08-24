@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    x:Class="AxisApp.Pages.GroupDetailPage"
+    x:DataType="vm:GroupDetailViewModel"
+    Shell.NavBarIsVisible="False"
+    Title="Group">
+
+    <Grid RowDefinitions="60,*">
+
+        <!-- Top bar: back / group name / overflow (invite) -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="16,0" ColumnSpacing="8">
+            <Label
+                Grid.Column="0"
+                Text="&#8249;"
+                FontSize="24"
+                TextColor="{StaticResource TextPrimary}"
+                VerticalOptions="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped" />
+                </Label.GestureRecognizers>
+            </Label>
+
+            <Label
+                Grid.Column="1"
+                Text="{Binding GroupName}"
+                Style="{StaticResource SectionHeader}"
+                Margin="0"
+                LineBreakMode="TailTruncation" />
+
+            <Label
+                Grid.Column="2"
+                Text="&#8942;"
+                FontSize="18"
+                TextColor="{StaticResource TextPrimary}"
+                VerticalOptions="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding InvitePeopleCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+                <ScrollView>
+                    <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
+
+                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Label Text="Balances" Style="{StaticResource SectionHeaderTertiary}" />
+
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Balances}" Spacing="{StaticResource SpacingS}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:MemberBalanceItem">
+                                        <Border Style="{StaticResource BalanceTileSettled}">
+                                            <Border.Triggers>
+                                                <DataTrigger TargetType="Border" Binding="{Binding IsOwed}" Value="True">
+                                                    <Setter Property="Style" Value="{StaticResource BalanceTileReceive}" />
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Border" Binding="{Binding IsOwing}" Value="True">
+                                                    <Setter Property="Style" Value="{StaticResource BalanceTilePay}" />
+                                                </DataTrigger>
+                                            </Border.Triggers>
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                                                <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="36" HeightRequest="36" Opacity="0.85">
+                                                    <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="13" />
+                                                </Border>
+                                                <Label Grid.Column="1" Text="{Binding Member.DisplayName}" VerticalOptions="Center" FontAttributes="Bold" />
+                                                <VerticalStackLayout Grid.Column="2" HorizontalOptions="End">
+                                                    <Label Text="{Binding AmountText}" FontSize="{StaticResource TypeTitle}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                                                    <Label Text="{Binding CaptionText}" FontSize="{StaticResource TypeCaption}" HorizontalTextAlignment="End" />
+                                                </VerticalStackLayout>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Label Text="Recent activity" Style="{StaticResource SectionHeaderTertiary}" />
+
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding RecentActivity}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ActivityItem">
+                                        <Border Style="{StaticResource ListItemCard}">
+                                            <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                                                <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="36" HeightRequest="36">
+                                                    <Label
+                                                        Text="&#128179;"
+                                                        FontSize="16"
+                                                        HorizontalOptions="Center"
+                                                        VerticalOptions="Center">
+                                                        <Label.Triggers>
+                                                            <DataTrigger TargetType="Label" Binding="{Binding IsSettlement}" Value="True">
+                                                                <Setter Property="Text" Value="&#8594;" />
+                                                            </DataTrigger>
+                                                        </Label.Triggers>
+                                                    </Label>
+                                                </Border>
+                                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                                    <Label Text="{Binding Description}" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                                                    <Label Text="{Binding SubCaption}" Style="{StaticResource LabelTertiary}" LineBreakMode="TailTruncation" />
+                                                </VerticalStackLayout>
+                                                <VerticalStackLayout Grid.Column="2" HorizontalOptions="End">
+                                                    <Label
+                                                        Text="{Binding AmountText}"
+                                                        FontAttributes="Bold"
+                                                        HorizontalTextAlignment="End">
+                                                        <Label.Triggers>
+                                                            <DataTrigger TargetType="Label" Binding="{Binding IsSettlement}" Value="True">
+                                                                <Setter Property="TextColor" Value="{StaticResource Success}" />
+                                                            </DataTrigger>
+                                                        </Label.Triggers>
+                                                    </Label>
+                                                    <Label Text="{Binding RelativeDate}" Style="{StaticResource LabelTertiary}" HorizontalTextAlignment="End" />
+                                                </VerticalStackLayout>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+
+                    </VerticalStackLayout>
+                </ScrollView>
+            </RefreshView>
+
+            <Button
+                Text="+ Add expense"
+                Command="{Binding AddExpenseCommand}"
+                Style="{StaticResource FabButtonStyle}" />
+        </Grid>
+    </Grid>
+</ContentPage>

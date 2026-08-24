@@ -13,5 +13,6 @@ public static class AppConstants
         public const string Groups = "//Groups";
         public const string GroupDetails = "GroupDetails";
         public const string JoinGroup = "JoinGroup";
+        public const string AddExpense = "AddExpense";
     }
 }

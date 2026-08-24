@@ -20,4 +20,10 @@ public class SupabaseBalancesRepository : IBalancesRepository
 
         return result.Models;
     }
+
+    public async Task<List<MyGroupBalance>> GetMyBalancesAsync()
+    {
+        var result = await client.From<MyGroupBalance>().Get();
+        return result.Models;
+    }
 }

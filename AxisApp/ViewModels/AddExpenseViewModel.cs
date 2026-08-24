@@ -13,12 +13,16 @@ namespace AxisApp.ViewModels;
 public partial class ExpenseParticipant : ObservableObject
 {
     public Member Member { get; init; } = null!;
+    public string Initials { get; init; } = "";
 
     [ObservableProperty] private bool isIncluded = true;
     [ObservableProperty] private decimal owes;
     [ObservableProperty] private string owesText = "0.00";
 
     private bool syncing;
+
+    [RelayCommand]
+    private void ToggleIncluded() => IsIncluded = !IsIncluded;
 
     partial void OnOwesTextChanged(string value)
     {
@@ -42,6 +46,23 @@ public partial class ExpenseParticipant : ObservableObject
     }
 }
 
+/// <summary>One selectable option in the "Paid by" row.</summary>
+public partial class PayerOption : ObservableObject
+{
+    public Member Member { get; init; } = null!;
+    public string Initials { get; init; } = "";
+
+    [ObservableProperty] private bool isSelected;
+}
+
+/// <summary>One selectable chip in the category row.</summary>
+public partial class CategoryChip : ObservableObject
+{
+    public string Name { get; init; } = "";
+
+    [ObservableProperty] private bool isSelected;
+}
+
 /// <summary>
 /// N-way expense entry: any group member can be the payer (paid_by_member_id on Expense isn't
 /// restricted to "the current user" the way DebtTracker's payer selection effectively was — see
@@ -49,7 +70,7 @@ public partial class ExpenseParticipant : ObservableObject
 /// across every group member; toggling a participant off or hand-editing one share switches into
 /// manual mode via IsManualSplit, same escape hatch DebtTracker used.
 /// </summary>
-public partial class AddExpenseViewModel : ObservableObject
+public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
 {
     private readonly IMembersRepository membersRepository;
     private readonly IExpensesRepository expensesRepository;
@@ -60,6 +81,8 @@ public partial class AddExpenseViewModel : ObservableObject
     private bool redistributing;
 
     [ObservableProperty] private ObservableCollection<ExpenseParticipant> participants = [];
+    [ObservableProperty] private ObservableCollection<PayerOption> payerOptions = [];
+    [ObservableProperty] private ObservableCollection<CategoryChip> categoryChips = [];
     [ObservableProperty] private Member? selectedPayer;
     [ObservableProperty] private decimal amount;
     [ObservableProperty] private string amountText = "0.00";
@@ -68,11 +91,9 @@ public partial class AddExpenseViewModel : ObservableObject
     [ObservableProperty] private string description = string.Empty;
     [ObservableProperty] private string selectedCategory = string.Empty;
     [ObservableProperty] private DateTime occurredOn = DateTime.Today;
+    [ObservableProperty] private string occurredOnDisplay = "Today";
     [ObservableProperty] private bool isManualSplit;
     [ObservableProperty] private bool isBusy;
-
-    public ObservableCollection<Member> PayerOptions { get; } = [];
-    public ObservableCollection<string> CategoryOptions { get; } = [];
 
     public AddExpenseViewModel(
         IMembersRepository membersRepository,
@@ -86,8 +107,14 @@ public partial class AddExpenseViewModel : ObservableObject
         this.authService = authService;
     }
 
-    /// <summary>Call before the page shows. Loads the group's members as the default participant
-    /// set (everyone included, equal split) and its category list.</summary>
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        if (query.TryGetValue("groupId", out var value) && Guid.TryParse(value?.ToString(), out var id))
+            _ = LoadAsync(id);
+    }
+
+    /// <summary>Loads the group's members as the default participant set (everyone included,
+    /// equal split) and its category list.</summary>
     public async Task LoadAsync(Guid forGroupId)
     {
         groupId = forGroupId;
@@ -100,24 +127,28 @@ public partial class AddExpenseViewModel : ObservableObject
 
             foreach (var participant in Participants)
                 participant.PropertyChanged -= ParticipantChanged;
-            Participants.Clear();
-            PayerOptions.Clear();
+
+            Participants = new ObservableCollection<ExpenseParticipant>();
+            PayerOptions = new ObservableCollection<PayerOption>();
 
             foreach (var member in loadMembers.Result)
             {
-                var participant = new ExpenseParticipant { Member = member };
+                var initials = Initials(member.DisplayName);
+
+                var participant = new ExpenseParticipant { Member = member, Initials = initials };
                 participant.PropertyChanged += ParticipantChanged;
                 Participants.Add(participant);
-                PayerOptions.Add(member);
+
+                PayerOptions.Add(new PayerOption { Member = member, Initials = initials });
             }
 
-            SelectedPayer = loadMembers.Result.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)
-                ?? loadMembers.Result.FirstOrDefault();
+            var myPayerOption = PayerOptions.FirstOrDefault(p => p.Member.AccountId == authService.CurrentAccountId)
+                ?? PayerOptions.FirstOrDefault();
+            if (myPayerOption is not null)
+                SelectPayer(myPayerOption);
 
-            CategoryOptions.Clear();
-            CategoryOptions.Add(string.Empty);
-            foreach (var category in loadCategories.Result)
-                CategoryOptions.Add(category.Name);
+            CategoryChips = new ObservableCollection<CategoryChip>(
+                loadCategories.Result.Select(c => new CategoryChip { Name = c.Name }));
 
             RedistributeEqually();
         }
@@ -136,6 +167,19 @@ public partial class AddExpenseViewModel : ObservableObject
     {
         if (!IsManualSplit) RedistributeEqually();
         else RecalcRemaining();
+    }
+
+    partial void OnOccurredOnChanged(DateTime value) =>
+        OccurredOnDisplay = value.Date == DateTime.Today ? "Today" : value.ToString("MMM d, yyyy");
+
+    [RelayCommand]
+    private void SelectPayer(PayerOption? option)
+    {
+        if (option is null) return;
+        SelectedPayer = option.Member;
+        foreach (var p in PayerOptions)
+            p.IsSelected = p == option;
+        RecalcRemaining();
     }
 
     private void ParticipantChanged(object? sender, PropertyChangedEventArgs e)
@@ -165,6 +209,18 @@ public partial class AddExpenseViewModel : ObservableObject
     {
         IsManualSplit = false;
         RedistributeEqually();
+    }
+
+    [RelayCommand]
+    private void SplitManually() => IsManualSplit = true;
+
+    [RelayCommand]
+    private void SelectCategory(CategoryChip? chip)
+    {
+        if (chip is null) return;
+        SelectedCategory = chip.IsSelected ? string.Empty : chip.Name;
+        foreach (var c in CategoryChips)
+            c.IsSelected = c == chip && !string.IsNullOrEmpty(SelectedCategory);
     }
 
     /// <summary>Equal split with the classic penny-rounding fix (ported from DebtTracker's
@@ -235,7 +291,7 @@ public partial class AddExpenseViewModel : ObservableObject
                 .ToList();
 
             await expensesRepository.AddAsync(expense, shares);
-            ResetForm();
+            await Shell.Current.GoToAsync("..");
         }
         finally
         {
@@ -243,15 +299,12 @@ public partial class AddExpenseViewModel : ObservableObject
         }
     }
 
-    private void ResetForm()
+    [RelayCommand]
+    private async Task Cancel() => await Shell.Current.GoToAsync("..");
+
+    private static string Initials(string name)
     {
-        AmountText = "0.00";
-        Description = string.Empty;
-        SelectedCategory = string.Empty;
-        OccurredOn = DateTime.Today;
-        IsManualSplit = false;
-        foreach (var p in Participants)
-            p.IsIncluded = true;
-        RedistributeEqually();
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 0 ? "?" : string.Concat(parts.Take(2).Select(w => char.ToUpperInvariant(w[0])));
     }
 }

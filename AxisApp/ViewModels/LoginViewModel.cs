@@ -29,7 +29,8 @@ public partial class LoginViewModel : ObservableObject
             var result = await authService.SignInAsync(Email, Password);
             if (!result.Success)
                 ErrorMessage = result.ErrorMessage ?? "Sign in failed.";
-            // TODO: on success, navigate to the Groups tab once it exists.
+            else
+                await Shell.Current.GoToAsync(AppConstants.Routes.Groups);
         }
         finally
         {
@@ -48,7 +49,10 @@ public partial class LoginViewModel : ObservableObject
             var result = await authService.SignUpAsync(Email, Password);
             if (!result.Success)
                 ErrorMessage = result.ErrorMessage ?? "Sign up failed.";
-            // TODO: on success, prompt for display name and navigate onward.
+            else
+                // No separate "create your profile" step: a Member row only exists once this
+                // account creates or joins a group, both reachable from the (empty) Groups list.
+                await Shell.Current.GoToAsync(AppConstants.Routes.Groups);
         }
         finally
         {

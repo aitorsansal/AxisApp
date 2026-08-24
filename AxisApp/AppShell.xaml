@@ -11,4 +11,8 @@
         Route="Login"
         ContentTemplate="{DataTemplate pages:LoginPage}" />
 
+    <ShellContent
+        Route="Groups"
+        ContentTemplate="{DataTemplate pages:GroupsPage}" />
+
 </Shell>

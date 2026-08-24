@@ -446,3 +446,15 @@ alter table public.device_tokens enable row level security;
 
 create policy "manage your own device tokens" on public.device_tokens
   for all using (account_id = auth.uid()) with check (account_id = auth.uid());
+
+-- my_group_balances: the current account's own net balance in each group it
+-- belongs to, one row per group. Built for the Groups list screen (each
+-- group card shows "you're owed $X" / "you owe $X" / "Settled up") so it can
+-- query this directly instead of fetching every member of every group just
+-- to find which member row is "me" in each one.
+create view public.my_group_balances
+with (security_invoker = true) as
+select gb.group_id, gb.balance
+from group_balances gb
+join members m on m.id = gb.member_id
+where m.account_id = auth.uid();

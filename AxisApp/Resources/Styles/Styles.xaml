@@ -516,4 +516,160 @@
         <Setter Property="HorizontalTextAlignment" Value="Center" />
     </Style>
 
+    <!-- =======================
+         Avatars
+         ======================= -->
+    <Style x:Key="AvatarCircle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SurfaceEmphasis}" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="999" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="AvatarCirclePrimary" TargetType="Border" BasedOn="{StaticResource AvatarCircle}">
+        <Setter Property="Background" Value="{StaticResource Primary}" />
+    </Style>
+
+    <!-- Selected-payer ring, Add Expense's "Paid by" row -->
+    <Style x:Key="AvatarCircleSelectedRing" TargetType="Border" BasedOn="{StaticResource AvatarCircle}">
+        <Setter Property="Stroke" Value="{StaticResource PrimaryHover}" />
+        <Setter Property="StrokeThickness" Value="2" />
+    </Style>
+
+    <Style x:Key="AvatarInitialsLabel" TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+        <Setter Property="VerticalTextAlignment" Value="Center" />
+        <Setter Property="HorizontalOptions" Value="Fill" />
+        <Setter Property="VerticalOptions" Value="Fill" />
+    </Style>
+
+    <!-- Dashed ring around a phantom member's avatar (Invite screen's pending-invites list) -->
+    <Style x:Key="AvatarCirclePhantom" TargetType="Border" BasedOn="{StaticResource AvatarCircle}">
+        <Setter Property="Stroke" Value="{StaticResource BorderAccent}" />
+        <Setter Property="StrokeThickness" Value="1.5" />
+        <Setter Property="StrokeDashArray" Value="3,2" />
+    </Style>
+
+    <!-- =======================
+         Floating Action Button
+         ======================= -->
+    <Style x:Key="FabButtonStyle" TargetType="Button" BasedOn="{StaticResource BtnPrimaryStyle}">
+        <Setter Property="CornerRadius" Value="999" />
+        <Setter Property="Padding" Value="20,14" />
+        <Setter Property="HorizontalOptions" Value="End" />
+        <Setter Property="VerticalOptions" Value="End" />
+        <Setter Property="Margin" Value="0,0,16,16" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="Black" Opacity="0.35" Radius="14" Offset="0,6" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- =======================
+         Segmented pill (Add Expense: Equally / Manually)
+         ======================= -->
+    <Style x:Key="SegmentPillContainer" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="3" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="999" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SegmentButtonBase" TargetType="Button">
+        <Setter Property="CornerRadius" Value="999" />
+        <Setter Property="FontSize" Value="{StaticResource TypeCaption}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="Padding" Value="14,6" />
+        <Setter Property="BorderWidth" Value="0" />
+    </Style>
+
+    <Style x:Key="SegmentButtonSelected" TargetType="Button" BasedOn="{StaticResource SegmentButtonBase}">
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+    </Style>
+
+    <Style x:Key="SegmentButtonUnselected" TargetType="Button" BasedOn="{StaticResource SegmentButtonBase}">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+    </Style>
+
+    <!-- =======================
+         Split-row participant checkbox (Add Expense)
+         ======================= -->
+    <!-- Bind Border.BindingContext (or an explicit Binding) to a bool IsIncluded/IsSelected
+         property; unchecked = outline square dimmed to 50%, checked = primary-filled square.
+         Pair with a "✓" Label inside whose IsVisible binds to the same bool. -->
+    <Style x:Key="SplitCheckboxStyle" TargetType="Border">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="WidthRequest" Value="20" />
+        <Setter Property="HeightRequest" Value="20" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Opacity" Value="0.5" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="5" />
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <DataTrigger TargetType="Border" Binding="{Binding IsIncluded}" Value="True">
+                <Setter Property="Background" Value="{StaticResource Primary}" />
+                <Setter Property="Stroke" Value="{StaticResource Primary}" />
+                <Setter Property="Opacity" Value="1" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- =======================
+         Balance tile (Group detail)
+         ======================= -->
+    <Style x:Key="BalanceTileBase" TargetType="Border">
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="16" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BalanceTileReceive" TargetType="Border" BasedOn="{StaticResource BalanceTileBase}">
+        <Setter Property="Background" Value="{StaticResource ReceiveGradient}" />
+    </Style>
+
+    <Style x:Key="BalanceTilePay" TargetType="Border" BasedOn="{StaticResource BalanceTileBase}">
+        <Setter Property="Background" Value="{StaticResource PayGradient}" />
+    </Style>
+
+    <Style x:Key="BalanceTileSettled" TargetType="Border" BasedOn="{StaticResource ElevatedCard}" />
+
+    <!-- =======================
+         Receipt drop zone (Add Expense)
+         ======================= -->
+    <Style x:Key="ReceiptDropZone" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="StrokeThickness" Value="1.5" />
+        <Setter Property="StrokeDashArray" Value="4,4" />
+        <Setter Property="HeightRequest" Value="88" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="12" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

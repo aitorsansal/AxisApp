@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    x:Class="AxisApp.Pages.GroupsPage"
+    x:DataType="vm:GroupsViewModel"
+    Shell.NavBarIsVisible="False"
+    Title="Groups">
+
+    <Grid RowDefinitions="60,*">
+
+        <!-- Top bar: wordmark left, user avatar right -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="16,0">
+            <Label
+                Grid.Column="0"
+                Text="Axis"
+                FontSize="20"
+                FontAttributes="Bold"
+                VerticalOptions="Center" />
+            <Border
+                Grid.Column="1"
+                Style="{StaticResource AvatarCirclePrimary}"
+                WidthRequest="32" HeightRequest="32"
+                VerticalOptions="Center">
+                <Label Text="{Binding UserInitials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="12" />
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+                <ScrollView>
+                    <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingS}">
+
+                        <Label Text="Your groups" Style="{StaticResource SectionHeaderTertiary}" />
+
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Groups}" Spacing="{StaticResource SpacingS}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:GroupListItem">
+                                    <Border Style="{StaticResource ListItemCard}">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupsViewModel}}, Path=OpenGroupCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+                                            <Label
+                                                Grid.Row="0" Grid.Column="0"
+                                                Text="{Binding Group.Name}"
+                                                FontSize="{StaticResource TypeTitle}"
+                                                FontAttributes="Bold" />
+
+                                            <Label
+                                                Grid.Row="0" Grid.Column="1"
+                                                Text="{Binding BalanceAmountText}"
+                                                FontSize="{StaticResource TypeBody}"
+                                                FontAttributes="Bold">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
+                                                        <Setter Property="TextColor" Value="{StaticResource Success}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
+                                                        <Setter Property="TextColor" Value="{StaticResource Danger}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding IsSettled}" Value="True">
+                                                        <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+
+                                            <HorizontalStackLayout
+                                                Grid.Row="1" Grid.Column="0"
+                                                Spacing="-6"
+                                                BindableLayout.ItemsSource="{Binding AvatarInitials}">
+                                                <BindableLayout.ItemTemplate>
+                                                    <DataTemplate x:DataType="x:String">
+                                                        <Border
+                                                            Style="{StaticResource AvatarCircle}"
+                                                            WidthRequest="18" HeightRequest="18"
+                                                            Stroke="{StaticResource BgPrimary}"
+                                                            StrokeThickness="2">
+                                                            <Label Text="{Binding .}" Style="{StaticResource AvatarInitialsLabel}" FontSize="7" />
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </BindableLayout.ItemTemplate>
+                                            </HorizontalStackLayout>
+
+                                            <Label
+                                                Grid.Row="2" Grid.Column="0"
+                                                Text="{Binding MemberSummary}"
+                                                Style="{StaticResource LabelTertiary}" />
+
+                                            <Label
+                                                Grid.Row="2" Grid.Column="1"
+                                                Text="{Binding BalanceCaptionText}"
+                                                Style="{StaticResource LabelTertiary}"
+                                                HorizontalOptions="End" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+
+                        <Label
+                            Text="No groups yet — tap New group to start one."
+                            Style="{StaticResource LabelTertiary}"
+                            IsVisible="{Binding IsEmpty}"
+                            HorizontalOptions="Center"
+                            Margin="0,40,0,0" />
+
+                    </VerticalStackLayout>
+                </ScrollView>
+            </RefreshView>
+
+            <Button
+                Text="+ New group"
+                Command="{Binding NewGroupCommand}"
+                Style="{StaticResource FabButtonStyle}" />
+        </Grid>
+    </Grid>
+</ContentPage>

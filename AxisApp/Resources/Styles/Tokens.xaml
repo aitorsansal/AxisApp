@@ -36,6 +36,17 @@
     <x:Double x:Key="TypeCaption">12</x:Double>
     <x:Double x:Key="TypeLabel">11</x:Double>
 
+    <!-- ============ FONTS ============ -->
+    <!-- Tabular-numeral font for amounts/codes (invite code, split-row amounts). No custom font
+         is embedded yet (see CLAUDE.md/SCOPE.md — the handout specs JetBrains Mono, not added
+         under Resources/Fonts yet), so this falls back to each platform's own built-in monospace:
+         Android resolves the generic family name "monospace" natively; Windows has no such
+         generic name and needs a real installed font ("Consolas") instead. -->
+    <OnPlatform x:Key="MonoFontFamily" x:TypeArguments="x:String">
+        <On Platform="Android" Value="monospace" />
+        <On Platform="WinUI" Value="Consolas" />
+    </OnPlatform>
+
     <!-- ============ MOTION DURATIONS (ms) ============ -->
     <!-- Press feedback at the floor; entries quiet; modals capped under 300ms. -->
     <x:Int32 x:Key="DurationPress">120</x:Int32>
