@@ -56,14 +56,48 @@ This repo is a scaffold, not a finished app. As of this commit:
   see `/SCOPE.md`. **The corresponding schema additions at the bottom of
   `supabase/schema.sql` haven't been run against the live project yet** —
   run that new block before testing any of this against real data.
-- Beyond the login screen, there is no group/payment/invite UI yet — the
-  data layer above is ready for it, but no screens consume it.
+- The four core screens exist: `Pages/{Groups,GroupDetail,AddExpense,
+  JoinGroup}Page.xaml` + matching `ViewModels/`, wired to the real
+  repositories and navigated via `AppShell`/`AppConstants.Routes`. Built
+  from a high-fidelity design handout (Claude Design output, not checked
+  into this repo — ask if you need it re-generated) that locked colors,
+  spacing, and component shapes; `Resources/Styles/Styles.xaml` gained new
+  FAB/avatar/segmented-pill/split-checkbox/balance-tile styles to cover what
+  the existing token set didn't have. `AddExpensePage` doubles as edit: a
+  `?expenseId=` query param switches it into edit mode (loads the existing
+  expense + shares, `Save` calls `IExpensesRepository.UpdateAsync` instead
+  of `AddAsync`, adds a Delete button) — reached by tapping an expense row
+  in Group Detail's recent-activity list. Editing a settle-up `Payment` is
+  not implemented, only `Expense`.
+- **Two real bugs found and fixed while wiring the screens, worth knowing
+  about**: (1) `SupabaseGroupsRepository.CreateAsync` originally only
+  inserted a `groups` row — it never made the creator an actual member, so
+  a newly created group would've been invisible in the creator's own list
+  (RLS's "select groups you belong to" requires a real `group_members`
+  row). Fixed to also create a `Member` + `GroupMember` for the creator,
+  mirroring `redeem_invite()`'s "fresh join" shape. (2) `GroupMember` and
+  `ExpenseShare` both have a real composite primary key in Postgres
+  (`(group_id, member_id)` / `(expense_id, member_id)`) but only mark ONE
+  property `[PrimaryKey]` in the C# model — harmless for insert/delete
+  (which never relied on it), but a real footgun for `.Update(model)`,
+  which would match on that single column and silently update every row
+  sharing it. `SupabaseExpensesRepository.UpdateAsync` works around this
+  with an explicit `.Filter(...).Filter(...).Update(...)` rather than
+  trusting the implicit PK match — do the same if `GroupMember` ever needs
+  an update path.
+- Multi-theme (preset color palettes the user picks from) and a
+  fully-custom user-defined palette were discussed but are **not planned
+  work** — see `/SCOPE.md`'s Theming section for the technical read on
+  feasibility if it comes up again.
 
-Next real milestones, in order: (1) run the new block at the bottom of
-`supabase/schema.sql` against the live project; (2) get everything actually
-compiling and confirm auth + a repository call work end to end (report back
-compiler errors as they come up — see the caveats above); (3) build the
-groups/payments/invites screens described in `/SCOPE.md`.
+Next real milestones, in order: (1) run the new blocks at the bottom of
+`supabase/schema.sql` against the live project (expenses/expense_shares/
+balances views/device_tokens, plus the expense_shares update policy); (2)
+get everything actually compiling and confirm auth + a repository call work
+end to end (report back compiler errors as they come up — see the caveats
+above); (3) the Supabase-side infra `/SCOPE.md` describes but that has no
+code yet — receipt storage/upload, the cleanup Edge Function, recurring
+payment materialization, push.
 
 See **`SCOPE.md`** for the full product scope and phased roadmap (the
 debt-tracker vertical currently being built, plus the events/calendar and

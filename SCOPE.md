@@ -41,8 +41,21 @@ all for money-tracking. This is what "done" looks like before Phase 2 starts.
 ### Screens / flow
 
 Login → Groups (list) → Group detail (balances + recent activity for that group)
-→ Add expense / Add payment → (Invite/Join group flow, routes already stubbed
-in `AppConstants.Routes`).
+→ Add expense / Add payment → Invite/Join group flow.
+
+**Built.** All four screens (`GroupsPage`, `GroupDetailPage`, `AddExpensePage`,
+`JoinGroupPage`) exist and are wired to the real repositories — see
+`CLAUDE.md`'s "Current state" for the specifics (edit-expense flow, the two
+bugs found while wiring it up). Built from a locked design handout generated
+via Claude Design; that handout isn't checked into the repo, so if it's
+needed again (new screens, revisiting a layout decision) it'll need
+regenerating — the prompt used is reconstructable from this doc's token
+values plus the screen descriptions above.
+
+Not yet built: a dedicated "create group" screen (currently a native
+`DisplayPromptAsync` prompt — fine for MVP, revisit if group creation needs
+more than a name), and editing a settle-up `Payment` (only `Expense` editing
+exists).
 
 ### Supporting infra
 
@@ -97,6 +110,34 @@ Treated as its own scope, tackled only after native events (Phase 2) ship:
 - Reconciling Axis's recurrence model against Google's RRULE.
 
 This is real, independent scope — not a checkbox on the events feature.
+
+## Theming (discussed, not planned)
+
+Came up as a "how hard would it be" question, not a commitment — recorded here
+so it isn't re-litigated from scratch if it comes up again, and so a future
+session knows this was discussed, not silently missed.
+
+- **Multiple preset color palettes, user-selectable**: genuinely easy given
+  how this codebase is already structured — every color is centralized in
+  `Colors.xaml` and consumed only through named styles in `Styles.xaml`
+  (never hardcoded in pages). The one real change needed: `Styles.xaml`'s
+  color references are `{StaticResource ...}`, which resolves once at load;
+  runtime theme-swapping needs `{DynamicResource ...}` instead. From there:
+  one `Colors.xaml`-shaped file per preset, a small `ThemeService` that swaps
+  which one is in `Application.Current.Resources.MergedDictionaries` and
+  persists the choice via `Preferences`, applied at startup next to the
+  existing `UserAppTheme = AppTheme.Dark` line in `App.xaml.cs`. Most of the
+  actual effort is designing palettes that read well in a dark UI, not the
+  plumbing.
+- **Fully custom user-defined palette** (not just picking a preset): harder.
+  Reuses the same runtime-swap mechanism, but a user-picked color doesn't
+  come with its hover/pressed/disabled siblings (~15+ tokens per accent) —
+  those need deriving programmatically (lighten/darken, compute a readable
+  text color against it) rather than hand-picked. Also needs a color-picker
+  UI (MAUI has none built in) and a contrast guard so someone can't pick a
+  primary color that's unreadable against the dark background.
+- **Recommendation if this gets picked up**: presets first, custom palette
+  as a follow-on once the `DynamicResource` plumbing already exists.
 
 ## Non-goals (for now)
 
