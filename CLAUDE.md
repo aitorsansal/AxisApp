@@ -48,6 +48,12 @@ compiling and confirm sign-up/sign-in work end to end against the real
 project; (2) implement the Supabase-backed repositories; (3) build the
 groups/payments/invites screens.
 
+See **`SCOPE.md`** for the full product scope and phased roadmap (the
+debt-tracker vertical currently being built, plus the events/calendar and
+Google Calendar sync phases planned after it) — it's the source of truth for
+what's in/out of scope and why, so check it before assuming a feature is or
+isn't planned.
+
 ## The core design decision: members vs. accounts
 
 This is the one thing to understand before changing the schema or the data
