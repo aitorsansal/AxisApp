@@ -17,17 +17,25 @@
         automation or mouse to fall back on, so it silently becomes unclickable. AddExpensePage's
         analogous header (Cancel/Save) doesn't hit this because Shell pushes it below the reserved
         title-bar strip; this page needs the same clearance explicitly. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="16,0" Margin="0,40,0,0" ColumnSpacing="8">
-            <Label
-                Grid.Column="0"
-                Text="&#8249;"
-                FontSize="24"
-                TextColor="{StaticResource TextPrimary}"
-                VerticalOptions="Center">
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnBackTapped" />
-                </Label.GestureRecognizers>
-            </Label>
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+            <Grid.Padding>
+                <Thickness Left="{StaticResource SpacingM}" Top="0" Right="{StaticResource SpacingM}" Bottom="0" />
+            </Grid.Padding>
+            <Grid.Margin>
+                <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="0" Bottom="0" />
+            </Grid.Margin>
+            <Border Grid.Column="0" BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
+                <Label
+                    Text="&#8249;"
+                    FontSize="{StaticResource TypeIcon}"
+                    TextColor="{StaticResource TextPrimary}"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBackTapped" />
+                    </Label.GestureRecognizers>
+                </Label>
+            </Border>
 
             <Label
                 Grid.Column="1"
@@ -36,22 +44,29 @@
                 Margin="0"
                 LineBreakMode="TailTruncation" />
 
-            <Label
-                Grid.Column="2"
-                Text="&#8942;"
-                FontSize="18"
-                TextColor="{StaticResource TextPrimary}"
-                VerticalOptions="Center">
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding InvitePeopleCommand}" />
-                </Label.GestureRecognizers>
-            </Label>
+            <Border Grid.Column="2" BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
+                <Label
+                    Text="&#8942;"
+                    FontSize="18"
+                    TextColor="{StaticResource TextPrimary}"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding InvitePeopleCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
+            </Border>
         </Grid>
 
         <Grid Grid.Row="1">
             <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
                 <ScrollView>
-                    <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
+                    <VerticalStackLayout Spacing="{StaticResource SpacingL}">
+                        <!-- Bottom padding reserves clearance under the floating "+ Add expense"
+                        button (FabButtonStyle) so it never permanently covers the last list row. -->
+                        <VerticalStackLayout.Padding>
+                            <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingM}" Right="{StaticResource SpacingM}" Bottom="88" />
+                        </VerticalStackLayout.Padding>
 
                         <!-- Regular, always-reachable entry point for InvitePeopleCommand — the
                         header's overflow "⋮" (Grid.Column 2 above) sits under Windows' native
@@ -60,6 +75,12 @@
                             Text="+ Invite people"
                             Command="{Binding InvitePeopleCommand}"
                             Style="{StaticResource BtnOutlinePrimary}" />
+
+                        <Label
+                            Text="{Binding ErrorMessage}"
+                            TextColor="{StaticResource Danger}"
+                            FontSize="{StaticResource TypeCaption}"
+                            IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
                         <VerticalStackLayout Spacing="{StaticResource SpacingS}">
                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}">
@@ -84,15 +105,52 @@
                                                     <Setter Property="Style" Value="{StaticResource BalanceTilePay}" />
                                                 </DataTrigger>
                                             </Border.Triggers>
-                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}">
                                                 <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="36" HeightRequest="36" Opacity="0.85">
                                                     <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="13" />
                                                 </Border>
-                                                <Label Grid.Column="1" Text="{Binding Member.DisplayName}" VerticalOptions="Center" FontAttributes="Bold" />
+                                                <Label Grid.Column="1" Text="{Binding Member.DisplayName}" VerticalOptions="Center" FontAttributes="Bold" LineBreakMode="TailTruncation">
+                                                    <Label.Triggers>
+                                                        <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
+                                                            <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
+                                                            <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                        </DataTrigger>
+                                                    </Label.Triggers>
+                                                </Label>
                                                 <VerticalStackLayout Grid.Column="2" HorizontalOptions="End">
-                                                    <Label Text="{Binding AmountText}" FontSize="{StaticResource TypeTitle}" FontAttributes="Bold" HorizontalTextAlignment="End" />
-                                                    <Label Text="{Binding CaptionText}" FontSize="{StaticResource TypeCaption}" HorizontalTextAlignment="End" />
+                                                    <Label Text="{Binding AmountText}" FontSize="{StaticResource TypeTitle}" FontAttributes="Bold" HorizontalTextAlignment="End">
+                                                        <Label.Triggers>
+                                                            <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
+                                                                <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
+                                                                <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                            </DataTrigger>
+                                                        </Label.Triggers>
+                                                    </Label>
+                                                    <Label Text="{Binding CaptionText}" FontSize="{StaticResource TypeCaption}" HorizontalTextAlignment="End">
+                                                        <Label.Triggers>
+                                                            <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
+                                                                <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
+                                                                <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                            </DataTrigger>
+                                                        </Label.Triggers>
+                                                    </Label>
                                                 </VerticalStackLayout>
+                                                <Button
+                                                    Grid.Column="3"
+                                                    Text="Settle"
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupDetailViewModel}}, Path=SettleCommand}"
+                                                    CommandParameter="{Binding .}"
+                                                    Style="{StaticResource BtnOutlinePrimary}"
+                                                    FontSize="{StaticResource TypeCaption}"
+                                                    Padding="12,8"
+                                                    MinimumHeightRequest="36"
+                                                    VerticalOptions="Center" />
                                             </Grid>
                                         </Border>
                                     </DataTemplate>

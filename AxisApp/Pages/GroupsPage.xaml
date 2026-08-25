@@ -8,22 +8,33 @@
     Shell.NavBarIsVisible="False"
     Title="Groups">
 
+    <Grid>
     <Grid RowDefinitions="60,*">
 
         <!-- Top bar: wordmark left, user avatar right -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="16,0">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <Grid.Padding>
+                <Thickness Left="{StaticResource SpacingM}" Top="0" Right="{StaticResource SpacingM}" Bottom="0" />
+            </Grid.Padding>
             <Label
                 Grid.Column="0"
                 Text="Axis"
-                FontSize="20"
+                FontSize="{StaticResource TypeWordmark}"
                 FontAttributes="Bold"
                 VerticalOptions="Center" />
             <Border
                 Grid.Column="1"
-                Style="{StaticResource AvatarCirclePrimary}"
-                WidthRequest="32" HeightRequest="32"
+                BackgroundColor="Transparent"
+                StrokeThickness="0"
+                WidthRequest="44" HeightRequest="44"
+                Padding="6"
                 VerticalOptions="Center">
-                <Label Text="{Binding UserInitials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="12" />
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ToggleAccountMenuCommand}" />
+                </Border.GestureRecognizers>
+                <Border Style="{StaticResource AvatarCirclePrimary}">
+                    <Label Text="{Binding UserInitials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeCaption}" />
+                </Border>
             </Border>
         </Grid>
 
@@ -32,7 +43,27 @@
                 <ScrollView>
                     <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingS}">
 
-                        <Label Text="Your groups" Style="{StaticResource SectionHeaderTertiary}" />
+                        <Label
+                            Text="{Binding ErrorMessage}"
+                            TextColor="{StaticResource Danger}"
+                            FontSize="{StaticResource TypeCaption}"
+                            IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Text="Your groups" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
+                            <Border Grid.Column="1" BackgroundColor="Transparent" StrokeThickness="0" Padding="{StaticResource SpacingS}" VerticalOptions="Center">
+                                <Label
+                                    Text="Join with code"
+                                    TextColor="{StaticResource Primary}"
+                                    FontSize="{StaticResource TypeCaption}"
+                                    FontAttributes="Bold"
+                                    VerticalOptions="Center">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding JoinGroupCommand}" />
+                                    </Label.GestureRecognizers>
+                                </Label>
+                            </Border>
+                        </Grid>
 
                         <VerticalStackLayout BindableLayout.ItemsSource="{Binding Groups}" Spacing="{StaticResource SpacingS}">
                             <BindableLayout.ItemTemplate>
@@ -43,12 +74,14 @@
                                                 Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupsViewModel}}, Path=OpenGroupCommand}"
                                                 CommandParameter="{Binding .}" />
                                         </Border.GestureRecognizers>
-                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="{StaticResource SpacingXS}">
                                             <Label
                                                 Grid.Row="0" Grid.Column="0"
                                                 Text="{Binding Group.Name}"
                                                 FontSize="{StaticResource TypeTitle}"
-                                                FontAttributes="Bold" />
+                                                FontAttributes="Bold"
+                                                LineBreakMode="TailTruncation"
+                                                MaxLines="1" />
 
                                             <Label
                                                 Grid.Row="0" Grid.Column="1"
@@ -76,10 +109,10 @@
                                                     <DataTemplate x:DataType="x:String">
                                                         <Border
                                                             Style="{StaticResource AvatarCircle}"
-                                                            WidthRequest="18" HeightRequest="18"
+                                                            WidthRequest="22" HeightRequest="22"
                                                             Stroke="{StaticResource BgPrimary}"
                                                             StrokeThickness="2">
-                                                            <Label Text="{Binding .}" Style="{StaticResource AvatarInitialsLabel}" FontSize="7" />
+                                                            <Label Text="{Binding .}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeLabel}" />
                                                         </Border>
                                                     </DataTemplate>
                                                 </BindableLayout.ItemTemplate>
@@ -88,7 +121,8 @@
                                             <Label
                                                 Grid.Row="2" Grid.Column="0"
                                                 Text="{Binding MemberSummary}"
-                                                Style="{StaticResource LabelTertiary}" />
+                                                Style="{StaticResource LabelTertiary}"
+                                                LineBreakMode="TailTruncation" />
 
                                             <Label
                                                 Grid.Row="2" Grid.Column="1"
@@ -105,30 +139,66 @@
                             Text="No groups yet — tap New group to start one."
                             Style="{StaticResource LabelTertiary}"
                             IsVisible="{Binding IsEmpty}"
-                            HorizontalOptions="Center"
-                            Margin="0,40,0,0" />
+                            HorizontalOptions="Center">
+                            <Label.Margin>
+                                <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="0" Bottom="0" />
+                            </Label.Margin>
+                        </Label>
 
                     </VerticalStackLayout>
                 </ScrollView>
             </RefreshView>
 
-            <HorizontalStackLayout
-                HorizontalOptions="End"
-                VerticalOptions="End"
-                Margin="0,0,16,16"
-                Spacing="{StaticResource SpacingS}">
-                <Button
-                    Text="Join with code"
-                    Command="{Binding JoinGroupCommand}"
-                    Style="{StaticResource BtnOutlinePrimary}"
-                    CornerRadius="999"
-                    Padding="20,14" />
-                <Button
-                    Text="+ New group"
-                    Command="{Binding NewGroupCommand}"
-                    Style="{StaticResource FabButtonStyle}"
-                    Margin="0" />
-            </HorizontalStackLayout>
+            <Button
+                Text="+"
+                Command="{Binding NewGroupCommand}"
+                Style="{StaticResource FabButtonStyle}" />
         </Grid>
+    </Grid>
+
+    <!-- Scrim: tap anywhere outside the account menu to dismiss it -->
+    <BoxView
+        Color="Transparent"
+        IsVisible="{Binding IsAccountMenuOpen}">
+        <BoxView.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding ToggleAccountMenuCommand}" />
+        </BoxView.GestureRecognizers>
+    </BoxView>
+
+    <Border
+        Style="{StaticResource ElevatedCard}"
+        IsVisible="{Binding IsAccountMenuOpen}"
+        HorizontalOptions="End"
+        VerticalOptions="Start"
+        Margin="0,58,16,0"
+        WidthRequest="200"
+        Padding="0">
+        <VerticalStackLayout>
+            <Label
+                Text="{Binding UserEmail}"
+                Style="{StaticResource LabelTertiary}"
+                LineBreakMode="TailTruncation">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+                </Label.Padding>
+            </Label>
+            <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
+            <!-- Coming-soon placeholder: no Profile page exists yet, so this stays visually
+            and functionally disabled (no gesture recognizer) until one is built. -->
+            <Label Text="Profile" Opacity="0.5">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+                </Label.Padding>
+            </Label>
+            <Label Text="Log out" TextColor="{StaticResource Danger}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+                </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding LogoutCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+        </VerticalStackLayout>
+    </Border>
     </Grid>
 </ContentPage>

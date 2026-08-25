@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Axis — UI Review Report</title>
+<style>
+  :root {
+    --bg: #0b0f17;
+    --bg-elevated: #121826;
+    --bg-card: #161d2e;
+    --border: #262f45;
+    --text-primary: #f2f5fa;
+    --text-secondary: #c3ccda;
+    --text-tertiary: #8a96ab;
+    --accent: #3d6bff;
+    --high: #ff5c6c;
+    --high-bg: rgba(255, 92, 108, 0.14);
+    --high-border: rgba(255, 92, 108, 0.4);
+    --medium: #f2a93c;
+    --medium-bg: rgba(242, 169, 60, 0.14);
+    --medium-border: rgba(242, 169, 60, 0.4);
+    --low: #8a96ab;
+    --low-bg: rgba(138, 150, 171, 0.14);
+    --low-border: rgba(138, 150, 171, 0.4);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    padding: 0 0 64px;
+  }
+
+  a { color: var(--accent); }
+
+  header.top {
+    padding: 40px 24px 28px;
+    background: linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  header.top .wrap { padding: 0; }
+
+  h1 {
+    margin: 0 0 6px;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .subtitle {
+    color: var(--text-tertiary);
+    font-size: 14px;
+    margin: 0;
+  }
+
+  section.summary {
+    margin-top: 36px;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+
+  .stat-card .num {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .stat-card .label {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 4px;
+  }
+
+  .stat-card.high .num { color: var(--high); }
+  .stat-card.medium .num { color: var(--medium); }
+  .stat-card.low .num { color: var(--low); }
+
+  h2.section-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
+    margin: 0 0 12px;
+    font-weight: 600;
+  }
+
+  table.page-summary {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 14px;
+  }
+
+  table.page-summary th, table.page-summary td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  table.page-summary th {
+    color: var(--text-tertiary);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  table.page-summary tr:last-child td { border-bottom: none; }
+
+  table.page-summary td.num { text-align: center; font-variant-numeric: tabular-nums; }
+  table.page-summary td.file { font-family: "SFMono-Regular", Consolas, monospace; font-size: 13px; color: var(--text-secondary); }
+
+  main { margin-top: 44px; }
+
+  section.page-section {
+    margin-bottom: 48px;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .page-header h2 {
+    margin: 0;
+    font-size: 19px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .page-counts {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .mini-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+  }
+
+  .mini-badge.high { background: var(--high-bg); color: var(--high); border: 1px solid var(--high-border); }
+  .mini-badge.medium { background: var(--medium-bg); color: var(--medium); border: 1px solid var(--medium-border); }
+  .mini-badge.low { background: var(--low-bg); color: var(--low); border: 1px solid var(--low-border); }
+
+  .finding {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+
+  .finding.high { border-left-color: var(--high); }
+  .finding.medium { border-left-color: var(--medium); }
+  .finding.low { border-left-color: var(--low); }
+
+  .finding-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 10px;
+  }
+
+  .finding-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    flex: 1;
+  }
+
+  .badge {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .badge.high { background: var(--high-bg); color: var(--high); border: 1px solid var(--high-border); }
+  .badge.medium { background: var(--medium-bg); color: var(--medium); border: 1px solid var(--medium-border); }
+  .badge.low { background: var(--low-bg); color: var(--low); border: 1px solid var(--low-border); }
+
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    margin-bottom: 12px;
+  }
+
+  .meta-chip {
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+  }
+
+  .field {
+    margin-top: 10px;
+  }
+
+  .field .field-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .field .field-value {
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  .field.location .field-value {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 12.5px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text-secondary);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .field.recommendation {
+    border-top: 1px dashed var(--border);
+    padding-top: 10px;
+    margin-top: 14px;
+  }
+
+  .field.recommendation .field-label { color: var(--accent); }
+
+  footer {
+    max-width: 960px;
+    margin: 40px auto 0;
+    padding: 0 24px;
+    color: var(--text-tertiary);
+    font-size: 12.5px;
+    text-align: center;
+  }
+
+  @media (max-width: 600px) {
+    header.top { padding: 28px 16px 22px; }
+    .wrap, main, footer { padding-left: 16px; padding-right: 16px; }
+    h1 { font-size: 22px; }
+    .finding-head { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <h1>Axis — UI Review Report</h1>
+    <p class="subtitle">UI Review · .NET MAUI cross-platform app · findings collected across every page</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="summary">
+    <h2 class="section-title">Overview</h2>
+    <div class="summary-grid">
+      <div class="stat-card">
+        <div class="num" id="total-count">0</div>
+        <div class="label">Total findings</div>
+      </div>
+      <div class="stat-card high">
+        <div class="num" id="high-count">0</div>
+        <div class="label">High severity</div>
+      </div>
+      <div class="stat-card medium">
+        <div class="num" id="medium-count">0</div>
+        <div class="label">Medium severity</div>
+      </div>
+      <div class="stat-card low">
+        <div class="num" id="low-count">0</div>
+        <div class="label">Low severity</div>
+      </div>
+    </div>
+
+    <h2 class="section-title">By page</h2>
+    <table class="page-summary">
+      <thead>
+        <tr>
+          <th>Page</th>
+          <th class="num">High</th>
+          <th class="num">Medium</th>
+          <th class="num">Low</th>
+          <th class="num">Total</th>
+        </tr>
+      </thead>
+      <tbody id="page-summary-body"></tbody>
+    </table>
+  </section>
+
+  <main id="pages-container"></main>
+</div>
+
+<footer>Generated as part of a UI/UX review pass over every page in AxisApp.</footer>
+
+<script>
+  var DATA = [
+  {
+    "page": "AxisApp/Pages/LoginPage.xaml",
+    "findings": [
+      {
+        "title": "No ScrollView around the form — content can clip on short screens or behind the keyboard",
+        "severity": "high",
+        "category": "layout fragility",
+        "location": "Root <Grid> > <VerticalStackLayout VerticalOptions=\"Center\"> (lines 10-53)",
+        "description": "The entire form (title, two Entry borders, error label, two buttons) is a VerticalStackLayout centered directly inside the page Grid with no ScrollView wrapper. On a short device (small phone in landscape, or any device where the soft keyboard pushes up the visible area) there is no way to scroll to reach content that gets pushed off-screen or covered by the keyboard — the Email/Password Entries or the Sign In/Create Account buttons can become unreachable.",
+        "recommendation": "Wrap the VerticalStackLayout in a ScrollView so the form remains reachable regardless of screen height or keyboard state."
+      },
+      {
+        "title": "Hardcoded Margin on the title breaks the page's spacing rhythm and bypasses the token scale",
+        "severity": "medium",
+        "category": "spacing inconsistency",
+        "location": "<Label Text=\"Axis\" ... Margin=\"0,0,0,24\" /> (line 21)",
+        "description": "The VerticalStackLayout already applies Spacing=\"{StaticResource SpacingM}\" (16) between every child. The title Label adds an additional hardcoded Margin=\"0,0,0,24\" on top of that, producing a 40px gap between the title and the Email field while every other gap on the page (Email→Password, Password→error label, error label→Sign In, Sign In→Create Account) is exactly 16px. The 24 is also a raw numeric literal instead of a StaticResource reference (it happens to equal SpacingL, but isn't expressed that way), which is exactly the kind of hardcoded value the token system exists to prevent.",
+        "recommendation": "Remove the Margin and, if a larger gap under the title is intentional, express it via a token, e.g. set Margin=\"0,0,0,{StaticResource SpacingM}\" style spacing consistently, or wrap the title separately with a deliberate SpacingL/SpacingXL gap so the intent is explicit and traceable to the scale."
+      },
+      {
+        "title": "ActivityIndicator overlaps the form instead of blocking/dimming it, and inputs stay interactive while busy",
+        "severity": "medium",
+        "category": "alignment / interaction state",
+        "location": "<ActivityIndicator ... HorizontalOptions=\"Center\" VerticalOptions=\"Center\" /> (lines 55-60); Email/Password Entries and both Buttons (lines 24-51)",
+        "description": "The busy spinner is centered on the same Grid as the centered form, so it renders directly on top of the middle of the stack — likely overlapping the Password field or the gap between it and the Sign In button — rather than over a full-screen scrim that visually communicates the whole form is blocked. Additionally, neither the Entries nor the two Buttons have IsEnabled bound to the inverse of IsBusy, so a user can keep typing or tap Sign In/Create Account again while a request is already in flight.",
+        "recommendation": "Add a semi-transparent scrim (e.g. a BoxView/Border spanning the Grid, Color=BgDeep at reduced opacity) behind the ActivityIndicator when IsBusy, and bind IsEnabled=\"{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}\" (or similar) on the Entries and both Buttons so the form can't be edited or double-submitted while busy."
+      }
+    ]
+  },
+  {
+    "page": "AxisApp/Pages/NewGroupPage.xaml",
+    "findings": [
+      {
+        "title": "Back button likely unclickable on Windows (missing title-bar clearance margin)",
+        "severity": "high",
+        "category": "layout fragility / touch target",
+        "location": "Line 14: `<Grid Grid.Row=\"0\" ColumnDefinitions=\"Auto,*\" Padding=\"16,0\" ColumnSpacing=\"8\">` inside `Grid RowDefinitions=\"60,*\"` (line 11)",
+        "description": "This is the exact bug already found and fixed on GroupDetailPage.xaml (see its line 13-19 comment and Margin=\"0,40,0,0\" on its header Grid): on an unpackaged Win32 build, a page's top row otherwise renders directly under the native window caption buttons (minimize/maximize/close), which capture pointer input first, silently making the header row's Label-based back button un-tappable. GroupDetailPage was patched with Margin=\"0,40,0,0\" on its header Grid; NewGroupPage's header Grid (and JoinGroupPage's, same pattern) never received the same fix, so its back chevron is a strong candidate to be dead on Windows.",
+        "recommendation": "Add the same Margin=\"0,40,0,0\" (or platform-conditional via OnPlatform) to NewGroupPage's header Grid at line 14, matching GroupDetailPage's fix. Worth checking JoinGroupPage.xaml too, same missing fix."
+      },
+      {
+        "title": "Back chevron has no real touch target",
+        "severity": "medium",
+        "category": "touch target",
+        "location": "Lines 15-24: `<Label Grid.Column=\"0\" Text=\"&#8249;\" FontSize=\"24\" ... VerticalOptions=\"Center\">` with a bare `TapGestureRecognizer`",
+        "description": "The back navigation control is a plain Label with only glyph-sized bounds (no Padding, WidthRequest/HeightRequest, or background hit area) wrapped in a TapGestureRecognizer. Its effective tappable area is well under the ~44x44dp minimum recommended touch target, especially bad for the back button which is the primary way off this page.",
+        "recommendation": "Wrap the chevron in a fixed-size (e.g. 44x44) container (Border/Grid) with the TapGestureRecognizer on the container, centering the glyph inside — same pattern used for icon buttons elsewhere (e.g. ImageButtonPrimaryStyle's 40x40 sizing)."
+      },
+      {
+        "title": "Header title not vertically aligned with the back chevron",
+        "severity": "low",
+        "category": "alignment",
+        "location": "Lines 25-29: `<Label Grid.Column=\"1\" Text=\"New group\" Style=\"{StaticResource SectionHeader}\" Margin=\"0\" />` next to the back chevron at Grid.Column=\"0\"",
+        "description": "The back chevron explicitly sets VerticalOptions=\"Center\". The title Label sets no VerticalOptions (default Fill) and SectionHeader doesn't set VerticalTextAlignment (default Start), so inside the 60px-tall header row the title text sits top-aligned while the chevron sits vertically centered — the two siblings won't line up on the same baseline.",
+        "recommendation": "Add VerticalOptions=\"Center\" (or VerticalTextAlignment=\"Center\") to the title Label so it centers the same way the chevron does."
+      },
+      {
+        "title": "Header Grid hardcodes spacing instead of referencing tokens",
+        "severity": "low",
+        "category": "spacing inconsistency",
+        "location": "Line 14: `Padding=\"16,0\" ColumnSpacing=\"8\"` on the header Grid",
+        "description": "16 and 8 are exactly SpacingM and SpacingS from Tokens.xaml, but are written as literals here while the rest of the page (line 32: Padding=\"{StaticResource SpacingM}\", Spacing=\"{StaticResource SpacingL}\") consistently uses StaticResource token references, per CLAUDE.md's \"reference tokens, don't hard-code\" rule.",
+        "recommendation": "Replace with Padding=\"{StaticResource SpacingM},0\" and ColumnSpacing=\"{StaticResource SpacingS}\" (or an equivalent thickness resource) to keep the header consistent with the rest of the page and the rest of the token system."
+      },
+      {
+        "title": "Back chevron FontSize is a magic number outside the type ramp",
+        "severity": "low",
+        "category": "hardcoded value bypassing tokens",
+        "location": "Line 18: `FontSize=\"24\"` on the back chevron Label",
+        "description": "Tokens.xaml's type ramp only defines TypeDisplay(28)/TypeTitle(17)/TypeBody(14)/TypeCaption(12)/TypeLabel(11). 24 doesn't match any of them, so this hardcodes a size the design system doesn't declare (this exists identically on GroupDetailPage/JoinGroupPage too, so it's a systemic pattern, but still bypasses the token dictionary as written).",
+        "recommendation": "Either add an icon-size token (e.g. TypeIcon=24) to Tokens.xaml and reference it here and on the sibling pages, or size the glyph via a shared icon-button style instead of an inline FontSize."
+      }
+    ]
+  },
+  {
+    "page": "AxisApp/Pages/JoinGroupPage.xaml",
+    "findings": [
+      {
+        "title": "Back-chevron and copy-icon tap targets are far under the touch-target minimum",
+        "severity": "high",
+        "category": "touch target",
+        "location": "Top bar Label (Text=\"&#8249;\", line ~15-24) and the \"📋\" copy-icon Label inside the InviteCode HorizontalStackLayout (line ~56-60)",
+        "description": "Both interactive elements are bare Label controls with a TapGestureRecognizer and no WidthRequest/HeightRequest/Padding. The actual hit area is just the glyph's rendered bounds (~24px font for the chevron, ~14px default font for the clipboard emoji) — well below the ~44x44dp minimum touch target, especially bad for the back button which is the primary way off this page.",
+        "recommendation": "Wrap each in a fixed-size container (e.g. a Border/Grid with WidthRequest/HeightRequest of at least 44) or add generous Padding around the Label so the whole tappable area is at least 44x44, matching the sizing used for ImageButtonPrimaryStyle/BottomNavIcon elsewhere in Styles.xaml."
+      },
+      {
+        "title": "QR placeholder swatch hardcodes a raw color instead of a token",
+        "severity": "medium",
+        "category": "hardcoded color",
+        "location": "Border with BackgroundColor=\"White\" wrapping the \"QR\" Label (line ~38-47)",
+        "description": "BackgroundColor=\"White\" is a literal color with no corresponding key in Colors.xaml (all other surfaces use Surface/SurfaceElevated/SurfaceEmphasis/BgPrimary). This bypasses the palette entirely, so if the dark palette ever changes this swatch won't move with it, and it's the only pure-white surface anywhere on the page.",
+        "recommendation": "Either add a dedicated token (e.g. QrPlaceholderBg) to Colors.xaml and reference it via StaticResource, or reuse an existing light-enough token; avoid literal color names in XAML."
+      },
+      {
+        "title": "Three different hardcoded button paddings on one page instead of one consistent value",
+        "severity": "low",
+        "category": "spacing inconsistency",
+        "location": "\"Join\" Button (Padding=\"18,10\", line ~90-96), \"Add\" Button (Padding=\"18,10\", line ~111-117), and the \"Link\"/\"Resend\" Buttons (Padding=\"10,6\", lines ~145-154 and ~178-186)",
+        "description": "BtnBase already defines Padding=\"14,12\" as the button padding token, but every button on this page overrides it inline with its own numeric pair (18,10 vs 10,6), and none of those pairs correspond to a SpacingXS/S/M value pattern. Three different paddings for buttons that otherwise share the same style creates visibly inconsistent button heights across the page.",
+        "recommendation": "Pick one consistent compact-button padding (or add a BtnCompactStyle/BtnSmallStyle to Styles.xaml) and reuse it for Join/Add/Link/Resend rather than three ad-hoc inline values."
+      },
+      {
+        "title": "Top bar Grid.Padding hardcodes \"16,0\" instead of referencing SpacingM",
+        "severity": "low",
+        "category": "spacing inconsistency",
+        "location": "Top bar Grid, Grid.Row=\"0\" (line ~14): Padding=\"16,0\"",
+        "description": "The value 16 matches SpacingM exactly, but is written as a literal instead of {StaticResource SpacingM} — inconsistent with the rest of the page (e.g. the ScrollView's VerticalStackLayout uses Padding=\"{StaticResource SpacingM}\" one element down), and if SpacingM is ever retuned this row's padding silently falls out of sync.",
+        "recommendation": "Change to Padding=\"{StaticResource SpacingM},0\" for consistency with the rest of the page's token usage."
+      },
+      {
+        "title": "Avatar column width hardcoded as a bare \"40\" in two DataTemplates",
+        "severity": "low",
+        "category": "hardcoded size",
+        "location": "Grid ColumnDefinitions=\"40,*,Auto\" plus the nested Border WidthRequest=\"40\" HeightRequest=\"40\" in both the name-match template (line ~127-133) and the pending-invites template (line ~170-173)",
+        "description": "The 40px avatar size is repeated as a magic number in two places within the same template (once on the Grid column, once on the Border) and duplicated verbatim across two separate DataTemplates on the page, with no shared constant. It happens to equal SpacingXL numerically but isn't expressed as a resource reference, so a future avatar-size change requires hunting down four separate literals.",
+        "recommendation": "Factor the avatar size into a single resource (or rely on AvatarCircle style having an implicit size) and reference it instead of repeating the literal 40 four times."
+      }
+    ]
+  },
+  {
+    "page": "AxisApp/Pages/GroupsPage.xaml",
+    "findings": [
+      {
+        "title": "Top-bar avatar tap target is only 32x32",
+        "severity": "high",
+        "category": "touch target",
+        "location": "Border Style=\"AvatarCirclePrimary\" WidthRequest=\"32\" HeightRequest=\"32\" (lines 22-31), which carries a TapGestureRecognizer bound to ToggleAccountMenuCommand",
+        "description": "The only way to open/close the account menu is tapping this 32x32 avatar circle. That is well under the ~44x44dp minimum recommended touch target on mobile, and it sits right next to the top edge of the screen with no extra hit-area padding, making it easy to miss on a phone.",
+        "recommendation": "Either bump WidthRequest/HeightRequest to 44 (keeping the visible circle at 32 via inner Padding), or wrap the Border in a larger invisible hit-box (e.g. an outer Grid/Border with Padding that still routes the same TapGestureRecognizer)."
+      },
+      {
+        "title": "\"Profile\" row is dimmed to look disabled but is still fully tappable",
+        "severity": "medium",
+        "category": "alignment / interaction affordance",
+        "location": "Label Text=\"Profile\" Padding=\"16,12\" Opacity=\"0.5\" (lines 169-173), inside the account-menu Border",
+        "description": "The 0.5 opacity visually communicates \"disabled/coming soon\" (matching CLAUDE.md's note that Profile is a placeholder with no screen built yet), but the Label still has an active TapGestureRecognizer bound to OpenProfileCommand right below it. A user who taps it despite the dimmed look gets whatever OpenProfileCommand currently does (likely a no-op or navigation to nothing), which reads as a broken control rather than an intentionally disabled one.",
+        "recommendation": "Either remove the TapGestureRecognizer until a Profile page exists, or set IsEnabled/InputTransparent so the dimmed state and the interactive state actually match."
+      },
+      {
+        "title": "Stacked-avatar initials rendered at 7px, below the design system's smallest type role",
+        "severity": "medium",
+        "category": "text clipping / legibility",
+        "location": "Label Text=\"{Binding .}\" Style=\"AvatarInitialsLabel\" FontSize=\"7\" (line 92), inside the 18x18 AvatarCircle used for the group card's member-avatar stack",
+        "description": "Tokens.xaml's type ramp bottoms out at TypeLabel = 11. This label hardcodes FontSize=\"7\", noticeably smaller than any defined role and likely to render as an illegible smudge of 1-2 characters inside an 18x18 circle, especially on a phone screen.",
+        "recommendation": "Raise to at least {StaticResource TypeLabel} (11) and grow the avatar WidthRequest/HeightRequest slightly to fit, or drop initials from the tiny stacked avatars entirely (show them only in the larger 32x32 top-bar avatar)."
+      },
+      {
+        "title": "Group name label has no truncation/line clamp for long group names",
+        "severity": "medium",
+        "category": "text clipping",
+        "location": "Label Grid.Row=\"0\" Grid.Column=\"0\" Text=\"{Binding Group.Name}\" FontSize=\"TypeTitle\" FontAttributes=\"Bold\" (lines 57-61), sharing Row 0 with the right-aligned BalanceAmountText label in the Auto-sized column 1",
+        "description": "No LineBreakMode or MaxLines is set, and column 0 is the only star-sized column in the row. A realistic long group name (\"Family Vacation Planning Committee 2026\") will word-wrap to two lines while the balance amount next to it stays single-line and top-aligned, producing a lopsided card whose height varies unpredictably across the list and crowds the row directly below it (the avatar stack).",
+        "recommendation": "Add LineBreakMode=\"TailTruncation\" MaxLines=\"1\" to the group-name Label (matching the pattern already used for UserEmail at line 166), or explicitly cap column 0's width via a Grid.ColumnDefinitions ratio."
+      },
+      {
+        "title": "MemberSummary label has no truncation and can misalign with the balance caption beside it",
+        "severity": "low",
+        "category": "text clipping / alignment",
+        "location": "Label Grid.Row=\"2\" Grid.Column=\"0\" Text=\"{Binding MemberSummary}\" Style=\"LabelTertiary\" (lines 98-101), sharing Row 2 with the right-aligned BalanceCaptionText (lines 103-107)",
+        "description": "MemberSummary is presumably a comma-joined list of member names, which can run long in groups with several people. With no LineBreakMode set and column 0 star-sized, a long summary wraps to two lines while BalanceCaptionText in the Auto column stays single-line and top-aligned, leaving noticeable dead space under the caption and an uneven card bottom edge.",
+        "recommendation": "Add LineBreakMode=\"TailTruncation\" (single line) to the MemberSummary Label so it truncates instead of wrapping."
+      },
+      {
+        "title": "Several spacing/padding values bypass the token scale, some off-scale entirely",
+        "severity": "low",
+        "category": "spacing inconsistency",
+        "location": "Padding=\"16,0\" on the top-bar Grid (line 15); Margin=\"0,40,0,0\" on the empty-state Label (line 119); RowSpacing=\"4\" on the group-card Grid (line 56); Padding=\"16,12,16,8\" and Padding=\"16,12\" (x2) in the account-menu VerticalStackLayout (lines 167, 169, 174)",
+        "description": "Tokens.xaml's header states explicitly: \"One scale for every margin, padding, and gap. Off-scale values are wrong.\" 16, 40, and 4 all happen to equal SpacingM/SpacingXL/SpacingXS but are written as raw numeric literals instead of StaticResource references, so a future change to the scale silently misses these spots. Worse, 12 (used three times in the account menu) isn't on the scale at all (SpacingS=8, SpacingM=16 — nothing defines 12).",
+        "recommendation": "Replace the literals with {StaticResource SpacingXS/S/M/XL} and round the account-menu row padding to an on-scale value (e.g. 16,8 instead of 16,12)."
+      },
+      {
+        "title": "Hardcoded font sizes that don't match any type-ramp token",
+        "severity": "low",
+        "category": "inconsistency / hardcoded values",
+        "location": "FontSize=\"20\" on the \"Axis\" wordmark (line 19); FontSize=\"12\" on the top-bar avatar initials (line 30)",
+        "description": "The type ramp defines TypeDisplay=28, TypeTitle=17, TypeBody=14, TypeCaption=12, TypeLabel=11. 20 doesn't correspond to any defined role (it sits between TypeTitle and TypeDisplay), and the 12 on line 30 duplicates TypeCaption's value as a raw literal instead of referencing it.",
+        "recommendation": "Pick the nearest existing token (TypeTitle=17 or introduce a dedicated wordmark size if 20 is intentional) and reference {StaticResource TypeCaption} on line 30 instead of the literal 12."
+      }
+    ]
+  },
+  {
+    "page": "AxisApp/Pages/AddExpensePage.xaml",
+    "findings": [
+      {
+        "title": "Top-bar Cancel/Save buttons have a touch target far below minimum size",
+        "severity": "high",
+        "category": "touch target",
+        "location": "Top bar Grid (Grid.Row=\"0\"), Cancel Button (Grid.Column=\"0\") and Save Button (Grid.Column=\"2\"), lines ~15-45",
+        "description": "Both buttons use Style=\"{StaticResource BtnOutlinePrimary}\" but then override BackgroundColor, BorderWidth and Padding=\"0\", with no WidthRequest/HeightRequest set. BtnBase (Styles.xaml) normally supplies Padding=\"14,12\" which keeps the button near a reasonable tap size; overriding it to 0 shrinks the actual hit-rect down to roughly the bold 14pt text glyph bounds (well under the ~44x44dp minimum touch target), on the two most-tapped controls on this screen (Cancel/Save an expense).",
+        "recommendation": "Give both buttons an explicit MinimumHeightRequest/MinimumWidthRequest (e.g. 44) or restore vertical padding (e.g. Padding=\"12,10\") while keeping BackgroundColor transparent, so the tappable area is larger than the glyph itself."
+      },
+      {
+        "title": "Split-participant inclusion checkbox is a 20x20dp tap target",
+        "severity": "medium",
+        "category": "touch target",
+        "location": "Split section, participant DataTemplate, Border Style=\"{StaticResource SplitCheckboxStyle}\" at Grid.Column=\"0\", lines ~158-173",
+        "description": "SplitCheckboxStyle (Styles.xaml) fixes WidthRequest/HeightRequest to 20 with Padding=\"0\". This Border is the only way to toggle whether a participant is included in the split (via its TapGestureRecognizer) — a 20x20dp target is under half the ~44dp guideline, and it sits directly next to a small 26x26 avatar with only SpacingS (8dp) between columns, making mis-taps likely on a dense list.",
+        "recommendation": "Keep the visual square at 20x20 but wrap it in a larger invisible tap area (e.g. put the TapGestureRecognizer on a padded parent, or increase column width and center the visual square inside it) so the effective hit target is closer to 44x44."
+      },
+      {
+        "title": "Page title can appear visually off-center",
+        "severity": "medium",
+        "category": "alignment",
+        "location": "Top bar Grid ColumnDefinitions=\"Auto,*,Auto\" (line 14) with PageTitle Label at Grid.Column=\"1\" (lines ~26-32)",
+        "description": "The Cancel and Save buttons auto-size to their own (different-length, differently-styled) text with Padding=\"0\", so the two Auto columns end up different widths. The title Label is HorizontalOptions=\"Center\" only within the middle star column, which itself is not centered on the physical page width when the flanking Auto columns differ — the title will visibly drift toward whichever side (Cancel vs Save) is narrower, especially once PageTitle's bound text length changes (e.g. \"Add expense\" vs \"Edit expense\").",
+        "recommendation": "Give the two Auto columns equal minimum width (e.g. both buttons a shared MinimumWidthRequest) or overlay the title centered across the whole row (Grid.ColumnSpan=\"3\", HorizontalOptions=\"Center\") independent of the button columns."
+      },
+      {
+        "title": "Category chip selected state keeps low-contrast secondary text on a solid Primary fill",
+        "severity": "medium",
+        "category": "color contrast",
+        "location": "Category CollectionView.ItemTemplate, Label Text=\"{Binding Name}\" inside the ChipBorderStyle Border, lines ~216-223",
+        "description": "ChipBorderStyle's DataTrigger (Styles.xaml) sets Background and Stroke to Primary (#3D6BFF) when IsSelected=True, but this page's chip Label hardcodes TextColor=\"{StaticResource TextSecondary}\" (#C3CCDA) with no corresponding trigger to flip it. The result is muted blue-gray text on a solid blue background for the selected category — noticeably lower contrast than the rest of the UI, and inconsistent with the SegmentButtonSelected pattern (Styles.xaml) used one section above, which correctly switches to TextOnAccent (#08101F) when selected.",
+        "recommendation": "Add a DataTrigger on the chip Label (Binding IsSelected, Value True) that sets TextColor to TextOnAccent, mirroring SegmentButtonSelected, or bind Label.Style to a chip-specific selected/unselected style pair."
+      },
+      {
+        "title": "Amount hero uses hardcoded, off-scale font sizes instead of the type ramp",
+        "severity": "low",
+        "category": "inconsistency",
+        "location": "Amount hero, \"$\" Label FontSize=\"22\" (line 56) and amount Entry FontSize=\"36\" (line 63); also receipt icon Label FontSize=\"20\" (line 245)",
+        "description": "Tokens.xaml's TypeRamp tops out at TypeDisplay=28. These three Labels/Entry use raw numeric FontSize values (22, 36, 20) that don't reference any StaticResource token and don't align to the defined ramp (TypeDisplay/Title/Body/Caption/Label), unlike the rest of the page which consistently uses TypeLabel/TypeCaption/SectionHeader.",
+        "recommendation": "Either add a token for the hero amount size (e.g. TypeHero) to Tokens.xaml and reference it, or reuse TypeDisplay if 28pt is acceptable, so every font size on the page is traceable to the type ramp."
+      },
+      {
+        "title": "Hardcoded spacing values bypass the SpacingScale tokens",
+        "severity": "low",
+        "category": "spacing inconsistency",
+        "location": "Top bar Grid Padding=\"16,0\" (line 14); amount \"$\" HorizontalStackLayout Spacing=\"4\" (line 53); split-participant Grid Padding=\"0,4\" (line 157)",
+        "description": "Tokens.xaml's own header comment says \"Reference these via StaticResource. Do not hard-code numeric values in views.\" These three values happen to equal SpacingM (16) and SpacingXS (4), but are written as raw numbers rather than {StaticResource SpacingM}/{StaticResource SpacingXS}, unlike nearly every other spacing value on this same page.",
+        "recommendation": "Replace the raw numeric literals with the matching StaticResource spacing tokens for consistency with the rest of the page and the project's stated convention."
+      },
+      {
+        "title": "Cancel action uses the Secondary (amber) accent color, an unusual semantic choice",
+        "severity": "low",
+        "category": "color pairing",
+        "location": "Top bar Cancel Button, TextColor=\"{StaticResource Secondary}\" (line 22)",
+        "description": "Secondary (#F2A93C, amber) is otherwise used project-wide for warm/secondary-emphasis elements (BtnSecondaryStyle, BadgePrimary), not for a neutral dismiss action. Pairing it with Save's Primary blue makes Cancel visually compete for attention with Save rather than reading as the lower-emphasis option, which is the opposite of typical top-bar convention (Cancel neutral/gray, Save accent-colored).",
+        "recommendation": "Consider TextColor=\"{StaticResource TextSecondary}\" or TextTertiary for Cancel so it reads as clearly lower-emphasis than Save."
+      },
+      {
+        "title": "Category chips are shorter than the recommended touch target height",
+        "severity": "low",
+        "category": "touch target",
+        "location": "Category CollectionView, HeightRequest=\"40\" (line 210), chip Border Style=\"{StaticResource ChipBorderStyle}\" with Padding \"14,6\" and FontSize TypeCaption (12), lines ~216-223",
+        "description": "ChipBorderStyle's 6dp vertical padding plus a 12pt label yields a visual chip height of roughly 26-30dp inside the 40dp row — under the ~44dp guideline for comfortable tapping, and each chip's TapGestureRecognizer is scoped to that same Border, so the tap target is exactly that small footprint.",
+        "recommendation": "Increase ChipBorderStyle vertical padding (or set VerticalOptions=\"Fill\" on the chip Border so it stretches to the full 40dp row height) to grow the effective tap area without changing the visual chip size as much."
+      }
+    ]
+  },
+  {
+    "page": "AxisApp/Pages/GroupDetailPage.xaml",
+    "findings": [
+      {
+        "title": "Near-white text on bright gradient balance tiles fails contrast",
+        "severity": "high",
+        "category": "color contrast",
+        "location": "Balance list DataTemplate (lines ~93-111): Labels for Member.DisplayName, AmountText, CaptionText inside the Border styled BalanceTileSettled/Receive/Pay",
+        "description": "When a row's Border style switches to BalanceTileReceive or BalanceTilePay (via the DataTriggers on IsOwed/IsOwing), the background becomes ReceiveGradient (Success #38D998 → Secondary #F2A93C) or PayGradient (Danger #FF5C6C → DarkerDanger #B8102B). None of the three Labels in this template override TextColor, so they fall back to the base Label style's TextPrimary (#F2F5FA, near-white). Near-white text on the light/bright ends of these gradients (Success, Secondary, Danger) is low contrast and hard to read — well under WCAG AA. Styles.xaml already solved exactly this problem for the same two gradients with ReceivePayTitle/ReceivePayAmount (TextColor=BgPrimary, i.e. dark text), but GroupDetailPage's balance tile template doesn't use those styles.",
+        "recommendation": "Give the DisplayName/AmountText/CaptionText Labels an explicit dark TextColor (e.g. BgPrimary/TextOnAccent, matching ReceivePayTitle/ReceivePayAmount) when the tile is in Receive or Pay state, either via additional Setters on the existing DataTriggers or by extracting label styles analogous to ReceivePayTitle/Amount for this tile."
+      },
+      {
+        "title": "FAB has no reserved clearance and can permanently cover the last list item",
+        "severity": "high",
+        "category": "layout fragility",
+        "location": "Grid Grid.Row=\"1\" (line 51): RefreshView/ScrollView content vs. the \"+ Add expense\" Button styled FabButtonStyle (lines 172-175)",
+        "description": "The FAB is a sibling of the RefreshView inside the same Grid, so it floats on top of the scrollable content at a fixed bottom-right position. The VerticalStackLayout inside the ScrollView has no bottom padding/spacer reserved for the FAB's height, so on shorter screens (or groups with few balances/activity rows, i.e. no need to scroll further) the FAB permanently overlaps the last Recent Activity row's amount/date text or the last balance tile's Settle button.",
+        "recommendation": "Add bottom padding/margin to the VerticalStackLayout (or an empty spacer Element) sized to at least the FAB's height + margin (~72-80) so scrolled content never sits under the FAB."
+      },
+      {
+        "title": "Header back-chevron and overflow icons have no real touch target",
+        "severity": "medium",
+        "category": "touch target",
+        "location": "Top bar Grid (lines 20-49): the \"‹\" Label (Grid.Column=0) and \"⋮\" Label (Grid.Column=2)",
+        "description": "Both icons are bare Labels with a TapGestureRecognizer and no Padding/WidthRequest/HeightRequest — their hit area is just the glyph's font box (24px and 18px respectively), well under the ~44dp minimum recommended touch target. The file's own comment already flags the overflow icon as unclickable on Windows due to caption-bar overlap, but the underlying tiny-hit-area problem exists on every platform, independent of that Windows-specific issue.",
+        "recommendation": "Wrap each glyph in a Border/Grid with Padding (or WidthRequest/HeightRequest >= 44) and move the TapGestureRecognizer to that container, so the tappable area is larger than the visible glyph."
+      },
+      {
+        "title": "Inline Settle button padding shrinks it below a usable touch target",
+        "severity": "medium",
+        "category": "touch target",
+        "location": "Balance tile DataTemplate, Button Grid.Column=\"3\" (lines 102-110)",
+        "description": "This Button overrides BtnOutlinePrimary's base Padding (14,12) down to Padding=\"10,6\" and FontSize to TypeCaption (12), sitting inside a row whose height is otherwise driven by the 36px avatar. The resulting button height is well under common minimum touch-target guidance (~44dp), and it sits directly adjacent to the row's other interactive-looking elements (avatar, amount text), increasing mis-tap risk.",
+        "recommendation": "Keep the default BtnOutlinePrimary padding or use a dedicated compact-button style with a guaranteed minimum HeightRequest (e.g. 32-36) rather than shrinking Padding ad hoc."
+      },
+      {
+        "title": "Member display name has no LineBreakMode, unlike the equivalent activity-row label",
+        "severity": "medium",
+        "category": "text clipping",
+        "location": "Balance tile DataTemplate, Label Grid.Column=\"1\" bound to Member.DisplayName (line 97)",
+        "description": "This Label has no LineBreakMode set, so a long display name will wrap instead of truncating. Because the row's height is otherwise anchored by the 36px avatar (Grid.Column=0) and a two-line amount/caption block (Grid.Column=2), a wrapped name grows the row unevenly and can push the name out of vertical alignment with the avatar and amount column. The Recent Activity template right below it (Description Label, line 145) sets LineBreakMode=\"TailTruncation\" for the same kind of dynamic text — this template is inconsistent with that pattern.",
+        "recommendation": "Add LineBreakMode=\"TailTruncation\" (and consider MaxLines=\"1\") to the Member.DisplayName Label to match the Recent Activity template's handling of dynamic text."
+      },
+      {
+        "title": "Hardcoded numeric values bypass the spacing/type token dictionaries",
+        "severity": "low",
+        "category": "spacing inconsistency",
+        "location": "Top bar Grid: Padding=\"16,0\" and Margin=\"0,40,0,0\" (line 20); FontSize=\"24\"/\"18\" on the chevron/overflow Labels (lines 24, 42); WidthRequest/HeightRequest=\"36\" on avatar Borders (lines 94, 131)",
+        "description": "The rest of the page consistently references SpacingXS/S/M/L and TypeCaption/Title via StaticResource, but this header/avatar markup uses raw numeric literals instead (16 happens to equal SpacingM, 40 happens to equal SpacingXL, but neither is expressed as a token reference). This makes a future global spacing/type-scale change silently miss this page.",
+        "recommendation": "Replace the literal numbers with the matching StaticResource tokens (SpacingM, SpacingXL, TypeDisplay/TypeTitle as appropriate) for consistency with the rest of the file."
+      }
+    ]
+  }
+];
+
+  var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
+  var SEVERITY_LABEL = { high: "High", medium: "Medium", low: "Low" };
+
+  function countBySeverity(findings) {
+    var c = { high: 0, medium: 0, low: 0 };
+    findings.forEach(function (f) {
+      if (c[f.severity] !== undefined) c[f.severity]++;
+    });
+    return c;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  (function render() {
+    var totals = { high: 0, medium: 0, low: 0 };
+    var pageSummaryRows = [];
+    var pagesHtml = "";
+
+    DATA.forEach(function (pageEntry) {
+      var findings = pageEntry.findings.slice().sort(function (a, b) {
+        return SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+      });
+      var counts = countBySeverity(findings);
+      totals.high += counts.high;
+      totals.medium += counts.medium;
+      totals.low += counts.low;
+
+      pageSummaryRows.push(
+        "<tr>" +
+          '<td class="file">' + escapeHtml(pageEntry.page) + "</td>" +
+          '<td class="num">' + counts.high + "</td>" +
+          '<td class="num">' + counts.medium + "</td>" +
+          '<td class="num">' + counts.low + "</td>" +
+          '<td class="num">' + findings.length + "</td>" +
+        "</tr>"
+      );
+
+      var findingsHtml = findings.map(function (f) {
+        return (
+          '<article class="finding ' + f.severity + '">' +
+            '<div class="finding-head">' +
+              '<h3 class="finding-title">' + escapeHtml(f.title) + "</h3>" +
+              '<span class="badge ' + f.severity + '">' + SEVERITY_LABEL[f.severity] + "</span>" +
+            "</div>" +
+            '<div class="meta-row">' +
+              '<span class="meta-chip">' + escapeHtml(f.category) + "</span>" +
+            "</div>" +
+            '<div class="field location">' +
+              '<div class="field-label">Location</div>' +
+              '<div class="field-value">' + escapeHtml(f.location) + "</div>" +
+            "</div>" +
+            '<div class="field description">' +
+              '<div class="field-label">Description</div>' +
+              '<div class="field-value">' + escapeHtml(f.description) + "</div>" +
+            "</div>" +
+            '<div class="field recommendation">' +
+              '<div class="field-label">Recommendation</div>' +
+              '<div class="field-value">' + escapeHtml(f.recommendation) + "</div>" +
+            "</div>" +
+          "</article>"
+        );
+      }).join("");
+
+      var badgesHtml = ["high", "medium", "low"].map(function (sev) {
+        if (counts[sev] === 0) return "";
+        return '<span class="mini-badge ' + sev + '">' + counts[sev] + " " + SEVERITY_LABEL[sev] + "</span>";
+      }).join("");
+
+      pagesHtml +=
+        '<section class="page-section">' +
+          '<div class="page-header">' +
+            "<h2>" + escapeHtml(pageEntry.page) + "</h2>" +
+            '<div class="page-counts">' + badgesHtml + "</div>" +
+          "</div>" +
+          findingsHtml +
+        "</section>";
+    });
+
+    document.getElementById("total-count").textContent = totals.high + totals.medium + totals.low;
+    document.getElementById("high-count").textContent = totals.high;
+    document.getElementById("medium-count").textContent = totals.medium;
+    document.getElementById("low-count").textContent = totals.low;
+    document.getElementById("page-summary-body").innerHTML = pageSummaryRows.join("");
+    document.getElementById("pages-container").innerHTML = pagesHtml;
+  })();
+</script>
+
+</body>
+</html>

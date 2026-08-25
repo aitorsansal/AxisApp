@@ -8,25 +8,36 @@
     Shell.NavBarIsVisible="False"
     Title="Invite people">
 
-    <Grid RowDefinitions="60,*">
+    <Grid RowDefinitions="100,*">
 
-        <!-- Top bar: back / title -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Padding="16,0" ColumnSpacing="8">
-            <Label
-                Grid.Column="0"
-                Text="&#8249;"
-                FontSize="24"
-                TextColor="{StaticResource TextPrimary}"
-                VerticalOptions="Center">
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnBackTapped" />
-                </Label.GestureRecognizers>
-            </Label>
+        <!-- Top bar: back / title. Extra top margin on Windows: this row otherwise renders
+        directly under the native window caption buttons — see GroupDetailPage.xaml for the
+        full explanation. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}">
+            <Grid.Padding>
+                <Thickness Left="{StaticResource SpacingM}" Top="0" Right="{StaticResource SpacingM}" Bottom="0" />
+            </Grid.Padding>
+            <Grid.Margin>
+                <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="0" Bottom="0" />
+            </Grid.Margin>
+            <Border Grid.Column="0" BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
+                <Label
+                    Text="&#8249;"
+                    FontSize="{StaticResource TypeIcon}"
+                    TextColor="{StaticResource TextPrimary}"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBackTapped" />
+                    </Label.GestureRecognizers>
+                </Label>
+            </Border>
             <Label
                 Grid.Column="1"
                 Text="Invite people"
                 Style="{StaticResource SectionHeader}"
-                Margin="0" />
+                Margin="0"
+                VerticalOptions="Center" />
         </Grid>
 
         <ScrollView Grid.Row="1">
@@ -36,7 +47,7 @@
                 <Border Style="{StaticResource ElevatedCard}" IsVisible="{Binding HasActiveGroup}">
                     <VerticalStackLayout Spacing="{StaticResource SpacingM}" HorizontalOptions="Center">
                         <Border
-                            BackgroundColor="White"
+                            BackgroundColor="{StaticResource QrPlaceholderBg}"
                             WidthRequest="132" HeightRequest="132"
                             StrokeThickness="0">
                             <Border.StrokeShape>
@@ -53,11 +64,13 @@
                                 FontSize="{StaticResource TypeTitle}"
                                 FontAttributes="Bold"
                                 VerticalOptions="Center" />
-                            <Label Text="&#128203;" VerticalOptions="Center">
-                                <Label.GestureRecognizers>
-                                    <TapGestureRecognizer Command="{Binding CopyLinkCommand}" />
-                                </Label.GestureRecognizers>
-                            </Label>
+                            <Border BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
+                                <Label Text="&#128203;" HorizontalOptions="Center" VerticalOptions="Center">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding CopyLinkCommand}" />
+                                    </Label.GestureRecognizers>
+                                </Label>
+                            </Border>
                         </HorizontalStackLayout>
 
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource SpacingS}" HorizontalOptions="Fill">
@@ -91,8 +104,7 @@
                         Grid.Column="1"
                         Text="Join"
                         Command="{Binding JoinByCodeCommand}"
-                        Style="{StaticResource BtnPrimaryStyle}"
-                        Padding="18,10" />
+                        Style="{StaticResource BtnPrimaryStyle}" />
                 </Grid>
 
                 <Label
@@ -112,8 +124,7 @@
                             Grid.Column="1"
                             Text="Add"
                             Command="{Binding AddPhantomMemberCommand}"
-                            Style="{StaticResource BtnPrimaryStyle}"
-                            Padding="18,10" />
+                            Style="{StaticResource BtnPrimaryStyle}" />
                     </Grid>
 
                     <!-- Name-match suggestions: "are you sure this isn't someone who already exists?" -->
@@ -128,7 +139,7 @@
                                         <Border
                                             Grid.Column="0"
                                             Style="{StaticResource AvatarCirclePhantom}"
-                                            WidthRequest="40" HeightRequest="40">
+                                            WidthRequest="{StaticResource AvatarSizeS}" HeightRequest="{StaticResource AvatarSizeS}">
                                             <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="14" />
                                         </Border>
                                         <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
@@ -149,7 +160,8 @@
                                             CommandParameter="{Binding .}"
                                             Style="{StaticResource BtnOutlinePrimary}"
                                             FontSize="{StaticResource TypeCaption}"
-                                            Padding="10,6"
+                                            Padding="12,8"
+                                            MinimumHeightRequest="36"
                                             VerticalOptions="Center"
                                             IsVisible="{Binding IsPhantom}" />
                                     </Grid>
@@ -168,7 +180,7 @@
                             <DataTemplate x:DataType="vm:PendingInviteItem">
                                 <Border Style="{StaticResource ListItemCard}">
                                     <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
-                                        <Border Grid.Column="0" Style="{StaticResource AvatarCirclePhantom}" WidthRequest="40" HeightRequest="40">
+                                        <Border Grid.Column="0" Style="{StaticResource AvatarCirclePhantom}" WidthRequest="{StaticResource AvatarSizeS}" HeightRequest="{StaticResource AvatarSizeS}">
                                             <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="14" />
                                         </Border>
                                         <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
@@ -182,7 +194,8 @@
                                             CommandParameter="{Binding .}"
                                             Style="{StaticResource BtnOutlinePrimary}"
                                             FontSize="{StaticResource TypeCaption}"
-                                            Padding="10,6"
+                                            Padding="12,8"
+                                            MinimumHeightRequest="36"
                                             VerticalOptions="Center" />
                                     </Grid>
                                 </Border>

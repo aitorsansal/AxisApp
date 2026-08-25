@@ -37,7 +37,7 @@ public partial class MemberMatchItem : ObservableObject
 /// always mints a fresh invite - there's no "get the existing active one" lookup yet, so revisiting
 /// this screen for the same group issues a new code each time rather than reusing one.
 /// </summary>
-public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
+public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
 {
     private readonly IInvitesRepository invitesRepository;
     private readonly IMembersRepository membersRepository;
@@ -49,7 +49,6 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
     [ObservableProperty] private string inviteCode = "";
     [ObservableProperty] private bool hasActiveGroup;
     [ObservableProperty] private string joinCodeInput = "";
-    [ObservableProperty] private string errorMessage = "";
     [ObservableProperty] private ObservableCollection<PendingInviteItem> pendingInvites = [];
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string newPhantomName = "";
@@ -75,7 +74,7 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
         }
     }
 
-    public async Task LoadAsync()
+    public Task LoadAsync() => RunSafeAsync(async () =>
     {
         if (groupId is not { } id) return;
         IsBusy = true;
@@ -94,15 +93,15 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
         {
             IsBusy = false;
         }
-    }
+    });
 
     [RelayCommand]
-    private async Task CopyLink()
+    private Task CopyLink() => RunSafeAsync(async () =>
     {
         if (string.IsNullOrEmpty(InviteCode)) return;
         await Clipboard.Default.SetTextAsync(InviteCode);
         await TryShowToast("Invite code copied");
-    }
+    });
 
     /// <summary>AX-07: on this unpackaged Win32 build, Toast.Show throws COMException 0x80070490
     /// (AppNotificationManager isn't registered) — confirmed live, crashing the whole app when
@@ -122,7 +121,7 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
     }
 
     [RelayCommand]
-    private async Task Share()
+    private Task Share() => RunSafeAsync(async () =>
     {
         if (string.IsNullOrEmpty(InviteCode)) return;
         await Microsoft.Maui.ApplicationModel.DataTransfer.Share.Default.RequestAsync(new ShareTextRequest
@@ -130,7 +129,7 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
             Text = $"Join my Axis group \"{GroupName}\" with code {InviteCode}",
             Title = "Invite to Axis"
         });
-    }
+    });
 
     private int searchGeneration;
 
@@ -141,7 +140,7 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
     partial void OnNewPhantomNameChanged(string value)
     {
         var generation = ++searchGeneration;
-        _ = SearchAsync(value, generation);
+        _ = RunSafeAsync(() => SearchAsync(value, generation));
     }
 
     private async Task SearchAsync(string query, int generation)
@@ -166,7 +165,7 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
     /// invite targeting them so they show up in Pending invites for a real person to redeem later.
     /// Only reached once the user has confirmed this isn't one of the NameMatches suggestions.</summary>
     [RelayCommand]
-    private async Task AddPhantomMember()
+    private Task AddPhantomMember() => RunSafeAsync(async () =>
     {
         if (string.IsNullOrWhiteSpace(NewPhantomName) || groupId is not { } id) return;
         IsBusy = true;
@@ -184,14 +183,14 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
         {
             IsBusy = false;
         }
-    }
+    });
 
     /// <summary>Links an existing phantom member (found via NameMatches) into this group instead
     /// of creating a duplicate phantom row for the same person. A claimed (real-account) match is
     /// never passed here — the UI only offers this action for phantom suggestions, since a real
     /// account must join by redeeming an invite itself, never be added on someone else's behalf.</summary>
     [RelayCommand]
-    private async Task LinkExistingMember(MemberMatchItem? item)
+    private Task LinkExistingMember(MemberMatchItem? item) => RunSafeAsync(async () =>
     {
         if (item is null || !item.Member.IsPhantom || groupId is not { } id) return;
         IsBusy = true;
@@ -207,22 +206,21 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
         {
             IsBusy = false;
         }
-    }
+    });
 
     [RelayCommand]
-    private async Task Resend(PendingInviteItem? item)
+    private Task Resend(PendingInviteItem? item) => RunSafeAsync(async () =>
     {
         if (item is null || groupId is not { } id) return;
         var invite = await invitesRepository.CreateAsync(id, item.Member.Id);
         await Clipboard.Default.SetTextAsync(invite.Token);
         await TryShowToast($"New invite code for {item.Member.DisplayName} copied");
-    }
+    });
 
     [RelayCommand]
-    private async Task JoinByCode()
+    private Task JoinByCode() => RunSafeAsync(async () =>
     {
         if (string.IsNullOrWhiteSpace(JoinCodeInput)) return;
-        ErrorMessage = "";
         IsBusy = true;
         try
         {
@@ -230,15 +228,11 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
             await TryShowToast("Joined group");
             await Shell.Current.GoToAsync($"{AppConstants.Routes.GroupDetails}?groupId={joinedGroupId}");
         }
-        catch (Exception ex)
-        {
-            ErrorMessage = ex.Message;
-        }
         finally
         {
             IsBusy = false;
         }
-    }
+    });
 
     private static string Initials(string name)
     {

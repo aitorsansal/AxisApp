@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Axis — Live UI Walkthrough</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --surface: #101826;
+    --surface-elevated: #16202f;
+    --border: #232e42;
+    --border-subtle: #1b2434;
+    --text-primary: #f2f5fa;
+    --text-secondary: #c3ccda;
+    --text-tertiary: #8d97a8;
+    --primary: #3d6bff;
+    --danger: #ff5c6c;
+    --warning: #f2c94c;
+    --success: #38d998;
+    --mono: Consolas, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 48px 24px 96px; }
+  header { margin-bottom: 40px; }
+  header .kicker {
+    font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-tertiary); font-weight: 600; margin-bottom: 8px;
+  }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  header p { color: var(--text-secondary); margin: 0; max-width: 60ch; }
+
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 32px 0 40px;
+  }
+  .stat {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .stat .n { font-size: 24px; font-weight: 700; }
+  .stat .l { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+  .stat.fixed .n { color: var(--success); }
+  .stat.open .n { color: var(--warning); }
+  .stat.note .n { color: var(--text-secondary); }
+
+  h2.section {
+    font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--text-tertiary); margin: 48px 0 16px; font-weight: 700;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .card-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; margin-bottom: 10px;
+  }
+  .card-title { font-size: 16px; font-weight: 700; margin: 0; }
+  .badge {
+    flex: none;
+    font-size: 11px; font-weight: 700; letter-spacing: .03em;
+    padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  .badge.fixed { background: rgba(56,217,152,0.14); color: var(--success); border: 1px solid rgba(56,217,152,0.35); }
+  .badge.open  { background: rgba(242,201,76,0.14); color: var(--warning); border: 1px solid rgba(242,201,76,0.35); }
+  .badge.note  { background: rgba(141,151,168,0.14); color: var(--text-secondary); border: 1px solid var(--border); }
+
+  .meta { font-size: 12px; color: var(--text-tertiary); margin-bottom: 12px; }
+  .meta code {
+    font-family: var(--mono); font-size: 11.5px; color: var(--text-secondary);
+    background: var(--surface-elevated); border: 1px solid var(--border-subtle);
+    padding: 1px 6px; border-radius: 5px;
+  }
+  .card p { margin: 0 0 10px; color: var(--text-secondary); font-size: 14px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card p b { color: var(--text-primary); font-weight: 600; }
+
+  .fix {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(56,217,152,0.06);
+    border-left: 3px solid var(--success);
+    border-radius: 0 8px 8px 0;
+    font-size: 13.5px; color: var(--text-secondary);
+  }
+  .fix b { color: var(--success); }
+
+  .rec {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(242,201,76,0.06);
+    border-left: 3px solid var(--warning);
+    border-radius: 0 8px 8px 0;
+    font-size: 13.5px; color: var(--text-secondary);
+  }
+  .rec b { color: var(--warning); }
+
+  .quote {
+    font-size: 13.5px; color: var(--text-secondary); font-style: italic;
+    margin: -2px 0 12px;
+  }
+
+  pre.json {
+    font-family: var(--mono); font-size: 12.5px; color: var(--danger);
+    background: var(--surface-elevated); border: 1px solid var(--border-subtle);
+    padding: 10px 14px; border-radius: 8px; overflow-x: auto; margin: 8px 0 12px;
+  }
+
+  footer {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border-subtle);
+    font-size: 12.5px; color: var(--text-tertiary);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Axis · Live testing pass</div>
+    <h1>Live UI Walkthrough</h1>
+    <p>Findings from driving the actual running Windows build (not just reading XAML/styles) — signed in as a real test account and clicked through Login → Groups → Group Detail → Add Expense → Join Group → New Group, at both a full-width window and a narrow phone-sized window.</p>
+  </header>
+
+  <div class="summary">
+    <div class="stat fixed"><div class="n">1</div><div class="l">Bug found &amp; fixed</div></div>
+    <div class="stat open"><div class="n">1</div><div class="l">Visual issue, open</div></div>
+    <div class="stat note"><div class="n">2</div><div class="l">Notes / minor</div></div>
+  </div>
+
+  <h2 class="section">Fixed this session</h2>
+
+  <div class="card">
+    <div class="card-head">
+      <h3 class="card-title">Back button invisible on Join Group / New Group pages</h3>
+      <span class="badge fixed">Fixed</span>
+    </div>
+    <div class="meta"><code>JoinGroupPage.xaml</code> · <code>NewGroupPage.xaml</code></div>
+    <p>Only found by actually opening these pages — static review of the XAML alone wouldn't have caught it. Both pages had <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">RowDefinitions="60,*"</code> for the header row, but the header also carries a 40px top margin (added to clear Windows' native caption buttons) plus a 44px chevron — 84px of content squeezed into a 60px row. The chevron was pushed completely out of the visible area, so the only way back was the OS window's own back arrow, not anything the app drew.</p>
+    <p><b>Group Detail's</b> page didn't have this problem because its header row was already <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">100,*</code> from an earlier fix — I just hadn't matched that when I copied the same margin fix to the other two pages.</p>
+    <div class="fix"><b>Fix:</b> bumped both pages' header row from <code style="font-family:var(--mono);font-size:12px;">60,*</code> to <code style="font-family:var(--mono);font-size:12px;">100,*</code>, matching Group Detail. Verified the chevron renders and is tappable on both pages afterward.</div>
+  </div>
+
+  <h2 class="section">Open — visual issue</h2>
+
+  <div class="card">
+    <div class="card-head">
+      <h3 class="card-title">"Join with code" / "+ New group" button pair reads as flat and mismatched</h3>
+      <span class="badge open">Not fixed — design call needed</span>
+    </div>
+    <div class="meta"><code>GroupsPage.xaml</code>, bottom-right corner of the groups list</div>
+    <p class="quote">"the join with code or + new group (as how I see them) they look super ugly"</p>
+    <p>Looking at it live, I agree this pairing is the weakest spot in the app right now. Two things are going on:</p>
+    <p>1. <b>"Join with code" barely reads as a button.</b> It uses <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">BtnOutlinePrimary</code> — transparent background, a 1px border in <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">BtnOutlinePrimaryBorder</code> (<code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">#3B4E85</code>) against the page's near-black background (<code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">#0B1220</code>). That border is low-contrast by design elsewhere in the app (it works fine on a solid `Surface` card), but floating alone over open background with no fill and no shadow, it just looks like a washed-out gray oval rather than a tappable control.</p>
+    <p>2. <b>The two buttons don't share an elevation language.</b> <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">FabButtonStyle</code> (used by "+ New group") carries a drop shadow — that's what makes a FAB read as floating above the content. The outline button next to it has no shadow at all, so one pill looks like it's floating and the other looks pasted flat onto the page. Sitting side by side, the mismatch is more noticeable than either button would be alone.</p>
+    <p>There's also a smaller code smell worth knowing about, though it's not visibly causing a problem right now: <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">FabButtonStyle</code> sets its own <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">HorizontalOptions="End"</code>, <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">VerticalOptions="End"</code>, and its own <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">Margin="0,0,16,16"</code> — all dead weight here, since the button already sits inside a <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">HorizontalStackLayout</code> that positions both buttons itself (and the XAML already overrides the margin back to <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">"0"</code> to compensate). It works today only because the override happens to cancel it out — fragile if either button's style changes later.</p>
+    <div class="rec"><b>Options, roughly cheapest to most involved:</b>
+      <br>• Give "Join with code" a solid fill (e.g. <code style="font-family:var(--mono);font-size:12px;">SurfaceElevated</code>) instead of transparent, so it reads as a real button without needing a shadow.
+      <br>• Or add the same drop shadow to both, so they visually belong to the same floating group.
+      <br>• Or split them apart entirely — keep "+ New group" as the one true FAB in the bottom-right corner, and move "Join with code" somewhere less prominent (e.g. next to "Your groups" header, or only shown in the empty-state).
+      <br>This is a design-language decision more than a bug fix, so I didn't just pick one and change it — let me know which direction you want and I'll implement it.
+    </div>
+  </div>
+
+  <h2 class="section">Minor notes</h2>
+
+  <div class="card">
+    <div class="card-head">
+      <h3 class="card-title">Raw backend error shown to the user</h3>
+      <span class="badge note">Pre-existing, not touched</span>
+    </div>
+    <div class="meta">Groups list, right under the "Axis" wordmark, on first load</div>
+    <p>Saw this appear once during testing:</p>
+    <pre class="json">{"code":"PGRST303","details":null,"hint":null,"message":"JWT issued at future"}</pre>
+    <p>This is the clock-skew auth rejection your <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">CLAUDE.md</code> already documents as a known transient issue. It surfaces because <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">BaseViewModel.RunSafeAsync</code> sets <code style="font-family:var(--mono);font-size:12px;background:var(--surface-elevated);padding:1px 5px;border-radius:4px;">ErrorMessage = ex.Message</code> directly — a deliberate simple pattern per your notes, not a bug I'm flagging as broken. Just noting that a real user hitting this transient failure sees raw JSON instead of a friendly message, which is worth a look eventually.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3 class="card-title">Stacked avatar initials read as dense/cramped</h3>
+      <span class="badge note">Minor, already partly improved</span>
+    </div>
+    <div class="meta"><code>GroupsPage.xaml</code>, member-avatar row on each group card</div>
+    <p>The overlapping avatar stack (negative spacing, by design — same pattern Splitwise/Tricount use) shows initials like "OA DR CR ML" tightly packed together. It's legible but dense at a glance, especially in a 5-member group. I already grew these from 18px→22px earlier in the review pass; further improvement (more spacing, or capping visible avatars with a "+N" overflow badge for large groups) is a polish item rather than a defect.</p>
+  </div>
+
+  <footer>
+    Generated from a live pass through the running Windows build (Debug), test account <code style="font-family:var(--mono);">owner1@axistest.local</code>. Companion to the earlier static XAML review — <code style="font-family:var(--mono);">ui-review-report.html</code> — which covered issues visible from code alone.
+  </footer>
+
+</div>
+</body>
+</html>

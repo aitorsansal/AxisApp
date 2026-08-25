@@ -8,49 +8,63 @@
     Title="Axis">
 
     <Grid>
-        <VerticalStackLayout
-            Padding="{StaticResource SpacingL}"
-            Spacing="{StaticResource SpacingM}"
-            VerticalOptions="Center">
+        <ScrollView>
+            <VerticalStackLayout
+                Padding="{StaticResource SpacingL}"
+                Spacing="{StaticResource SpacingM}">
 
-            <Label
-                Text="Axis"
-                FontSize="{StaticResource TypeDisplay}"
-                FontAttributes="Bold"
-                HorizontalOptions="Center"
-                Margin="0,0,0,24" />
+                <Label
+                    Text="Axis"
+                    FontSize="{StaticResource TypeDisplay}"
+                    FontAttributes="Bold"
+                    HorizontalOptions="Center">
+                    <Label.Margin>
+                        <Thickness Left="0" Top="0" Right="0" Bottom="{StaticResource SpacingL}" />
+                    </Label.Margin>
+                </Label>
 
-            <Border Style="{StaticResource InputBorderStyle}">
-                <Entry
-                    Text="{Binding Email}"
-                    Placeholder="Email"
-                    Keyboard="Email" />
-            </Border>
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Entry
+                        Text="{Binding Email}"
+                        Placeholder="Email"
+                        Keyboard="Email"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+                </Border>
 
-            <Border Style="{StaticResource InputBorderStyle}">
-                <Entry
-                    Text="{Binding Password}"
-                    Placeholder="Password"
-                    IsPassword="True" />
-            </Border>
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Entry
+                        Text="{Binding Password}"
+                        Placeholder="Password"
+                        IsPassword="True"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+                </Border>
 
-            <Label
-                Text="{Binding ErrorMessage}"
-                TextColor="{StaticResource Danger}"
-                FontSize="{StaticResource TypeCaption}"
-                IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+                <Label
+                    Text="{Binding ErrorMessage}"
+                    TextColor="{StaticResource Danger}"
+                    FontSize="{StaticResource TypeCaption}"
+                    IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
-            <Button
-                Text="Sign In"
-                Command="{Binding SignInCommand}"
-                Style="{StaticResource BtnPrimaryStyle}" />
+                <Button
+                    Text="Sign In"
+                    Command="{Binding SignInCommand}"
+                    Style="{StaticResource BtnPrimaryStyle}"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
 
-            <Button
-                Text="Create Account"
-                Command="{Binding SignUpCommand}"
-                Style="{StaticResource BtnOutlinePrimary}" />
+                <Button
+                    Text="Create Account"
+                    Command="{Binding SignUpCommand}"
+                    Style="{StaticResource BtnOutlinePrimary}"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
 
-        </VerticalStackLayout>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <BoxView
+            Color="{StaticResource BgDeep}"
+            Opacity="0.6"
+            IsVisible="{Binding IsBusy}"
+            InputTransparent="False" />
 
         <ActivityIndicator
             IsRunning="{Binding IsBusy}"

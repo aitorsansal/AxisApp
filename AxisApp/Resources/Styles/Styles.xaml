@@ -561,9 +561,12 @@
          ======================= -->
     <Style x:Key="FabButtonStyle" TargetType="Button" BasedOn="{StaticResource BtnPrimaryStyle}">
         <Setter Property="CornerRadius" Value="999" />
-        <Setter Property="Padding" Value="20,14" />
+        <Setter Property="Padding" Value="14,7" />
         <Setter Property="HorizontalOptions" Value="End" />
         <Setter Property="VerticalOptions" Value="End" />
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="BorderColor" Value="{StaticResource BtnSecondary}"/>
+        <Setter Property="BorderWidth" Value="2"/>
         <Setter Property="Margin" Value="0,0,16,16" />
         <Setter Property="Shadow">
             <Setter.Value>

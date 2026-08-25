@@ -4,14 +4,13 @@ using AxisApp.Services;
 
 namespace AxisApp.ViewModels;
 
-public partial class LoginViewModel : ObservableObject
+public partial class LoginViewModel : BaseViewModel
 {
     private readonly IAuthService authService;
 
     [ObservableProperty] private string email = string.Empty;
     [ObservableProperty] private string password = string.Empty;
     [ObservableProperty] private bool isBusy;
-    [ObservableProperty] private string errorMessage = string.Empty;
 
     public LoginViewModel(IAuthService authService)
     {
@@ -19,11 +18,10 @@ public partial class LoginViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task SignIn()
+    private Task SignIn() => RunSafeAsync(async () =>
     {
         if (IsBusy) return;
         IsBusy = true;
-        ErrorMessage = string.Empty;
         try
         {
             var result = await authService.SignInAsync(Email, Password);
@@ -36,14 +34,13 @@ public partial class LoginViewModel : ObservableObject
         {
             IsBusy = false;
         }
-    }
+    });
 
     [RelayCommand]
-    private async Task SignUp()
+    private Task SignUp() => RunSafeAsync(async () =>
     {
         if (IsBusy) return;
         IsBusy = true;
-        ErrorMessage = string.Empty;
         try
         {
             var result = await authService.SignUpAsync(Email, Password);
@@ -58,5 +55,5 @@ public partial class LoginViewModel : ObservableObject
         {
             IsBusy = false;
         }
-    }
+    });
 }

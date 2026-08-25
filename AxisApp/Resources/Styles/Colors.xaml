@@ -99,6 +99,9 @@
     <Color x:Key="TabTextActive">#F2F5FA</Color>
     <Color x:Key="TabTextInactive">#C3CCDA</Color>
 
+    <!-- QR placeholder swatch (no QR generation wired yet) -->
+    <Color x:Key="QrPlaceholderBg">#F2F5FA</Color>
+
     <!-- Badges & Chips -->
     <Color x:Key="BadgePrimary">#F2A93C</Color>
     <Color x:Key="BadgeText">#08101F</Color>

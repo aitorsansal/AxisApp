@@ -70,7 +70,7 @@ public partial class CategoryChip : ObservableObject
 /// across every group member; toggling a participant off or hand-editing one share switches into
 /// manual mode via IsManualSplit, same escape hatch DebtTracker used.
 /// </summary>
-public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
+public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 {
     private readonly IMembersRepository membersRepository;
     private readonly IExpensesRepository expensesRepository;
@@ -125,7 +125,7 @@ public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
     /// mode (forExpenseId omitted) everyone defaults to an equal split; in edit mode, the existing
     /// expense's amount/description/category/payer/date and per-member shares are loaded on top,
     /// overriding the equal-split defaults built for the member list.</summary>
-    public async Task LoadAsync(Guid forGroupId, Guid? forExpenseId = null)
+    public Task LoadAsync(Guid forGroupId, Guid? forExpenseId = null) => RunSafeAsync(async () =>
     {
         groupId = forGroupId;
         editingExpenseId = forExpenseId;
@@ -178,7 +178,7 @@ public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
         {
             IsBusy = false;
         }
-    }
+    });
 
     /// <summary>Overlays a previously-saved expense's data onto the freshly-built participant/payer
     /// lists. IsManualSplit is set first so the AmountText assignment below doesn't trigger an
@@ -336,7 +336,7 @@ public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
     }
 
     [RelayCommand]
-    private async Task Save()
+    private Task Save() => RunSafeAsync(async () =>
     {
         if (!CanSave || SelectedPayer is null) return;
 
@@ -374,10 +374,10 @@ public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
         {
             IsBusy = false;
         }
-    }
+    });
 
     [RelayCommand]
-    private async Task Delete()
+    private Task Delete() => RunSafeAsync(async () =>
     {
         if (!IsEditMode || editingExpenseId is not { } id) return;
 
@@ -391,10 +391,10 @@ public partial class AddExpenseViewModel : ObservableObject, IQueryAttributable
         {
             IsBusy = false;
         }
-    }
+    });
 
     [RelayCommand]
-    private async Task Cancel() => await Shell.Current.GoToAsync("..");
+    private Task Cancel() => RunSafeAsync(() => Shell.Current.GoToAsync(".."));
 
     private static string Initials(string name)
     {

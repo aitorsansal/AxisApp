@@ -21,7 +21,7 @@ public partial class GroupListItem : ObservableObject
     [ObservableProperty] private string balanceCaptionText = "";
 }
 
-public partial class GroupsViewModel : ObservableObject
+public partial class GroupsViewModel : BaseViewModel
 {
     private readonly IGroupsRepository groupsRepository;
     private readonly IMembersRepository membersRepository;
@@ -32,6 +32,8 @@ public partial class GroupsViewModel : ObservableObject
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private bool isEmpty;
     [ObservableProperty] private string userInitials = "";
+    [ObservableProperty] private string userEmail = "";
+    [ObservableProperty] private bool isAccountMenuOpen;
 
     public GroupsViewModel(
         IGroupsRepository groupsRepository,
@@ -45,9 +47,15 @@ public partial class GroupsViewModel : ObservableObject
         this.authService = authService;
 
         UserInitials = Initials(authService.CurrentEmail ?? "?");
+        UserEmail = authService.CurrentEmail ?? "";
     }
 
-    public async Task LoadAsync()
+    /// <summary>Wraps its own body in RunSafeAsync rather than relying on callers to — this is
+    /// called both as a [RelayCommand] (Refresh) and directly, fire-and-forget, from
+    /// GroupsPage.OnAppearing, and either path hitting an unhandled exception (e.g. the
+    /// transient Supabase "JWT issued at future" clock-skew rejection seen repeatedly during
+    /// testing) needs to degrade to an error message, not take the app down.</summary>
+    public Task LoadAsync() => RunSafeAsync(async () =>
     {
         IsBusy = true;
         try
@@ -81,7 +89,7 @@ public partial class GroupsViewModel : ObservableObject
         {
             IsBusy = false;
         }
-    }
+    });
 
     private static void ApplyBalance(GroupListItem item, decimal balance)
     {
@@ -102,29 +110,46 @@ public partial class GroupsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task OpenGroup(GroupListItem? item)
+    private Task OpenGroup(GroupListItem? item) => RunSafeAsync(async () =>
     {
         if (item is null) return;
         await Shell.Current.GoToAsync(
             $"{AppConstants.Routes.GroupDetails}?groupId={item.Group.Id}&groupName={Uri.EscapeDataString(item.Group.Name)}");
-    }
+    });
 
     /// <summary>Shell.Current.DisplayPromptAsync crashes on Windows (fail-fast in
     /// Microsoft.UI.Xaml.dll — a known WinUI ContentDialog bug, not something fixable from app
     /// code: microsoft/microsoft-ui-xaml#10897), so this is a dedicated page instead of an
     /// inline prompt.</summary>
     [RelayCommand]
-    private async Task NewGroup() => await Shell.Current.GoToAsync(AppConstants.Routes.NewGroup);
+    private Task NewGroup() => RunSafeAsync(() => Shell.Current.GoToAsync(AppConstants.Routes.NewGroup));
 
     /// <summary>The only other way onto this screen is GroupDetailViewModel's overflow menu,
     /// which requires already being in a group — so a brand-new account with zero groups had no
     /// way to redeem an invite code at all. JoinGroupPage/ViewModel already handle a missing
     /// groupId query param fine (HasActiveGroup just stays false), so this only needed a route in.</summary>
     [RelayCommand]
-    private async Task JoinGroup() => await Shell.Current.GoToAsync(AppConstants.Routes.JoinGroup);
+    private Task JoinGroup() => RunSafeAsync(() => Shell.Current.GoToAsync(AppConstants.Routes.JoinGroup));
 
     [RelayCommand]
-    private async Task Refresh() => await LoadAsync();
+    private Task Refresh() => LoadAsync();
+
+    [RelayCommand]
+    private void ToggleAccountMenu() => IsAccountMenuOpen = !IsAccountMenuOpen;
+
+    /// <summary>Real profile content (name/photo/whatever) isn't designed yet — the menu still
+    /// shows the row so the shape matches the eventual account menu, it just doesn't navigate
+    /// anywhere yet. Revisit once there's an actual Profile screen.</summary>
+    [RelayCommand]
+    private void OpenProfile() => IsAccountMenuOpen = false;
+
+    [RelayCommand]
+    private Task Logout() => RunSafeAsync(async () =>
+    {
+        IsAccountMenuOpen = false;
+        await authService.SignOutAsync();
+        await Shell.Current.GoToAsync(AppConstants.Routes.Login);
+    });
 
     private static string Initials(string name)
     {

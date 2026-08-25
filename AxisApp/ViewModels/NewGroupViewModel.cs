@@ -4,13 +4,12 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AxisApp.ViewModels;
 
-public partial class NewGroupViewModel : ObservableObject
+public partial class NewGroupViewModel : BaseViewModel
 {
     private readonly IGroupsRepository groupsRepository;
 
     [ObservableProperty] private string groupName = "";
     [ObservableProperty] private bool isBusy;
-    [ObservableProperty] private string errorMessage = "";
 
     public NewGroupViewModel(IGroupsRepository groupsRepository)
     {
@@ -18,7 +17,7 @@ public partial class NewGroupViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task Create()
+    private Task Create() => RunSafeAsync(async () =>
     {
         if (string.IsNullOrWhiteSpace(GroupName))
         {
@@ -27,19 +26,14 @@ public partial class NewGroupViewModel : ObservableObject
         }
 
         IsBusy = true;
-        ErrorMessage = "";
         try
         {
             await groupsRepository.CreateAsync(GroupName.Trim());
             await Shell.Current.GoToAsync("..");
         }
-        catch (Exception ex)
-        {
-            ErrorMessage = ex.Message;
-        }
         finally
         {
             IsBusy = false;
         }
-    }
+    });
 }

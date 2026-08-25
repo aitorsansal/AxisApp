@@ -35,6 +35,14 @@
     <x:Double x:Key="TypeBody">14</x:Double>
     <x:Double x:Key="TypeCaption">12</x:Double>
     <x:Double x:Key="TypeLabel">11</x:Double>
+    <x:Double x:Key="TypeIcon">24</x:Double>
+    <x:Double x:Key="TypeWordmark">20</x:Double>
+    <x:Double x:Key="TypeEmojiLg">20</x:Double>
+    <x:Double x:Key="TypeAmountPrefix">22</x:Double>
+    <x:Double x:Key="TypeAmountHero">36</x:Double>
+
+    <!-- ============ AVATAR SIZES ============ -->
+    <x:Double x:Key="AvatarSizeS">40</x:Double>
 
     <!-- ============ FONTS ============ -->
     <!-- Tabular-numeral font for amounts/codes (invite code, split-row amounts). No custom font

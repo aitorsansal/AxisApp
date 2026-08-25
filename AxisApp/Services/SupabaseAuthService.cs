@@ -69,6 +69,14 @@ public class SupabaseAuthService : IAuthService
     public async Task SignOutAsync() => await client.Auth.SignOut();
 
     /// <summary>Must run once before any other call — wires up the child clients and restores
-    /// a persisted session if one exists. Called from App's constructor.</summary>
-    public async Task RestoreSessionAsync() => await client.InitializeAsync();
+    /// a persisted session if one exists. Called from App's constructor. LoadSession() has to run
+    /// first: InitializeAsync() alone never calls the configured SessionHandler on its own (found
+    /// 2026-08-25 — SaveSession fired correctly on sign-in, but nothing ever called LoadSession
+    /// on the next launch, so every restart fell through to Login despite a valid persisted
+    /// session sitting right there in SecureStorage). Same two-call order PokeCards uses.</summary>
+    public async Task RestoreSessionAsync()
+    {
+        client.Auth.LoadSession();
+        await client.InitializeAsync();
+    }
 }

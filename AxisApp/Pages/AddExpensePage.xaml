@@ -11,7 +11,10 @@
     <Grid RowDefinitions="60,*,Auto">
 
         <!-- Top bar: Cancel / title / Save -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="16,0">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+            <Grid.Padding>
+                <Thickness Left="{StaticResource SpacingM}" Top="0" Right="{StaticResource SpacingM}" Bottom="0" />
+            </Grid.Padding>
             <Button
                 Grid.Column="0"
                 Text="Cancel"
@@ -19,8 +22,9 @@
                 Style="{StaticResource BtnOutlinePrimary}"
                 BackgroundColor="Transparent"
                 BorderWidth="0"
-                TextColor="{StaticResource Secondary}"
-                Padding="0"
+                TextColor="{StaticResource TextSecondary}"
+                MinimumWidthRequest="76"
+                MinimumHeightRequest="44"
                 VerticalOptions="Center" />
 
             <Label
@@ -41,7 +45,8 @@
                 BorderWidth="0"
                 TextColor="{StaticResource Primary}"
                 FontAttributes="Bold"
-                Padding="0"
+                MinimumWidthRequest="76"
+                MinimumHeightRequest="44"
                 VerticalOptions="Center" />
         </Grid>
 
@@ -50,17 +55,17 @@
 
                 <!-- Amount hero -->
                 <VerticalStackLayout Spacing="{StaticResource SpacingXS}" HorizontalOptions="Center">
-                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="4">
+                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="{StaticResource SpacingXS}">
                         <Label
                             Text="$"
-                            FontSize="22"
+                            FontSize="{StaticResource TypeAmountPrefix}"
                             FontAttributes="Bold"
                             TextColor="{StaticResource TextTertiary}"
                             VerticalOptions="Center" />
                         <Entry
                             Text="{Binding AmountText}"
                             Keyboard="Numeric"
-                            FontSize="36"
+                            FontSize="{StaticResource TypeAmountHero}"
                             FontAttributes="Bold"
                             TextColor="{StaticResource TextPrimary}"
                             BackgroundColor="Transparent"
@@ -154,22 +159,30 @@
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding Participants}" Spacing="{StaticResource SpacingXS}">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:ExpenseParticipant">
-                                <Grid ColumnDefinitions="Auto,Auto,*,90" ColumnSpacing="{StaticResource SpacingS}" Padding="0,4">
+                                <Grid ColumnDefinitions="Auto,Auto,*,90" ColumnSpacing="{StaticResource SpacingS}">
+                                    <Grid.Padding>
+                                        <Thickness Left="0" Top="{StaticResource SpacingXS}" Right="0" Bottom="{StaticResource SpacingXS}" />
+                                    </Grid.Padding>
                                     <Border
                                         Grid.Column="0"
-                                        Style="{StaticResource SplitCheckboxStyle}"
+                                        BackgroundColor="Transparent"
+                                        StrokeThickness="0"
+                                        WidthRequest="44" HeightRequest="44"
+                                        Padding="0"
                                         VerticalOptions="Center">
                                         <Border.GestureRecognizers>
                                             <TapGestureRecognizer Command="{Binding ToggleIncludedCommand}" />
                                         </Border.GestureRecognizers>
-                                        <Label
-                                            Text="&#10003;"
-                                            IsVisible="{Binding IsIncluded}"
-                                            TextColor="{StaticResource TextOnAccent}"
-                                            FontSize="12"
-                                            FontAttributes="Bold"
-                                            HorizontalOptions="Center"
-                                            VerticalOptions="Center" />
+                                        <Border Style="{StaticResource SplitCheckboxStyle}" HorizontalOptions="Center" VerticalOptions="Center">
+                                            <Label
+                                                Text="&#10003;"
+                                                IsVisible="{Binding IsIncluded}"
+                                                TextColor="{StaticResource TextOnAccent}"
+                                                FontSize="12"
+                                                FontAttributes="Bold"
+                                                HorizontalOptions="Center"
+                                                VerticalOptions="Center" />
+                                        </Border>
                                     </Border>
 
                                     <Border
@@ -213,13 +226,19 @@
                         </CollectionView.ItemsLayout>
                         <CollectionView.ItemTemplate>
                             <DataTemplate x:DataType="vm:CategoryChip">
-                                <Border Style="{StaticResource ChipBorderStyle}">
+                                <Border Style="{StaticResource ChipBorderStyle}" VerticalOptions="Fill">
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:AddExpenseViewModel}}, Path=SelectCategoryCommand}"
                                             CommandParameter="{Binding .}" />
                                     </Border.GestureRecognizers>
-                                    <Label Text="{Binding Name}" FontSize="{StaticResource TypeCaption}" TextColor="{StaticResource TextSecondary}" />
+                                    <Label Text="{Binding Name}" FontSize="{StaticResource TypeCaption}" TextColor="{StaticResource TextSecondary}" VerticalOptions="Center">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
                                 </Border>
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
@@ -242,7 +261,7 @@
                 <!-- Receipt photo (upload not wired yet - see SCOPE.md's Storage/receipts note) -->
                 <Border Style="{StaticResource ReceiptDropZone}">
                     <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="4">
-                        <Label Text="&#128247;" HorizontalOptions="Center" FontSize="20" />
+                        <Label Text="&#128247;" HorizontalOptions="Center" FontSize="{StaticResource TypeEmojiLg}" />
                         <Label
                             Text="Add receipt photo (optional)"
                             Style="{StaticResource LabelTertiary}"
@@ -254,6 +273,12 @@
         </ScrollView>
 
         <VerticalStackLayout Grid.Row="2" Spacing="{StaticResource SpacingS}" Margin="{StaticResource SpacingM}">
+            <Label
+                Text="{Binding ErrorMessage}"
+                TextColor="{StaticResource Danger}"
+                FontSize="{StaticResource TypeCaption}"
+                HorizontalTextAlignment="Center"
+                IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
             <Button
                 Text="Save expense"
                 Command="{Binding SaveCommand}"

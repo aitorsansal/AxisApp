@@ -16,7 +16,13 @@ public partial class MemberBalanceItem : ObservableObject
     public Member Member { get; init; } = null!;
     public string Initials { get; init; } = "";
     public string? ToName { get; init; }
+    public Guid? ToMemberId { get; init; }
     public bool IsNeutral { get; init; }
+
+    /// <summary>The unsigned amount this row represents — kept separately from AmountText
+    /// (which carries a +/-/$ display prefix) so Settle doesn't have to re-parse formatted text
+    /// to know what payment to create.</summary>
+    public decimal Amount { get; init; }
 
     [ObservableProperty] private bool isOwed;
     [ObservableProperty] private bool isOwing;
@@ -41,7 +47,7 @@ public partial class ActivityItem : ObservableObject
     public Guid? ExpenseId { get; init; }
 }
 
-public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
+public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
 {
     private readonly IMembersRepository membersRepository;
     private readonly IBalancesRepository balancesRepository;
@@ -67,7 +73,7 @@ public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
     partial void OnIsPairwiseModeChanged(bool value)
     {
         Microsoft.Maui.Storage.Preferences.Default.Set(PreferenceKey, value);
-        if (membersById.Count > 0) _ = RefreshBalancesAsync();
+        if (membersById.Count > 0) _ = RunSafeAsync(RefreshBalancesAsync);
     }
 
     private string PreferenceKey => $"{AppConstants.Preferences.BalanceDisplayModePrefix}{groupId}";
@@ -99,7 +105,7 @@ public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
         }
     }
 
-    public async Task LoadAsync()
+    public Task LoadAsync() => RunSafeAsync(async () =>
     {
         IsBusy = true;
         try
@@ -152,7 +158,7 @@ public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
         {
             IsBusy = false;
         }
-    }
+    });
 
     /// <summary>Rebuilds the Balances section for whichever mode is currently selected, without
     /// refetching members/activity — used both by LoadAsync and by the mode toggle.</summary>
@@ -176,7 +182,12 @@ public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
         foreach (var row in pairwise)
         {
             if (!membersById.TryGetValue(row.OtherMemberId, out var member)) continue;
-            var item = new MemberBalanceItem { Member = member, Initials = Initials(member.DisplayName) };
+            var item = new MemberBalanceItem
+            {
+                Member = member,
+                Initials = Initials(member.DisplayName),
+                Amount = Math.Abs(row.Balance)
+            };
             if (row.Balance > 0)
             {
                 item.IsOwed = true;
@@ -216,6 +227,7 @@ public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
                 {
                     Member = to,
                     Initials = Initials(to.DisplayName),
+                    Amount = transfer.Amount,
                     IsOwing = true,
                     IsSettled = false,
                     AmountText = $"-${transfer.Amount:0.00}",
@@ -228,6 +240,7 @@ public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
                 {
                     Member = from,
                     Initials = Initials(from.DisplayName),
+                    Amount = transfer.Amount,
                     IsOwed = true,
                     IsSettled = false,
                     AmountText = $"+${transfer.Amount:0.00}",
@@ -241,6 +254,8 @@ public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
                     Member = from,
                     Initials = Initials(from.DisplayName),
                     ToName = to.DisplayName,
+                    ToMemberId = to.Id,
+                    Amount = transfer.Amount,
                     IsNeutral = true,
                     AmountText = $"${transfer.Amount:0.00}",
                     CaptionText = $"pays {to.DisplayName}"
@@ -267,23 +282,71 @@ public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
     }
 
     [RelayCommand]
-    private async Task AddExpense() =>
-        await Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={groupId}");
+    private Task AddExpense() => RunSafeAsync(() =>
+        Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={groupId}"));
 
     /// <summary>Tapping an activity row opens it for editing — but only expenses; editing a
     /// settle-up payment isn't in scope here.</summary>
     [RelayCommand]
-    private async Task OpenActivity(ActivityItem? item)
+    private Task OpenActivity(ActivityItem? item) => RunSafeAsync(async () =>
     {
         if (item?.ExpenseId is not { } expenseId) return;
         await Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={groupId}&expenseId={expenseId}");
-    }
+    });
 
     [RelayCommand]
-    private async Task InvitePeople() =>
-        await Shell.Current.GoToAsync(
-            $"{AppConstants.Routes.JoinGroup}?groupId={groupId}&groupName={Uri.EscapeDataString(GroupName)}");
+    private Task InvitePeople() => RunSafeAsync(() =>
+        Shell.Current.GoToAsync(
+            $"{AppConstants.Routes.JoinGroup}?groupId={groupId}&groupName={Uri.EscapeDataString(GroupName)}"));
+
+    /// <summary>Records a real payments row for one balance row's amount. Works the same way
+    /// regardless of display mode, since both modes ultimately produce a (payer, payee, amount)
+    /// triple on MemberBalanceItem — Pairwise's is a real counterparty debt, Simplified's is
+    /// whatever transfer the settle-up algorithm suggested for that row (see "Balances:
+    /// simplified vs. pairwise" in CLAUDE.md). A settled/neutral-with-no-ToMemberId row (shouldn't
+    /// normally reach here since the UI only offers Settle where one of these is true) is a no-op.</summary>
+    [RelayCommand]
+    private Task Settle(MemberBalanceItem? item) => RunSafeAsync(async () =>
+    {
+        if (item is null) return;
+
+        Guid payerId, payeeId;
+        if (item.IsNeutral)
+        {
+            if (item.ToMemberId is not { } toId) return;
+            payerId = item.Member.Id;
+            payeeId = toId;
+        }
+        else if (item.IsOwing)
+        {
+            if (myMemberId is not { } me) return;
+            payerId = me;
+            payeeId = item.Member.Id;
+        }
+        else if (item.IsOwed)
+        {
+            if (myMemberId is not { } me) return;
+            payerId = item.Member.Id;
+            payeeId = me;
+        }
+        else
+        {
+            return;
+        }
+
+        await paymentsRepository.AddAsync(new Payment
+        {
+            GroupId = groupId,
+            PayerMemberId = payerId,
+            PayeeMemberId = payeeId,
+            Amount = item.Amount,
+            Description = "Settle up",
+            OccurredAt = DateTime.UtcNow
+        });
+
+        await LoadAsync();
+    });
 
     [RelayCommand]
-    private async Task Refresh() => await LoadAsync();
+    private Task Refresh() => LoadAsync();
 }

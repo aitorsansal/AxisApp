@@ -8,25 +8,36 @@
     Shell.NavBarIsVisible="False"
     Title="New group">
 
-    <Grid RowDefinitions="60,*">
+    <Grid RowDefinitions="100,*">
 
-        <!-- Top bar: back / title -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Padding="16,0" ColumnSpacing="8">
-            <Label
-                Grid.Column="0"
-                Text="&#8249;"
-                FontSize="24"
-                TextColor="{StaticResource TextPrimary}"
-                VerticalOptions="Center">
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnBackTapped" />
-                </Label.GestureRecognizers>
-            </Label>
+        <!-- Top bar: back / title. Extra top margin on Windows: this row otherwise renders
+        directly under the native window caption buttons — see GroupDetailPage.xaml for the
+        full explanation. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}">
+            <Grid.Padding>
+                <Thickness Left="{StaticResource SpacingM}" Top="0" Right="{StaticResource SpacingM}" Bottom="0" />
+            </Grid.Padding>
+            <Grid.Margin>
+                <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="0" Bottom="0" />
+            </Grid.Margin>
+            <Border Grid.Column="0" BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
+                <Label
+                    Text="&#8249;"
+                    FontSize="{StaticResource TypeIcon}"
+                    TextColor="{StaticResource TextPrimary}"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBackTapped" />
+                    </Label.GestureRecognizers>
+                </Label>
+            </Border>
             <Label
                 Grid.Column="1"
                 Text="New group"
                 Style="{StaticResource SectionHeader}"
-                Margin="0" />
+                Margin="0"
+                VerticalOptions="Center" />
         </Grid>
 
         <VerticalStackLayout Grid.Row="1" Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">

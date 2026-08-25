@@ -284,7 +284,81 @@ simplification ("I don't want to settle with X, route my debt through
 someone else instead") — genuinely possible, but needs pairwise data as
 simplification's *input* (a constrained matching/flow problem), not just as
 an alternate display mode, so it's a materially bigger feature than either of
-the above.
+the above. **Update:** the "Settle" button described here now exists — see
+below.
+
+## Session persistence, sign-out, Settle, and crash-safety (2026-08-25)
+
+Ported from a sibling MAUI project (`PokeCards`, same `Supabase` 1.6.0
+package) rather than designed from scratch:
+
+- **Session persistence was silently dead on arrival.** `App.xaml.cs`'s
+  `window.Created` hook and `SupabaseAuthService.RestoreSessionAsync` were
+  both already wired up, and `AppConstants.Preferences.SupabaseSession` was
+  already declared — but `Supabase.Client` was never given a `SessionHandler`
+  (`SupabaseOptions`), so there was nothing to persist to or restore from,
+  and every launch fell through to Login even right after signing in. Fixed
+  with `Services/SupabaseSessionPersistence.cs` (`IGotrueSessionPersistence
+  <Session>` backed by `SecureStorage`, ported verbatim from PokeCards) wired
+  into the `Supabase.Client` registration in `MauiProgram.cs`. That alone
+  still didn't fix it: `RestoreSessionAsync` only called
+  `client.InitializeAsync()`, never `client.Auth.LoadSession()` first —
+  confirmed via instrumented logging that `SaveSession` fired correctly on
+  every sign-in but `LoadSession` was never once called on a fresh launch.
+  Fixed by adding that call (PokeCards' `SupabaseService.InitializeAsync`
+  does both, in that order). Verified end-to-end: sign in → kill process →
+  relaunch → lands on Groups, no login screen.
+- **Sign-out**: tapping the avatar on `GroupsPage` opens a small dropdown
+  (`IsAccountMenuOpen`, a plain `Border` overlay + scrim — not a native
+  dialog) showing the account email, a disabled "Profile" placeholder (no
+  Profile screen designed yet), and "Log out" (`GroupsViewModel.Logout` →
+  `IAuthService.SignOutAsync()` → `Routes.Login`). Confirmed logout also
+  destroys the persisted session (`DestroySession()` fires automatically via
+  the same `SessionHandler`), so a relaunch after logout shows Login again,
+  not an auto-restore.
+- **Crash-safety net**: every `[RelayCommand]` async body in every ViewModel
+  now runs through `BaseViewModel.RunSafeAsync` (ported from PokeCards'
+  `BaseViewModel`/`IErrorPresenter`, adapted — see below) instead of
+  executing bare. Without this, an unhandled exception from
+  `CommunityToolkit.Mvvm`'s `AsyncRelayCommand` posts back to the WinUI
+  dispatcher outside any try/catch and fail-fasts the whole process
+  (0xc000027b) — confirmed repeatedly this session by a transient Supabase
+  "JWT issued at future" clock-skew rejection crashing the app on nearly
+  every sign-in. **Adaptation from PokeCards, not a verbatim port**:
+  PokeCards shows errors via a `CommunityToolkit.Maui` `Popup`
+  (`IErrorPresenter`/`ErrorPresenter`/`ErrorPopup`), but that package's API
+  changed incompatibly between the version PokeCards pins (9.1.1) and this
+  app's (13.0.0) — `Popup.Close()` and `Page.ShowPopupAsync()` no longer
+  exist in 13.0.0 (confirmed by an actual failed build, not assumption; the
+  replacement API wasn't tracked down — see the NuGet caveat below). Rather
+  than chase that, `BaseViewModel` just sets an `ErrorMessage` string
+  instead, reusing the plain red-`Label` pattern `JoinGroupViewModel`/
+  `NewGroupViewModel` already had individually — simpler, zero third-party
+  dependency, and every page needs the same one-line `Label` binding
+  (`Text="{Binding ErrorMessage}"`, `IsVisible` via
+  `StringNotEmptyConverter`) that already existed on some pages. This
+  doesn't fix the *systemic* class of bug for every possible failure mode —
+  a *synchronous* exception thrown directly in a command handler (not from
+  an awaited `Task`) or one thrown outside any `[RelayCommand]` context
+  entirely isn't covered — but it covers the actual crashes observed.
+- **Settle button**: `GroupDetailViewModel.Settle(MemberBalanceItem)` creates
+  a real `Payment` row for one balance row's amount, working identically
+  regardless of display mode — `MemberBalanceItem` now carries a raw
+  `Amount` (decimal, so `Settle` never re-parses the formatted `AmountText`
+  string) and, for a Simplified-mode neutral (third-party) row, the
+  counterparty's `ToMemberId` alongside the existing `ToName`. Pairwise rows
+  settle the real counterparty debt directly; Simplified rows settle
+  whichever transfer `DebtSimplifier` suggested for that row. This is the
+  first thing in the app that actually calls `IPaymentsRepository.AddAsync`
+  — untested beyond a successful build, since verifying it was left to
+  manual testing rather than another automated pass.
+
+**NuGet caveat to add to the existing one below**: `CommunityToolkit.Maui`'s
+`Popup` API is confirmed to have changed between 9.1.1 and 13.0.0 in a way
+that breaks a straightforward port (`Close()`/`Page.ShowPopupAsync()` both
+gone) — if a popup-based UI is wanted later, treat the current 13.0.0 API as
+unknown and verify against a real build rather than copying older
+CommunityToolkit.Maui code (PokeCards' included) as-is.
 
 ## Architecture
 
