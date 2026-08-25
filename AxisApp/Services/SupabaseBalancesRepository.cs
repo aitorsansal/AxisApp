@@ -1,5 +1,5 @@
 using AxisApp.Models;
-using Postgrest;
+using Supabase.Postgrest;
 
 namespace AxisApp.Services;
 

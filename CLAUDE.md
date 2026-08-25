@@ -206,7 +206,7 @@ as RLS policies so Postgres enforces them uniformly.
 | `Microsoft.Maui.Controls` | 10.0.10 | MAUI runtime |
 | `CommunityToolkit.Maui` | 13.0.0 | UI controls & behaviors |
 | `CommunityToolkit.Mvvm` | 8.4.0 | MVVM source generators |
-| `supabase-csharp` | 0.16.2 | Supabase client (Auth + Postgrest + Realtime) |
+| `Supabase` | 1.6.0 | Supabase client (Auth + Postgrest + Realtime) |
 
 Be skeptical of the Supabase C# SDK's own README examples — they've been
 observed to not match what's actually installed (the Models' `Postgrest.*`

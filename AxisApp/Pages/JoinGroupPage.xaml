@@ -101,6 +101,22 @@
                     FontSize="{StaticResource TypeCaption}"
                     IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
+                <!-- Add phantom member -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding HasActiveGroup}">
+                    <Label Text="Add a member by name" Style="{StaticResource SectionHeaderTertiary}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                        <Border Grid.Column="0" Style="{StaticResource InputBorderStyle}">
+                            <Entry Text="{Binding NewPhantomName}" Placeholder="Name (no account needed yet)" />
+                        </Border>
+                        <Button
+                            Grid.Column="1"
+                            Text="Add"
+                            Command="{Binding AddPhantomMemberCommand}"
+                            Style="{StaticResource BtnPrimaryStyle}"
+                            Padding="18,10" />
+                    </Grid>
+                </VerticalStackLayout>
+
                 <!-- Pending invites -->
                 <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding HasActiveGroup}">
                     <Label Text="Pending invites" Style="{StaticResource SectionHeaderTertiary}" />

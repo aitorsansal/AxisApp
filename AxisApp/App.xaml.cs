@@ -11,6 +11,24 @@ namespace AxisApp
             InitializeComponent();
             Application.Current!.UserAppTheme = AppTheme.Dark;
             this.authService = authService;
+
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+                LogCrash(e.ExceptionObject as Exception);
+            TaskScheduler.UnobservedTaskException += (_, e) =>
+            {
+                LogCrash(e.Exception);
+                e.SetObserved();
+            };
+        }
+
+        private static void LogCrash(Exception? ex)
+        {
+            try
+            {
+                var path = Path.Combine(Path.GetTempPath(), "axisapp-crash.log");
+                File.AppendAllText(path, $"{DateTime.Now:O}\n{ex}\n\n");
+            }
+            catch { /* best effort */ }
         }
 
         protected override Window CreateWindow(IActivationState? activationState)

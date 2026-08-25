@@ -1,5 +1,5 @@
 using AxisApp.Models;
-using Postgrest;
+using Supabase.Postgrest;
 
 namespace AxisApp.Services;
 
@@ -53,5 +53,14 @@ public class SupabaseMembersRepository : IMembersRepository
 
         var result = await client.From<Member>().Insert(member);
         return result.Model!;
+    }
+
+    public async Task AddToGroupAsync(Guid groupId, Guid memberId)
+    {
+        await client.From<GroupMember>().Insert(new GroupMember
+        {
+            GroupId = groupId,
+            MemberId = memberId
+        });
     }
 }

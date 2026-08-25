@@ -38,6 +38,7 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
     [ObservableProperty] private string errorMessage = "";
     [ObservableProperty] private ObservableCollection<PendingInviteItem> pendingInvites = [];
     [ObservableProperty] private bool isBusy;
+    [ObservableProperty] private string newPhantomName = "";
 
     public JoinGroupViewModel(IInvitesRepository invitesRepository, IMembersRepository membersRepository)
     {
@@ -95,6 +96,27 @@ public partial class JoinGroupViewModel : ObservableObject, IQueryAttributable
             Text = $"Join my Axis group \"{GroupName}\" with code {InviteCode}",
             Title = "Invite to Axis"
         });
+    }
+
+    /// <summary>Adds a phantom (name-only) member directly to the active group, then mints an
+    /// invite targeting them so they show up in Pending invites for a real person to redeem later.</summary>
+    [RelayCommand]
+    private async Task AddPhantomMember()
+    {
+        if (string.IsNullOrWhiteSpace(NewPhantomName) || groupId is not { } id) return;
+        IsBusy = true;
+        try
+        {
+            var member = await membersRepository.AddPhantomAsync(NewPhantomName.Trim());
+            await membersRepository.AddToGroupAsync(id, member.Id);
+            await invitesRepository.CreateAsync(id, member.Id);
+            NewPhantomName = "";
+            await LoadAsync();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]

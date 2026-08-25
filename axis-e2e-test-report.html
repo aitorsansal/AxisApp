@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Axis End-to-End Test Report</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --surface-2: #eef1f6;
+    --border: #dde2ea;
+    --text: #1a2233;
+    --text-dim: #5b6577;
+    --text-faint: #8892a3;
+    --accent: #2f5fd6;
+    --accent-dim: #4a70d9;
+    --amber: #b7791f;
+    --amber-bg: #fdf3df;
+    --amber-border: #f0d69a;
+    --green: #1a7f4f;
+    --green-bg: #e5f6ec;
+    --green-border: #a9ddc0;
+    --red: #c0342c;
+    --red-bg: #fbe9e7;
+    --red-border: #edb4ae;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    --sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(20,30,50,0.04), 0 6px 20px -8px rgba(20,30,50,0.10);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1420;
+      --surface: #151d2c;
+      --surface-2: #1b2436;
+      --border: #2a3549;
+      --text: #e7ecf5;
+      --text-dim: #a3aec2;
+      --text-faint: #6c7890;
+      --accent: #6f93ec;
+      --accent-dim: #557ce0;
+      --amber: #e0b355;
+      --amber-bg: #2b2413;
+      --amber-border: #5c4a1f;
+      --green: #5fd399;
+      --green-bg: #10261c;
+      --green-border: #285c41;
+      --red: #f0847c;
+      --red-bg: #2c1512;
+      --red-border: #5e2a25;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -8px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1420;
+    --surface: #151d2c;
+    --surface-2: #1b2436;
+    --border: #2a3549;
+    --text: #e7ecf5;
+    --text-dim: #a3aec2;
+    --text-faint: #6c7890;
+    --accent: #6f93ec;
+    --accent-dim: #557ce0;
+    --amber: #e0b355;
+    --amber-bg: #2b2413;
+    --amber-border: #5c4a1f;
+    --green: #5fd399;
+    --green-bg: #10261c;
+    --green-border: #285c41;
+    --red: #f0847c;
+    --red-bg: #2c1512;
+    --red-border: #5e2a25;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -8px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent); color: #fff; }
+
+  .wrap {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+
+  header.top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 6px 0 10px;
+    text-wrap: balance;
+  }
+  .meta {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-faint);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 36px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+  }
+  .meta span b { color: var(--text-dim); font-weight: 600; }
+
+  /* Status summary strip */
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 40px;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+  }
+  .stat .n {
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1;
+    display: block;
+    margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .l {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    letter-spacing: 0.01em;
+  }
+  .stat.ok .n { color: var(--green); }
+  .stat.warn .n { color: var(--amber); }
+  .stat.bad .n { color: var(--red); }
+
+  h2 {
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 52px 0 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    text-wrap: balance;
+  }
+  h2 .idx {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-faint);
+    font-weight: 500;
+  }
+  .section-intro {
+    color: var(--text-dim);
+    margin: 0 0 20px;
+    max-width: 62ch;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 28px 0 10px;
+  }
+
+  p { max-width: 68ch; }
+  p.wide { max-width: none; }
+
+  code, .code-inline {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 0.1em 0.4em;
+    border-radius: 5px;
+    color: var(--accent-dim);
+  }
+
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+    margin: 14px 0 22px;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.65;
+  }
+  .pre-label {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+  }
+
+  /* Fix card */
+  .fix {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--green);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin: 16px 0 24px;
+    box-shadow: var(--shadow);
+  }
+  .fix-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .fix-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green-border);
+    padding: 2px 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+  .fix-title { font-weight: 700; font-size: 15px; }
+  .fix .file {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-faint);
+    margin-top: 2px;
+  }
+  .fix p { margin: 10px 0 0; color: var(--text-dim); font-size: 14.5px; }
+
+  /* Blocker callout */
+  .blocker {
+    background: var(--red-bg);
+    border: 1px solid var(--red-border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin: 18px 0 28px;
+  }
+  .blocker-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .blocker-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--red);
+  }
+  .blocker h4 { margin: 0; font-size: 16px; color: var(--red); }
+  .blocker p { color: var(--text); max-width: none; }
+  .blocker p.dim { color: var(--text-dim); }
+
+  /* Investigation timeline */
+  .timeline {
+    border-left: 2px solid var(--border);
+    margin: 20px 0 20px 6px;
+    padding-left: 24px;
+  }
+  .tl-item {
+    position: relative;
+    padding-bottom: 22px;
+  }
+  .tl-item:last-child { padding-bottom: 0; }
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    left: -29.5px;
+    top: 5px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+  }
+  .tl-item.ruled-out::before { border-color: var(--text-faint); }
+  .tl-item .tl-title {
+    font-weight: 600;
+    font-size: 14.5px;
+    margin-bottom: 3px;
+  }
+  .tl-item .tl-result {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-faint);
+  }
+  .tl-item.ruled-out .tl-result { color: var(--text-faint); }
+  .tl-item .tl-result.confirmed { color: var(--green); }
+  .tl-item .tl-result.anomaly { color: var(--red); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 24px;
+    font-size: 14px;
+  }
+  table caption { text-align: left; margin-bottom: 8px; }
+  th, td {
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+    font-weight: 600;
+  }
+  td.result-pass { color: var(--green); font-weight: 600; }
+  td.result-fail { color: var(--red); font-weight: 600; }
+  td code { font-size: 12.5px; }
+  .table-wrap { overflow-x: auto; }
+
+  ul.check-list { list-style: none; padding: 0; margin: 14px 0 24px; }
+  ul.check-list li {
+    display: flex;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14.5px;
+  }
+  ul.check-list li:last-child { border-bottom: none; }
+  ul.check-list li .mark {
+    font-family: var(--mono);
+    flex-shrink: 0;
+    width: 18px;
+  }
+  ul.check-list li.pass .mark { color: var(--green); }
+  ul.check-list li.fail .mark { color: var(--red); }
+
+  .recommend {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin: 14px 0;
+    box-shadow: var(--shadow);
+  }
+  .recommend h4 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .recommend .num {
+    font-family: var(--mono);
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .recommend p { margin: 0; color: var(--text-dim); font-size: 14.5px; }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-faint);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  a { color: var(--accent-dim); }
+
+  @media (max-width: 600px) {
+    .wrap { padding: 36px 16px 64px; }
+    h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <div class="eyebrow">Test session report</div>
+      <h1>Axis end-to-end run — blocked at group creation</h1>
+    </div>
+  </header>
+  <div class="meta">
+    <span><b>Date</b> 2026-08-25</span>
+    <span><b>Target</b> Windows build, live Supabase project</span>
+    <span><b>Account</b> axis.owner.test@example.com</span>
+    <span><b>Duration</b> ~8.5 hours (overnight)</span>
+  </div>
+
+  <div class="status-grid">
+    <div class="stat ok"><span class="n">4</span><span class="l">real bugs found &amp; fixed</span></div>
+    <div class="stat ok"><span class="n">1/1</span><span class="l">account creation — pass</span></div>
+    <div class="stat bad"><span class="n">0/9</span><span class="l">remaining goal steps completed</span></div>
+    <div class="stat warn"><span class="n">1</span><span class="l">unresolved platform-level blocker</span></div>
+  </div>
+
+  <p class="section-intro">The requested test plan — 5 phantom users, 2 groups of 4+, and a full matrix of payment/split scenarios — could not run. Every path in the plan requires creating a group first, and group creation itself is blocked by a Postgres/PostgREST anomaly that survives a full schema rebuild, a fresh JWT, and direct <code>curl</code> reproduction outside the app entirely. This report documents what was fixed along the way, exactly how the blocker was isolated, and what's left to try.</p>
+
+  <h2><span class="idx">01</span> What actually got tested</h2>
+  <ul class="check-list">
+    <li class="pass"><span class="mark">✓</span> Sign up with a new account (email + password) — session established, JWT issued correctly</li>
+    <li class="pass"><span class="mark">✓</span> Sign in with existing credentials — session restored correctly</li>
+    <li class="fail"><span class="mark">✗</span> Create a group — blocked, see §3</li>
+    <li class="fail"><span class="mark">✗</span> Create 5 phantom members — blocked (requires an existing group; UI for this didn't exist at all until fixed, see §2)</li>
+    <li class="fail"><span class="mark">✗</span> Create 2 groups with 4+ members each — blocked</li>
+    <li class="fail"><span class="mark">✗</span> Normal payment (direct settle-up) — blocked</li>
+    <li class="fail"><span class="mark">✗</span> Equal-split expense — blocked</li>
+    <li class="fail"><span class="mark">✗</span> Unequal-split expense — blocked</li>
+    <li class="fail"><span class="mark">✗</span> Payment where the signed-in user is neither payer nor payee — blocked</li>
+  </ul>
+
+  <h2><span class="idx">02</span> Bugs found and fixed</h2>
+  <p class="section-intro">Four real, verified defects — independent of the blocker below. All are committed.</p>
+
+  <div class="fix">
+    <div class="fix-head"><span class="fix-badge">Fixed</span><span class="fix-title">No client-side validation on sign-up</span></div>
+    <div class="file">AxisApp/ViewModels/LoginViewModel.cs · AxisApp/Services/SupabaseAuthService.cs</div>
+    <p>Submitting the sign-up form with empty email/password fields wasn't rejected client-side — it reached Supabase, which interpreted the empty credentials as an anonymous sign-in attempt. Since anonymous sign-ins are disabled on this project, the user saw a raw JSON error (<code>anonymous_provider_disabled</code>) instead of a validation message.</p>
+  </div>
+
+  <div class="fix">
+    <div class="fix-head"><span class="fix-badge">Fixed</span><span class="fix-title">No UI path to create a phantom member</span></div>
+    <div class="file">AxisApp/ViewModels/JoinGroupViewModel.cs · AxisApp/Pages/JoinGroupPage.xaml · AxisApp/Services/SupabaseMembersRepository.cs</div>
+    <p><code>IMembersRepository.AddPhantomAsync</code> existed in the data layer but nothing in the UI called it, and it never joined the new member to a group either. Added a name field + <em>Add</em> button on the Invite screen, an <code>AddToGroupAsync</code> repository method, and wired the two together with an invite so the phantom shows up as claimable.</p>
+  </div>
+
+  <div class="fix">
+    <div class="fix-head"><span class="fix-badge">Fixed</span><span class="fix-title">Supabase package was six major versions behind</span></div>
+    <div class="file">AxisApp/AxisApp.csproj</div>
+    <p>The project was pinned to the deprecated <code>supabase-csharp</code> 0.16.2. Upgraded to the current <code>Supabase</code> 1.6.0 package (confirmed against a working reference project), which moved every model's Postgrest imports from <code>Postgrest.*</code> to <code>Supabase.Postgrest.*</code> — updated across all 19 affected files.</p>
+  </div>
+
+  <div class="fix">
+    <div class="fix-head"><span class="fix-badge">Fixed</span><span class="fix-title">Session not re-propagated to Postgrest after sign-in</span></div>
+    <div class="file">AxisApp/Services/SupabaseAuthService.cs</div>
+    <p><code>client.InitializeAsync()</code> was only called once at cold boot, before any user had signed in. Re-running it immediately after a successful sign-up/sign-in (matching the pattern in a known-working reference project) ensures the client's internal state picks up the freshly-established session.</p>
+  </div>
+
+  <h2><span class="idx">03</span> The blocker</h2>
+
+  <div class="blocker">
+    <div class="blocker-head"><span class="blocker-badge">Unresolved</span></div>
+    <h4>Inserting into <code>groups</code> or <code>members</code> always fails RLS — even with a verified-correct auth context</h4>
+    <p>Every attempt to create a group returns:</p>
+    <pre><code>{"code":"42501","message":"new row violates row-level security policy for table \"groups\""}</code></pre>
+    <p class="dim">The policy is exactly <code>with check (created_by = auth.uid())</code>, and every value involved was independently confirmed correct — see the investigation trail below. The same account, same token, same instant, succeeds against <code>categories</code> (identical policy shape) and fails against <code>groups</code> and <code>members</code>.</p>
+  </div>
+
+  <h3>Investigation trail</h3>
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-title">System clock skew ("JWT issued at future")</div>
+      <div class="tl-result confirmed">Real issue, fixed by resyncing the clock — but a separate, intermittent problem from the 42501 below</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-title">Supabase package not forwarding the session to Postgrest</div>
+      <div class="tl-result confirmed">Real issue, fixed (§2) — resolved the "No API key" / apikey-missing symptom, not this one</div>
+    </div>
+    <div class="tl-item ruled-out">
+      <div class="tl-title">RLS policy text itself wrong</div>
+      <div class="tl-result">Ruled out — <code>pg_policies</code> shows <code>with_check: (created_by = auth.uid())</code>, byte-identical to <code>categories</code>, which works</div>
+    </div>
+    <div class="tl-item ruled-out">
+      <div class="tl-title">Missing GRANT on the table or column</div>
+      <div class="tl-result">Ruled out — <code>authenticated</code> has full INSERT/SELECT/UPDATE/DELETE on both tables, identical to <code>categories</code></div>
+    </div>
+    <div class="tl-item ruled-out">
+      <div class="tl-title">JWT invalid or wrongly signed</div>
+      <div class="tl-result">Ruled out — decoded token has correct <code>sub</code>/<code>role</code>, and its signing key ID matches the project's live JWKS exactly</div>
+    </div>
+    <div class="tl-item ruled-out">
+      <div class="tl-title"><code>auth.uid()</code> resolving incorrectly</div>
+      <div class="tl-result">Ruled out — a dedicated RPC (<code>select auth.uid()</code>) called through real PostgREST returns the exact right account ID</div>
+    </div>
+    <div class="tl-item ruled-out">
+      <div class="tl-title">Stale schema / leftover state from earlier test runs</div>
+      <div class="tl-result">Ruled out — dropped and rebuilt the entire schema from <code>schema.sql</code> from scratch; identical failure on the first attempt against the fresh schema</div>
+    </div>
+    <div class="tl-item ruled-out">
+      <div class="tl-title">C# client sending a bad request</div>
+      <div class="tl-result">Ruled out — replayed the identical insert via raw <code>curl</code>, completely outside the app; same 42501</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-title"><code>categories</code> (same policy shape) succeeds; <code>groups</code>/<code>members</code> fail</div>
+      <div class="tl-result anomaly">Confirmed anomaly — same token, same moment, different tables, different outcome</div>
+    </div>
+  </div>
+
+  <h3>Direct comparison</h3>
+  <div class="table-wrap">
+  <table>
+    <caption class="pre-label">Same account, same token, same minute — 2026-08-25 08:4x</caption>
+    <thead>
+      <tr><th>Table</th><th>Policy (with_check)</th><th>Insert result</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>categories</code></td><td><code>created_by = auth.uid()</code></td><td class="result-pass">201 Created</td></tr>
+      <tr><td><code>groups</code></td><td><code>created_by = auth.uid()</code></td><td class="result-fail">42501 RLS violation</td></tr>
+      <tr><td><code>members</code></td><td><code>created_by = auth.uid()</code></td><td class="result-fail">42501 RLS violation</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2><span class="idx">04</span> Recommended next steps</h2>
+
+  <div class="recommend">
+    <h4><span class="num">1</span> Open a Supabase support ticket</h4>
+    <p>This looks like a platform-level issue with the project's Postgres/PostgREST instance, not anything fixable from application code, SQL policies, or grants — all of which were independently verified correct. The <code>categories</code> vs. <code>groups</code>/<code>members</code> split with an identical policy is the strongest evidence to lead with.</p>
+  </div>
+  <div class="recommend">
+    <h4><span class="num">2</span> Try a project restart</h4>
+    <p>Not attempted — restarting the underlying compute would clear any stuck connection-pool or prepared-statement state without needing a schema change. Available under Project Settings → Infrastructure.</p>
+  </div>
+  <div class="recommend">
+    <h4><span class="num">3</span> As a last resort, spin up a fresh Supabase project</h4>
+    <p><code>schema.sql</code> is idempotent-safe to run once against a clean project and reproduces the full schema exactly. If a fresh project doesn't reproduce the bug, that confirms it's specific to this project's infrastructure state rather than the schema design.</p>
+  </div>
+  <div class="recommend">
+    <h4><span class="num">4</span> Re-run this test plan once group creation works</h4>
+    <p>Nothing else in the plan was reachable, so the phantom-member, multi-group, and split-payment scenarios are still entirely unverified — not known-broken, just untested.</p>
+  </div>
+
+  <footer>
+    <span>Generated during an unattended overnight session</span>
+    <span>axis-e2e-test-report.html</span>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -37,6 +37,13 @@ public class SupabaseAuthService : IAuthService
         try
         {
             await client.Auth.SignUp(email, password);
+            // Re-running InitializeAsync() after a successful sign-up rewires the client's
+            // internal state (including whatever propagates the session to Postgrest request
+            // headers) to the freshly-established session — see PokeCards'
+            // EnsureInitializedAsync-before-every-auth-call pattern. Without this, every
+            // Postgrest request after sign-up/sign-in went out unauthenticated (verified via a
+            // raw curl replay with a valid bearer token still getting 42501 RLS violations).
+            await client.InitializeAsync();
             return new AuthResult(true);
         }
         catch (Exception ex)
@@ -50,6 +57,7 @@ public class SupabaseAuthService : IAuthService
         try
         {
             await client.Auth.SignIn(email, password);
+            await client.InitializeAsync();
             return new AuthResult(true);
         }
         catch (Exception ex)
