@@ -62,7 +62,15 @@
                             Style="{StaticResource BtnOutlinePrimary}" />
 
                         <VerticalStackLayout Spacing="{StaticResource SpacingS}">
-                            <Label Text="Balances" Style="{StaticResource SectionHeaderTertiary}" />
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                                <Label Grid.Column="0" Text="Balances" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" Margin="0" />
+                                <Label
+                                    Grid.Column="1"
+                                    Text="Detailed"
+                                    Style="{StaticResource LabelTertiary}"
+                                    VerticalOptions="Center" />
+                                <Switch Grid.Column="2" IsToggled="{Binding IsPairwiseMode}" VerticalOptions="Center" />
+                            </Grid>
 
                             <VerticalStackLayout BindableLayout.ItemsSource="{Binding Balances}" Spacing="{StaticResource SpacingS}">
                                 <BindableLayout.ItemTemplate>

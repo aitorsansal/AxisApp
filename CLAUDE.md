@@ -117,16 +117,20 @@ This repo is a scaffold, not a finished app. As of this commit:
   work** — see `/SCOPE.md`'s Theming section for the technical read on
   feasibility if it comes up again.
 
-Next real milestones, in order: (1) run the new blocks at the bottom of
-`supabase/schema.sql` against the live project (expenses/expense_shares/
-balances views/device_tokens, plus the expense_shares update policy) — this
-now also includes the fixed `groups` `SELECT` policy from bug #3 above if
-you're setting up a fresh project; (2) ~~get everything actually compiling
-and confirm auth + a repository call work end to end~~ **done** — sign-up +
-create-group is confirmed working against the live project; (3) the
-Supabase-side infra `/SCOPE.md` describes but that has no code yet — receipt
-storage/upload, the cleanup Edge Function, recurring payment materialization,
-push.
+Next real milestones, in order: (1) ~~run the new blocks at the bottom of
+`supabase/schema.sql` against the live project~~ **done** — expenses/
+expense_shares/balances views/device_tokens, the expense_shares update
+policy, and everything from the 2026-08-25 sessions (widened RLS policies,
+`payment_net` fix, `pairwise_balances`/`my_pairwise_balances`) are all live;
+(2) ~~get everything actually compiling and confirm auth + a repository call
+work end to end~~ **done** — sign-up, create-group, adding/linking phantoms,
+and full invite redemption (claim + fresh-join) are all confirmed working
+against the live project; (3) build the actual "Settle up" UI — the
+`payments` write path and both balance-display modes are ready for it (see
+"Balances: simplified vs. pairwise" above), just no button calls
+`IPaymentsRepository`'s create path yet; (4) the Supabase-side infra
+`/SCOPE.md` describes but that has no code yet — receipt storage/upload, the
+cleanup Edge Function, recurring payment materialization, push.
 
 See **`SCOPE.md`** for the full product scope and phased roadmap (the
 debt-tracker vertical currently being built, plus the events/calendar and
@@ -158,19 +162,129 @@ Don't reintroduce a design where `payments` reference `auth.users` or a
 "Person" that assumes every participant has logged in. That collapses the
 phantom-member case, which is the entire point of this schema.
 
-**Known gap, not yet designed (raised 2026-08-25 during end-to-end testing):**
-phantom members are scoped per-group today — `AddPhantomAsync` always inserts
-a brand-new `members` row, with no lookup against phantoms the same account
-already created elsewhere. Adding "Maria Lopez" in two different groups
-creates two unrelated phantom rows, not one shared identity. This has a
-real downstream consequence for claiming: redeeming an invite links an
-account to exactly one `members` row (`invites.target_member_id`), so if
-Maria's phantom exists twice, claiming one leaves the other permanently
-orphaned — her payment history in that second group never links to her
-real account. No decision has been made on the fix (dedupe by name at
-creation time? a cross-group "person" concept above `members`? merge-on-claim?
-explicit "link to existing phantom" step?) — flag this if asked to touch
-`AddPhantomAsync`, invite redemption, or anything cross-group about members.
+**Cross-group phantom duplication — fixed 2026-08-25.** Phantom members used
+to be scoped per-group: `AddPhantomAsync` always inserted a brand-new
+`members` row, with no lookup against phantoms the same account already
+created elsewhere, so adding "Maria Lopez" in two different groups created
+two unrelated phantom rows. Since claiming links an account to exactly one
+`members` row (`invites.target_member_id`), a duplicated phantom meant one of
+the two histories would end up permanently orphaned. Fixed with an explicit
+"is this someone who already exists?" step rather than silent name-matching
+(silent auto-merge was considered and rejected — two different real people
+sharing a name would wrongly merge their debts onto a stranger):
+- `IMembersRepository.SearchVisibleByNameAsync` (backed by
+  `SupabaseMembersRepository`) searches members by name, scoped automatically
+  by the existing `members` `SELECT` RLS policy — never an app-wide directory,
+  only people the account can already see (shared group, created themselves,
+  or their own claimed row).
+- `JoinGroupViewModel`'s "Add a member by name" field now shows live
+  suggestions as you type (`NameMatches`/`MemberMatchItem`). A **phantom**
+  match gets a "Link" action (`LinkExistingMemberCommand` →
+  `AddToGroupAsync` on the *existing* row — no new phantom, no new invite
+  needed for it). A **claimed** (real-account) match gets no linking action
+  at all, only an informational "already on Axis, send them the invite code
+  instead" — a real account must always join by redeeming an invite itself,
+  never be added to a group by someone else's action. See
+  `Pages/JoinGroupPage.xaml` for the UI.
+- Required widening the `group_members` insert RLS policy (`schema.sql`,
+  `"group members can add members"`), previously restricted to a group's
+  creator only — the Link action (and plain phantom-adding) needs to work for
+  any existing member, not just whoever created the group.
+
+One structural gap this **doesn't** fix, found while testing the above: a
+brand-new account with zero groups had **no UI path at all** to redeem an
+invite code — `JoinGroupPage` was only ever reached from an existing group's
+overflow menu. Fixed by adding a `JoinGroupCommand` + "Join with code" button
+directly on `GroupsPage` (navigates to `JoinGroup` with no `groupId`, a case
+`JoinGroupViewModel` already handled correctly).
+
+**Invite redemption was completely broken, project-wide, until 2026-08-25 —
+found only once someone actually tried to redeem one.** `Invite.ExpiresAt`
+was never set in `SupabaseInvitesRepository.CreateAsync`, so it defaulted to
+C#'s `DateTime.MinValue` (`0001-01-01`) and Postgrest sent that literal value
+on every insert — silently overriding the table's real
+`now() + interval '7 days'` default, the exact same shape of bug as the
+`Token`-defaulting-to-`""` issue already documented below. Since
+`redeem_invite()` checks `expires_at < now()`, **every invite ever created,
+from every test session, was "expired" the instant it was made** — nobody
+could ever successfully join a group or claim a phantom via invite code.
+Fixed by setting `ExpiresAt = DateTime.UtcNow.AddDays(7)` explicitly, same
+pattern as `Token`. Pre-fix rows already in the live table were left alone
+(a bulk `UPDATE` backfill was attempted but blocked by this environment's
+safety guardrails as a broad data mutation) — new invites are fine, anything
+minted before this fix needs re-issuing via "Resend".
+
+Redemption success/failure reporting had its own bug on top of that:
+`JoinGroupViewModel.JoinByCode`/`Resend`/`CopyLink` all called
+`Toast.Make(...).Show(...)` directly, which throws
+`COMException 0x80070490` on this unpackaged Win32 build — `Microsoft.Windows
+.AppNotifications.AppNotificationManager` isn't registered for a Win32 app
+that isn't MSIX-packaged, and any unhandled exception from an async
+`[RelayCommand]` fail-fasts the whole WinUI process (a systemic gap, not
+specific to these three commands — worth a global fix later, e.g. wrapping
+`AsyncRelayCommand` execution or hooking its `ExecutionTask`, but not
+attempted here). `Resend` crashed the whole app outright; `JoinByCode` was
+worse — it wrapped both the real `RedeemAsync` call *and* the toast in one
+`try/catch`, so a **successful** claim (confirmed via the DB — `account_id`
+was correctly set) still showed the user a scary
+`"No se ha encontrado el elemento."` failure message and never navigated
+anywhere. Fixed with a shared `TryShowToast` helper that swallows the toast
+exception specifically, used by all three commands — a surgical fix for
+these three call sites, not the broader systemic issue described above.
+
+## Balances: simplified vs. pairwise, and the payment_net sign bug
+
+**Found and fixed 2026-08-25**, during design discussion about an eventual
+"Settle up" feature (not built yet — see below): `group_balances`'s
+`payment_net` CTE (`schema.sql`) had `payer_member_id`/`payee_member_id`
+deltas backwards. A `Payment` is a settle-up ("I paid you back $20" —
+SCOPE.md), so the payer's balance should move *toward* zero (debt reduced)
+and the payee's should too (credit reduced) — the view did the opposite,
+which would have doubled every debt instead of clearing it, the first time
+anyone actually used a create-payment flow. Never caught before because no
+such flow existed yet to exercise it. Fixed in `schema.sql` and the live
+view; swap payer/payee if this class of view is ever touched again.
+
+Separately, `GroupDetailViewModel`'s Balances section used to show a
+completely uninvolved member fake personal debts — e.g. an account that
+wasn't party to any expense in a group still saw "X owes you $16.67". Root
+cause: `group_balances` computes each member's net position against the
+*whole group's shared pot*, not a pairwise debt with whoever's looking at
+the screen — that only happens to coincide in a 2-person group, which is why
+it went undetected until a genuine third party looked at a multi-member
+group. Fixed with two selectable display modes, chosen via a per-device,
+per-account, per-group **local-only preference**
+(`AppConstants.Preferences.BalanceDisplayModePrefix` +
+`Microsoft.Maui.Storage.Preferences` — deliberately never synced; it's a
+viewing preference, not group state, so there's no reason every member has
+to see the same one):
+- **Simplified** (default): `Services/DebtSimplifier.cs` runs the standard
+  greedy debt-simplification algorithm (match biggest creditor against
+  biggest debtor, repeat) over every member's `group_balances` net —
+  Tricount/Splitwise's "settle up" behavior, where offsetting/cyclic debts
+  net out to fewer, smaller transfers than the raw history. Only labeled
+  "you owe"/"owes you" when the viewer is actually a party to that specific
+  transfer; otherwise shown neutrally ("X pays Y").
+- **Pairwise** ("Detailed" toggle on Group Detail): new `pairwise_balances`/
+  `my_pairwise_balances` views (`schema.sql`) derive genuine two-party debts
+  directly from `expense_shares`/`expenses`/`payments` — no new tables, just
+  a different aggregation of data already there (each non-payer share-holder
+  owes the payer their share, same convention `group_balances` already uses,
+  just kept broken out per counterparty instead of collapsed to one total).
+  Always literally true "owes you"/"you owe" language, may show more/smaller
+  line items than Simplified for the same underlying numbers.
+
+**Not built yet, discussed but explicitly deferred:** a "Settle" button that
+creates a real `payments` row from either mode — both modes would feed the
+same write primitive (`payer`, `payee`, `amount`), just sourced differently
+(real counterparty in Pairwise, the simplification algorithm's suggested
+transfer in Simplified), so this doesn't block on picking one mode over the
+other. Also deferred: letting someone exclude a specific counterparty from
+simplification ("I don't want to settle with X, route my debt through
+someone else instead") — genuinely possible, but needs pairwise data as
+simplification's *input* (a constrained matching/flow problem), not just as
+an alternate display mode, so it's a materially bigger feature than either of
+the above.
 
 ## Architecture
 
@@ -178,8 +292,9 @@ explicit "link to existing phantom" step?) — flag this if asked to touch
 
 Every data access interface lives in `Services/` (`IAuthService`,
 `IMembersRepository`, `IGroupsRepository`, `IPaymentsRepository`,
-`IRecurringPaymentsRepository`, `ICategoriesRepository`,
-`IInvitesRepository`). **ViewModels depend on these interfaces, never on the
+`IExpensesRepository`, `IBalancesRepository`, `IRecurringPaymentsRepository`,
+`ICategoriesRepository`, `IInvitesRepository`, `IDeviceTokensRepository`).
+**ViewModels depend on these interfaces, never on the
 `Supabase.Client` type or the `supabase-csharp` package directly.** The reason:
 if this ever moves off Supabase (self-hosted Supabase on a NAS, or a fully
 custom backend), that's a new implementation of these interfaces registered
@@ -239,6 +354,18 @@ rather than hardcoding route strings.
 | `recurring_payments` | Template for periodic auto-generated payments. |
 | `categories` | User-defined payment categories. |
 | `invites` | A redeemable token to join a group, or to claim a specific phantom member. |
+| `expenses` / `expense_shares` | N-way split expenses, separate from the pairwise `payments` table. |
+| `device_tokens` | Per-account push tokens for the notification feature. |
+
+Read-only views (no primary key, `security_invoker = true` so they enforce
+RLS as the querying user, never inserted/updated/deleted):
+
+| View | Purpose |
+|---|---|
+| `group_balances` | Each member's net balance against a group's whole shared pot (combines `payments` + `expense_shares`). |
+| `my_group_balances` | The current account's own row from `group_balances`, one per group — feeds the Groups list. |
+| `pairwise_balances` | Real two-party net balance between every pair of members who've actually shared money in a group. |
+| `my_pairwise_balances` | `pairwise_balances` reoriented around the current account, sign-normalized to "positive = they owe me". |
 
 RLS is enabled on every table. The one function that intentionally bypasses
 it is `redeem_invite()` (`SECURITY DEFINER`) — it exists specifically because

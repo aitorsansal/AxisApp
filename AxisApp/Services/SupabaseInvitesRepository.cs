@@ -30,7 +30,8 @@ public class SupabaseInvitesRepository : IInvitesRepository
             Token = GenerateToken(),
             GroupId = groupId,
             TargetMemberId = targetMemberId,
-            CreatedBy = authService.RequireAccountId()
+            CreatedBy = authService.RequireAccountId(),
+            ExpiresAt = DateTime.UtcNow.AddDays(7)
         };
 
         var result = await client.From<Invite>().Insert(invite);
@@ -41,7 +42,12 @@ public class SupabaseInvitesRepository : IInvitesRepository
     /// insert payload at their C# default — here that's "", which silently overrides the table's
     /// `default encode(gen_random_bytes(9), 'base64url')` and made every invite ever created
     /// collide on token = "" past the first. Generate it client-side instead of trusting the
-    /// column default to apply.</summary>
+    /// column default to apply. ExpiresAt above has the same shape of bug: its unset C# default
+    /// (DateTime.MinValue, 0001-01-01) was overriding the table's `now() + interval '7 days'`
+    /// default on every insert, which made redeem_invite()'s `expires_at < now()` check always
+    /// true — every invite ever created was "expired" the instant it was made, so no invite could
+    /// ever actually be redeemed. Confirmed live: every row in `invites` had expires_at =
+    /// 0001-01-01. Set explicitly here for the same reason Token is.</summary>
     private static string GenerateToken() =>
         Convert.ToBase64String(RandomNumberGenerator.GetBytes(9))
             .Replace('+', '-').Replace('/', '_').TrimEnd('=');

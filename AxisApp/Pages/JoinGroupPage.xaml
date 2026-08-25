@@ -115,6 +115,48 @@
                             Style="{StaticResource BtnPrimaryStyle}"
                             Padding="18,10" />
                     </Grid>
+
+                    <!-- Name-match suggestions: "are you sure this isn't someone who already exists?" -->
+                    <VerticalStackLayout
+                        BindableLayout.ItemsSource="{Binding NameMatches}"
+                        Spacing="{StaticResource SpacingS}"
+                        IsVisible="{Binding HasNameMatches}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MemberMatchItem">
+                                <Border Style="{StaticResource ListItemCard}">
+                                    <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                                        <Border
+                                            Grid.Column="0"
+                                            Style="{StaticResource AvatarCirclePhantom}"
+                                            WidthRequest="40" HeightRequest="40">
+                                            <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="14" />
+                                        </Border>
+                                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                            <Label Text="{Binding Member.DisplayName}" FontAttributes="Bold" />
+                                            <Label
+                                                Text="Already added elsewhere — link instead?"
+                                                Style="{StaticResource LabelTertiary}"
+                                                IsVisible="{Binding IsPhantom}" />
+                                            <Label
+                                                Text="Already on Axis — send them the invite code instead"
+                                                Style="{StaticResource LabelTertiary}"
+                                                IsVisible="{Binding IsRealAccount}" />
+                                        </VerticalStackLayout>
+                                        <Button
+                                            Grid.Column="2"
+                                            Text="Link"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:JoinGroupViewModel}}, Path=LinkExistingMemberCommand}"
+                                            CommandParameter="{Binding .}"
+                                            Style="{StaticResource BtnOutlinePrimary}"
+                                            FontSize="{StaticResource TypeCaption}"
+                                            Padding="10,6"
+                                            VerticalOptions="Center"
+                                            IsVisible="{Binding IsPhantom}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
                 </VerticalStackLayout>
 
                 <!-- Pending invites -->

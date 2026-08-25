@@ -26,4 +26,13 @@ public class SupabaseBalancesRepository : IBalancesRepository
         var result = await client.From<MyGroupBalance>().Get();
         return result.Models;
     }
+
+    public async Task<List<MyPairwiseBalance>> GetMyPairwiseForGroupAsync(Guid groupId)
+    {
+        var result = await client.From<MyPairwiseBalance>()
+            .Filter("group_id", Constants.Operator.Equals, groupId.ToString())
+            .Get();
+
+        return result.Models;
+    }
 }

@@ -177,9 +177,15 @@ create policy "select group_members in your groups" on public.group_members
     is_group_member(group_id)
     or exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
   );
-create policy "group creator can add members directly" on public.group_members
+-- Any existing group member can add a phantom (or link an existing phantom from another
+-- group) into this group, not just the creator — the "created_by" clause stays only for the
+-- same chicken-and-egg reason as groups'/invites' SELECT policies: the creator's own
+-- group_members row (inserted right after the group itself, in the same CreateAsync call)
+-- can't satisfy is_group_member(group_id) yet at that exact instant.
+create policy "group members can add members" on public.group_members
   for insert with check (
-    exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
+    is_group_member(group_id)
+    or exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
   );
 create policy "group creator can remove members" on public.group_members
   for delete using (
@@ -429,12 +435,19 @@ create policy "update shares of your expenses" on public.expense_shares
 -- the querying user, not the view owner (Postgres 15+, which Supabase runs).
 create view public.group_balances
 with (security_invoker = true) as
+-- payment_net: a Payment is a settle-up ("I paid you back $20" — see SCOPE.md), so
+-- payer_member_id is the one discharging a debt (their balance should move toward zero,
+-- i.e. increase) and payee_member_id is the one being paid back (their balance should also
+-- move toward zero, i.e. decrease). Found inverted 2026-08-25 during design discussion for
+-- the not-yet-built "Settle up" feature — no create-payment UI existed yet to have caught it
+-- by testing, so it went live with payer/payee's deltas backwards, which would have doubled
+-- every debt instead of clearing it the first time anyone used it.
 with payment_net as (
-  select group_id, payee_member_id as member_id, amount as delta
+  select group_id, payer_member_id as member_id, amount as delta
   from payments
   where group_id is not null
   union all
-  select group_id, payer_member_id as member_id, -amount as delta
+  select group_id, payee_member_id as member_id, -amount as delta
   from payments
   where group_id is not null
 ),
@@ -487,3 +500,62 @@ select gb.group_id, gb.balance
 from group_balances gb
 join members m on m.id = gb.member_id
 where m.account_id = auth.uid();
+
+-- ============================================================
+-- Pairwise balances — added 2026-08-25 alongside the group_balances/payment_net
+-- fix above. group_balances collapses each member down to one net number
+-- against the group's shared pot, which the app was (wrongly) displaying as
+-- if it were a personal debt to whoever was looking at the screen — showing a
+-- third member's uninvolved balance as "owes you" to someone who wasn't even
+-- part of that expense. These views instead track genuine two-party debts,
+-- derived from the same expense_shares/expenses/payments rows group_balances
+-- already reads, just aggregated per counterparty instead of collapsed to one
+-- total. See the app-side design discussion the same day for the "simplified
+-- vs pairwise" balance display split this feeds.
+-- ============================================================
+
+-- pairwise_balances: net balance between every two members who've actually
+-- shared money in a group, one row per unordered pair. Convention: balance is
+-- how much member_b (the row's higher member id) owes member_a (the lower
+-- id) — negative means member_a owes member_b instead. Every expense
+-- contributes one edge per non-payer share-holder (they owe the payer their
+-- share — the same "payer is owed, share-holders owe" convention as
+-- expense_payer_net/expense_share_net above); every payment contributes the
+-- reverse edge (payee "owes" payer in this bookkeeping sense, since a
+-- payment is the payer discharging a debt to the payee — same
+-- direction fix as payment_net above, just kept as a directed edge instead
+-- of being netted into a single member's total immediately).
+create view public.pairwise_balances
+with (security_invoker = true) as
+with edges as (
+  select e.group_id, es.member_id as debtor_id, e.paid_by_member_id as creditor_id, es.share_amount as amount
+  from expense_shares es
+  join expenses e on e.id = es.expense_id
+  where e.group_id is not null and es.member_id <> e.paid_by_member_id
+  union all
+  select p.group_id, p.payee_member_id as debtor_id, p.payer_member_id as creditor_id, p.amount
+  from payments p
+  where p.group_id is not null
+)
+select
+  group_id,
+  least(debtor_id, creditor_id) as member_a,
+  greatest(debtor_id, creditor_id) as member_b,
+  sum(case when debtor_id < creditor_id then -amount else amount end) as balance
+from edges
+group by group_id, least(debtor_id, creditor_id), greatest(debtor_id, creditor_id)
+having sum(case when debtor_id < creditor_id then -amount else amount end) <> 0;
+
+-- my_pairwise_balances: pairwise_balances reoriented around the current
+-- account specifically — one row per other member they've shared money with
+-- in a group, with balance already flipped to a consistent "positive means
+-- they owe me" convention regardless of which side of pairwise_balances'
+-- member_a/member_b the current account happened to land on.
+create view public.my_pairwise_balances
+with (security_invoker = true) as
+select
+  pb.group_id,
+  case when m.id = pb.member_a then pb.member_b else pb.member_a end as other_member_id,
+  case when m.id = pb.member_a then pb.balance else -pb.balance end as balance
+from pairwise_balances pb
+join members m on m.account_id = auth.uid() and (m.id = pb.member_a or m.id = pb.member_b);

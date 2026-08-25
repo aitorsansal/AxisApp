@@ -116,6 +116,13 @@ public partial class GroupsViewModel : ObservableObject
     [RelayCommand]
     private async Task NewGroup() => await Shell.Current.GoToAsync(AppConstants.Routes.NewGroup);
 
+    /// <summary>The only other way onto this screen is GroupDetailViewModel's overflow menu,
+    /// which requires already being in a group — so a brand-new account with zero groups had no
+    /// way to redeem an invite code at all. JoinGroupPage/ViewModel already handle a missing
+    /// groupId query param fine (HasActiveGroup just stays false), so this only needed a route in.</summary>
+    [RelayCommand]
+    private async Task JoinGroup() => await Shell.Current.GoToAsync(AppConstants.Routes.JoinGroup);
+
     [RelayCommand]
     private async Task Refresh() => await LoadAsync();
 

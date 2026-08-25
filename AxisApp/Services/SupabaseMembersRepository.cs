@@ -63,4 +63,15 @@ public class SupabaseMembersRepository : IMembersRepository
             MemberId = memberId
         });
     }
+
+    public async Task<List<Member>> SearchVisibleByNameAsync(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return [];
+
+        var result = await client.From<Member>()
+            .Filter("display_name", Constants.Operator.ILike, $"%{query.Trim()}%")
+            .Get();
+
+        return result.Models;
+    }
 }

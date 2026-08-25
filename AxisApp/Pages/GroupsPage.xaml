@@ -112,10 +112,23 @@
                 </ScrollView>
             </RefreshView>
 
-            <Button
-                Text="+ New group"
-                Command="{Binding NewGroupCommand}"
-                Style="{StaticResource FabButtonStyle}" />
+            <HorizontalStackLayout
+                HorizontalOptions="End"
+                VerticalOptions="End"
+                Margin="0,0,16,16"
+                Spacing="{StaticResource SpacingS}">
+                <Button
+                    Text="Join with code"
+                    Command="{Binding JoinGroupCommand}"
+                    Style="{StaticResource BtnOutlinePrimary}"
+                    CornerRadius="999"
+                    Padding="20,14" />
+                <Button
+                    Text="+ New group"
+                    Command="{Binding NewGroupCommand}"
+                    Style="{StaticResource FabButtonStyle}"
+                    Margin="0" />
+            </HorizontalStackLayout>
         </Grid>
     </Grid>
 </ContentPage>
