@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Axis End-to-End Test Report — 2026-08-25</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #171a23; --border: #2a2f3d; --text: #e6e8ef;
+    --text-dim: #9aa1b4; --accent: #5b8cff; --good: #3ecf8e; --bad: #ff6570; --warn: #f5b942;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.55; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 48px 24px 96px; }
+  h1 { font-size: 1.9rem; margin: 0 0 6px; }
+  .subtitle { color: var(--text-dim); margin: 0 0 36px; font-size: 0.95rem; }
+  h2 { font-size: 1.25rem; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.02rem; margin: 24px 0 10px; }
+  p { color: var(--text-dim); }
+  code { background: #1e2230; padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #c9d1e6; }
+  pre { background: #1e2230; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.82rem; color: #c9d1e6; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 20px 0; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+  .stat .n { font-size: 1.7rem; font-weight: 700; }
+  .stat .l { color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--text-dim); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
+  .pill.ok { background: rgba(62,207,142,0.15); color: var(--good); }
+  .pill.fail { background: rgba(255,101,112,0.15); color: var(--bad); }
+  .pill.warn { background: rgba(245,185,66,0.15); color: var(--warn); }
+  .bug { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--bad); border-radius: 8px; padding: 16px 18px; margin: 14px 0; }
+  .bug.fixed { border-left-color: var(--good); }
+  .bug.open { border-left-color: var(--warn); }
+  .bug h4 { margin: 0 0 6px; font-size: 0.98rem; }
+  .bug .meta { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px; }
+  .bug .meta code { margin-right: 8px; }
+  .checklist { list-style: none; padding: 0; margin: 12px 0; }
+  .checklist li { padding: 6px 0 6px 28px; position: relative; color: var(--text); border-bottom: 1px solid #1c1f2a; }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist li::before { position: absolute; left: 0; top: 6px; font-weight: 700; }
+  .checklist li.done::before { content: "✓"; color: var(--good); }
+  .checklist li.partial::before { content: "~"; color: var(--warn); }
+  .checklist .note { color: var(--text-dim); font-size: 0.85rem; }
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-dim); font-size: 0.8rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Axis — End-to-End Test Report</h1>
+  <p class="subtitle">2026-08-25 · Windows desktop build · live Supabase project (<code>AxisApp</code> / <code>main</code>) · account <code>aitorsansal+axistest1@gmail.com</code></p>
+
+  <div class="grid">
+    <div class="stat"><div class="n">7</div><div class="l">real bugs found</div></div>
+    <div class="stat"><div class="n">6</div><div class="l">fixed &amp; verified</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">groups created</div></div>
+    <div class="stat"><div class="n">10</div><div class="l">phantom members</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">expenses tested</div></div>
+  </div>
+
+  <p>The goal was to walk the app start to finish as a real user would: sign up, build out
+  two groups of people (mostly phantom members who never sign in), and record expenses in
+  a few different shapes — equal splits, uneven manual splits, and an expense paid by
+  someone other than the account running the app. Every step ran against the live Supabase
+  project through the actual Windows build, not mocked. Seven real, previously-unverified
+  bugs turned up along the way — five were launch/data-integrity blockers, and a sixth
+  (found by the user, not automation) was a balance-sign inversion that would have shown
+  every user the exact opposite of who owed whom. All six got fixed and re-verified live;
+  the seventh is a systemic reliability gap that's flagged but not fixed (see below).</p>
+
+  <h2>What actually got tested</h2>
+  <ul class="checklist">
+    <li class="done">Sign-up (<code>SupabaseAuthService</code>) → session persists → lands on Groups</li>
+    <li class="done">Create a group (<code>Roommates</code>, then <code>Family</code>)</li>
+    <li class="done">Add 5+ phantom members to a group (10 total across both groups: 5 in Roommates, 3 in Family, plus the 2 real-account memberships)</li>
+    <li class="done">Two groups, each with ≥4 members (Family: 4, Roommates: 6)</li>
+    <li class="done">Equal-split expense across all 6 group members, real account as payer — verified 120.00 / 6 = 20.00 each in the DB</li>
+    <li class="done">Manual/unequal-split expense, <b>paid by a phantom member</b> (Carlos Ruiz) — shares of 5/5/30/20/15/15 summing to 90.00, verified in the DB</li>
+    <li class="partial">Expense where the real account is neither payer <i>nor</i> a split participant — not isolated as its own case (checkbox automation in the split list wasn't reliably clickable in the time available); the manual-split expense above does prove a non-user payer works end-to-end, and the real account's minimal 15.00 share there is close to but not the same as full exclusion</li>
+    <li class="partial">Claiming a phantom via invite redemption, recurring payments, receipts — out of scope for this pass; invite <i>generation</i> is covered (see AX-05) but redemption itself wasn't exercised</li>
+  </ul>
+
+  <h2>Bugs found this session</h2>
+  <p>In discovery order. AX-01 through AX-05 all shared the same shape: a Postgrest insert
+  whose payload silently didn't match what the RLS policy or the schema expected, and every
+  one of them surfaced as a full application crash rather than an error message — see AX-07.
+  AX-06 is a different kind of bug entirely — no crash, just wrong output — and is the reason
+  a human read-through of the actual numbers on screen still matters even after everything
+  else is green.</p>
+
+  <div class="bug fixed">
+    <h4>AX-01 — <code>Shell.Current.DisplayPromptAsync</code> crashes the app on Windows</h4>
+    <div class="meta"><span class="pill fail">blocker</span> <code>GroupsViewModel.NewGroup</code></div>
+    <p>The original "+ New group" flow used a native prompt dialog. On this WinUI build it
+    fails fast with <code>0xc000027b</code> the instant it's invoked — a known WinUI
+    <code>ContentDialog</code> issue (<a href="https://github.com/microsoft/microsoft-ui-xaml/issues/10897" target="_blank" rel="noopener">microsoft-ui-xaml#10897</a>),
+    not something fixable by changing how the call is made.</p>
+    <p><b>Fix:</b> replaced the native prompt with a real page, <code>NewGroupPage</code>/<code>NewGroupViewModel</code>,
+    wired through Shell routing like every other page in the app. Confirmed group creation
+    no longer crashes.</p>
+  </div>
+
+  <div class="bug fixed">
+    <h4>AX-02 — Creating a group failed with an RLS violation on <code>group_members</code></h4>
+    <div class="meta"><span class="pill fail">blocker</span> <code>supabase/schema.sql</code> — <code>select group_members in your groups</code> policy</div>
+    <p>Same root cause as a bug already documented for the <code>groups</code> table
+    (see CLAUDE.md): the creator's own <code>group_members</code> insert does
+    <code>INSERT ... RETURNING</code>, which has to satisfy the table's <code>SELECT</code>
+    policy — and <code>is_group_member(group_id)</code> is still false at that exact instant,
+    since this insert is what would make it true.</p>
+    <p><b>Fix:</b> widened the policy to <code>is_group_member(group_id) or exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())</code>, mirroring the existing <code>groups</code> fix. Applied to schema.sql and the live DB.</p>
+  </div>
+
+  <div class="bug fixed">
+    <h4>AX-03 — <code>GroupMember</code>/<code>ExpenseShare</code> composite keys silently dropped from every insert</h4>
+    <div class="meta"><span class="pill fail">blocker, broad</span> <code>Models/GroupMember.cs</code>, <code>Models/ExpenseShare.cs</code></div>
+    <p>Both models mark their first key column <code>[PrimaryKey("...", false)]</code> — the
+    <code>false</code> means <i>don't insert this column</i>, which is right for an
+    auto-generated key but wrong here: <code>group_id</code> and <code>expense_id</code> are
+    required foreign keys with no default. Every insert silently omitted them, which failed
+    NOT NULL/RLS and read back as the same generic <code>"new row violates row-level
+    security policy"</code> message AX-02 also produces — this one would have blocked
+    <i>every</i> group-membership insert and <i>every</i> expense-split insert in the app,
+    not just group creation.</p>
+    <p><b>Fix:</b> changed both to <code>shouldInsert: true</code>. Confirmed via a real
+    <code>group_members</code> row with a correct, non-null <code>group_id</code>.</p>
+  </div>
+
+  <div class="bug fixed">
+    <h4>AX-04 — Adding a phantom member crashed with an RLS violation on <code>members</code></h4>
+    <div class="meta"><span class="pill fail">blocker</span> <code>supabase/schema.sql</code> — <code>select members you can see</code> policy</div>
+    <p>Exactly the pattern CLAUDE.md already flagged as "plausible, not yet confirmed" for
+    <code>AddPhantomAsync</code>: a freshly-inserted phantom (<code>account_id</code> null, no
+    <code>group_members</code> row yet) satisfies neither <code>account_id = auth.uid()</code>
+    nor the group-membership subquery in the <code>SELECT</code> policy, at the exact instant
+    the INSERT tries to return the new row.</p>
+    <p><b>Fix:</b> added <code>or created_by = auth.uid()</code> to the policy — the same
+    pattern used for <code>groups</code> and (now) <code>group_members</code>. Applied to
+    schema.sql and the live DB; phantom creation confirmed working afterward.</p>
+  </div>
+
+  <div class="bug fixed">
+    <h4>AX-05 — Every invite after the first collided on an empty token</h4>
+    <div class="meta"><span class="pill fail">blocker</span> <code>Models/Invite.cs</code>, <code>Services/SupabaseInvitesRepository.cs</code></div>
+    <p><code>Invite.Token</code> is a plain <code>[Column]</code> string defaulting to
+    <code>""</code> in C#. Postgrest sends that literal empty string on every insert,
+    overriding the table's <code>default encode(gen_random_bytes(9), 'base64url')</code>.
+    The very first invite ever created for the account succeeded with <code>token = ''</code>;
+    every invite after that hit <code>invites_token_key</code>'s unique constraint and crashed
+    — meaning phantom-member invites (which create one per phantom) worked at most once per
+    account, ever.</p>
+    <p><b>Fix:</b> <code>SupabaseInvitesRepository.CreateAsync</code> now generates the token
+    client-side with <code>RandomNumberGenerator</code> instead of trusting the column
+    default. Confirmed a real invite code (e.g. <code>bmc9OyhsBFbw</code>) after the fix, and
+    added 4 more phantom members with no further collisions.</p>
+  </div>
+
+  <div class="bug fixed">
+    <h4>AX-06 — Member balance captions showed the exact opposite of who owed whom</h4>
+    <div class="meta"><span class="pill fail">high — wrong money direction</span> <code>ViewModels/GroupDetailViewModel.cs</code> — <code>ApplyBalance</code></div>
+    <p><b>Found by the user while reviewing the app, not by automated testing</b> — after the
+    $120 equal-split expense (paid by the real account), every other member showed
+    <code>"you owe"</code> even though they were the ones who owed money back; after the $90
+    expense paid by phantom Carlos Ruiz, Carlos himself showed <code>"owes you"</code> even
+    though the real account owed <i>him</i>. The two branches in
+    <code>GroupDetailViewModel.ApplyBalance</code> had the sign backwards relative to
+    <code>group_balances</code>' documented convention (positive = the group/you owe them) —
+    they'd been copy-pasted from <code>GroupsViewModel.ApplyBalance</code>, which reads a
+    <i>different</i> view (<code>my_group_balances</code>, the current account's own balance)
+    where that same sign check is correct. For any <i>other</i> member's balance the
+    relationship inverts: their positive balance means <i>you</i> owe <i>them</i>, not the
+    other way round.</p>
+    <p><b>Fix:</b> swapped which branch sets <code>IsOwed</code>/<code>IsOwing</code> and the
+    <code>"owes you"</code>/<code>"you owe"</code> captions. Rebuilt and confirmed against the
+    live data: Carlos Ruiz (net creditor, +$65) now correctly shows <code>"you owe" $65.00</code>
+    in red, and Maria/David/Elena/Ana (net debtors) show <code>"owes you"</code> in green with
+    the right amounts ($25/$50/$40/$35) — all matching a hand-computed balance sheet from the
+    two seeded expenses.</p>
+  </div>
+
+  <div class="bug open">
+    <h4>AX-07 — Any unhandled exception from an async command crashes the whole app</h4>
+    <div class="meta"><span class="pill warn">not fixed — systemic</span> affects every <code>[RelayCommand]</code> async method</div>
+    <p>This is the pattern behind every crash above, plus two more encountered that aren't
+    code bugs in themselves: a transient Supabase <code>"JWT issued at future"</code> clock-skew
+    rejection during a pull-to-refresh, and a <code>CopyLink</code> command failing with
+    <code>COMException 0x80070490</code> because this unpackaged Win32 build isn't registered
+    for the modern Toast/<code>AppNotificationManager</code> API. Neither of those is worth
+    fixing on its own — but in every one of these cases, <code>CommunityToolkit.Mvvm</code>'s
+    <code>AsyncRelayCommand</code> posts the exception back to the WinUI dispatcher, which
+    responds by fail-fasting the entire process (<code>0xc000027b</code>) instead of the
+    command just... failing. A real user hitting any transient network hiccup, RLS edge case,
+    or platform API gap loses the whole app, with no error shown and no chance to retry.</p>
+    <p><b>Recommendation:</b> add a global handler — either wrap relay-command bodies in a
+    try/catch that surfaces a toast/snackbar-style error (skipping the broken
+    <code>CommunityToolkit.Maui.Alerts.Toast</code> on Windows), or hook
+    <code>AsyncRelayCommand</code>'s built-in exception handling
+    (<code>IAsyncRelayCommand.ExecutionTask</code> / a shared <code>FlowExceptionsToTaskScheduler</code>-style
+    base) so failures degrade to an inline error state instead of fail-fast. Not attempted
+    here — flagged for a follow-up pass since it touches every ViewModel.</p>
+  </div>
+
+  <h2>Design gap noted, not fixed</h2>
+  <p>Raised mid-session and written into <code>CLAUDE.md</code> for whoever picks this up
+  next: phantom members are currently scoped per-group. Adding "Maria Lopez" in two different
+  groups creates two unrelated <code>members</code> rows, not one shared identity — and
+  since claiming links an account to exactly one <code>members</code> row
+  (<code>invites.target_member_id</code>), a real Maria signing up would only ever
+  reconnect to <i>one</i> of her two phantom histories. No fix decided; see CLAUDE.md's
+  "Known gap, not yet designed" note under the members/accounts design section for the
+  open questions (dedupe by name? explicit link step? a person-concept above members?).</p>
+
+  <h2>Data left in the live project</h2>
+  <p>Per instruction, all test data was left in place rather than cleaned up (one batch of
+  genuinely orphaned rows from the AX-01/AX-02/AX-04 crash-and-retry cycle was deleted, with
+  explicit approval, before this table was captured).</p>
+  <table>
+    <tr><th>Group</th><th>Members</th><th>Expenses</th></tr>
+    <tr>
+      <td>Roommates</td>
+      <td>aitorsansal (real), Carlos Ruiz, Maria Lopez, David Kim, Elena Garcia, Ana Torres</td>
+      <td>
+        <b>Groceries run</b> — $120.00, equal split × 6 ($20.00 each), paid by aitorsansal<br>
+        <b>Utility bill</b> — $90.00, manual split, paid by Carlos Ruiz (shares: Carlos $5 / Maria $5 / David $30 / Elena $20 / Ana $15 / aitorsansal $15)
+      </td>
+    </tr>
+    <tr>
+      <td>Family</td>
+      <td>aitorsansal (real), Sofia Martin, Diego Fernandez, Laura Sanchez</td>
+      <td>none</td>
+    </tr>
+  </table>
+
+  <h2>Method notes</h2>
+  <p>Driven end-to-end through the real Windows build (<code>windows-mcp</code> for UI
+  automation) against the live Supabase project, with direct SQL verification after each
+  step via the Supabase SQL editor (<code>claude-in-chrome</code>). Every crash was
+  diagnosed from <code>%TEMP%\axisapp-crash.log</code> (an existing
+  <code>AppDomain.UnhandledException</code> hook in <code>Platforms/Windows/App.xaml.cs</code>)
+  rather than guessed at, which is what made AX-02 through AX-05 traceable to an exact line
+  instead of just "the app closed."</p>
+
+  <footer>
+    Axis · shared-expense tracker · test pass conducted 2026-08-25 against Supabase project <code>AxisApp</code>.
+  </footer>
+
+</div>
+</body>
+</html>

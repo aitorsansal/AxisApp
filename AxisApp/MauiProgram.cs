@@ -48,6 +48,8 @@ public static class MauiProgram
         builder.Services.AddTransient<AddExpensePage>();
         builder.Services.AddTransient<JoinGroupViewModel>();
         builder.Services.AddTransient<JoinGroupPage>();
+        builder.Services.AddTransient<NewGroupViewModel>();
+        builder.Services.AddTransient<NewGroupPage>();
 
 #if DEBUG
         builder.Logging.AddDebug();

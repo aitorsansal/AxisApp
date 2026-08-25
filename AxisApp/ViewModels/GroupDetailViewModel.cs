@@ -140,21 +140,28 @@ public partial class GroupDetailViewModel : ObservableObject, IQueryAttributable
         }
     }
 
+    /// <summary>balance is this OTHER member's own group_balances row — positive means the
+    /// group (effectively: you) owes them, negative means they owe the group (you). This is
+    /// the opposite sign relationship from GroupsViewModel.ApplyBalance, which reads your own
+    /// balance directly: a positive row here means you owe that member, not the other way
+    /// round. Confirmed inverted in testing 2026-08-25 — an expense you paid showed everyone
+    /// else's share as "you owe" (they owed you) and an expense someone else paid showed
+    /// their reimbursement as "owes you" (you owed them).</summary>
     private static void ApplyBalance(MemberBalanceItem item, decimal balance)
     {
         if (balance > 0)
         {
-            item.IsOwed = true;
+            item.IsOwing = true;
             item.IsSettled = false;
-            item.AmountText = $"+${balance:0.00}";
-            item.CaptionText = "owes you";
+            item.AmountText = $"-${balance:0.00}";
+            item.CaptionText = "you owe";
         }
         else if (balance < 0)
         {
-            item.IsOwing = true;
+            item.IsOwed = true;
             item.IsSettled = false;
-            item.AmountText = $"-${Math.Abs(balance):0.00}";
-            item.CaptionText = "you owe";
+            item.AmountText = $"+${Math.Abs(balance):0.00}";
+            item.CaptionText = "owes you";
         }
     }
 

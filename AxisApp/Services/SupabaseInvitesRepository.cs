@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using AxisApp.Models;
 
 namespace AxisApp.Services;
@@ -26,6 +27,7 @@ public class SupabaseInvitesRepository : IInvitesRepository
     {
         var invite = new Invite
         {
+            Token = GenerateToken(),
             GroupId = groupId,
             TargetMemberId = targetMemberId,
             CreatedBy = authService.RequireAccountId()
@@ -34,6 +36,15 @@ public class SupabaseInvitesRepository : IInvitesRepository
         var result = await client.From<Invite>().Insert(invite);
         return result.Model!;
     }
+
+    /// <summary>Plain [Column] properties (Token has no [PrimaryKey]) are always included in the
+    /// insert payload at their C# default — here that's "", which silently overrides the table's
+    /// `default encode(gen_random_bytes(9), 'base64url')` and made every invite ever created
+    /// collide on token = "" past the first. Generate it client-side instead of trusting the
+    /// column default to apply.</summary>
+    private static string GenerateToken() =>
+        Convert.ToBase64String(RandomNumberGenerator.GetBytes(9))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
 
     public async Task<Guid> RedeemAsync(string token)
     {

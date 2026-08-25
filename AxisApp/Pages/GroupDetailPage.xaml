@@ -8,10 +8,16 @@
     Shell.NavBarIsVisible="False"
     Title="Group">
 
-    <Grid RowDefinitions="60,*">
+    <Grid RowDefinitions="100,*">
 
-        <!-- Top bar: back / group name / overflow (invite) -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="16,0" ColumnSpacing="8">
+        <!-- Top bar: back / group name / overflow (invite). Extra top margin on Windows: this
+        row otherwise renders directly under the native window caption buttons (minimize/
+        maximize/close), which capture pointer input ahead of app content — the overflow "⋮"
+        (Grid.Column 2) is a bare Label/gesture recognizer there, with no hit-testable area for
+        automation or mouse to fall back on, so it silently becomes unclickable. AddExpensePage's
+        analogous header (Cancel/Save) doesn't hit this because Shell pushes it below the reserved
+        title-bar strip; this page needs the same clearance explicitly. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="16,0" Margin="0,40,0,0" ColumnSpacing="8">
             <Label
                 Grid.Column="0"
                 Text="&#8249;"
@@ -46,6 +52,14 @@
             <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
                 <ScrollView>
                     <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
+
+                        <!-- Regular, always-reachable entry point for InvitePeopleCommand — the
+                        header's overflow "⋮" (Grid.Column 2 above) sits under Windows' native
+                        caption buttons in windowed mode and isn't reliably clickable there. -->
+                        <Button
+                            Text="+ Invite people"
+                            Command="{Binding InvitePeopleCommand}"
+                            Style="{StaticResource BtnOutlinePrimary}" />
 
                         <VerticalStackLayout Spacing="{StaticResource SpacingS}">
                             <Label Text="Balances" Style="{StaticResource SectionHeaderTertiary}" />

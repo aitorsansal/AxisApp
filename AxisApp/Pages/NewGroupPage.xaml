@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    x:Class="AxisApp.Pages.NewGroupPage"
+    x:DataType="vm:NewGroupViewModel"
+    Shell.NavBarIsVisible="False"
+    Title="New group">
+
+    <Grid RowDefinitions="60,*">
+
+        <!-- Top bar: back / title -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Padding="16,0" ColumnSpacing="8">
+            <Label
+                Grid.Column="0"
+                Text="&#8249;"
+                FontSize="24"
+                TextColor="{StaticResource TextPrimary}"
+                VerticalOptions="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped" />
+                </Label.GestureRecognizers>
+            </Label>
+            <Label
+                Grid.Column="1"
+                Text="New group"
+                Style="{StaticResource SectionHeader}"
+                Margin="0" />
+        </Grid>
+
+        <VerticalStackLayout Grid.Row="1" Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
+
+            <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                <Label Text="Group name" Style="{StaticResource SectionHeaderTertiary}" />
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Entry
+                        x:Name="GroupNameEntry"
+                        Text="{Binding GroupName}"
+                        Placeholder="e.g. Roommates"
+                        ReturnCommand="{Binding CreateCommand}" />
+                </Border>
+            </VerticalStackLayout>
+
+            <Label
+                Text="{Binding ErrorMessage}"
+                TextColor="{StaticResource Danger}"
+                FontSize="{StaticResource TypeCaption}"
+                IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+
+            <Button
+                Text="Create"
+                Command="{Binding CreateCommand}"
+                Style="{StaticResource BtnPrimaryStyle}" />
+
+        </VerticalStackLayout>
+
+        <ActivityIndicator
+            Grid.Row="0" Grid.RowSpan="2"
+            IsRunning="{Binding IsBusy}"
+            IsVisible="{Binding IsBusy}"
+            Color="{StaticResource Primary}"
+            HorizontalOptions="Center"
+            VerticalOptions="Center" />
+
+    </Grid>
+</ContentPage>

@@ -7,7 +7,9 @@ namespace AxisApp.Models;
 [Table("expense_shares")]
 public class ExpenseShare : BaseModel
 {
-    [PrimaryKey("expense_id", false)]
+    /// <summary>shouldInsert must be true — see GroupMember.GroupId for why false is wrong here
+    /// (same composite-key footgun, same class of Insert-time bug).</summary>
+    [PrimaryKey("expense_id", shouldInsert: true)]
     public Guid ExpenseId { get; set; }
 
     [Column("member_id")]

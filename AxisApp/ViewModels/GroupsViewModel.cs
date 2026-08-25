@@ -109,17 +109,12 @@ public partial class GroupsViewModel : ObservableObject
             $"{AppConstants.Routes.GroupDetails}?groupId={item.Group.Id}&groupName={Uri.EscapeDataString(item.Group.Name)}");
     }
 
-    /// <summary>Minimal MVP: the four-screen handout doesn't include a dedicated "create group"
-    /// screen, so this prompts for a name inline rather than building a fifth page for it.</summary>
+    /// <summary>Shell.Current.DisplayPromptAsync crashes on Windows (fail-fast in
+    /// Microsoft.UI.Xaml.dll — a known WinUI ContentDialog bug, not something fixable from app
+    /// code: microsoft/microsoft-ui-xaml#10897), so this is a dedicated page instead of an
+    /// inline prompt.</summary>
     [RelayCommand]
-    private async Task NewGroup()
-    {
-        var name = await Shell.Current.DisplayPromptAsync("New group", "Group name");
-        if (string.IsNullOrWhiteSpace(name)) return;
-
-        await groupsRepository.CreateAsync(name);
-        await LoadAsync();
-    }
+    private async Task NewGroup() => await Shell.Current.GoToAsync(AppConstants.Routes.NewGroup);
 
     [RelayCommand]
     private async Task Refresh() => await LoadAsync();

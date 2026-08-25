@@ -69,22 +69,49 @@ This repo is a scaffold, not a finished app. As of this commit:
   of `AddAsync`, adds a Delete button) — reached by tapping an expense row
   in Group Detail's recent-activity list. Editing a settle-up `Payment` is
   not implemented, only `Expense`.
-- **Two real bugs found and fixed while wiring the screens, worth knowing
-  about**: (1) `SupabaseGroupsRepository.CreateAsync` originally only
-  inserted a `groups` row — it never made the creator an actual member, so
-  a newly created group would've been invisible in the creator's own list
-  (RLS's "select groups you belong to" requires a real `group_members`
-  row). Fixed to also create a `Member` + `GroupMember` for the creator,
-  mirroring `redeem_invite()`'s "fresh join" shape. (2) `GroupMember` and
-  `ExpenseShare` both have a real composite primary key in Postgres
-  (`(group_id, member_id)` / `(expense_id, member_id)`) but only mark ONE
-  property `[PrimaryKey]` in the C# model — harmless for insert/delete
-  (which never relied on it), but a real footgun for `.Update(model)`,
-  which would match on that single column and silently update every row
-  sharing it. `SupabaseExpensesRepository.UpdateAsync` works around this
-  with an explicit `.Filter(...).Filter(...).Update(...)` rather than
-  trusting the implicit PK match — do the same if `GroupMember` ever needs
-  an update path.
+- **Auth + a real repository call are now confirmed working end to end**:
+  fresh sign-up followed by creating a group succeeds and the group shows up
+  in the creator's list. Reaching that point surfaced four real bugs, all
+  fixed and worth knowing about:
+  1. `SupabaseGroupsRepository.CreateAsync` originally only inserted a
+     `groups` row — it never made the creator an actual member, so a newly
+     created group would've been invisible in the creator's own list (RLS's
+     "select groups you belong to" requires a real `group_members` row).
+     Fixed to also create a `Member` + `GroupMember` for the creator,
+     mirroring `redeem_invite()`'s "fresh join" shape.
+  2. `GroupMember` and `ExpenseShare` both have a real composite primary key
+     in Postgres (`(group_id, member_id)` / `(expense_id, member_id)`) but
+     only mark ONE property `[PrimaryKey]` in the C# model — harmless for
+     insert/delete (which never relied on it), but a real footgun for
+     `.Update(model)`, which would match on that single column and silently
+     update every row sharing it. `SupabaseExpensesRepository.UpdateAsync`
+     works around this with an explicit `.Filter(...).Filter(...).Update(...)`
+     rather than trusting the implicit PK match — do the same if
+     `GroupMember` ever needs an update path.
+  3. **Creating a group threw `new row violates row-level security policy
+     for table "groups"` even with an unquestionably-correct session** —
+     root cause was Postgres RLS, not auth: a Postgrest `.Insert(...)` does
+     `INSERT ... RETURNING`, and Postgres requires the returned row to also
+     satisfy the table's `SELECT` policy, not just `INSERT`'s `WITH CHECK`.
+     `CreateAsync` inserts the `groups` row *before* the creator has a
+     `group_members` row, so `is_group_member(id)` was still `false` at the
+     exact moment Postgres tried to hand the new row back — confirmed by the
+     fact that setting `WITH CHECK (true)` didn't fix it either. Fixed by
+     widening `groups`' `SELECT` policy to `is_group_member(id) or
+     created_by = auth.uid()` (see `schema.sql`), mirroring how `update`/
+     `delete` on `groups` already trust `created_by = auth.uid()`. **Watch
+     for the same shape of bug anywhere else an insert happens before the
+     inserted row would otherwise satisfy its own table's `SELECT` policy** —
+     `SupabaseMembersRepository.AddPhantomAsync` (inserts a `Member` with
+     `account_id` null, into no group yet) is a plausible next place to hit
+     this, not yet confirmed either way.
+  4. `Member.IsPhantom` (`AccountId is null`) is a computed, get-only
+     convenience property with no `[Column]` attribute. Postgrest's
+     Newtonsoft-based serializer included it in the INSERT body anyway
+     (`PGRST204: Could not find the 'IsPhantom' column of 'members'`) since
+     nothing told it to skip a property that isn't a real column. Fixed with
+     `[JsonIgnore]`. Check any future computed/derived properties on a model
+     get the same attribute.
 - Multi-theme (preset color palettes the user picks from) and a
   fully-custom user-defined palette were discussed but are **not planned
   work** — see `/SCOPE.md`'s Theming section for the technical read on
@@ -92,12 +119,14 @@ This repo is a scaffold, not a finished app. As of this commit:
 
 Next real milestones, in order: (1) run the new blocks at the bottom of
 `supabase/schema.sql` against the live project (expenses/expense_shares/
-balances views/device_tokens, plus the expense_shares update policy); (2)
-get everything actually compiling and confirm auth + a repository call work
-end to end (report back compiler errors as they come up — see the caveats
-above); (3) the Supabase-side infra `/SCOPE.md` describes but that has no
-code yet — receipt storage/upload, the cleanup Edge Function, recurring
-payment materialization, push.
+balances views/device_tokens, plus the expense_shares update policy) — this
+now also includes the fixed `groups` `SELECT` policy from bug #3 above if
+you're setting up a fresh project; (2) ~~get everything actually compiling
+and confirm auth + a repository call work end to end~~ **done** — sign-up +
+create-group is confirmed working against the live project; (3) the
+Supabase-side infra `/SCOPE.md` describes but that has no code yet — receipt
+storage/upload, the cleanup Edge Function, recurring payment materialization,
+push.
 
 See **`SCOPE.md`** for the full product scope and phased roadmap (the
 debt-tracker vertical currently being built, plus the events/calendar and
@@ -129,6 +158,20 @@ Don't reintroduce a design where `payments` reference `auth.users` or a
 "Person" that assumes every participant has logged in. That collapses the
 phantom-member case, which is the entire point of this schema.
 
+**Known gap, not yet designed (raised 2026-08-25 during end-to-end testing):**
+phantom members are scoped per-group today — `AddPhantomAsync` always inserts
+a brand-new `members` row, with no lookup against phantoms the same account
+already created elsewhere. Adding "Maria Lopez" in two different groups
+creates two unrelated phantom rows, not one shared identity. This has a
+real downstream consequence for claiming: redeeming an invite links an
+account to exactly one `members` row (`invites.target_member_id`), so if
+Maria's phantom exists twice, claiming one leaves the other permanently
+orphaned — her payment history in that second group never links to her
+real account. No decision has been made on the fix (dedupe by name at
+creation time? a cross-group "person" concept above `members`? merge-on-claim?
+explicit "link to existing phantom" step?) — flag this if asked to touch
+`AddPhantomAsync`, invite redemption, or anything cross-group about members.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
@@ -144,10 +187,15 @@ in `MauiProgram.cs` — not a rewrite of every page and ViewModel. Keep it that
 way as the app grows.
 
 `Models/` are plain data classes decorated with `Postgrest` attributes
-(`using Postgrest.Attributes;` / `using Postgrest.Models;` — **not**
-`Supabase.Postgrest.*`, despite what the SDK's own README examples show) —
-`[Table]`, `[PrimaryKey]`, `[Column]`, base class `BaseModel` — so they double
-as both the app's domain model and the Postgrest ORM's row mapping.
+(`using Supabase.Postgrest.Attributes;` / `using Supabase.Postgrest.Models;`
+— this **is** the correct namespace for the installed `Supabase` 1.6.0
+package; an earlier note here said the opposite based on a stale/pre-1.6.0
+install, see the NuGet section below) — `[Table]`, `[PrimaryKey]`,
+`[Column]`, base class `BaseModel` — so they double as both the app's domain
+model and the Postgrest ORM's row mapping. Any get-only computed property on
+a model (no `[Column]`) needs `[Newtonsoft.Json.JsonIgnore]`, or Postgrest's
+serializer will try to send it as a column on insert/update and PostgREST
+will reject it (`PGRST204`) — see `Member.IsPhantom`.
 
 ### MVVM + Dependency Injection
 
@@ -208,13 +256,17 @@ as RLS policies so Postgres enforces them uniformly.
 | `CommunityToolkit.Mvvm` | 8.4.0 | MVVM source generators |
 | `Supabase` | 1.6.0 | Supabase client (Auth + Postgrest + Realtime) |
 
-Be skeptical of the Supabase C# SDK's own README examples — they've been
-observed to not match what's actually installed (the Models' `Postgrest.*`
-vs. documented `Supabase.Postgrest.*` namespace is a confirmed case, and
-`SupabaseAuthService`'s `client.Auth.*` calls are unverified for the same
-reason). The reliable source of truth is a real local build's compiler
-errors/IntelliSense, not fetched docs — when in doubt, say so explicitly and
-let the human confirm from their own build rather than asserting an API
+Be skeptical of assuming an SDK's API surface without checking a real local
+build — the Models' namespace was briefly `Postgrest.*` instead of the
+correct `Supabase.Postgrest.*` early on (pinned to a stale 0.16.2 install at
+the time), which is now fixed across every model. `SupabaseAuthService`'s
+`client.Auth.*` calls and every `Supabase*Repository`'s query call shapes
+(`.Filter`/`.Insert`/`.Update`/`.Get`/`.Single`) have since been confirmed
+against a real local build — see the four bugs in "Current state" above,
+found via an actual compile + a real sign-up/create-group run against the
+live project, not docs. The reliable source of truth is still a real local
+build's compiler errors, not fetched docs — when something new comes up that
+hasn't been build-verified, say so explicitly rather than asserting an API
 shape with false confidence.
 
 ## Environment

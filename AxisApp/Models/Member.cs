@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
 
@@ -27,5 +28,6 @@ public class Member : BaseModel
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
 
+    [JsonIgnore]
     public bool IsPhantom => AccountId is null;
 }

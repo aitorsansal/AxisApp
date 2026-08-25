@@ -132,8 +132,14 @@ alter table public.recurring_payments enable row level security;
 alter table public.invites enable row level security;
 
 -- groups
+-- "or created_by = auth.uid()" matters at creation time: INSERT ... RETURNING
+-- (what every Postgrest client insert does to hand back the new row) also
+-- has to pass the SELECT policy, and the creator isn't a group_members row
+-- yet at that instant (that row is only added in a follow-up insert). Without
+-- this clause, creating a group throws "new row violates row-level security
+-- policy for table groups" even though the INSERT's own WITH CHECK passes.
 create policy "select groups you belong to" on public.groups
-  for select using (is_group_member(id));
+  for select using (is_group_member(id) or created_by = auth.uid());
 create policy "insert groups" on public.groups
   for insert with check (created_by = auth.uid());
 create policy "update own groups" on public.groups
@@ -142,9 +148,14 @@ create policy "delete own groups" on public.groups
   for delete using (created_by = auth.uid());
 
 -- members: visible if they share a group with you, or it's you
+-- "or created_by = auth.uid()" matters at creation time, same reason as groups/group_members
+-- above: AddPhantomAsync's INSERT ... RETURNING has to pass this SELECT policy, and a freshly
+-- inserted phantom (account_id null, no group_members row yet) satisfies neither of the other
+-- two clauses at that exact instant.
 create policy "select members you can see" on public.members
   for select using (
     account_id = auth.uid()
+    or created_by = auth.uid()
     or exists (
       select 1 from group_members gm
       where gm.member_id = members.id
@@ -157,8 +168,15 @@ create policy "update members you created or claim yourself" on public.members
   for update using (created_by = auth.uid() or account_id = auth.uid());
 
 -- group_members (normal reads only; joining happens through redeem_invite below)
+-- "or is group creator" matters at group-creation time for the same reason
+-- as the groups SELECT policy above: the creator's own group_members INSERT
+-- ... RETURNING has to pass this SELECT policy, and is_group_member(group_id)
+-- is still false at that exact instant (this row is what would make it true).
 create policy "select group_members in your groups" on public.group_members
-  for select using (is_group_member(group_id));
+  for select using (
+    is_group_member(group_id)
+    or exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
+  );
 create policy "group creator can add members directly" on public.group_members
   for insert with check (
     exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
