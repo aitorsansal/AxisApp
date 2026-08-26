@@ -6,6 +6,11 @@ namespace AxisApp
     {
         private readonly IAuthService authService;
 
+        // A cold-start app-link Intent fires before CreateWindow's Shell exists to navigate on, so
+        // MainActivity.HandleIntent hands it here and window.Created (below) replays it once ready —
+        // same "defer until the window says it's ready" shape as the session-restore navigation.
+        private static string? pendingDeepLink;
+
         public App(IAuthService authService)
         {
             InitializeComponent();
@@ -42,9 +47,36 @@ namespace AxisApp
                 await authService.RestoreSessionAsync();
                 if (authService.IsAuthenticated)
                     await Shell.Current.GoToAsync(AppConstants.Routes.Groups);
+
+                if (pendingDeepLink is { } link)
+                {
+                    pendingDeepLink = null;
+                    await NavigateToDeepLinkAsync(link);
+                }
             };
 
             return window;
+        }
+
+        /// <summary>Entry point for platform code (MainActivity's App Link intent-filter) handing
+        /// over the raw incoming URI. Queues it if Shell isn't up yet (cold start).</summary>
+        public static void HandleDeepLink(string uriString)
+        {
+            if (Shell.Current is null)
+            {
+                pendingDeepLink = uriString;
+                return;
+            }
+
+            _ = NavigateToDeepLinkAsync(uriString);
+        }
+
+        private static Task NavigateToDeepLinkAsync(string uriString)
+        {
+            var code = AppConstants.Links.TryExtractCode(uriString);
+            return code is null
+                ? Task.CompletedTask
+                : Shell.Current.GoToAsync($"{AppConstants.Routes.JoinGroup}?code={Uri.EscapeDataString(code)}");
         }
     }
 }

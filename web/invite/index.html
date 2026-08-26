@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join a group on Axis</title>
+<style>
+  :root {
+    --bg: #0B1220;
+    --card: #121A2B;
+    --text: #E8ECF4;
+    --muted: #8A93A6;
+    --accent: #3D7EFF;
+    --accent2: #F5A623;
+    --border: #22304A;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px 28px;
+    text-align: center;
+  }
+  .mark {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    margin: 0 auto 20px;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 8px; }
+  p { color: var(--muted); line-height: 1.5; margin: 0 0 24px; font-size: 0.95rem; }
+  .code-box {
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 1.1rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 20px;
+    word-break: break-all;
+  }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px 20px;
+    border-radius: 12px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    margin-bottom: 12px;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .hint { font-size: 0.8rem; color: var(--muted); margin-top: 20px; margin-bottom: 0; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark"></div>
+    <h1>You've been invited to Axis</h1>
+    <p>Someone invited you to a shared group on Axis, a shared-expense tracker for households and groups.</p>
+
+    <div class="code-box" id="codeBox"></div>
+    <p id="noCodeMsg" style="display:none;">This link is missing an invite code — ask whoever sent it for a fresh one.</p>
+
+    <a class="btn btn-primary" id="storeLink" href="#">Get Axis</a>
+    <button class="btn btn-secondary" id="copyBtn" type="button">Copy invite code</button>
+
+    <p class="hint">Already have Axis installed? Open this link again from your phone and it'll take you straight to the group.</p>
+  </div>
+
+<script>
+  var code = new URLSearchParams(window.location.search).get('code');
+  var codeBox = document.getElementById('codeBox');
+  var copyBtn = document.getElementById('copyBtn');
+
+  if (code) {
+    codeBox.textContent = code;
+  } else {
+    codeBox.style.display = 'none';
+    copyBtn.style.display = 'none';
+    document.getElementById('noCodeMsg').style.display = 'block';
+  }
+
+  copyBtn.addEventListener('click', function () {
+    navigator.clipboard.writeText(code).then(function () {
+      copyBtn.textContent = 'Copied';
+      setTimeout(function () { copyBtn.textContent = 'Copy invite code'; }, 1500);
+    });
+  });
+
+  // TODO: point this at the real Play Store listing once Axis is published there.
+  document.getElementById('storeLink').href = 'https://play.google.com/store/apps/details?id=com.aitorsansal.axisapp';
+</script>
+</body>
+</html>
