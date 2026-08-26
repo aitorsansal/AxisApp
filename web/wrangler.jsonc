@@ -1,0 +1,13 @@
+{
+  // Deployed via "npx wrangler deploy" from this directory (web/) — the Cloudflare project's
+  // Root directory setting. Without this file, whatever setup wizard created the Worker guessed
+  // "invite" as the assets directory (the only folder with an index.html), which served
+  // invite/index.html at the domain root and dropped .well-known/assetlinks.json entirely since
+  // it sits outside that folder. "." serves everything under web/ as-is: /invite/,
+  // /.well-known/assetlinks.json, etc.
+  "name": "axisapp",
+  "compatibility_date": "2026-08-26",
+  "assets": {
+    "directory": "."
+  }
+}
