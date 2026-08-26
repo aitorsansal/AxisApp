@@ -11,6 +11,7 @@
         <Setter Property="FontSize" Value="{StaticResource TypeBody}" />
     </Style>
 
+
     <Style x:Key="LabelSecondary" TargetType="Label">
         <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
         <Setter Property="FontSize" Value="{StaticResource TypeCaption}" />
