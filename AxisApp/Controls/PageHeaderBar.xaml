@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="AxisApp.Controls.PageHeaderBar"
+    x:Name="Root">
+
+    <!-- Back chevron / title [/ overflow]. Margin.Top clears Windows' native window caption
+         buttons (minimize/maximize/close), which otherwise sit on top of this row and capture
+         pointer input ahead of app content in windowed mode. Only needed on pages Shell doesn't
+         already push below the reserved title-bar strip (see AddExpensePage, which has its own
+         Cancel/Save header and doesn't use this control). -->
+    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+        <Grid.Padding>
+            <Thickness Left="{StaticResource SpacingM}" Top="0" Right="{StaticResource SpacingM}" Bottom="0" />
+        </Grid.Padding>
+        <Grid.Margin>
+            <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="0" Bottom="0" />
+        </Grid.Margin>
+
+        <Border Grid.Column="0" BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
+            <Label
+                Text="&#8249;"
+                FontSize="{StaticResource TypeIcon}"
+                TextColor="{StaticResource TextPrimary}"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped" />
+                </Label.GestureRecognizers>
+            </Label>
+        </Border>
+
+        <Label
+            Grid.Column="1"
+            Text="{Binding HeaderTitle, Source={x:Reference Root}}"
+            Style="{StaticResource SectionHeader}"
+            Margin="0"
+            VerticalOptions="Center"
+            LineBreakMode="TailTruncation" />
+
+        <Border
+            Grid.Column="2"
+            IsVisible="{Binding ShowOverflow, Source={x:Reference Root}}"
+            BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
+            <Label
+                Text="&#8942;"
+                FontSize="{StaticResource TypeTitle}"
+                TextColor="{StaticResource TextPrimary}"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding OverflowCommand, Source={x:Reference Root}}" />
+                </Label.GestureRecognizers>
+            </Label>
+        </Border>
+    </Grid>
+</ContentView>

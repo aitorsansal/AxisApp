@@ -3,42 +3,15 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
     x:Class="AxisApp.Pages.JoinGroupPage"
     x:DataType="vm:JoinGroupViewModel"
     Shell.NavBarIsVisible="False"
     Title="Invite people">
 
-    <Grid RowDefinitions="100,*">
+    <Grid RowDefinitions="Auto,*">
 
-        <!-- Top bar: back / title. Extra top margin on Windows: this row otherwise renders
-        directly under the native window caption buttons — see GroupDetailPage.xaml for the
-        full explanation. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}">
-            <Grid.Padding>
-                <Thickness Left="{StaticResource SpacingM}" Top="0" Right="{StaticResource SpacingM}" Bottom="0" />
-            </Grid.Padding>
-            <Grid.Margin>
-                <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="0" Bottom="0" />
-            </Grid.Margin>
-            <Border Grid.Column="0" BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
-                <Label
-                    Text="&#8249;"
-                    FontSize="{StaticResource TypeIcon}"
-                    TextColor="{StaticResource TextPrimary}"
-                    HorizontalOptions="Center"
-                    VerticalOptions="Center">
-                    <Label.GestureRecognizers>
-                        <TapGestureRecognizer Tapped="OnBackTapped" />
-                    </Label.GestureRecognizers>
-                </Label>
-            </Border>
-            <Label
-                Grid.Column="1"
-                Text="Invite people"
-                Style="{StaticResource SectionHeader}"
-                Margin="0"
-                VerticalOptions="Center" />
-        </Grid>
+        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="Invite people" />
 
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
@@ -51,10 +24,10 @@
                             WidthRequest="132" HeightRequest="132"
                             StrokeThickness="0">
                             <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="8" />
+                                <RoundRectangle CornerRadius="{StaticResource ShapeControl}" />
                             </Border.StrokeShape>
                             <!-- QR generation not wired yet; placeholder swatch -->
-                            <Label Text="QR" TextColor="{StaticResource BgPrimary}" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" />
+                            <Label Text="QR" TextColor="{StaticResource TextOnAccent}" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" />
                         </Border>
 
                         <HorizontalStackLayout Spacing="{StaticResource SpacingS}">
@@ -135,12 +108,12 @@
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:MemberMatchItem">
                                 <Border Style="{StaticResource ListItemCard}">
-                                    <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
                                         <Border
                                             Grid.Column="0"
                                             Style="{StaticResource AvatarCirclePhantom}"
-                                            WidthRequest="{StaticResource AvatarSizeS}" HeightRequest="{StaticResource AvatarSizeS}">
-                                            <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="14" />
+                                            WidthRequest="{StaticResource AvatarSizeM}" HeightRequest="{StaticResource AvatarSizeM}">
+                                            <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeCaption}" />
                                         </Border>
                                         <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                                             <Label Text="{Binding Member.DisplayName}" FontAttributes="Bold" />
@@ -160,7 +133,7 @@
                                             CommandParameter="{Binding .}"
                                             Style="{StaticResource BtnOutlinePrimary}"
                                             FontSize="{StaticResource TypeCaption}"
-                                            Padding="12,8"
+                                            Padding="{StaticResource SpacingS}"
                                             MinimumHeightRequest="36"
                                             VerticalOptions="Center"
                                             IsVisible="{Binding IsPhantom}" />
@@ -179,9 +152,9 @@
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:PendingInviteItem">
                                 <Border Style="{StaticResource ListItemCard}">
-                                    <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
-                                        <Border Grid.Column="0" Style="{StaticResource AvatarCirclePhantom}" WidthRequest="{StaticResource AvatarSizeS}" HeightRequest="{StaticResource AvatarSizeS}">
-                                            <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="14" />
+                                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                                        <Border Grid.Column="0" Style="{StaticResource AvatarCirclePhantom}" WidthRequest="{StaticResource AvatarSizeM}" HeightRequest="{StaticResource AvatarSizeM}">
+                                            <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeCaption}" />
                                         </Border>
                                         <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                                             <Label Text="{Binding Member.DisplayName}" FontAttributes="Bold" />
@@ -194,7 +167,7 @@
                                             CommandParameter="{Binding .}"
                                             Style="{StaticResource BtnOutlinePrimary}"
                                             FontSize="{StaticResource TypeCaption}"
-                                            Padding="12,8"
+                                            Padding="{StaticResource SpacingS}"
                                             MinimumHeightRequest="36"
                                             VerticalOptions="Center" />
                                     </Grid>

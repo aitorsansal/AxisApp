@@ -3,60 +3,20 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:local="clr-namespace:AxisApp"
     x:Class="AxisApp.Pages.GroupDetailPage"
     x:DataType="vm:GroupDetailViewModel"
     Shell.NavBarIsVisible="False"
     Title="Group">
 
-    <Grid RowDefinitions="100,*">
+    <Grid RowDefinitions="Auto,*">
 
-        <!-- Top bar: back / group name / overflow (invite). Extra top margin on Windows: this
-        row otherwise renders directly under the native window caption buttons (minimize/
-        maximize/close), which capture pointer input ahead of app content — the overflow "⋮"
-        (Grid.Column 2) is a bare Label/gesture recognizer there, with no hit-testable area for
-        automation or mouse to fall back on, so it silently becomes unclickable. AddExpensePage's
-        analogous header (Cancel/Save) doesn't hit this because Shell pushes it below the reserved
-        title-bar strip; this page needs the same clearance explicitly. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
-            <Grid.Padding>
-                <Thickness Left="{StaticResource SpacingM}" Top="0" Right="{StaticResource SpacingM}" Bottom="0" />
-            </Grid.Padding>
-            <Grid.Margin>
-                <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="0" Bottom="0" />
-            </Grid.Margin>
-            <Border Grid.Column="0" BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
-                <Label
-                    Text="&#8249;"
-                    FontSize="{StaticResource TypeIcon}"
-                    TextColor="{StaticResource TextPrimary}"
-                    HorizontalOptions="Center"
-                    VerticalOptions="Center">
-                    <Label.GestureRecognizers>
-                        <TapGestureRecognizer Tapped="OnBackTapped" />
-                    </Label.GestureRecognizers>
-                </Label>
-            </Border>
-
-            <Label
-                Grid.Column="1"
-                Text="{Binding GroupName}"
-                Style="{StaticResource SectionHeader}"
-                Margin="0"
-                LineBreakMode="TailTruncation" />
-
-            <Border Grid.Column="2" BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
-                <Label
-                    Text="&#8942;"
-                    FontSize="18"
-                    TextColor="{StaticResource TextPrimary}"
-                    HorizontalOptions="Center"
-                    VerticalOptions="Center">
-                    <Label.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding InvitePeopleCommand}" />
-                    </Label.GestureRecognizers>
-                </Label>
-            </Border>
-        </Grid>
+        <controls:PageHeaderBar
+            Grid.Row="0"
+            HeaderTitle="{Binding GroupName}"
+            ShowOverflow="True"
+            OverflowCommand="{Binding InvitePeopleCommand}" />
 
         <Grid Grid.Row="1">
             <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
@@ -106,16 +66,16 @@
                                                 </DataTrigger>
                                             </Border.Triggers>
                                             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}">
-                                                <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="36" HeightRequest="36" Opacity="0.85">
-                                                    <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="13" />
+                                                <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="{StaticResource AvatarSizeM}" HeightRequest="{StaticResource AvatarSizeM}" Opacity="0.85">
+                                                    <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeCaption}" />
                                                 </Border>
                                                 <Label Grid.Column="1" Text="{Binding Member.DisplayName}" VerticalOptions="Center" FontAttributes="Bold" LineBreakMode="TailTruncation">
                                                     <Label.Triggers>
                                                         <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
-                                                            <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                            <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
                                                         </DataTrigger>
                                                         <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
-                                                            <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                            <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
                                                         </DataTrigger>
                                                     </Label.Triggers>
                                                 </Label>
@@ -123,20 +83,20 @@
                                                     <Label Text="{Binding AmountText}" FontSize="{StaticResource TypeTitle}" FontAttributes="Bold" HorizontalTextAlignment="End">
                                                         <Label.Triggers>
                                                             <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
-                                                                <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
                                                             </DataTrigger>
                                                             <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
-                                                                <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
                                                             </DataTrigger>
                                                         </Label.Triggers>
                                                     </Label>
                                                     <Label Text="{Binding CaptionText}" FontSize="{StaticResource TypeCaption}" HorizontalTextAlignment="End">
                                                         <Label.Triggers>
                                                             <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
-                                                                <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
                                                             </DataTrigger>
                                                             <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
-                                                                <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+                                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
                                                             </DataTrigger>
                                                         </Label.Triggers>
                                                     </Label>
@@ -148,7 +108,7 @@
                                                     CommandParameter="{Binding .}"
                                                     Style="{StaticResource BtnOutlinePrimary}"
                                                     FontSize="{StaticResource TypeCaption}"
-                                                    Padding="12,8"
+                                                    Padding="{StaticResource SpacingS}"
                                                     MinimumHeightRequest="36"
                                                     VerticalOptions="Center" />
                                             </Grid>
@@ -171,15 +131,16 @@
                                                     CommandParameter="{Binding .}" />
                                             </Border.GestureRecognizers>
                                             <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
-                                                <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="36" HeightRequest="36">
+                                                <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="{StaticResource AvatarSizeM}" HeightRequest="{StaticResource AvatarSizeM}">
                                                     <Label
-                                                        Text="&#128179;"
-                                                        FontSize="16"
+                                                        Text="{x:Static local:AppConstants+Icons.ShoppingCart}"
+                                                        FontFamily="Lucide"
+                                                        FontSize="{StaticResource TypeBody}"
                                                         HorizontalOptions="Center"
                                                         VerticalOptions="Center">
                                                         <Label.Triggers>
                                                             <DataTrigger TargetType="Label" Binding="{Binding IsSettlement}" Value="True">
-                                                                <Setter Property="Text" Value="&#8594;" />
+                                                                <Setter Property="Text" Value="{x:Static local:AppConstants+Icons.ArrowRight}" />
                                                             </DataTrigger>
                                                         </Label.Triggers>
                                                     </Label>
@@ -213,7 +174,7 @@
             </RefreshView>
 
             <Button
-                Text="+ Add expense"
+                Text="+"
                 Command="{Binding AddExpenseCommand}"
                 Style="{StaticResource FabButtonStyle}" />
         </Grid>

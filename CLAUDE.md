@@ -360,6 +360,31 @@ gone) — if a popup-based UI is wanted later, treat the current 13.0.0 API as
 unknown and verify against a real build rather than copying older
 CommunityToolkit.Maui code (PokeCards' included) as-is.
 
+## Splash screen (2026-08-26)
+
+Previously Shell always opened on its first `ShellContent` (`Login`), and
+`App.xaml.cs`'s `window.Created` handler ran `RestoreSessionAsync()`
+afterward, redirecting to `Groups` if it succeeded — so an already-signed-in
+launch visibly flashed the login form before bouncing to Groups a moment
+later. Fixed by adding `Pages/SplashPage.xaml` (centered "Axis" title +
+`ActivityIndicator`, `Shell.NavBarIsVisible="False"` so the Shell top bar
+doesn't show over it) as the new first `ShellContent` in `AppShell.xaml`
+(`Routes.Splash = "//Splash"`, registered transient in `MauiProgram.cs`, no
+ViewModel — nothing bindable beyond "spinning").
+
+The restore-and-redirect logic moved from `App.xaml.cs`'s `window.Created`
+into `SplashPage.OnAppearing` (wrapped in try/catch, falling back to Login
+on any exception — same crash-safety reasoning as `BaseViewModel
+.RunSafeAsync`, so a transient Supabase error can't fail-fast the process
+before the user sees anything), which then does an absolute `GoToAsync`
+to `//Login` or `//Groups` so Splash doesn't linger in the back stack.
+`App.xaml.cs`'s `pendingDeepLink` cold-start queuing (a deep link can arrive
+before Shell exists) still lives on `App`, but is now replayed by
+`SplashPage` calling the new `App.ReplayPendingDeepLinkAsync()` after it
+decides where to land, instead of unconditionally inside `window.Created`.
+`CreateWindow` is back to just `new Window(new AppShell())` — `App` no
+longer takes `IAuthService` at all.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
@@ -396,9 +421,52 @@ now: interface → concrete Supabase-backed implementation, singleton.
 
 ### Navigation
 
-Uses **MAUI Shell**. Currently a single route (`Login`). As real screens are
-built, follow the route-name-as-constant pattern in `AppConstants.Routes`
-rather than hardcoding route strings.
+Uses **MAUI Shell**, routes declared as constants in `AppConstants.Routes`
+(`Splash`, `Login`, `Groups`, `GroupDetails`, `JoinGroup`, `AddExpense`,
+`NewGroup`) rather than hardcoded strings — follow that pattern for any new
+screen. `Splash` is the first `ShellContent` in `AppShell.xaml` (see "Splash
+screen" above); it decides between `//Login` and `//Groups` before anything
+else renders.
+
+### Deep linking (group invites)
+
+An invite link (`https://axisapp.aitorsansal.com/invite?code=...`, built by
+`AppConstants.Links.BuildInviteUrl`) has to work both as a plain web page
+(no app installed) and as a direct jump into `JoinGroupPage` (app
+installed) — that split lives across the mobile project and a separate
+static site, so it's easy to change one side and forget the other:
+
+- **`web/`** is a standalone Cloudflare Worker (deployed with
+  `npx wrangler deploy` from `web/`, not part of the MAUI build).
+  `wrangler.jsonc` points its static-assets root at `.` specifically so both
+  `web/invite/index.html` (the fallback landing page — shows the code, links
+  to the Play Store) and `web/.well-known/assetlinks.json` (Android's
+  Digital Asset Links proof, listing the app's signing-cert SHA-256
+  fingerprint) get served; pointing it at `invite/` instead (what the
+  Cloudflare setup wizard guesses, since it's the only folder with an
+  `index.html`) silently drops `.well-known` and breaks App Links.
+- **`AxisApp/Platforms/Android/MainActivity.cs`** declares the App Link via
+  an `[IntentFilter(..., DataHost = "axisapp.aitorsansal.com",
+  DataPathPrefix = "/invite", AutoVerify = true)]` attribute — there's no
+  Android-manifest XML for this, it's all in the C# attribute. `AutoVerify`
+  is what makes Android open the link straight in-app instead of a browser,
+  and it only succeeds once Android has fetched and matched
+  `assetlinks.json` above against the APK's actual signing certificate, so a
+  cert mismatch (e.g. testing a debug build against a fingerprint list that
+  only has the release key, or vice versa) makes links silently fall back to
+  the browser with no error anywhere.
+- `MainActivity.OnCreate`/`OnNewIntent` both funnel the incoming `Intent`
+  into `App.HandleDeepLink(uri)`, which queues the URI in the static
+  `pendingDeepLink` field if `Shell.Current` is still null (cold start —
+  the Intent arrives before Shell exists) or navigates immediately
+  otherwise. `SplashPage` calls `App.ReplayPendingDeepLinkAsync()` once it's
+  picked Login vs. Groups, so a queued cold-start link always replays after
+  landing, never before. `AppConstants.Links.TryExtractCode` is the one
+  place that parses a `?code=` query param back out of either a full invite
+  URL or a raw platform URI.
+- iOS Universal Links would need the equivalent (`apple-app-site-association`
+  under `web/.well-known/`, entitlements on the iOS target) but iOS isn't in
+  the active `TargetFrameworks` yet, so this is Android-only today.
 
 ### UI
 
@@ -483,6 +551,11 @@ dotnet build AxisApp/AxisApp.csproj -f net10.0-android
 
 # Build for Windows
 dotnet build AxisApp/AxisApp.csproj -f net10.0-windows10.0.19041.0
+```
+
+```bash
+# Deploy the invite-link web page + assetlinks.json (see "Deep linking" above)
+cd web && npx wrangler deploy
 ```
 
 There are no automated tests in this project yet.

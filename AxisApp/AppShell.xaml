@@ -8,6 +8,10 @@
     Title="Axis">
 
     <ShellContent
+        Route="Splash"
+        ContentTemplate="{DataTemplate pages:SplashPage}" />
+
+    <ShellContent
         Route="Login"
         ContentTemplate="{DataTemplate pages:LoginPage}" />
 

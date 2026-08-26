@@ -19,9 +19,7 @@
                 Grid.Column="0"
                 Text="Cancel"
                 Command="{Binding CancelCommand}"
-                Style="{StaticResource BtnOutlinePrimary}"
-                BackgroundColor="Transparent"
-                BorderWidth="0"
+                Style="{StaticResource BtnTextStyle}"
                 TextColor="{StaticResource TextSecondary}"
                 MinimumWidthRequest="76"
                 MinimumHeightRequest="44"
@@ -40,11 +38,8 @@
                 Text="Save"
                 Command="{Binding SaveCommand}"
                 IsEnabled="{Binding CanSave}"
-                Style="{StaticResource BtnOutlinePrimary}"
-                BackgroundColor="Transparent"
-                BorderWidth="0"
+                Style="{StaticResource BtnTextStyle}"
                 TextColor="{StaticResource Primary}"
-                FontAttributes="Bold"
                 MinimumWidthRequest="76"
                 MinimumHeightRequest="44"
                 VerticalOptions="Center" />
@@ -89,7 +84,7 @@
                         </CollectionView.ItemsLayout>
                         <CollectionView.ItemTemplate>
                             <DataTemplate x:DataType="vm:PayerOption">
-                                <VerticalStackLayout Spacing="4" WidthRequest="60">
+                                <VerticalStackLayout Spacing="{StaticResource SpacingXS}" WidthRequest="60">
                                     <VerticalStackLayout.GestureRecognizers>
                                         <TapGestureRecognizer
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:AddExpenseViewModel}}, Path=SelectPayerCommand}"
@@ -97,7 +92,7 @@
                                     </VerticalStackLayout.GestureRecognizers>
                                     <Border
                                         Style="{StaticResource AvatarCircle}"
-                                        WidthRequest="44" HeightRequest="44"
+                                        WidthRequest="{StaticResource AvatarSizeL}" HeightRequest="{StaticResource AvatarSizeL}"
                                         HorizontalOptions="Center">
                                         <Border.Triggers>
                                             <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
@@ -105,7 +100,7 @@
                                                 <Setter Property="StrokeThickness" Value="2" />
                                             </DataTrigger>
                                         </Border.Triggers>
-                                        <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="14" />
+                                        <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeBody}" />
                                     </Border>
                                     <Label
                                         Text="{Binding Member.DisplayName}"
@@ -131,7 +126,7 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <Label Grid.Column="0" Text="Split" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
                         <Border Grid.Column="1" Style="{StaticResource SegmentPillContainer}">
-                            <HorizontalStackLayout Spacing="2">
+                            <HorizontalStackLayout Spacing="{StaticResource SpacingXS}">
                                 <Button
                                     Text="Equally"
                                     Command="{Binding SplitEquallyCommand}"
@@ -178,7 +173,7 @@
                                                 Text="&#10003;"
                                                 IsVisible="{Binding IsIncluded}"
                                                 TextColor="{StaticResource TextOnAccent}"
-                                                FontSize="12"
+                                                FontSize="{StaticResource TypeCaption}"
                                                 FontAttributes="Bold"
                                                 HorizontalOptions="Center"
                                                 VerticalOptions="Center" />
@@ -188,8 +183,8 @@
                                     <Border
                                         Grid.Column="1"
                                         Style="{StaticResource AvatarCircle}"
-                                        WidthRequest="26" HeightRequest="26">
-                                        <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="11" />
+                                        WidthRequest="{StaticResource AvatarSizeS}" HeightRequest="{StaticResource AvatarSizeS}">
+                                        <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeLabel}" />
                                     </Border>
 
                                     <Label
@@ -260,7 +255,7 @@
 
                 <!-- Receipt photo (upload not wired yet - see SCOPE.md's Storage/receipts note) -->
                 <Border Style="{StaticResource ReceiptDropZone}">
-                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="4">
+                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="{StaticResource SpacingXS}">
                         <Label Text="&#128247;" HorizontalOptions="Center" FontSize="{StaticResource TypeEmojiLg}" />
                         <Label
                             Text="Add receipt photo (optional)"

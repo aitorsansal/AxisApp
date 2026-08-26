@@ -1,21 +1,17 @@
-using AxisApp.Services;
-
 namespace AxisApp
 {
     public partial class App : Application
     {
-        private readonly IAuthService authService;
-
         // A cold-start app-link Intent fires before CreateWindow's Shell exists to navigate on, so
-        // MainActivity.HandleIntent hands it here and window.Created (below) replays it once ready —
-        // same "defer until the window says it's ready" shape as the session-restore navigation.
+        // MainActivity.HandleIntent hands it here and SplashPage replays it once it's decided
+        // where to land (Login or Groups) — same "defer until ready" shape as before, just moved
+        // from window.Created to Splash now that Splash (not Login) is the first ShellContent.
         private static string? pendingDeepLink;
 
-        public App(IAuthService authService)
+        public App()
         {
             InitializeComponent();
             Application.Current!.UserAppTheme = AppTheme.Dark;
-            this.authService = authService;
 
             AppDomain.CurrentDomain.UnhandledException += (_, e) =>
                 LogCrash(e.ExceptionObject as Exception);
@@ -36,27 +32,8 @@ namespace AxisApp
             catch { /* best effort */ }
         }
 
-        protected override Window CreateWindow(IActivationState? activationState)
-        {
-            var window = new Window(new AppShell());
-
-            // Shell always opens on its first ShellContent (Login) by default; if a session
-            // restores successfully, skip straight past it once the window's up.
-            window.Created += async (_, _) =>
-            {
-                await authService.RestoreSessionAsync();
-                if (authService.IsAuthenticated)
-                    await Shell.Current.GoToAsync(AppConstants.Routes.Groups);
-
-                if (pendingDeepLink is { } link)
-                {
-                    pendingDeepLink = null;
-                    await NavigateToDeepLinkAsync(link);
-                }
-            };
-
-            return window;
-        }
+        protected override Window CreateWindow(IActivationState? activationState) =>
+            new(new AppShell());
 
         /// <summary>Entry point for platform code (MainActivity's App Link intent-filter) handing
         /// over the raw incoming URI. Queues it if Shell isn't up yet (cold start).</summary>
@@ -69,6 +46,15 @@ namespace AxisApp
             }
 
             _ = NavigateToDeepLinkAsync(uriString);
+        }
+
+        /// <summary>Called by SplashPage once it's decided where to land, to replay a deep link
+        /// that arrived before the window (and Shell) existed.</summary>
+        public static Task ReplayPendingDeepLinkAsync()
+        {
+            if (pendingDeepLink is not { } link) return Task.CompletedTask;
+            pendingDeepLink = null;
+            return NavigateToDeepLinkAsync(link);
         }
 
         private static Task NavigateToDeepLinkAsync(string uriString)

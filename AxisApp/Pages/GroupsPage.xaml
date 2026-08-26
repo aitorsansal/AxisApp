@@ -27,7 +27,7 @@
                 BackgroundColor="Transparent"
                 StrokeThickness="0"
                 WidthRequest="44" HeightRequest="44"
-                Padding="6"
+                Padding="{StaticResource SpacingXS}"
                 VerticalOptions="Center">
                 <Border.GestureRecognizers>
                     <TapGestureRecognizer Command="{Binding ToggleAccountMenuCommand}" />
@@ -109,7 +109,7 @@
                                                     <DataTemplate x:DataType="x:String">
                                                         <Border
                                                             Style="{StaticResource AvatarCircle}"
-                                                            WidthRequest="22" HeightRequest="22"
+                                                            WidthRequest="{StaticResource AvatarSizeXS}" HeightRequest="{StaticResource AvatarSizeXS}"
                                                             Stroke="{StaticResource BgPrimary}"
                                                             StrokeThickness="2">
                                                             <Label Text="{Binding .}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeLabel}" />

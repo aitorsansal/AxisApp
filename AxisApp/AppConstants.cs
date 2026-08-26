@@ -13,8 +13,27 @@ public static class AppConstants
         public const string BalanceDisplayModePrefix = "balance_display_pairwise_";
     }
 
+    /// <summary>Glyphs from Resources/Fonts/lucide.ttf (lucide-static npm package, ISC license) —
+    /// use with FontFamily="Lucide". Codepoints come from that package's font/codepoints.json,
+    /// not a standard PUA range, so look up any new icon there rather than guessing.</summary>
+    public static class Icons
+    {
+        public const string ArrowLeft = "";
+        public const string ArrowRight = "";
+        public const string MoreVertical = "";
+        public const string Plus = "";
+        public const string LogOut = "";
+        public const string User = "";
+        public const string Users = "";
+        public const string ShoppingCart = "";
+        public const string Ticket = "";
+        public const string Car = "";
+        public const string Plane = "";
+    }
+
     public static class Routes
     {
+        public const string Splash = "//Splash";
         public const string Login = "//Login";
         public const string Groups = "//Groups";
         public const string GroupDetails = "GroupDetails";

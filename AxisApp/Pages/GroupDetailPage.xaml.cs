@@ -9,6 +9,4 @@ public partial class GroupDetailPage : ContentPage
         InitializeComponent();
         BindingContext = vm;
     }
-
-    private async void OnBackTapped(object? sender, EventArgs e) => await Shell.Current.GoToAsync("..");
 }

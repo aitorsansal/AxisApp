@@ -8,17 +8,17 @@
          ======================= -->
     <Style TargetType="Label">
         <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontSize" Value="{StaticResource TypeBody}" />
     </Style>
 
     <Style x:Key="LabelSecondary" TargetType="Label">
         <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="{StaticResource TypeCaption}" />
     </Style>
 
     <Style x:Key="LabelTertiary" TargetType="Label">
         <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontSize" Value="{StaticResource TypeCaption}" />
     </Style>
 
     <!-- =======================
@@ -32,22 +32,16 @@
         <Setter Property="Background" Value="{StaticResource Surface}" />
         <Setter Property="Stroke" Value="{StaticResource Border}" />
         <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Padding" Value="14" />
+        <Setter Property="Padding" Value="{StaticResource SpacingM}" />
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="14" />
+                <RoundRectangle CornerRadius="{StaticResource ShapeCard}" />
             </Setter.Value>
         </Setter>
     </Style>
 
     <Style x:Key="ElevatedCard" TargetType="Border" BasedOn="{StaticResource SurfaceFrame}">
         <Setter Property="Background" Value="{StaticResource SurfaceElevated}" />
-        <Setter Property="Padding" Value="16" />
-        <Setter Property="StrokeShape">
-            <Setter.Value>
-                <RoundRectangle CornerRadius="16" />
-            </Setter.Value>
-        </Setter>
     </Style>
 
     <Style x:Key="SectionDivider" TargetType="BoxView">
@@ -67,10 +61,14 @@
         <Setter Property="Background" Value="{StaticResource InputBg}" />
         <Setter Property="Stroke" Value="{StaticResource InputBorder}" />
         <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+            </Setter.Value>
+        </Setter>
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="12" />
+                <RoundRectangle CornerRadius="{StaticResource ShapeControl}" />
             </Setter.Value>
         </Setter>
     </Style>
@@ -137,12 +135,22 @@
     </Style>
 
     <Style x:Key="BtnBase" TargetType="Button">
-        <Setter Property="CornerRadius" Value="12" />
-        <Setter Property="Padding" Value="14,12" />
-        <Setter Property="FontSize" Value="14" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusControl}" />
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="FontSize" Value="{StaticResource TypeBody}" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="BorderWidth" Value="0" />
-        <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
+        <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+    </Style>
+
+    <!-- Borderless variant for header actions (Cancel / Save-style buttons) -->
+    <Style x:Key="BtnTextStyle" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="BorderWidth" Value="0" />
     </Style>
 
     <!-- Primary -->
@@ -183,7 +191,6 @@
     <!-- Secondary -->
     <Style x:Key="BtnSecondaryStyle" TargetType="Button" BasedOn="{StaticResource BtnBase}">
         <Setter Property="BackgroundColor" Value="{StaticResource Secondary}" />
-        <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
@@ -294,17 +301,25 @@
     <Style x:Key="BorderThin" TargetType="Border">
         <Setter Property="Stroke" Value="{StaticResource Border}" />
         <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Padding" Value="5,3"/>
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Thickness Left="{StaticResource SpacingS}" Top="{StaticResource SpacingXS}" Right="{StaticResource SpacingS}" Bottom="{StaticResource SpacingXS}" />
+            </Setter.Value>
+        </Setter>
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="12" />
+                <RoundRectangle CornerRadius="{StaticResource ShapeControl}" />
             </Setter.Value>
         </Setter>
     </Style>
 
     <!-- Chip border: transparent when unselected, Primary fill/stroke when selected (via DataTrigger on IsSelected binding) -->
     <Style x:Key="ChipBorderStyle" TargetType="Border" BasedOn="{StaticResource BorderThin}">
-        <Setter Property="Padding" Value="14,6"/>
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+            </Setter.Value>
+        </Setter>
         <Setter Property="BackgroundColor" Value="Transparent"/>
         <Setter Property="Stroke" Value="{StaticResource Border}"/>
         <Style.Triggers>
@@ -338,16 +353,18 @@
         <Setter Property="Background" Value="{StaticResource Surface}" />
         <Setter Property="Stroke" Value="{StaticResource Border}" />
         <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Padding" Value="10,10" />
+        <Setter Property="Padding" Value="{StaticResource SpacingS}" />
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="16,16,0,0" />
+                <!-- Top corners only, at RadiusCard's value (12) - can't bind a StaticResource
+                     into just two corners of a CornerRadius literal. -->
+                <RoundRectangle CornerRadius="12,12,0,0" />
             </Setter.Value>
         </Setter>
     </Style>
 
     <Style x:Key="BottomNavItemLabel" TargetType="Label">
-        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontSize" Value="{StaticResource TypeLabel}" />
         <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
         <Setter Property="HorizontalTextAlignment" Value="Center" />
     </Style>
@@ -373,7 +390,7 @@
          ======================= -->
     <!-- MAUI doesn't have a direct limiter style, but you can standardize containers -->
     <Style x:Key="LimiterSurface" TargetType="Border" BasedOn="{StaticResource ElevatedCard}">
-        <Setter Property="Padding" Value="12" />
+        <Setter Property="Padding" Value="{StaticResource SpacingS}" />
     </Style>
 
     <!-- =======================
@@ -381,13 +398,17 @@
          ======================= -->
     <Style x:Key="SectionHeader" TargetType="Label">
         <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="FontSize" Value="17" />
+        <Setter Property="FontSize" Value="{StaticResource TypeTitle}" />
         <Setter Property="FontAttributes" Value="Bold" />
-        <Setter Property="Margin" Value="0,4,0,2" />
+        <Setter Property="Margin">
+            <Setter.Value>
+                <Thickness Left="0" Top="{StaticResource SpacingXS}" Right="0" Bottom="{StaticResource SpacingXS}" />
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="SectionHeaderTertiary" TargetType="Label" BasedOn="{StaticResource SectionHeader}">
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontSize" Value="{StaticResource TypeCaption}" />
         <Setter Property="FontAttributes" Value="None" />
         <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
         <Setter Property="CharacterSpacing" Value="1" />
@@ -400,11 +421,15 @@
         <Setter Property="Background" Value="{StaticResource SurfaceElevated}" />
         <Setter Property="Stroke" Value="{StaticResource BorderSubtle}" />
         <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Padding" Value="14,12" />
-        <Setter Property="Margin" Value="0,3" />
+        <Setter Property="Padding" Value="{StaticResource SpacingM}" />
+        <Setter Property="Margin">
+            <Setter.Value>
+                <Thickness Left="0" Top="{StaticResource SpacingXS}" Right="0" Bottom="{StaticResource SpacingXS}" />
+            </Setter.Value>
+        </Setter>
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="12" />
+                <RoundRectangle CornerRadius="{StaticResource ShapeCard}" />
             </Setter.Value>
         </Setter>
     </Style>
@@ -450,8 +475,8 @@
     <!-- Primary-colored circular ImageButton (for icon-only action buttons) -->
     <Style x:Key="ImageButtonPrimaryStyle" TargetType="ImageButton">
         <Setter Property="BackgroundColor" Value="{StaticResource Primary}"/>
-        <Setter Property="CornerRadius" Value="20"/>
-        <Setter Property="Padding" Value="8"/>
+        <Setter Property="CornerRadius" Value="20"/> <!-- half of WidthRequest/HeightRequest below - circle math, not the radius scale -->
+        <Setter Property="Padding" Value="{StaticResource SpacingS}"/>
         <Setter Property="WidthRequest" Value="40"/>
         <Setter Property="HeightRequest" Value="40"/>
     </Style>
@@ -475,7 +500,11 @@
     </LinearGradientBrush>
 
     <Style x:Key="ReceivePayTileBase" TargetType="Border">
-        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Thickness Left="{StaticResource SpacingS}" Top="{StaticResource SpacingXS}" Right="{StaticResource SpacingS}" Bottom="{StaticResource SpacingXS}" />
+            </Setter.Value>
+        </Setter>
         <Setter Property="StrokeThickness" Value="0" />
         <Setter Property="Shadow">
             <Setter.Value>
@@ -484,11 +513,14 @@
         </Setter>
     </Style>
 
+    <!-- Interlocking notch is a deliberate paired accent (Receive/Pay always render together),
+         not a general-purpose shape - kept asymmetric on purpose, but sized off RadiusCard's
+         value (12) instead of an unrelated one-off number. -->
     <Style x:Key="ReceiveTile" TargetType="Border" BasedOn="{StaticResource ReceivePayTileBase}">
         <Setter Property="Background" Value="{StaticResource ReceiveGradient}" />
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="8,0,8,0" />
+                <RoundRectangle CornerRadius="12,0,12,0" />
             </Setter.Value>
         </Setter>
     </Style>
@@ -497,21 +529,21 @@
         <Setter Property="Background" Value="{StaticResource PayGradient}" />
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="0,8,0,8" />
+                <RoundRectangle CornerRadius="0,12,0,12" />
             </Setter.Value>
         </Setter>
     </Style>
 
     <Style x:Key="ReceivePayTitle" TargetType="Label">
-        <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+        <Setter Property="FontSize" Value="{StaticResource TypeCaption}" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="HorizontalTextAlignment" Value="Center" />
     </Style>
 
     <Style x:Key="ReceivePayAmount" TargetType="Label">
-        <Setter Property="TextColor" Value="{StaticResource BgPrimary}" />
-        <Setter Property="FontSize" Value="20" />
+        <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+        <Setter Property="FontSize" Value="{StaticResource TypeAmountPrefix}" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="HorizontalTextAlignment" Value="Center" />
     </Style>
@@ -525,7 +557,7 @@
         <Setter Property="Padding" Value="0" />
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="999" />
+                <RoundRectangle CornerRadius="{StaticResource ShapePill}" />
             </Setter.Value>
         </Setter>
     </Style>
@@ -560,14 +592,17 @@
          Floating Action Button
          ======================= -->
     <Style x:Key="FabButtonStyle" TargetType="Button" BasedOn="{StaticResource BtnPrimaryStyle}">
-        <Setter Property="CornerRadius" Value="999" />
-        <Setter Property="Padding" Value="14,7" />
-        <Setter Property="HorizontalOptions" Value="End" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusPill}" />
+        <Setter Property="HorizontalOptions" Value="Center" />
         <Setter Property="VerticalOptions" Value="End" />
-        <Setter Property="FontSize" Value="24" />
-        <Setter Property="BorderColor" Value="{StaticResource BtnSecondary}"/>
-        <Setter Property="BorderWidth" Value="2"/>
-        <Setter Property="Margin" Value="0,0,16,16" />
+        <Setter Property="FontSize" Value="{StaticResource TypeIcon}" />
+        <Setter Property="BorderColor" Value="{StaticResource BtnPrimaryHover}"/>
+        <Setter Property="BorderWidth" Value="1"/>
+        <Setter Property="Margin">
+            <Setter.Value>
+                <Thickness Left="0" Top="0" Right="0" Bottom="{StaticResource SpacingM}" />
+            </Setter.Value>
+        </Setter>
         <Setter Property="Shadow">
             <Setter.Value>
                 <Shadow Brush="Black" Opacity="0.35" Radius="14" Offset="0,6" />
@@ -582,19 +617,23 @@
         <Setter Property="Background" Value="{StaticResource Surface}" />
         <Setter Property="Stroke" Value="{StaticResource Border}" />
         <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Padding" Value="3" />
+        <Setter Property="Padding" Value="{StaticResource SpacingXS}" />
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="999" />
+                <RoundRectangle CornerRadius="{StaticResource ShapePill}" />
             </Setter.Value>
         </Setter>
     </Style>
 
     <Style x:Key="SegmentButtonBase" TargetType="Button">
-        <Setter Property="CornerRadius" Value="999" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusPill}" />
         <Setter Property="FontSize" Value="{StaticResource TypeCaption}" />
         <Setter Property="FontAttributes" Value="Bold" />
-        <Setter Property="Padding" Value="14,6" />
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+            </Setter.Value>
+        </Setter>
         <Setter Property="BorderWidth" Value="0" />
     </Style>
 
@@ -624,7 +663,7 @@
         <Setter Property="Opacity" Value="0.5" />
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="5" />
+                <RoundRectangle CornerRadius="{StaticResource ShapeControl}" />
             </Setter.Value>
         </Setter>
         <Style.Triggers>
@@ -640,11 +679,11 @@
          Balance tile (Group detail)
          ======================= -->
     <Style x:Key="BalanceTileBase" TargetType="Border">
-        <Setter Property="Padding" Value="16" />
+        <Setter Property="Padding" Value="{StaticResource SpacingM}" />
         <Setter Property="StrokeThickness" Value="0" />
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="16" />
+                <RoundRectangle CornerRadius="{StaticResource ShapeCard}" />
             </Setter.Value>
         </Setter>
     </Style>
@@ -670,7 +709,7 @@
         <Setter Property="HeightRequest" Value="88" />
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="12" />
+                <RoundRectangle CornerRadius="{StaticResource ShapeCard}" />
             </Setter.Value>
         </Setter>
     </Style>

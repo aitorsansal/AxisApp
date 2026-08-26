@@ -16,7 +16,7 @@ public static class MauiProgram
             .UseMauiCommunityToolkit()
             .ConfigureFonts(fonts =>
             {
-                // Uses platform default fonts until custom fonts are added under Resources/Fonts.
+                fonts.AddFont("lucide.ttf", "Lucide");
             });
 
         // Persists the Gotrue session to SecureStorage across app launches — without this,
@@ -48,6 +48,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<IRecurringPaymentsRepository, SupabaseRecurringPaymentsRepository>();
         builder.Services.AddSingleton<IInvitesRepository, SupabaseInvitesRepository>();
         builder.Services.AddSingleton<IDeviceTokensRepository, SupabaseDeviceTokensRepository>();
+
+        builder.Services.AddTransient<SplashPage>();
 
         builder.Services.AddTransient<LoginViewModel>();
         builder.Services.AddTransient<LoginPage>();

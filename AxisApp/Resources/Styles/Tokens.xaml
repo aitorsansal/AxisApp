@@ -42,7 +42,13 @@
     <x:Double x:Key="TypeAmountHero">36</x:Double>
 
     <!-- ============ AVATAR SIZES ============ -->
-    <x:Double x:Key="AvatarSizeS">40</x:Double>
+    <!-- One scale for every avatar circle: XS mini-stacks, S participant rows, M list/tile rows,
+         L selector rows. Initials FontSize should scale with these (XS/S -> TypeLabel,
+         M -> TypeCaption, L -> TypeBody) so bigger circles get bigger initials. -->
+    <x:Double x:Key="AvatarSizeXS">22</x:Double>
+    <x:Double x:Key="AvatarSizeS">26</x:Double>
+    <x:Double x:Key="AvatarSizeM">36</x:Double>
+    <x:Double x:Key="AvatarSizeL">44</x:Double>
 
     <!-- ============ FONTS ============ -->
     <!-- Tabular-numeral font for amounts/codes (invite code, split-row amounts). No custom font

@@ -3,42 +3,15 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
     x:Class="AxisApp.Pages.NewGroupPage"
     x:DataType="vm:NewGroupViewModel"
     Shell.NavBarIsVisible="False"
     Title="New group">
 
-    <Grid RowDefinitions="100,*">
+    <Grid RowDefinitions="Auto,*">
 
-        <!-- Top bar: back / title. Extra top margin on Windows: this row otherwise renders
-        directly under the native window caption buttons — see GroupDetailPage.xaml for the
-        full explanation. -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}">
-            <Grid.Padding>
-                <Thickness Left="{StaticResource SpacingM}" Top="0" Right="{StaticResource SpacingM}" Bottom="0" />
-            </Grid.Padding>
-            <Grid.Margin>
-                <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="0" Bottom="0" />
-            </Grid.Margin>
-            <Border Grid.Column="0" BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
-                <Label
-                    Text="&#8249;"
-                    FontSize="{StaticResource TypeIcon}"
-                    TextColor="{StaticResource TextPrimary}"
-                    HorizontalOptions="Center"
-                    VerticalOptions="Center">
-                    <Label.GestureRecognizers>
-                        <TapGestureRecognizer Tapped="OnBackTapped" />
-                    </Label.GestureRecognizers>
-                </Label>
-            </Border>
-            <Label
-                Grid.Column="1"
-                Text="New group"
-                Style="{StaticResource SectionHeader}"
-                Margin="0"
-                VerticalOptions="Center" />
-        </Grid>
+        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="New group" />
 
         <VerticalStackLayout Grid.Row="1" Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
 
