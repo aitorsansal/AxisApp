@@ -5,7 +5,7 @@
       "namespace": "android_app",
       "package_name": "com.aitorsansal.axisapp",
       "sha256_cert_fingerprints": [
-        "REPLACE_WITH_DEBUG_KEYSTORE_SHA256_FINGERPRINT",
+        "53:3C:BF:B2:74:43:DF:DD:F6:E5:9F:8F:03:D7:D3:FC:AF:75:0F:38:9A:7F:B3:5D:AD:37:4C:D7:32:13:E3:F6",
         "REPLACE_WITH_RELEASE_KEYSTORE_SHA256_FINGERPRINT"
       ]
     }
