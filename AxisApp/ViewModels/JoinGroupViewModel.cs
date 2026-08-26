@@ -72,6 +72,12 @@ public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
             HasActiveGroup = true;
             _ = LoadAsync();
         }
+
+        // Arrives from App.NavigateToDeepLinkAsync when the invite link itself was tapped (not
+        // typed) — prefills the redeem box but still requires the explicit Join tap below, rather
+        // than auto-redeeming on navigation.
+        if (query.TryGetValue("code", out var codeValue))
+            JoinCodeInput = Uri.UnescapeDataString(codeValue?.ToString() ?? "");
     }
 
     public Task LoadAsync() => RunSafeAsync(async () =>
@@ -99,8 +105,8 @@ public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
     private Task CopyLink() => RunSafeAsync(async () =>
     {
         if (string.IsNullOrEmpty(InviteCode)) return;
-        await Clipboard.Default.SetTextAsync(InviteCode);
-        await TryShowToast("Invite code copied");
+        await Clipboard.Default.SetTextAsync(AppConstants.Links.BuildInviteUrl(InviteCode));
+        await TryShowToast("Invite link copied");
     });
 
     /// <summary>AX-07: on this unpackaged Win32 build, Toast.Show throws COMException 0x80070490
@@ -126,7 +132,7 @@ public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
         if (string.IsNullOrEmpty(InviteCode)) return;
         await Microsoft.Maui.ApplicationModel.DataTransfer.Share.Default.RequestAsync(new ShareTextRequest
         {
-            Text = $"Join my Axis group \"{GroupName}\" with code {InviteCode}",
+            Text = $"Join my Axis group \"{GroupName}\": {AppConstants.Links.BuildInviteUrl(InviteCode)}",
             Title = "Invite to Axis"
         });
     });
@@ -213,8 +219,8 @@ public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
     {
         if (item is null || groupId is not { } id) return;
         var invite = await invitesRepository.CreateAsync(id, item.Member.Id);
-        await Clipboard.Default.SetTextAsync(invite.Token);
-        await TryShowToast($"New invite code for {item.Member.DisplayName} copied");
+        await Clipboard.Default.SetTextAsync(AppConstants.Links.BuildInviteUrl(invite.Token));
+        await TryShowToast($"New invite link for {item.Member.DisplayName} copied");
     });
 
     [RelayCommand]
@@ -224,7 +230,9 @@ public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
         IsBusy = true;
         try
         {
-            var joinedGroupId = await invitesRepository.RedeemAsync(JoinCodeInput.Trim());
+            var trimmed = JoinCodeInput.Trim();
+            var code = AppConstants.Links.TryExtractCode(trimmed) ?? trimmed;
+            var joinedGroupId = await invitesRepository.RedeemAsync(code);
             await TryShowToast("Joined group");
             await Shell.Current.GoToAsync($"{AppConstants.Routes.GroupDetails}?groupId={joinedGroupId}");
         }
