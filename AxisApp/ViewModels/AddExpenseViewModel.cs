@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using AxisApp.Localization;
 using AxisApp.Models;
 using AxisApp.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -55,9 +56,12 @@ public partial class PayerOption : ObservableObject
     [ObservableProperty] private bool isSelected;
 }
 
-/// <summary>One selectable chip in the category row.</summary>
+/// <summary>One selectable chip in the category row. Key is the stable, language-independent
+/// identifier stored on Expense.Category; Name is Key's label in the viewer's current language,
+/// resolved once when the chip list is built.</summary>
 public partial class CategoryChip : ObservableObject
 {
+    public string Key { get; init; } = "";
     public string Name { get; init; } = "";
 
     [ObservableProperty] private bool isSelected;
@@ -74,7 +78,6 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 {
     private readonly IMembersRepository membersRepository;
     private readonly IExpensesRepository expensesRepository;
-    private readonly ICategoriesRepository categoriesRepository;
     private readonly IAuthService authService;
 
     private Guid groupId;
@@ -88,25 +91,24 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private decimal amount;
     [ObservableProperty] private string amountText = "0.00";
     [ObservableProperty] private decimal remaining;
+    [ObservableProperty] private string remainingText = "";
     [ObservableProperty] private bool canSave;
     [ObservableProperty] private string description = string.Empty;
     [ObservableProperty] private string selectedCategory = string.Empty;
     [ObservableProperty] private DateTime occurredOn = DateTime.Today;
-    [ObservableProperty] private string occurredOnDisplay = "Today";
+    [ObservableProperty] private string occurredOnDisplay = LocalizationResourceManager.Instance["Common_Today"];
     [ObservableProperty] private bool isManualSplit;
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private bool isEditMode;
-    [ObservableProperty] private string pageTitle = "Add expense";
+    [ObservableProperty] private string pageTitle = LocalizationResourceManager.Instance["AddExpense_Title"];
 
     public AddExpenseViewModel(
         IMembersRepository membersRepository,
         IExpensesRepository expensesRepository,
-        ICategoriesRepository categoriesRepository,
         IAuthService authService)
     {
         this.membersRepository = membersRepository;
         this.expensesRepository = expensesRepository;
-        this.categoriesRepository = categoriesRepository;
         this.authService = authService;
     }
 
@@ -130,16 +132,15 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         groupId = forGroupId;
         editingExpenseId = forExpenseId;
         IsEditMode = forExpenseId is not null;
-        PageTitle = IsEditMode ? "Edit expense" : "Add expense";
+        PageTitle = LocalizationResourceManager.Instance[IsEditMode ? "AddExpense_EditTitle" : "AddExpense_Title"];
 
         IsBusy = true;
         try
         {
             var loadMembers = membersRepository.GetForGroupAsync(groupId);
-            var loadCategories = categoriesRepository.GetAllAsync();
             var loadExpense = forExpenseId is { } id ? expensesRepository.GetByIdAsync(id) : Task.FromResult<Expense?>(null);
             var loadShares = forExpenseId is { } sharesId ? expensesRepository.GetSharesAsync(sharesId) : Task.FromResult(new List<ExpenseShare>());
-            await Task.WhenAll(loadMembers, loadCategories, loadExpense, loadShares);
+            await Task.WhenAll(loadMembers, loadExpense, loadShares);
 
             foreach (var participant in Participants)
                 participant.PropertyChanged -= ParticipantChanged;
@@ -159,7 +160,11 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             }
 
             CategoryChips = new ObservableCollection<CategoryChip>(
-                loadCategories.Result.Select(c => new CategoryChip { Name = c.Name }));
+                AppConstants.Categories.Keys.Select(key => new CategoryChip
+                {
+                    Key = key,
+                    Name = LocalizationResourceManager.Instance[$"Category_{key}"]
+                }));
 
             var existingExpense = loadExpense.Result;
             if (existingExpense is not null)
@@ -215,7 +220,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         AmountText = expense.Amount.ToString("0.00", CultureInfo.InvariantCulture);
 
         SelectedCategory = expense.Category;
-        var matchingChip = CategoryChips.FirstOrDefault(c => c.Name == expense.Category);
+        var matchingChip = CategoryChips.FirstOrDefault(c => c.Key == expense.Category);
         if (matchingChip is not null)
             matchingChip.IsSelected = true;
 
@@ -238,7 +243,9 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     }
 
     partial void OnOccurredOnChanged(DateTime value) =>
-        OccurredOnDisplay = value.Date == DateTime.Today ? "Today" : value.ToString("MMM d, yyyy");
+        OccurredOnDisplay = value.Date == DateTime.Today
+            ? LocalizationResourceManager.Instance["Common_Today"]
+            : value.ToString("MMM d, yyyy");
 
     [RelayCommand]
     private void SelectPayer(PayerOption? option)
@@ -286,7 +293,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     private void SelectCategory(CategoryChip? chip)
     {
         if (chip is null) return;
-        SelectedCategory = chip.IsSelected ? string.Empty : chip.Name;
+        SelectedCategory = chip.IsSelected ? string.Empty : chip.Key;
         foreach (var c in CategoryChips)
             c.IsSelected = c == chip && !string.IsNullOrEmpty(SelectedCategory);
     }
@@ -328,6 +335,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         var included = Participants.Where(p => p.IsIncluded).ToList();
         var sum = included.Sum(p => p.Owes);
         Remaining = decimal.Round(Amount - sum, 2);
+        RemainingText = LocalizationResourceManager.Instance.Format("AddExpense_Remaining", Remaining);
         CanSave = SelectedPayer is not null
                   && Amount > 0
                   && included.Count > 0

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using AxisApp.Localization;
 using AxisApp.Models;
 using AxisApp.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -17,7 +18,7 @@ public partial class GroupListItem : ObservableObject
     [ObservableProperty] private bool isOwed;
     [ObservableProperty] private bool isOwing;
     [ObservableProperty] private bool isSettled = true;
-    [ObservableProperty] private string balanceAmountText = "Settled up";
+    [ObservableProperty] private string balanceAmountText = LocalizationResourceManager.Instance["Common_SettledUp"];
     [ObservableProperty] private string balanceCaptionText = "";
 }
 
@@ -34,6 +35,7 @@ public partial class GroupsViewModel : BaseViewModel
     [ObservableProperty] private string userInitials = "";
     [ObservableProperty] private string userEmail = "";
     [ObservableProperty] private bool isAccountMenuOpen;
+    [ObservableProperty] private string selectedLanguageOverride;
 
     public GroupsViewModel(
         IGroupsRepository groupsRepository,
@@ -48,6 +50,15 @@ public partial class GroupsViewModel : BaseViewModel
 
         UserInitials = Initials(authService.CurrentEmail ?? "?");
         UserEmail = authService.CurrentEmail ?? "";
+        selectedLanguageOverride = LocalizationResourceManager.Instance.CurrentOverride;
+    }
+
+    [RelayCommand]
+    private void ChangeLanguage(string? languageCode)
+    {
+        LocalizationResourceManager.Instance.SetLanguage(languageCode);
+        SelectedLanguageOverride = languageCode ?? "";
+        IsAccountMenuOpen = false;
     }
 
     /// <summary>Wraps its own body in RunSafeAsync rather than relying on callers to — this is
@@ -72,11 +83,13 @@ public partial class GroupsViewModel : BaseViewModel
                 var members = await membersRepository.GetForGroupAsync(group.Id);
                 var balance = balancesByGroup.GetValueOrDefault(group.Id, 0m);
 
+                var loc = LocalizationResourceManager.Instance;
                 var item = new GroupListItem
                 {
                     Group = group,
                     AvatarInitials = members.Take(4).Select(m => Initials(m.DisplayName)).ToList(),
-                    MemberSummary = $"{members.Count} member{(members.Count == 1 ? "" : "s")}"
+                    MemberSummary = loc.Format(
+                        members.Count == 1 ? "Groups_MemberSingular" : "Groups_MemberPlural", members.Count)
                 };
                 ApplyBalance(item, balance);
                 items.Add(item);
@@ -98,14 +111,14 @@ public partial class GroupsViewModel : BaseViewModel
             item.IsOwed = true;
             item.IsSettled = false;
             item.BalanceAmountText = $"+${balance:0.00}";
-            item.BalanceCaptionText = "you're owed";
+            item.BalanceCaptionText = LocalizationResourceManager.Instance["Groups_YoureOwed"];
         }
         else if (balance < 0)
         {
             item.IsOwing = true;
             item.IsSettled = false;
             item.BalanceAmountText = $"-${Math.Abs(balance):0.00}";
-            item.BalanceCaptionText = "you owe";
+            item.BalanceCaptionText = LocalizationResourceManager.Instance["Groups_YouOwe"];
         }
     }
 

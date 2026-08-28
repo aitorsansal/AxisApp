@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using AxisApp.Localization;
 using AxisApp.Services;
 
 namespace AxisApp.ViewModels;
@@ -26,7 +27,7 @@ public partial class LoginViewModel : BaseViewModel
         {
             var result = await authService.SignInAsync(Email, Password);
             if (!result.Success)
-                ErrorMessage = result.ErrorMessage ?? "Sign in failed.";
+                ErrorMessage = result.ErrorMessage ?? LocalizationResourceManager.Instance["Login_SignInFailed"];
             else
                 await Shell.Current.GoToAsync(AppConstants.Routes.Groups);
         }
@@ -45,7 +46,7 @@ public partial class LoginViewModel : BaseViewModel
         {
             var result = await authService.SignUpAsync(Email, Password);
             if (!result.Success)
-                ErrorMessage = result.ErrorMessage ?? "Sign up failed.";
+                ErrorMessage = result.ErrorMessage ?? LocalizationResourceManager.Instance["Login_SignUpFailed"];
             else
                 // No separate "create your profile" step: a Member row only exists once this
                 // account creates or joins a group, both reachable from the (empty) Groups list.

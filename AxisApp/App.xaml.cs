@@ -10,6 +10,11 @@ namespace AxisApp
 
         public App()
         {
+            // Must run before InitializeComponent/any page is built, so the very first frame
+            // (Splash) already renders in the right language instead of flashing device-default
+            // text first. See LocalizationResourceManager.Bootstrap's remarks.
+            Localization.LocalizationResourceManager.Instance.Bootstrap();
+
             InitializeComponent();
             Application.Current!.UserAppTheme = AppTheme.Dark;
 

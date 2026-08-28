@@ -1,3 +1,4 @@
+using AxisApp.Localization;
 using AxisApp.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -21,7 +22,7 @@ public partial class NewGroupViewModel : BaseViewModel
     {
         if (string.IsNullOrWhiteSpace(GroupName))
         {
-            ErrorMessage = "Enter a group name.";
+            ErrorMessage = LocalizationResourceManager.Instance["NewGroup_EnterName"];
             return;
         }
 

@@ -11,6 +11,22 @@ public static class AppConstants
         /// local only, never synced: it's a personal viewing preference, not group state, so
         /// nothing requires every member of a group to see it the same way.</summary>
         public const string BalanceDisplayModePrefix = "balance_display_pairwise_";
+
+        /// <summary>Per-device language override ("en"/"es"), empty string means "follow the
+        /// device's OS locale" — see LocalizationResourceManager.</summary>
+        public const string LanguageOverride = "language_override";
+    }
+
+    /// <summary>Fixed, developer-maintained expense categories — not a database table. Each key
+    /// is a stable, language-independent identifier stored in Expense.Category; the display label
+    /// is resolved per-viewer via AppStrings.Get($"Category_{key}", ...), never stored as text.
+    /// Storing the localized label itself would mean whichever language the expense's creator
+    /// happened to be using becomes baked into the data for every other viewer, forever — the
+    /// exact failure mode localizing a shared ledger has to avoid.</summary>
+    public static class Categories
+    {
+        public static readonly IReadOnlyList<string> Keys =
+            ["food", "transport", "rent", "utilities", "entertainment", "other"];
     }
 
     /// <summary>Glyphs from Resources/Fonts/lucide.ttf (lucide-static npm package, ISC license) —

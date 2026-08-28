@@ -39,12 +39,6 @@ create table public.group_members (
   primary key (group_id, member_id)
 );
 
-create table public.categories (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  created_by uuid not null references auth.users(id)
-);
-
 create table public.payments (
   id uuid primary key default gen_random_uuid(),
   group_id uuid references public.groups(id) on delete set null,
@@ -126,7 +120,6 @@ $$;
 alter table public.members enable row level security;
 alter table public.groups enable row level security;
 alter table public.group_members enable row level security;
-alter table public.categories enable row level security;
 alter table public.payments enable row level security;
 alter table public.recurring_payments enable row level security;
 alter table public.invites enable row level security;
@@ -191,12 +184,6 @@ create policy "group creator can remove members" on public.group_members
   for delete using (
     exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
   );
-
--- categories: shared read across everything the account can see; anyone can add one
-create policy "select all categories" on public.categories
-  for select using (true);
-create policy "insert categories" on public.categories
-  for insert with check (created_by = auth.uid());
 
 -- payments
 create policy "select payments in your groups" on public.payments
@@ -559,3 +546,25 @@ select
   case when m.id = pb.member_a then pb.balance else -pb.balance end as balance
 from pairwise_balances pb
 join members m on m.account_id = auth.uid() and (m.id = pb.member_a or m.id = pb.member_b);
+
+-- ============================================================
+-- Categories removed — added 2026-08-28. `categories` never had a working
+-- "add new category" UI path (ICategoriesRepository.EnsureByNameAsync was
+-- dead code, never called), had no seed data (so the chip row rendered
+-- empty on any fresh deploy), and its `for select using (true)` policy made
+-- every account's custom category visible to every other account app-wide —
+-- inconsistent with how everything else in this schema scopes visibility to
+-- shared groups. Replaced with a small, fixed, developer-maintained list of
+-- keys (AppConstants.Categories.Keys in the app), localized client-side per
+-- viewer (see AxisApp.Localization) rather than stored as text — a stored
+-- label would bake whichever language the expense's creator happened to be
+-- using into the data for every other viewer of a shared expense, forever.
+-- expenses.category / payments.category / recurring_payments.category were
+-- always plain text columns with no foreign key into categories, so no data
+-- migration is needed for them — they just start holding key strings like
+-- "food" instead of arbitrary user-typed text going forward.
+-- Run this against the live project the same way every other block in this
+-- file has needed to be (see CLAUDE.md's "Current state" notes) — it isn't
+-- applied automatically.
+-- ============================================================
+drop table if exists public.categories cascade;

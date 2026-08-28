@@ -5,10 +5,11 @@
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
     xmlns:controls="clr-namespace:AxisApp.Controls"
     xmlns:local="clr-namespace:AxisApp"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
     x:Class="AxisApp.Pages.GroupDetailPage"
     x:DataType="vm:GroupDetailViewModel"
     Shell.NavBarIsVisible="False"
-    Title="Group">
+    Title="{Binding GroupName}">
 
     <Grid RowDefinitions="Auto,*">
 
@@ -32,7 +33,7 @@
                         header's overflow "⋮" (Grid.Column 2 above) sits under Windows' native
                         caption buttons in windowed mode and isn't reliably clickable there. -->
                         <Button
-                            Text="+ Invite people"
+                            Text="{loc:Translate GroupDetail_InvitePeople}"
                             Command="{Binding InvitePeopleCommand}"
                             Style="{StaticResource BtnOutlinePrimary}" />
 
@@ -44,10 +45,10 @@
 
                         <VerticalStackLayout Spacing="{StaticResource SpacingS}">
                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}">
-                                <Label Grid.Column="0" Text="Balances" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" Margin="0" />
+                                <Label Grid.Column="0" Text="{loc:Translate GroupDetail_Balances}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" Margin="0" />
                                 <Label
                                     Grid.Column="1"
-                                    Text="Detailed"
+                                    Text="{loc:Translate GroupDetail_Detailed}"
                                     Style="{StaticResource LabelTertiary}"
                                     VerticalOptions="Center" />
                                 <Switch Grid.Column="2" IsToggled="{Binding IsPairwiseMode}" VerticalOptions="Center" />
@@ -103,7 +104,7 @@
                                                 </VerticalStackLayout>
                                                 <Button
                                                     Grid.Column="3"
-                                                    Text="Settle"
+                                                    Text="{loc:Translate GroupDetail_Settle}"
                                                     Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupDetailViewModel}}, Path=SettleCommand}"
                                                     CommandParameter="{Binding .}"
                                                     Style="{StaticResource BtnOutlinePrimary}"
@@ -119,7 +120,7 @@
                         </VerticalStackLayout>
 
                         <VerticalStackLayout Spacing="{StaticResource SpacingS}">
-                            <Label Text="Recent activity" Style="{StaticResource SectionHeaderTertiary}" />
+                            <Label Text="{loc:Translate GroupDetail_RecentActivity}" Style="{StaticResource SectionHeaderTertiary}" />
 
                             <VerticalStackLayout BindableLayout.ItemsSource="{Binding RecentActivity}">
                                 <BindableLayout.ItemTemplate>

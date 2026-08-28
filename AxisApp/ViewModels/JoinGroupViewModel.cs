@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using AxisApp.Localization;
 using AxisApp.Models;
 using AxisApp.Services;
 using CommunityToolkit.Maui.Alerts;
@@ -106,7 +107,7 @@ public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
     {
         if (string.IsNullOrEmpty(InviteCode)) return;
         await Clipboard.Default.SetTextAsync(AppConstants.Links.BuildInviteUrl(InviteCode));
-        await TryShowToast("Invite link copied");
+        await TryShowToast(LocalizationResourceManager.Instance["JoinGroup_LinkCopied"]);
     });
 
     /// <summary>AX-07: on this unpackaged Win32 build, Toast.Show throws COMException 0x80070490
@@ -132,8 +133,9 @@ public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
         if (string.IsNullOrEmpty(InviteCode)) return;
         await Microsoft.Maui.ApplicationModel.DataTransfer.Share.Default.RequestAsync(new ShareTextRequest
         {
-            Text = $"Join my Axis group \"{GroupName}\": {AppConstants.Links.BuildInviteUrl(InviteCode)}",
-            Title = "Invite to Axis"
+            Text = LocalizationResourceManager.Instance.Format(
+                "JoinGroup_ShareText", GroupName, AppConstants.Links.BuildInviteUrl(InviteCode)),
+            Title = LocalizationResourceManager.Instance["JoinGroup_ShareTitle"]
         });
     });
 
@@ -220,7 +222,7 @@ public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
         if (item is null || groupId is not { } id) return;
         var invite = await invitesRepository.CreateAsync(id, item.Member.Id);
         await Clipboard.Default.SetTextAsync(AppConstants.Links.BuildInviteUrl(invite.Token));
-        await TryShowToast($"New invite link for {item.Member.DisplayName} copied");
+        await TryShowToast(LocalizationResourceManager.Instance.Format("JoinGroup_NewLinkCopied", item.Member.DisplayName));
     });
 
     [RelayCommand]
@@ -233,7 +235,7 @@ public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
             var trimmed = JoinCodeInput.Trim();
             var code = AppConstants.Links.TryExtractCode(trimmed) ?? trimmed;
             var joinedGroupId = await invitesRepository.RedeemAsync(code);
-            await TryShowToast("Joined group");
+            await TryShowToast(LocalizationResourceManager.Instance["JoinGroup_Joined"]);
             await Shell.Current.GoToAsync($"{AppConstants.Routes.GroupDetails}?groupId={joinedGroupId}");
         }
         finally

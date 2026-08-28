@@ -3,10 +3,11 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
     x:Class="AxisApp.Pages.GroupsPage"
     x:DataType="vm:GroupsViewModel"
     Shell.NavBarIsVisible="False"
-    Title="Groups">
+    Title="{loc:Translate Groups_Title}">
 
     <Grid>
     <Grid RowDefinitions="60,*">
@@ -50,10 +51,10 @@
                             IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
                         <Grid ColumnDefinitions="*,Auto">
-                            <Label Grid.Column="0" Text="Your groups" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
+                            <Label Grid.Column="0" Text="{loc:Translate Groups_YourGroups}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
                             <Border Grid.Column="1" BackgroundColor="Transparent" StrokeThickness="0" Padding="{StaticResource SpacingS}" VerticalOptions="Center">
                                 <Label
-                                    Text="Join with code"
+                                    Text="{loc:Translate Groups_JoinWithCode}"
                                     TextColor="{StaticResource Primary}"
                                     FontSize="{StaticResource TypeCaption}"
                                     FontAttributes="Bold"
@@ -136,7 +137,7 @@
                         </VerticalStackLayout>
 
                         <Label
-                            Text="No groups yet — tap New group to start one."
+                            Text="{loc:Translate Groups_EmptyState}"
                             Style="{StaticResource LabelTertiary}"
                             IsVisible="{Binding IsEmpty}"
                             HorizontalOptions="Center">
@@ -185,12 +186,63 @@
             <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
             <!-- Coming-soon placeholder: no Profile page exists yet, so this stays visually
             and functionally disabled (no gesture recognizer) until one is built. -->
-            <Label Text="Profile" Opacity="0.5">
+            <Label Text="{loc:Translate Groups_Profile}" Opacity="0.5">
                 <Label.Padding>
                     <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
                 </Label.Padding>
             </Label>
-            <Label Text="Log out" TextColor="{StaticResource Danger}">
+
+            <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
+            <Label Text="{loc:Translate Groups_Language}" Style="{StaticResource LabelTertiary}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="0" />
+                </Label.Padding>
+            </Label>
+            <Label Text="{loc:Translate Groups_LanguageSystem}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingXS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingXS}" />
+                </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ChangeLanguageCommand}" CommandParameter="" />
+                </Label.GestureRecognizers>
+                <Label.Triggers>
+                    <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="">
+                        <Setter Property="TextColor" Value="{StaticResource Primary}" />
+                        <Setter Property="FontAttributes" Value="Bold" />
+                    </DataTrigger>
+                </Label.Triggers>
+            </Label>
+            <Label Text="{loc:Translate Groups_LanguageEnglish}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingXS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingXS}" />
+                </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ChangeLanguageCommand}" CommandParameter="en" />
+                </Label.GestureRecognizers>
+                <Label.Triggers>
+                    <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="en">
+                        <Setter Property="TextColor" Value="{StaticResource Primary}" />
+                        <Setter Property="FontAttributes" Value="Bold" />
+                    </DataTrigger>
+                </Label.Triggers>
+            </Label>
+            <Label Text="{loc:Translate Groups_LanguageSpanish}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingXS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+                </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ChangeLanguageCommand}" CommandParameter="es" />
+                </Label.GestureRecognizers>
+                <Label.Triggers>
+                    <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="es">
+                        <Setter Property="TextColor" Value="{StaticResource Primary}" />
+                        <Setter Property="FontAttributes" Value="Bold" />
+                    </DataTrigger>
+                </Label.Triggers>
+            </Label>
+
+            <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
+            <Label Text="{loc:Translate Groups_LogOut}" TextColor="{StaticResource Danger}">
                 <Label.Padding>
                     <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
                 </Label.Padding>

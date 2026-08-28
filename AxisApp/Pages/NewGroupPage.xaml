@@ -4,24 +4,25 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
     xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
     x:Class="AxisApp.Pages.NewGroupPage"
     x:DataType="vm:NewGroupViewModel"
     Shell.NavBarIsVisible="False"
-    Title="New group">
+    Title="{loc:Translate NewGroup_Title}">
 
     <Grid RowDefinitions="Auto,*">
 
-        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="New group" />
+        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="{loc:Translate NewGroup_Title}" />
 
         <VerticalStackLayout Grid.Row="1" Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
 
             <VerticalStackLayout Spacing="{StaticResource SpacingS}">
-                <Label Text="Group name" Style="{StaticResource SectionHeaderTertiary}" />
+                <Label Text="{loc:Translate NewGroup_GroupName}" Style="{StaticResource SectionHeaderTertiary}" />
                 <Border Style="{StaticResource InputBorderStyle}">
                     <Entry
                         x:Name="GroupNameEntry"
                         Text="{Binding GroupName}"
-                        Placeholder="e.g. Roommates"
+                        Placeholder="{loc:Translate NewGroup_NamePlaceholder}"
                         ReturnCommand="{Binding CreateCommand}" />
                 </Border>
             </VerticalStackLayout>
@@ -33,7 +34,7 @@
                 IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
             <Button
-                Text="Create"
+                Text="{loc:Translate Common_Create}"
                 Command="{Binding CreateCommand}"
                 Style="{StaticResource BtnPrimaryStyle}" />
 

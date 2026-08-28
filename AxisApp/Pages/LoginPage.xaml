@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
     x:Class="AxisApp.Pages.LoginPage"
     x:DataType="vm:LoginViewModel"
     Title="Axis">
@@ -26,7 +27,7 @@
                 <Border Style="{StaticResource InputBorderStyle}">
                     <Entry
                         Text="{Binding Email}"
-                        Placeholder="Email"
+                        Placeholder="{loc:Translate Login_EmailPlaceholder}"
                         Keyboard="Email"
                         IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
                 </Border>
@@ -34,7 +35,7 @@
                 <Border Style="{StaticResource InputBorderStyle}">
                     <Entry
                         Text="{Binding Password}"
-                        Placeholder="Password"
+                        Placeholder="{loc:Translate Login_PasswordPlaceholder}"
                         IsPassword="True"
                         IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
                 </Border>
@@ -46,13 +47,13 @@
                     IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
                 <Button
-                    Text="Sign In"
+                    Text="{loc:Translate Login_SignIn}"
                     Command="{Binding SignInCommand}"
                     Style="{StaticResource BtnPrimaryStyle}"
                     IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
 
                 <Button
-                    Text="Create Account"
+                    Text="{loc:Translate Login_CreateAccount}"
                     Command="{Binding SignUpCommand}"
                     Style="{StaticResource BtnOutlinePrimary}"
                     IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />

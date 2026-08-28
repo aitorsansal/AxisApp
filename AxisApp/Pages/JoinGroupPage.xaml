@@ -4,14 +4,15 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
     xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
     x:Class="AxisApp.Pages.JoinGroupPage"
     x:DataType="vm:JoinGroupViewModel"
     Shell.NavBarIsVisible="False"
-    Title="Invite people">
+    Title="{loc:Translate JoinGroup_Title}">
 
     <Grid RowDefinitions="Auto,*">
 
-        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="Invite people" />
+        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="{loc:Translate JoinGroup_Title}" />
 
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
@@ -49,12 +50,12 @@
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource SpacingS}" HorizontalOptions="Fill">
                             <Button
                                 Grid.Column="0"
-                                Text="Copy link"
+                                Text="{loc:Translate JoinGroup_CopyLink}"
                                 Command="{Binding CopyLinkCommand}"
                                 Style="{StaticResource BtnOutlinePrimary}" />
                             <Button
                                 Grid.Column="1"
-                                Text="Share"
+                                Text="{loc:Translate Common_Share}"
                                 Command="{Binding ShareCommand}"
                                 Style="{StaticResource BtnPrimaryStyle}" />
                         </Grid>
@@ -64,18 +65,18 @@
                 <!-- Divider -->
                 <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="{StaticResource SpacingS}" VerticalOptions="Center">
                     <BoxView Grid.Column="0" Style="{StaticResource SectionDivider}" VerticalOptions="Center" />
-                    <Label Grid.Column="1" Text="or join a group" Style="{StaticResource LabelTertiary}" />
+                    <Label Grid.Column="1" Text="{loc:Translate JoinGroup_OrJoinAGroup}" Style="{StaticResource LabelTertiary}" />
                     <BoxView Grid.Column="2" Style="{StaticResource SectionDivider}" VerticalOptions="Center" />
                 </Grid>
 
                 <!-- Join by code -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
                     <Border Grid.Column="0" Style="{StaticResource InputBorderStyle}">
-                        <Entry Text="{Binding JoinCodeInput}" Placeholder="Enter invite code" />
+                        <Entry Text="{Binding JoinCodeInput}" Placeholder="{loc:Translate JoinGroup_CodePlaceholder}" />
                     </Border>
                     <Button
                         Grid.Column="1"
-                        Text="Join"
+                        Text="{loc:Translate Common_Join}"
                         Command="{Binding JoinByCodeCommand}"
                         Style="{StaticResource BtnPrimaryStyle}" />
                 </Grid>
@@ -88,14 +89,14 @@
 
                 <!-- Add phantom member -->
                 <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding HasActiveGroup}">
-                    <Label Text="Add a member by name" Style="{StaticResource SectionHeaderTertiary}" />
+                    <Label Text="{loc:Translate JoinGroup_AddMemberByName}" Style="{StaticResource SectionHeaderTertiary}" />
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
                         <Border Grid.Column="0" Style="{StaticResource InputBorderStyle}">
-                            <Entry Text="{Binding NewPhantomName}" Placeholder="Name (no account needed yet)" />
+                            <Entry Text="{Binding NewPhantomName}" Placeholder="{loc:Translate JoinGroup_NamePlaceholder}" />
                         </Border>
                         <Button
                             Grid.Column="1"
-                            Text="Add"
+                            Text="{loc:Translate Common_Add}"
                             Command="{Binding AddPhantomMemberCommand}"
                             Style="{StaticResource BtnPrimaryStyle}" />
                     </Grid>
@@ -118,17 +119,17 @@
                                         <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                                             <Label Text="{Binding Member.DisplayName}" FontAttributes="Bold" />
                                             <Label
-                                                Text="Already added elsewhere — link instead?"
+                                                Text="{loc:Translate JoinGroup_AlreadyElsewhere}"
                                                 Style="{StaticResource LabelTertiary}"
                                                 IsVisible="{Binding IsPhantom}" />
                                             <Label
-                                                Text="Already on Axis — send them the invite code instead"
+                                                Text="{loc:Translate JoinGroup_AlreadyOnAxis}"
                                                 Style="{StaticResource LabelTertiary}"
                                                 IsVisible="{Binding IsRealAccount}" />
                                         </VerticalStackLayout>
                                         <Button
                                             Grid.Column="2"
-                                            Text="Link"
+                                            Text="{loc:Translate Common_Link}"
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:JoinGroupViewModel}}, Path=LinkExistingMemberCommand}"
                                             CommandParameter="{Binding .}"
                                             Style="{StaticResource BtnOutlinePrimary}"
@@ -146,7 +147,7 @@
 
                 <!-- Pending invites -->
                 <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding HasActiveGroup}">
-                    <Label Text="Pending invites" Style="{StaticResource SectionHeaderTertiary}" />
+                    <Label Text="{loc:Translate JoinGroup_PendingInvites}" Style="{StaticResource SectionHeaderTertiary}" />
 
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding PendingInvites}" Spacing="{StaticResource SpacingS}">
                         <BindableLayout.ItemTemplate>
@@ -158,11 +159,11 @@
                                         </Border>
                                         <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                                             <Label Text="{Binding Member.DisplayName}" FontAttributes="Bold" />
-                                            <Label Text="Phantom member" Style="{StaticResource LabelTertiary}" />
+                                            <Label Text="{loc:Translate JoinGroup_PhantomMember}" Style="{StaticResource LabelTertiary}" />
                                         </VerticalStackLayout>
                                         <Button
                                             Grid.Column="2"
-                                            Text="Resend"
+                                            Text="{loc:Translate Common_Resend}"
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:JoinGroupViewModel}}, Path=ResendCommand}"
                                             CommandParameter="{Binding .}"
                                             Style="{StaticResource BtnOutlinePrimary}"

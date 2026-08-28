@@ -3,10 +3,11 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
     x:Class="AxisApp.Pages.AddExpensePage"
     x:DataType="vm:AddExpenseViewModel"
     Shell.NavBarIsVisible="False"
-    Title="Add expense">
+    Title="{Binding PageTitle}">
 
     <Grid RowDefinitions="60,*,Auto">
 
@@ -17,7 +18,7 @@
             </Grid.Padding>
             <Button
                 Grid.Column="0"
-                Text="Cancel"
+                Text="{loc:Translate Common_Cancel}"
                 Command="{Binding CancelCommand}"
                 Style="{StaticResource BtnTextStyle}"
                 TextColor="{StaticResource TextSecondary}"
@@ -35,7 +36,7 @@
 
             <Button
                 Grid.Column="2"
-                Text="Save"
+                Text="{loc:Translate Common_Save}"
                 Command="{Binding SaveCommand}"
                 IsEnabled="{Binding CanSave}"
                 Style="{StaticResource BtnTextStyle}"
@@ -72,12 +73,12 @@
 
                 <!-- Description -->
                 <Border Style="{StaticResource InputBorderStyle}">
-                    <Entry Text="{Binding Description}" Placeholder="Description" />
+                    <Entry Text="{Binding Description}" Placeholder="{loc:Translate AddExpense_DescriptionPlaceholder}" />
                 </Border>
 
                 <!-- Paid by -->
                 <VerticalStackLayout Spacing="{StaticResource SpacingS}">
-                    <Label Text="Paid by" Style="{StaticResource SectionHeaderTertiary}" />
+                    <Label Text="{loc:Translate AddExpense_PaidBy}" Style="{StaticResource SectionHeaderTertiary}" />
                     <CollectionView ItemsSource="{Binding PayerOptions}" HeightRequest="76">
                         <CollectionView.ItemsLayout>
                             <LinearItemsLayout Orientation="Horizontal" ItemSpacing="{StaticResource SpacingM}" />
@@ -124,11 +125,11 @@
                 <!-- Split -->
                 <VerticalStackLayout Spacing="{StaticResource SpacingS}">
                     <Grid ColumnDefinitions="*,Auto">
-                        <Label Grid.Column="0" Text="Split" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
+                        <Label Grid.Column="0" Text="{loc:Translate AddExpense_Split}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
                         <Border Grid.Column="1" Style="{StaticResource SegmentPillContainer}">
                             <HorizontalStackLayout Spacing="{StaticResource SpacingXS}">
                                 <Button
-                                    Text="Equally"
+                                    Text="{loc:Translate AddExpense_Equally}"
                                     Command="{Binding SplitEquallyCommand}"
                                     Style="{StaticResource SegmentButtonUnselected}">
                                     <Button.Triggers>
@@ -138,7 +139,7 @@
                                     </Button.Triggers>
                                 </Button>
                                 <Button
-                                    Text="Manually"
+                                    Text="{loc:Translate AddExpense_Manually}"
                                     Command="{Binding SplitManuallyCommand}"
                                     Style="{StaticResource SegmentButtonUnselected}">
                                     <Button.Triggers>
@@ -207,14 +208,14 @@
                     </VerticalStackLayout>
 
                     <Label
-                        Text="{Binding Remaining, StringFormat='Remaining: {0:0.00}'}"
+                        Text="{Binding RemainingText}"
                         Style="{StaticResource LabelTertiary}"
                         IsVisible="{Binding IsManualSplit}" />
                 </VerticalStackLayout>
 
                 <!-- Category -->
                 <VerticalStackLayout Spacing="{StaticResource SpacingS}">
-                    <Label Text="Category" Style="{StaticResource SectionHeaderTertiary}" />
+                    <Label Text="{loc:Translate AddExpense_Category}" Style="{StaticResource SectionHeaderTertiary}" />
                     <CollectionView ItemsSource="{Binding CategoryChips}" HeightRequest="40">
                         <CollectionView.ItemsLayout>
                             <LinearItemsLayout Orientation="Horizontal" ItemSpacing="{StaticResource SpacingS}" />
@@ -258,7 +259,7 @@
                     <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="{StaticResource SpacingXS}">
                         <Label Text="&#128247;" HorizontalOptions="Center" FontSize="{StaticResource TypeEmojiLg}" />
                         <Label
-                            Text="Add receipt photo (optional)"
+                            Text="{loc:Translate AddExpense_ReceiptPhoto}"
                             Style="{StaticResource LabelTertiary}"
                             HorizontalOptions="Center" />
                     </VerticalStackLayout>
@@ -275,12 +276,12 @@
                 HorizontalTextAlignment="Center"
                 IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
             <Button
-                Text="Save expense"
+                Text="{loc:Translate AddExpense_SaveExpense}"
                 Command="{Binding SaveCommand}"
                 IsEnabled="{Binding CanSave}"
                 Style="{StaticResource BtnPrimaryStyle}" />
             <Button
-                Text="Delete expense"
+                Text="{loc:Translate AddExpense_DeleteExpense}"
                 Command="{Binding DeleteCommand}"
                 Style="{StaticResource BtnOutlineDanger}"
                 IsVisible="{Binding IsEditMode}" />

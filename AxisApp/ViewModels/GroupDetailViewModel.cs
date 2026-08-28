@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using AxisApp.Localization;
 using AxisApp.Models;
 using AxisApp.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -28,7 +29,7 @@ public partial class MemberBalanceItem : ObservableObject
     [ObservableProperty] private bool isOwing;
     [ObservableProperty] private bool isSettled = true;
     [ObservableProperty] private string amountText = "";
-    [ObservableProperty] private string captionText = "Settled up";
+    [ObservableProperty] private string captionText = LocalizationResourceManager.Instance["Common_SettledUp"];
 }
 
 /// <summary>One row in the group's recent-activity feed — either a settle-up payment or a
@@ -121,15 +122,16 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
 
             await RefreshBalancesAsync();
 
+            var loc = LocalizationResourceManager.Instance;
             var activity = new List<ActivityItem>();
             foreach (var payment in loadPayments.Result)
             {
-                var payer = membersById.GetValueOrDefault(payment.PayerMemberId)?.DisplayName ?? "Someone";
-                var payee = membersById.GetValueOrDefault(payment.PayeeMemberId)?.DisplayName ?? "someone";
+                var payer = membersById.GetValueOrDefault(payment.PayerMemberId)?.DisplayName ?? loc["GroupDetail_SomeoneCapitalized"];
+                var payee = membersById.GetValueOrDefault(payment.PayeeMemberId)?.DisplayName ?? loc["GroupDetail_SomeoneLower"];
                 activity.Add(new ActivityItem
                 {
-                    Description = string.IsNullOrWhiteSpace(payment.Description) ? "Settle up" : payment.Description,
-                    SubCaption = $"{payer} paid {payee}",
+                    Description = string.IsNullOrWhiteSpace(payment.Description) ? loc["GroupDetail_SettleUp"] : payment.Description,
+                    SubCaption = loc.Format("GroupDetail_Paid", payer, payee),
                     AmountText = $"+${payment.Amount:0.00}",
                     IsSettlement = true,
                     OccurredAt = payment.OccurredAt,
@@ -138,12 +140,13 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             }
             foreach (var expense in loadExpenses.Result)
             {
-                var payer = membersById.GetValueOrDefault(expense.PaidByMemberId)?.DisplayName ?? "Someone";
+                var payer = membersById.GetValueOrDefault(expense.PaidByMemberId)?.DisplayName ?? loc["GroupDetail_SomeoneCapitalized"];
                 var shares = await expensesRepository.GetSharesAsync(expense.Id);
+                var categoryLabel = string.IsNullOrEmpty(expense.Category) ? "" : loc[$"Category_{expense.Category}"];
                 activity.Add(new ActivityItem
                 {
-                    Description = string.IsNullOrWhiteSpace(expense.Description) ? expense.Category : expense.Description,
-                    SubCaption = $"{payer} paid · split {shares.Count} ways",
+                    Description = string.IsNullOrWhiteSpace(expense.Description) ? categoryLabel : expense.Description,
+                    SubCaption = loc.Format("GroupDetail_PaidSplit", payer, shares.Count),
                     AmountText = $"${expense.Amount:0.00}",
                     IsSettlement = false,
                     OccurredAt = expense.OccurredAt,
@@ -193,14 +196,14 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                 item.IsOwed = true;
                 item.IsSettled = false;
                 item.AmountText = $"+${row.Balance:0.00}";
-                item.CaptionText = "owes you";
+                item.CaptionText = LocalizationResourceManager.Instance["GroupDetail_OwesYou"];
             }
             else if (row.Balance < 0)
             {
                 item.IsOwing = true;
                 item.IsSettled = false;
                 item.AmountText = $"-${Math.Abs(row.Balance):0.00}";
-                item.CaptionText = "you owe";
+                item.CaptionText = LocalizationResourceManager.Instance["GroupDetail_YouOwe"];
             }
             items.Add(item);
         }
@@ -221,6 +224,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             if (!membersById.TryGetValue(transfer.FromMemberId, out var from)) continue;
             if (!membersById.TryGetValue(transfer.ToMemberId, out var to)) continue;
 
+            var loc = LocalizationResourceManager.Instance;
             if (transfer.FromMemberId == myMemberId)
             {
                 items.Add(new MemberBalanceItem
@@ -231,7 +235,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                     IsOwing = true,
                     IsSettled = false,
                     AmountText = $"-${transfer.Amount:0.00}",
-                    CaptionText = "you owe"
+                    CaptionText = loc["GroupDetail_YouOwe"]
                 });
             }
             else if (transfer.ToMemberId == myMemberId)
@@ -244,7 +248,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                     IsOwed = true,
                     IsSettled = false,
                     AmountText = $"+${transfer.Amount:0.00}",
-                    CaptionText = "owes you"
+                    CaptionText = loc["GroupDetail_OwesYou"]
                 });
             }
             else
@@ -258,7 +262,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                     Amount = transfer.Amount,
                     IsNeutral = true,
                     AmountText = $"${transfer.Amount:0.00}",
-                    CaptionText = $"pays {to.DisplayName}"
+                    CaptionText = loc.Format("GroupDetail_Pays", to.DisplayName)
                 });
             }
         }
@@ -267,11 +271,12 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
 
     private static string FormatRelative(DateTime occurredAtUtc)
     {
+        var loc = LocalizationResourceManager.Instance;
         var elapsed = DateTime.UtcNow - occurredAtUtc;
-        if (elapsed.TotalMinutes < 1) return "just now";
-        if (elapsed.TotalHours < 1) return $"{(int)elapsed.TotalMinutes}m ago";
-        if (elapsed.TotalDays < 1) return $"{(int)elapsed.TotalHours}h ago";
-        if (elapsed.TotalDays < 7) return $"{(int)elapsed.TotalDays}d ago";
+        if (elapsed.TotalMinutes < 1) return loc["GroupDetail_JustNow"];
+        if (elapsed.TotalHours < 1) return loc.Format("GroupDetail_MinutesAgo", (int)elapsed.TotalMinutes);
+        if (elapsed.TotalDays < 1) return loc.Format("GroupDetail_HoursAgo", (int)elapsed.TotalHours);
+        if (elapsed.TotalDays < 7) return loc.Format("GroupDetail_DaysAgo", (int)elapsed.TotalDays);
         return occurredAtUtc.ToLocalTime().ToString("MMM d");
     }
 
@@ -340,7 +345,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             PayerMemberId = payerId,
             PayeeMemberId = payeeId,
             Amount = item.Amount,
-            Description = "Settle up",
+            Description = LocalizationResourceManager.Instance["GroupDetail_SettleUp"],
             OccurredAt = DateTime.UtcNow
         });
 
