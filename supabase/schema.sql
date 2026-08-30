@@ -568,3 +568,49 @@ join members m on m.account_id = auth.uid() and (m.id = pb.member_a or m.id = pb
 -- applied automatically.
 -- ============================================================
 drop table if exists public.categories cascade;
+
+-- ============================================================
+-- create_group — added 2026-08-28. SupabaseGroupsRepository.CreateAsync used
+-- to do three sequential client-side inserts (groups, then members, then
+-- group_members) with no way to undo earlier ones if a later call failed —
+-- Postgrest has no client-side transaction API, so a failure on insert #2 or
+-- #3 left a group behind with no members, invisible to everyone including
+-- its own creator. Same fix shape as redeem_invite() below: move the whole
+-- multi-step write into one Postgres function, which runs as a single
+-- transaction — if any statement fails, all of it rolls back.
+-- Unlike redeem_invite(), this one does NOT need `security definer` — every
+-- individual insert here is already permitted to the calling user under the
+-- existing RLS policies (see "insert groups"/"insert members"/"group members
+-- can add members" above); the only problem being solved is atomicity, not
+-- a permission gap, so it runs as the caller (the default) rather than with
+-- elevated rights.
+-- Run this against the live project the same way every other block in this
+-- file has needed to be — it isn't applied automatically.
+-- ============================================================
+
+create or replace function public.create_group(p_name text)
+returns uuid
+language plpgsql
+as $$
+declare
+  v_group_id uuid;
+  v_member_id uuid;
+begin
+  insert into public.groups (name, created_by)
+  values (p_name, auth.uid())
+  returning id into v_group_id;
+
+  insert into public.members (account_id, display_name, created_by)
+  values (
+    auth.uid(),
+    coalesce((select email from auth.users where id = auth.uid()), 'New member'),
+    auth.uid()
+  )
+  returning id into v_member_id;
+
+  insert into public.group_members (group_id, member_id)
+  values (v_group_id, v_member_id);
+
+  return v_group_id;
+end;
+$$;

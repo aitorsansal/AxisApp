@@ -1,16 +1,15 @@
 using AxisApp.Models;
+using Supabase.Postgrest;
 
 namespace AxisApp.Services;
 
 public class SupabaseGroupsRepository : IGroupsRepository
 {
     private readonly Supabase.Client client;
-    private readonly IAuthService authService;
 
-    public SupabaseGroupsRepository(Supabase.Client client, IAuthService authService)
+    public SupabaseGroupsRepository(Supabase.Client client)
     {
         this.client = client;
-        this.authService = authService;
     }
 
     /// <summary>No explicit filter needed — RLS's "select groups you belong to" policy already
@@ -21,33 +20,29 @@ public class SupabaseGroupsRepository : IGroupsRepository
         return result.Models;
     }
 
-    /// <summary>Creates the group, then makes the creator an actual member of it — a fresh
-    /// Member row plus a GroupMember join row, the same shape redeem_invite's "fresh join" branch
-    /// creates for anyone else joining. Without this the group would be invisible to its own
-    /// creator afterward: "select groups you belong to" requires a real group_members row, and
-    /// creating public.groups alone doesn't imply membership.</summary>
+    /// <summary>Creates the group and makes the creator an actual member of it (a fresh Member
+    /// row plus a GroupMember join row, the same shape redeem_invite's "fresh join" branch
+    /// creates for anyone else joining) via the create_group() Postgres function rather than
+    /// three separate client-side inserts — Postgrest has no client-side transaction API, so
+    /// three separate calls could fail partway through and leave an orphaned group with no
+    /// members. create_group() runs as one Postgres transaction: if any step fails, all of it
+    /// rolls back. See schema.sql's create_group remarks for why it doesn't need
+    /// `security definer` the way redeem_invite() does.
+    /// Returns just the new group's id (same "least-assuming" RPC response shape as
+    /// SupabaseInvitesRepository.RedeemAsync — a scalar uuid, not a composite row, since that's
+    /// the one Rpc response shape already confirmed against a real build in this codebase),
+    /// followed by a normal typed fetch through the already-proven .Filter(...).Single() path
+    /// every other repository uses.</summary>
     public async Task<Group> CreateAsync(string name)
     {
-        var accountId = authService.RequireAccountId();
+        var response = await client.Rpc("create_group", new Dictionary<string, object> { { "p_name", name } });
+        var raw = response.Content?.Trim('"')
+            ?? throw new InvalidOperationException("create_group returned no group id.");
+        var groupId = Guid.Parse(raw);
 
-        var group = new Group { Name = name, CreatedBy = accountId };
-        var insertedGroup = await client.From<Group>().Insert(group);
-        var createdGroup = insertedGroup.Model!;
-
-        var member = new Member
-        {
-            AccountId = accountId,
-            DisplayName = authService.CurrentEmail ?? "New member",
-            CreatedBy = accountId
-        };
-        var insertedMember = await client.From<Member>().Insert(member);
-
-        await client.From<GroupMember>().Insert(new GroupMember
-        {
-            GroupId = createdGroup.Id,
-            MemberId = insertedMember.Model!.Id
-        });
-
-        return createdGroup;
+        return await client.From<Group>()
+            .Filter("id", Constants.Operator.Equals, groupId.ToString())
+            .Single()
+            ?? throw new InvalidOperationException("create_group succeeded but the group could not be re-fetched.");
     }
 }
