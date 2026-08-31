@@ -20,7 +20,7 @@ public interface IGroupsRepository
 
     /// <summary>Dissolves the group outright. Creator-only per RLS ("delete own groups"); the FK
     /// cascade shape does the rest — membership/pending invites are removed, payments/expenses/
-    /// recurring_payments survive as unscoped (group_id set null) history. See schema.sql's
+    /// recurring_expenses survive as unscoped (group_id set null) history. See schema.sql's
     /// "Leave / transfer ownership / dissolve" block.</summary>
     Task DeleteAsync(Guid groupId);
 

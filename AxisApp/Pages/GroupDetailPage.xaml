@@ -232,6 +232,16 @@
             </Label>
 
             <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
+            <Label Text="{loc:Translate GroupDetail_RepeatingExpenses}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+                </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ViewRecurringExpensesCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+
+            <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
             <Label Text="{loc:Translate GroupDetail_LeaveGroup}" IsVisible="{Binding IsGroupCreator, Converter={StaticResource InverseBoolConverter}}">
                 <Label.Padding>
                     <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />

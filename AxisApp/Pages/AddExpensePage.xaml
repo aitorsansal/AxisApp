@@ -234,9 +234,18 @@
                     </CollectionView>
                 </VerticalStackLayout>
 
+                <!-- Repeat toggle: only offered in pure-add mode — an existing one-off Expense or
+                     an existing RecurringExpense template can't be converted into the other. -->
+                <Border Style="{StaticResource InputBorderStyle}" IsVisible="{Binding CanToggleRecurring}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="{loc:Translate AddExpense_Repeat}" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="{Binding IsRecurringMode}" VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+
                 <!-- Date: the visible row is decorative; a full-size transparent DatePicker on
                      top of it is the actual tap target, so the whole row opens the picker. -->
-                <Border Style="{StaticResource InputBorderStyle}">
+                <Border Style="{StaticResource InputBorderStyle}" IsVisible="{Binding IsRecurringMode, Converter={StaticResource InverseBoolConverter}}">
                     <Grid>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
                             <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
@@ -247,10 +256,51 @@
                     </Grid>
                 </Border>
 
+                <!-- Start date + Frequency: recurring-mode-only counterpart to the date row above. -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsRecurringMode}">
+                    <Border Style="{StaticResource InputBorderStyle}">
+                        <Grid>
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
+                                <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
+                                <Label Grid.Column="1" Text="{Binding StartDateDisplay}" VerticalOptions="Center" />
+                                <Label Grid.Column="2" Text="&#8250;" TextColor="{StaticResource TextTertiary}" VerticalOptions="Center" />
+                            </Grid>
+                            <DatePicker Date="{Binding StartDate}" Opacity="0" />
+                        </Grid>
+                    </Border>
+
+                    <Label Text="{loc:Translate AddExpense_Frequency}" Style="{StaticResource SectionHeaderTertiary}" />
+                    <CollectionView ItemsSource="{Binding FrequencyOptions}" HeightRequest="40">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="{StaticResource SpacingS}" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:RecurringFrequencyOption">
+                                <Border Style="{StaticResource ChipBorderStyle}" VerticalOptions="Fill">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:AddExpenseViewModel}}, Path=SelectFrequencyCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Label Text="{Binding Label}" FontSize="{StaticResource TypeCaption}" TextColor="{StaticResource TextSecondary}" VerticalOptions="Center">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+
                 <!-- Receipt photo: tapping opens Take photo / Choose from gallery / Remove photo.
                      Grows taller once a photo is attached — a receipt is a tall document shot, and
-                     the empty-state's compact 88px strip would otherwise crop it down to a sliver. -->
-                <Border Style="{StaticResource ReceiptDropZone}">
+                     the empty-state's compact 88px strip would otherwise crop it down to a sliver.
+                     Hidden entirely in recurring mode — a receipt belongs to one materialized
+                     instance, not an indefinitely-repeating template. -->
+                <Border Style="{StaticResource ReceiptDropZone}" IsVisible="{Binding IsRecurringMode, Converter={StaticResource InverseBoolConverter}}">
                     <Border.Triggers>
                         <DataTrigger TargetType="Border" Binding="{Binding ReceiptPreviewUrl, Converter={StaticResource StringNotEmptyConverter}}" Value="True">
                             <Setter Property="HeightRequest" Value="220" />

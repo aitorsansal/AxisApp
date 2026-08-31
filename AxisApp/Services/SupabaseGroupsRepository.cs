@@ -75,7 +75,7 @@ public class SupabaseGroupsRepository : IGroupsRepository
 
     /// <summary>No RPC needed — the "delete own groups" RLS policy already permits this for the
     /// creator, and the FK cascade shape (group_members/invites cascade, payments/expenses/
-    /// recurring_payments set group_id null) already does the right thing. See schema.sql.</summary>
+    /// recurring_expenses set group_id null) already does the right thing. See schema.sql.</summary>
     public async Task DeleteAsync(Guid groupId)
     {
         await client.From<Group>()

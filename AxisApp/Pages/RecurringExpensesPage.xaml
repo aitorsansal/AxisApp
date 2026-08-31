@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
+    x:Class="AxisApp.Pages.RecurringExpensesPage"
+    x:DataType="vm:RecurringExpensesViewModel"
+    Shell.NavBarIsVisible="False"
+    Title="{Binding GroupName}">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="{Binding GroupName}" />
+
+        <RefreshView Grid.Row="1" IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+            <ScrollView>
+                <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                        <Label Grid.Column="0" Text="{loc:Translate RecurringExpenses_SectionHeader}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" Margin="0" />
+                        <Button
+                            Grid.Column="1"
+                            Text="{loc:Translate RecurringExpenses_Add}"
+                            Command="{Binding AddRecurringCommand}"
+                            Style="{StaticResource BtnOutlinePrimary}"
+                            FontSize="{StaticResource TypeCaption}"
+                            Padding="{StaticResource SpacingS}"
+                            MinimumHeightRequest="36"
+                            VerticalOptions="Center" />
+                    </Grid>
+
+                    <Label
+                        Text="{Binding ErrorMessage}"
+                        TextColor="{StaticResource Danger}"
+                        FontSize="{StaticResource TypeCaption}"
+                        IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+
+                    <Label
+                        Text="{loc:Translate RecurringExpenses_Empty}"
+                        Style="{StaticResource LabelTertiary}"
+                        IsVisible="{Binding IsEmpty}" />
+
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Templates}" Spacing="{StaticResource SpacingS}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:RecurringExpenseRowItem">
+                                <Border Style="{StaticResource ListItemCard}">
+                                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}" RowSpacing="{StaticResource SpacingXS}">
+                                        <VerticalStackLayout Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2">
+                                            <Label Text="{Binding Description}" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                                            <Label Style="{StaticResource LabelTertiary}">
+                                                <Label.FormattedText>
+                                                    <FormattedString>
+                                                        <Span Text="{Binding PayerName}" />
+                                                        <Span Text=" · " />
+                                                        <Span Text="{Binding FrequencyLabel}" />
+                                                        <Span Text=" · " />
+                                                        <Span Text="{Binding NextDueText}" />
+                                                    </FormattedString>
+                                                </Label.FormattedText>
+                                            </Label>
+                                        </VerticalStackLayout>
+
+                                        <Label
+                                            Grid.Row="0" Grid.Column="2"
+                                            Text="{Binding AmountText}"
+                                            FontAttributes="Bold"
+                                            VerticalOptions="Start" />
+
+                                        <Border
+                                            Grid.Row="1" Grid.Column="0"
+                                            BackgroundColor="Transparent"
+                                            StrokeThickness="0"
+                                            WidthRequest="36" HeightRequest="36"
+                                            Padding="0"
+                                            HorizontalOptions="Start"
+                                            VerticalOptions="Center">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:RecurringExpensesViewModel}}, Path=EditRecurringCommand}"
+                                                    CommandParameter="{Binding .}" />
+                                            </Border.GestureRecognizers>
+                                            <Label Text="&#9998;" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{StaticResource TextTertiary}" />
+                                        </Border>
+
+                                        <Button
+                                            Grid.Row="1" Grid.Column="1"
+                                            Text="{loc:Translate RecurringExpenses_Active}"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:RecurringExpensesViewModel}}, Path=ToggleActiveCommand}"
+                                            CommandParameter="{Binding .}"
+                                            Style="{StaticResource BtnOutlinePrimary}"
+                                            FontSize="{StaticResource TypeCaption}"
+                                            Padding="{StaticResource SpacingS}"
+                                            MinimumHeightRequest="36"
+                                            VerticalOptions="Center">
+                                            <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding IsActive}" Value="False">
+                                                    <Setter Property="Text" Value="{loc:Translate RecurringExpenses_Paused}" />
+                                                    <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+                                                </DataTrigger>
+                                            </Button.Triggers>
+                                        </Button>
+
+                                        <Button
+                                            Grid.Row="1" Grid.Column="2"
+                                            Text="{loc:Translate RecurringExpenses_Delete}"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:RecurringExpensesViewModel}}, Path=DeleteRecurringCommand}"
+                                            CommandParameter="{Binding .}"
+                                            Style="{StaticResource BtnOutlinePrimary}"
+                                            TextColor="{StaticResource Danger}"
+                                            FontSize="{StaticResource TypeCaption}"
+                                            Padding="{StaticResource SpacingS}"
+                                            MinimumHeightRequest="36"
+                                            VerticalOptions="Center" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+            </ScrollView>
+        </RefreshView>
+    </Grid>
+</ContentPage>

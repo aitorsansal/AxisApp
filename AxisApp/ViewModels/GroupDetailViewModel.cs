@@ -337,6 +337,14 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             $"{AppConstants.Routes.Members}?groupId={groupId}&groupName={Uri.EscapeDataString(GroupName)}");
     });
 
+    [RelayCommand]
+    private Task ViewRecurringExpenses() => RunSafeAsync(() =>
+    {
+        IsGroupOptionsMenuOpen = false;
+        return Shell.Current.GoToAsync(
+            $"{AppConstants.Routes.RecurringExpenses}?groupId={groupId}&groupName={Uri.EscapeDataString(GroupName)}");
+    });
+
     /// <summary>Records a real payments row for one balance row's amount. Works the same way
     /// regardless of display mode, since both modes ultimately produce a (payer, payee, amount)
     /// triple on MemberBalanceItem — Pairwise's is a real counterparty debt, Simplified's is

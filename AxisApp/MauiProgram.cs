@@ -44,7 +44,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IPaymentsRepository, SupabasePaymentsRepository>();
         builder.Services.AddSingleton<IExpensesRepository, SupabaseExpensesRepository>();
         builder.Services.AddSingleton<IBalancesRepository, SupabaseBalancesRepository>();
-        builder.Services.AddSingleton<IRecurringPaymentsRepository, SupabaseRecurringPaymentsRepository>();
+        builder.Services.AddSingleton<IRecurringExpensesRepository, SupabaseRecurringExpensesRepository>();
         builder.Services.AddSingleton<IInvitesRepository, SupabaseInvitesRepository>();
         builder.Services.AddSingleton<IAliasesRepository, SupabaseAliasesRepository>();
         builder.Services.AddSingleton<IAvatarsRepository, SupabaseAvatarsRepository>();
@@ -64,6 +64,8 @@ public static class MauiProgram
         builder.Services.AddTransient<MembersPage>();
         builder.Services.AddTransient<AddExpenseViewModel>();
         builder.Services.AddTransient<AddExpensePage>();
+        builder.Services.AddTransient<RecurringExpensesViewModel>();
+        builder.Services.AddTransient<RecurringExpensesPage>();
         builder.Services.AddTransient<JoinGroupViewModel>();
         builder.Services.AddTransient<JoinGroupPage>();
         builder.Services.AddTransient<NewGroupViewModel>();

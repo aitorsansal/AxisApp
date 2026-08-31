@@ -3,8 +3,15 @@ using Supabase.Postgrest.Models;
 
 namespace AxisApp.Models;
 
-[Table("recurring_payments")]
-public class RecurringPayment : BaseModel
+/// <summary>
+/// A template for a periodically auto-generated <see cref="Expense"/>, split N ways via
+/// <see cref="RecurringExpenseShare"/>. Mirrors Expense's shape plus the schedule columns
+/// (Frequency/StartDate/LastProcessedDate/IsActive) recurring_payments proved out before being
+/// retired — see schema.sql's "recurring_expenses" remarks. Editing a template only affects
+/// expenses materialized after the edit; past materialized rows are independent snapshots.
+/// </summary>
+[Table("recurring_expenses")]
+public class RecurringExpense : BaseModel
 {
     [PrimaryKey("id")]
     public Guid Id { get; set; }
@@ -12,11 +19,8 @@ public class RecurringPayment : BaseModel
     [Column("group_id")]
     public Guid? GroupId { get; set; }
 
-    [Column("payer_member_id")]
-    public Guid PayerMemberId { get; set; }
-
-    [Column("payee_member_id")]
-    public Guid PayeeMemberId { get; set; }
+    [Column("paid_by_member_id")]
+    public Guid PaidByMemberId { get; set; }
 
     [Column("amount")]
     public decimal Amount { get; set; }

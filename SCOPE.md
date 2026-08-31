@@ -74,9 +74,17 @@ exists).
   still attached to a real expense/payment get the *photo* purged after
   **6 months** — the expense/payment record itself is never deleted, only the
   image, with `receipt_path` nulled out.
-- **Recurring payments**: `pg_cron` job scans `recurring_payments` for due
-  templates and materializes them into real `payments`/`expenses` rows
-  server-side — not dependent on the app being opened.
+- **Recurring expenses**: `recurring_expenses`/`recurring_expense_shares`
+  (N-way split templates, mirroring `expenses`/`expense_shares`) plus the
+  add/edit/view/pause/delete UI are **done 2026-08-31** (see CLAUDE.md's
+  "Recurring expenses" remarks). The `pg_cron` job that scans due templates
+  and materializes them into real `expenses`/`expense_shares` rows
+  server-side — not dependent on the app being opened — is **not built yet**,
+  a deliberate follow-up. Replaces the old pairwise `recurring_payments`
+  table, retired the same day: a `Payment(payer, payee, amount)` has
+  identical balance math to `Expense(paid_by=payer, participants=[payee],
+  share=amount)`, so a 1-way recurring expense fully covers what
+  `recurring_payments` was for, and nothing had ever built UI for it.
 - **Push notifications**: Supabase Edge Function triggered by DB webhook/trigger
   on new expense/payment, calling **OneSignal** (wraps FCM for Android + WNS for
   Windows behind one API, matching Axis's current two active targets) rather than
@@ -101,7 +109,7 @@ Builds on the same primitives Phase 1 establishes, not a new architecture:
   `expense_shares`.
 - Reminders reuse the Phase 1 push infra (OneSignal + Edge Function) and the
   Phase 1 `pg_cron` pattern (scan upcoming events instead of due recurring
-  payments).
+  expenses).
 - UI: calendar view per group, RSVP to events.
 
 Not started until Phase 1 is fully working and has proven the backend pattern.

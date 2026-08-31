@@ -97,6 +97,8 @@ public static class AppStrings
         // Add expense
         ["AddExpense_Title"] = "Add expense",
         ["AddExpense_EditTitle"] = "Edit expense",
+        ["AddExpense_RecurringTitle"] = "Add repeating expense",
+        ["AddExpense_EditRecurringTitle"] = "Edit repeating expense",
         ["AddExpense_DescriptionPlaceholder"] = "Description",
         ["AddExpense_PaidBy"] = "Paid by",
         ["AddExpense_Split"] = "Split",
@@ -104,6 +106,8 @@ public static class AppStrings
         ["AddExpense_Manually"] = "Manually",
         ["AddExpense_Remaining"] = "Remaining: {0:0.00}",
         ["AddExpense_Category"] = "Category",
+        ["AddExpense_Repeat"] = "Repeat",
+        ["AddExpense_Frequency"] = "Frequency",
         ["AddExpense_ReceiptPhoto"] = "Add receipt photo (optional)",
         ["AddExpense_TakePhoto"] = "Take photo",
         ["AddExpense_ChooseFromGallery"] = "Choose from gallery",
@@ -111,6 +115,23 @@ public static class AppStrings
         ["AddExpense_RemovePhoto"] = "Remove photo",
         ["AddExpense_SaveExpense"] = "Save expense",
         ["AddExpense_DeleteExpense"] = "Delete expense",
+
+        // Recurring frequency options
+        ["Recurring_Frequency_Daily"] = "Daily",
+        ["Recurring_Frequency_Weekly"] = "Weekly",
+        ["Recurring_Frequency_Monthly"] = "Monthly",
+        ["Recurring_Frequency_Yearly"] = "Yearly",
+
+        // Repeating expenses list
+        ["GroupDetail_RepeatingExpenses"] = "Repeating expenses",
+        ["RecurringExpenses_SectionHeader"] = "Repeating expenses",
+        ["RecurringExpenses_Add"] = "+ Add",
+        ["RecurringExpenses_Empty"] = "No repeating expenses yet.",
+        ["RecurringExpenses_Active"] = "Active",
+        ["RecurringExpenses_Paused"] = "Paused",
+        ["RecurringExpenses_Delete"] = "Delete",
+        ["RecurringExpenses_DeleteConfirmTitle"] = "Delete repeating expense?",
+        ["RecurringExpenses_DeleteConfirmMessage"] = "This stops future occurrences. Expenses already created from it are not affected.",
 
         // Categories (fixed, key-based — see AppConstants.Categories)
         ["Category_food"] = "Food",
@@ -221,10 +242,13 @@ public static class AppStrings
         ["GroupDetail_DissolveGroupConfirmWithBalances"] = "Este grupo tiene saldos sin liquidar — al disolverlo dejarán de rastrearse. Los gastos y pagos pasados se conservan en el historial de cada persona, pero esto no se puede deshacer.",
         ["GroupDetail_TransferOwnershipTitle"] = "Transferir propiedad a",
         ["GroupDetail_NoTransferCandidates"] = "Nadie más aquí tiene cuenta en Axis todavía para transferir la propiedad.",
+        ["GroupDetail_RepeatingExpenses"] = "Gastos recurrentes",
 
         // Add expense
         ["AddExpense_Title"] = "Añadir gasto",
         ["AddExpense_EditTitle"] = "Editar gasto",
+        ["AddExpense_RecurringTitle"] = "Añadir gasto recurrente",
+        ["AddExpense_EditRecurringTitle"] = "Editar gasto recurrente",
         ["AddExpense_DescriptionPlaceholder"] = "Descripción",
         ["AddExpense_PaidBy"] = "Pagado por",
         ["AddExpense_Split"] = "Reparto",
@@ -232,6 +256,8 @@ public static class AppStrings
         ["AddExpense_Manually"] = "Manual",
         ["AddExpense_Remaining"] = "Restante: {0:0.00}",
         ["AddExpense_Category"] = "Categoría",
+        ["AddExpense_Repeat"] = "Repetir",
+        ["AddExpense_Frequency"] = "Frecuencia",
         ["AddExpense_ReceiptPhoto"] = "Añadir foto del recibo (opcional)",
         ["AddExpense_TakePhoto"] = "Hacer foto",
         ["AddExpense_ChooseFromGallery"] = "Elegir de la galería",
@@ -239,6 +265,22 @@ public static class AppStrings
         ["AddExpense_RemovePhoto"] = "Quitar foto",
         ["AddExpense_SaveExpense"] = "Guardar gasto",
         ["AddExpense_DeleteExpense"] = "Eliminar gasto",
+
+        // Recurring frequency options
+        ["Recurring_Frequency_Daily"] = "Diaria",
+        ["Recurring_Frequency_Weekly"] = "Semanal",
+        ["Recurring_Frequency_Monthly"] = "Mensual",
+        ["Recurring_Frequency_Yearly"] = "Anual",
+
+        // Repeating expenses list
+        ["RecurringExpenses_SectionHeader"] = "Gastos recurrentes",
+        ["RecurringExpenses_Add"] = "+ Añadir",
+        ["RecurringExpenses_Empty"] = "Todavía no hay gastos recurrentes.",
+        ["RecurringExpenses_Active"] = "Activo",
+        ["RecurringExpenses_Paused"] = "Pausado",
+        ["RecurringExpenses_Delete"] = "Eliminar",
+        ["RecurringExpenses_DeleteConfirmTitle"] = "¿Eliminar el gasto recurrente?",
+        ["RecurringExpenses_DeleteConfirmMessage"] = "Esto detiene futuras repeticiones. Los gastos ya creados a partir de él no se ven afectados.",
 
         // Categories
         ["Category_food"] = "Comida",

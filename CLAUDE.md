@@ -735,13 +735,96 @@ Not yet done for this feature specifically: a real device/emulator run
 confirmed `PickPhotoAsync` path, but `CapturePhotoAsync` is new to this
 codebase), and the cleanup Edge Function described above.
 
+## Recurring expenses, and retiring recurring_payments (2026-08-31)
+
+Built the same day, prompted by wanting real cron-driven infra next and
+realizing the only recurring-template table that existed (`recurring_payments`,
+pairwise payer/payee) didn't match what was actually wanted: a periodically
+repeating **split** bill (e.g. "Crunchyroll $60/month between me + 3 others"),
+not a pairwise transfer. Design discussion surfaced that this isn't a
+coincidence — a `Payment(payer, payee, amount)` has **identical balance
+math** to `Expense(paid_by=payer, participants=[payee], share=amount)`
+(both move the fronting/paying party's balance up by the amount and the
+other party's down by the same amount), so a 1-way recurring expense fully
+subsumes what `recurring_payments` was for. Since `recurring_payments` had
+been built schema-first with **no UI ever written against it** (confirmed
+via a repo-wide grep — the only non-declaration references were two
+doc-comment sentences), it was retired outright rather than kept alongside
+the new table.
+
+- **`recurring_expenses` / `recurring_expense_shares`** (schema.sql) mirror
+  `expenses`/`expense_shares` exactly — same 4+4 RLS policy shape via
+  `is_group_member(group_id)` — plus the schedule columns
+  `frequency`/`start_date`/`last_processed_date`/`is_active` that
+  `recurring_payments` already proved out. Deliberately **no**
+  `is_unscoped_expense_party()`-style visibility widening for a dissolved
+  group's templates (unlike `expenses`) — a template surviving group
+  dissolution just becomes creator-only-visible, since nothing materializes
+  from an unscoped template anyway. Flagged as a possible future gap, not a
+  blocker.
+- **Editing a template only affects future materializations** — this falls
+  out for free from the template/instance split, no extra design needed:
+  the (not-yet-built, see below) `pg_cron` job would insert independent
+  `expenses`/`expense_shares` snapshots each run, so a later edit to
+  `recurring_expenses.amount` never touches rows already materialized.
+  `SupabaseRecurringExpensesRepository.UpdateAsync`/`AddExpenseViewModel`
+  are careful to never let `LastProcessedDate` get touched by an unrelated
+  field edit (carried through via `editingLastProcessedDate`, same pattern
+  already used for `CreatedBy`/`CreatedAt` on one-off `Expense` edits) and
+  to never silently reactivate a paused template on an unrelated save
+  (`editingRecurringIsActive`).
+- **`AddExpensePage`/`AddExpenseViewModel` extended in place, not a new
+  page** — roughly 90% of the form (participant split, payer picker,
+  category chips, description, amount) is identical for a recurring
+  template, and the page already branched cleanly on add-vs-edit via query
+  params, so a third "recurring" mode was a natural extension rather than
+  new architecture. Four entry shapes into the same page: plain add,
+  `?expenseId=` edit (unchanged), `?recurring=true` (fresh recurring add),
+  `?recurringExpenseId=` (edit an existing template). A "Repeat" toggle is
+  only shown in pure-add mode (`CanToggleRecurring`) — converting an
+  existing one-off `Expense` into a template, or vice versa, isn't
+  supported, an intentional simplification rather than a gap. Recurring
+  mode swaps the "Occurred on" date row for "Start date" + a Frequency chip
+  row (reusing `RecurringFrequency`, an enum that already existed in the
+  codebase completely unused until now), and hides the receipt drop-zone
+  entirely — a receipt belongs to one materialized instance, not an
+  indefinitely-repeating template.
+- **`Pages/RecurringExpensesPage.xaml` + `RecurringExpensesViewModel`**
+  (route `RecurringExpenses`, reached from `GroupDetailPage`'s `⋮` menu as
+  "Repeating expenses", same pattern `MembersPage` already established):
+  lists each group's templates (description, payer, frequency, a
+  client-computed "next due" estimate — purely informational, since nothing
+  consumes it yet), with inline pause/resume (`SetActiveAsync`), edit
+  (navigates back into `AddExpensePage` via `?recurringExpenseId=`), and
+  delete (`DisplayAlert` confirm, same shape `GroupDetailViewModel.LeaveGroup`/
+  `DissolveGroup` already use).
+- **Retired**: `Models/RecurringPayment.cs`, `Services/IRecurringPaymentsRepository.cs`,
+  `Services/SupabaseRecurringPaymentsRepository.cs` deleted outright; the
+  `recurring_payments` table, its RLS policies, and its unscoped-visibility
+  widening policy removed from `schema.sql`. **The live Supabase project
+  still has the actual table** — dropping it there is a separate, explicit,
+  confirmed-with-the-user migration (`drop table if exists
+  public.recurring_payments cascade;`, after verifying it's empty), not yet
+  run as of this write-up.
+
+**Not built as part of this pass, a deliberate follow-up**: the `pg_cron`
+materialization function that actually turns a due `recurring_expenses` row
+into a real `expenses`/`expense_shares` insert. It needs its own design pass
+(catch-up-after-downtime semantics — generating every missed occurrence
+since `last_processed_date` rather than just the next one, capped at a
+sane backlog size; per-frequency interval math; whether monthly on day-31
+in a 30-day month clamps or skips) and doesn't block the templates
+themselves being created/edited/viewed/paused today, the same way
+`recurring_payments` existed schema-first with no materialization for a
+long time before being retired unused.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
 
 Every data access interface lives in `Services/` (`IAuthService`,
 `IMembersRepository`, `IGroupsRepository`, `IPaymentsRepository`,
-`IExpensesRepository`, `IBalancesRepository`, `IRecurringPaymentsRepository`,
+`IExpensesRepository`, `IBalancesRepository`, `IRecurringExpensesRepository`,
 `ICategoriesRepository`, `IInvitesRepository`, `IDeviceTokensRepository`).
 **ViewModels depend on these interfaces, never on the
 `Supabase.Client` type or the `supabase-csharp` package directly.** The reason:
@@ -843,9 +926,9 @@ static site, so it's easy to change one side and forget the other:
 | `groups` | A shared ledger (e.g. "Relaciones", "Family"). |
 | `group_members` | Which members belong to which groups. |
 | `payments` | A single payment between two members, optionally scoped to a group. |
-| `recurring_payments` | Template for periodic auto-generated payments. |
 | `invites` | A redeemable token to join a group, or to claim a specific phantom member. |
 | `expenses` / `expense_shares` | N-way split expenses, separate from the pairwise `payments` table. |
+| `recurring_expenses` / `recurring_expense_shares` | Templates for periodically auto-generated N-way split expenses. Replaces the retired `recurring_payments` (pairwise, never got UI). |
 | `device_tokens` | Per-account push tokens for the notification feature. |
 | `member_aliases` | Private, per-account nickname override for how a member is displayed. |
 

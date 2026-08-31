@@ -71,6 +71,15 @@ public partial class CategoryChip : ObservableObject
     [ObservableProperty] private bool isSelected;
 }
 
+/// <summary>One selectable chip in the recurring-expense frequency row.</summary>
+public partial class RecurringFrequencyOption : ObservableObject
+{
+    public RecurringFrequency Value { get; init; }
+    public string Label { get; init; } = "";
+
+    [ObservableProperty] private bool isSelected;
+}
+
 /// <summary>
 /// N-way expense entry: any group member can be the payer (paid_by_member_id on Expense isn't
 /// restricted to "the current user" the way DebtTracker's payer selection effectively was — see
@@ -82,6 +91,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 {
     private readonly IMembersRepository membersRepository;
     private readonly IExpensesRepository expensesRepository;
+    private readonly IRecurringExpensesRepository recurringExpensesRepository;
     private readonly IAliasesRepository aliasesRepository;
     private readonly IReceiptsRepository receiptsRepository;
     private readonly IAuthService authService;
@@ -90,6 +100,11 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     private Guid? editingExpenseId;
     private Guid editingCreatedBy;
     private DateTime editingCreatedAt;
+    private Guid? editingRecurringExpenseId;
+    private Guid editingRecurringCreatedBy;
+    private DateTime editingRecurringCreatedAt;
+    private DateTime? editingLastProcessedDate;
+    private bool editingRecurringIsActive = true;
     private bool redistributing;
 
     [ObservableProperty] private ObservableCollection<ExpenseParticipant> participants = [];
@@ -113,16 +128,24 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private string? receiptPreviewUrl;
     [ObservableProperty] private bool isReceiptBusy;
     [ObservableProperty] private bool isReceiptPreviewOpen;
+    [ObservableProperty] private bool isRecurringMode;
+    [ObservableProperty] private bool canToggleRecurring;
+    [ObservableProperty] private ObservableCollection<RecurringFrequencyOption> frequencyOptions = [];
+    [ObservableProperty] private RecurringFrequency selectedFrequency = RecurringFrequency.Monthly;
+    [ObservableProperty] private DateTime startDate = DateTime.Today;
+    [ObservableProperty] private string startDateDisplay = LocalizationResourceManager.Instance["Common_Today"];
 
     public AddExpenseViewModel(
         IMembersRepository membersRepository,
         IExpensesRepository expensesRepository,
+        IRecurringExpensesRepository recurringExpensesRepository,
         IAliasesRepository aliasesRepository,
         IReceiptsRepository receiptsRepository,
         IAuthService authService)
     {
         this.membersRepository = membersRepository;
         this.expensesRepository = expensesRepository;
+        this.recurringExpensesRepository = recurringExpensesRepository;
         this.aliasesRepository = aliasesRepository;
         this.receiptsRepository = receiptsRepository;
         this.authService = authService;
@@ -135,20 +158,37 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                 ? parsedExpenseId
                 : null;
 
+        Guid? recurringExpenseId = query.TryGetValue("recurringExpenseId", out var recurringValue)
+            && Guid.TryParse(recurringValue?.ToString(), out var parsedRecurringId)
+                ? parsedRecurringId
+                : null;
+
+        bool startAsRecurring = query.TryGetValue("recurring", out var recurringFlag)
+            && recurringFlag?.ToString() == "true";
+
         if (query.TryGetValue("groupId", out var groupValue) && Guid.TryParse(groupValue?.ToString(), out var groupIdValue))
-            _ = LoadAsync(groupIdValue, expenseId);
+            _ = LoadAsync(groupIdValue, expenseId, recurringExpenseId, startAsRecurring);
     }
 
-    /// <summary>Loads the group's members as the participant set and its category list. In add
-    /// mode (forExpenseId omitted) everyone defaults to an equal split; in edit mode, the existing
-    /// expense's amount/description/category/payer/date and per-member shares are loaded on top,
-    /// overriding the equal-split defaults built for the member list.</summary>
-    public Task LoadAsync(Guid forGroupId, Guid? forExpenseId = null) => RunSafeAsync(async () =>
+    /// <summary>Loads the group's members as the participant set and its category list. In plain
+    /// add mode (no expenseId/recurringExpenseId) everyone defaults to an equal split; editing an
+    /// existing one-off Expense or an existing RecurringExpense template overlays its saved data
+    /// on top, overriding the equal-split defaults built for the member list. startAsRecurring
+    /// starts a fresh add already in recurring mode (the "Repeat" toggle can also flip this on
+    /// manually — see CanToggleRecurring).</summary>
+    public Task LoadAsync(Guid forGroupId, Guid? forExpenseId = null, Guid? forRecurringExpenseId = null, bool startAsRecurring = false) => RunSafeAsync(async () =>
     {
         groupId = forGroupId;
         editingExpenseId = forExpenseId;
-        IsEditMode = forExpenseId is not null;
-        PageTitle = LocalizationResourceManager.Instance[IsEditMode ? "AddExpense_EditTitle" : "AddExpense_Title"];
+        editingRecurringExpenseId = forRecurringExpenseId;
+        IsEditMode = forExpenseId is not null || forRecurringExpenseId is not null;
+        IsRecurringMode = forRecurringExpenseId is not null || startAsRecurring;
+        CanToggleRecurring = forExpenseId is null && forRecurringExpenseId is null;
+        PageTitle = LocalizationResourceManager.Instance[
+            forRecurringExpenseId is not null ? "AddExpense_EditRecurringTitle"
+            : forExpenseId is not null ? "AddExpense_EditTitle"
+            : startAsRecurring ? "AddExpense_RecurringTitle"
+            : "AddExpense_Title"];
 
         IsBusy = true;
         try
@@ -156,8 +196,10 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             var loadMembers = membersRepository.GetForGroupAsync(groupId);
             var loadExpense = forExpenseId is { } id ? expensesRepository.GetByIdAsync(id) : Task.FromResult<Expense?>(null);
             var loadShares = forExpenseId is { } sharesId ? expensesRepository.GetSharesAsync(sharesId) : Task.FromResult(new List<ExpenseShare>());
+            var loadRecurring = forRecurringExpenseId is { } rid ? recurringExpensesRepository.GetByIdAsync(rid) : Task.FromResult<RecurringExpense?>(null);
+            var loadRecurringShares = forRecurringExpenseId is { } rsid ? recurringExpensesRepository.GetSharesAsync(rsid) : Task.FromResult(new List<RecurringExpenseShare>());
             var loadAliases = aliasesRepository.GetMyAliasesAsync();
-            await Task.WhenAll(loadMembers, loadExpense, loadShares, loadAliases);
+            await Task.WhenAll(loadMembers, loadExpense, loadShares, loadRecurring, loadRecurringShares, loadAliases);
 
             var aliases = loadAliases.Result;
 
@@ -187,12 +229,26 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                     Name = LocalizationResourceManager.Instance[$"Category_{key}"]
                 }));
 
+            FrequencyOptions = new ObservableCollection<RecurringFrequencyOption>(
+                Enum.GetValues<RecurringFrequency>().Select(f => new RecurringFrequencyOption
+                {
+                    Value = f,
+                    Label = LocalizationResourceManager.Instance[$"Recurring_Frequency_{f}"],
+                    IsSelected = f == RecurringFrequency.Monthly
+                }));
+            SelectedFrequency = RecurringFrequency.Monthly;
+
             var existingExpense = loadExpense.Result;
+            var existingRecurring = loadRecurring.Result;
             if (existingExpense is not null)
             {
                 LoadExistingExpense(existingExpense, loadShares.Result);
                 if (ReceiptPath is not null)
                     ReceiptPreviewUrl = await receiptsRepository.GetSignedUrlAsync(ReceiptPath);
+            }
+            else if (existingRecurring is not null)
+            {
+                LoadExistingRecurringExpense(existingRecurring, loadRecurringShares.Result);
             }
             else
             {
@@ -259,6 +315,64 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         RecalcRemaining();
     }
 
+    /// <summary>Same shape as LoadExistingExpense, overlaying a saved RecurringExpense template
+    /// instead. Stashes CreatedBy/CreatedAt/LastProcessedDate/IsActive so Save() can carry them
+    /// through unchanged on update — editing a template's amount/split/category must never reset
+    /// its materialization schedule or silently reactivate a paused one.</summary>
+    private void LoadExistingRecurringExpense(RecurringExpense template, List<RecurringExpenseShare> shares)
+    {
+        IsManualSplit = true;
+        editingRecurringCreatedBy = template.CreatedBy;
+        editingRecurringCreatedAt = template.CreatedAt;
+        editingLastProcessedDate = template.LastProcessedDate;
+        editingRecurringIsActive = template.IsActive;
+
+        redistributing = true;
+        try
+        {
+            var sharesByMember = shares.ToDictionary(s => s.MemberId, s => s.ShareAmount);
+            foreach (var participant in Participants)
+            {
+                if (sharesByMember.TryGetValue(participant.Member.Id, out var shareAmount))
+                {
+                    participant.IsIncluded = true;
+                    participant.Owes = shareAmount;
+                }
+                else
+                {
+                    participant.IsIncluded = false;
+                    participant.Owes = 0;
+                }
+            }
+        }
+        finally
+        {
+            redistributing = false;
+        }
+
+        Description = template.Description;
+        StartDate = template.StartDate;
+        AmountText = template.Amount.ToString("0.00", CultureInfo.InvariantCulture);
+
+        SelectedCategory = template.Category;
+        var matchingChip = CategoryChips.FirstOrDefault(c => c.Key == template.Category);
+        if (matchingChip is not null)
+            matchingChip.IsSelected = true;
+
+        if (Enum.TryParse<RecurringFrequency>(template.Frequency, ignoreCase: true, out var frequency))
+        {
+            SelectedFrequency = frequency;
+            foreach (var option in FrequencyOptions)
+                option.IsSelected = option.Value == frequency;
+        }
+
+        var payerOption = PayerOptions.FirstOrDefault(p => p.Member.Id == template.PaidByMemberId);
+        if (payerOption is not null)
+            SelectPayer(payerOption);
+
+        RecalcRemaining();
+    }
+
     partial void OnAmountTextChanged(string value) =>
         Amount = decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed)
             ? parsed
@@ -274,6 +388,26 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         OccurredOnDisplay = value.Date == DateTime.Today
             ? LocalizationResourceManager.Instance["Common_Today"]
             : value.ToString("MMM d, yyyy");
+
+    partial void OnStartDateChanged(DateTime value) =>
+        StartDateDisplay = value.Date == DateTime.Today
+            ? LocalizationResourceManager.Instance["Common_Today"]
+            : value.ToString("MMM d, yyyy");
+
+    /// <summary>Only meaningful in pure-add mode — see CanToggleRecurring. Editing an existing
+    /// one-off Expense or an existing RecurringExpense template can't convert one into the other
+    /// after the fact; the toggle is hidden in both those cases (AddExpensePage.xaml).</summary>
+    [RelayCommand]
+    private void ToggleRecurring() => IsRecurringMode = !IsRecurringMode;
+
+    [RelayCommand]
+    private void SelectFrequency(RecurringFrequencyOption? option)
+    {
+        if (option is null) return;
+        SelectedFrequency = option.Value;
+        foreach (var o in FrequencyOptions)
+            o.IsSelected = o == option;
+    }
 
     [RelayCommand]
     private void SelectPayer(PayerOption? option)
@@ -379,32 +513,67 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         IsBusy = true;
         try
         {
-            var expense = new Expense
+            if (IsRecurringMode)
             {
-                GroupId = groupId,
-                PaidByMemberId = SelectedPayer.Id,
-                Amount = Amount,
-                Description = Description,
-                Category = SelectedCategory,
-                OccurredAt = OccurredOn.ToUniversalTime(),
-                ReceiptPath = ReceiptPath
-            };
+                var template = new RecurringExpense
+                {
+                    GroupId = groupId,
+                    PaidByMemberId = SelectedPayer.Id,
+                    Amount = Amount,
+                    Description = Description,
+                    Category = SelectedCategory,
+                    Frequency = SelectedFrequency.ToString().ToLowerInvariant(),
+                    StartDate = StartDate.Date,
+                    LastProcessedDate = editingLastProcessedDate,
+                    IsActive = editingRecurringExpenseId is null || editingRecurringIsActive
+                };
 
-            var shares = Participants
-                .Where(p => p.IsIncluded)
-                .Select(p => new ExpenseShare { MemberId = p.Member.Id, ShareAmount = p.Owes })
-                .ToList();
+                var recurringShares = Participants
+                    .Where(p => p.IsIncluded)
+                    .Select(p => new RecurringExpenseShare { MemberId = p.Member.Id, ShareAmount = p.Owes })
+                    .ToList();
 
-            if (IsEditMode && editingExpenseId is { } id)
-            {
-                expense.Id = id;
-                expense.CreatedBy = editingCreatedBy;
-                expense.CreatedAt = editingCreatedAt;
-                await expensesRepository.UpdateAsync(expense, shares);
+                if (editingRecurringExpenseId is { } recurringId)
+                {
+                    template.Id = recurringId;
+                    template.CreatedBy = editingRecurringCreatedBy;
+                    template.CreatedAt = editingRecurringCreatedAt;
+                    await recurringExpensesRepository.UpdateAsync(template, recurringShares);
+                }
+                else
+                {
+                    await recurringExpensesRepository.AddAsync(template, recurringShares);
+                }
             }
             else
             {
-                await expensesRepository.AddAsync(expense, shares);
+                var expense = new Expense
+                {
+                    GroupId = groupId,
+                    PaidByMemberId = SelectedPayer.Id,
+                    Amount = Amount,
+                    Description = Description,
+                    Category = SelectedCategory,
+                    OccurredAt = OccurredOn.ToUniversalTime(),
+                    ReceiptPath = ReceiptPath
+                };
+
+                var shares = Participants
+                    .Where(p => p.IsIncluded)
+                    .Select(p => new ExpenseShare { MemberId = p.Member.Id, ShareAmount = p.Owes })
+                    .ToList();
+
+                if (IsEditMode && editingExpenseId is { } id)
+                {
+                    expense.Id = id;
+                    expense.CreatedBy = editingCreatedBy;
+                    expense.CreatedAt = editingCreatedAt;
+                    await expensesRepository.UpdateAsync(expense, shares);
+                }
+                else
+                {
+                    await expensesRepository.AddAsync(expense, shares);
+                }
             }
 
             await Shell.Current.GoToAsync("..");
@@ -418,12 +587,16 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [RelayCommand]
     private Task Delete() => RunSafeAsync(async () =>
     {
-        if (!IsEditMode || editingExpenseId is not { } id) return;
+        if (editingRecurringExpenseId is null && (!IsEditMode || editingExpenseId is null)) return;
 
         IsBusy = true;
         try
         {
-            await expensesRepository.DeleteAsync(id);
+            if (editingRecurringExpenseId is { } recurringId)
+                await recurringExpensesRepository.DeleteAsync(recurringId);
+            else if (editingExpenseId is { } id)
+                await expensesRepository.DeleteAsync(id);
+
             await Shell.Current.GoToAsync("..");
         }
         finally

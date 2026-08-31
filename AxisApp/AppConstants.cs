@@ -56,6 +56,7 @@ public static class AppConstants
         public const string Members = "Members";
         public const string JoinGroup = "JoinGroup";
         public const string AddExpense = "AddExpense";
+        public const string RecurringExpenses = "RecurringExpenses";
         public const string NewGroup = "NewGroup";
     }
 

@@ -54,23 +54,6 @@ create table public.payments (
   check (payer_member_id <> payee_member_id)
 );
 
-create table public.recurring_payments (
-  id uuid primary key default gen_random_uuid(),
-  group_id uuid references public.groups(id) on delete set null,
-  payer_member_id uuid not null references public.members(id),
-  payee_member_id uuid not null references public.members(id),
-  amount numeric(12,2) not null check (amount > 0),
-  description text not null default '',
-  category text not null default '',
-  frequency text not null check (frequency in ('daily','weekly','monthly','yearly')),
-  start_date date not null,
-  last_processed_date date,
-  is_active boolean not null default true,
-  created_by uuid not null references auth.users(id),
-  created_at timestamptz not null default now(),
-  check (payer_member_id <> payee_member_id)
-);
-
 -- Invites: join a group fresh, or claim a specific phantom member.
 create table public.invites (
   id uuid primary key default gen_random_uuid(),
@@ -88,7 +71,6 @@ create index on public.group_members (member_id);
 create index on public.payments (group_id);
 create index on public.payments (payer_member_id);
 create index on public.payments (payee_member_id);
-create index on public.recurring_payments (group_id);
 create index on public.invites (token);
 
 -- ============================================================
@@ -121,7 +103,6 @@ alter table public.members enable row level security;
 alter table public.groups enable row level security;
 alter table public.group_members enable row level security;
 alter table public.payments enable row level security;
-alter table public.recurring_payments enable row level security;
 alter table public.invites enable row level security;
 
 -- groups
@@ -202,28 +183,6 @@ create policy "update payments in your groups" on public.payments
     or (group_id is not null and is_group_member(group_id))
   );
 create policy "delete payments in your groups" on public.payments
-  for delete using (
-    (group_id is null and created_by = auth.uid())
-    or (group_id is not null and is_group_member(group_id))
-  );
-
--- recurring_payments (same shape as payments)
-create policy "select recurring in your groups" on public.recurring_payments
-  for select using (
-    (group_id is null and created_by = auth.uid())
-    or (group_id is not null and is_group_member(group_id))
-  );
-create policy "insert recurring in your groups" on public.recurring_payments
-  for insert with check (
-    (group_id is null and created_by = auth.uid())
-    or (group_id is not null and is_group_member(group_id))
-  );
-create policy "update recurring in your groups" on public.recurring_payments
-  for update using (
-    (group_id is null and created_by = auth.uid())
-    or (group_id is not null and is_group_member(group_id))
-  );
-create policy "delete recurring in your groups" on public.recurring_payments
   for delete using (
     (group_id is null and created_by = auth.uid())
     or (group_id is not null and is_group_member(group_id))
@@ -314,7 +273,6 @@ $$;
 -- young, even with no conversion logic yet — see SCOPE.md's "multi-currency"
 -- note. New tables below get the column baked in from the start.
 alter table public.payments add column currency char(3) not null default 'EUR';
-alter table public.recurring_payments add column currency char(3) not null default 'EUR';
 
 -- expenses: a bill one member fronted, split across participants via
 -- expense_shares. Distinct from `payments`, which is a direct pairwise
@@ -412,6 +370,127 @@ create policy "update shares of your expenses" on public.expense_shares
         and (
           (e.group_id is null and e.created_by = auth.uid())
           or (e.group_id is not null and is_group_member(e.group_id))
+        )
+    )
+  );
+
+-- ============================================================
+-- recurring_expenses / recurring_expense_shares — added 2026-08-31, a
+-- template for a periodically auto-generated Expense, split N ways via
+-- recurring_expense_shares. Mirrors expenses/expense_shares exactly, plus
+-- the schedule columns (frequency/start_date/last_processed_date/
+-- is_active) recurring_payments already proved out before being retired
+-- (see CLAUDE.md's "Recurring expenses" remarks for why: a Payment(payer,
+-- payee, amount) has identical balance math to Expense(paid_by=payer,
+-- participants=[payee], share=amount), so a 1-way recurring expense fully
+-- replaces what recurring_payments was for — no functional code ever
+-- consumed it, so it was deleted rather than kept alongside this).
+--
+-- Editing a template (e.g. changing an amount) only affects expenses
+-- materialized after the edit — a later pg_cron job (not built yet, see
+-- SCOPE.md) reads last_processed_date to know what's still due and inserts
+-- independent expenses/expense_shares rows; past materialized rows are
+-- snapshots, never rewritten by a template edit. This table intentionally
+-- has no "unscoped party" visibility widening the way expenses/payments
+-- got after group dissolution (is_unscoped_expense_party) — a dissolved
+-- group's templates just become creator-only-visible, since nothing
+-- materializes from an unscoped template anyway. Flagged as a possible
+-- future gap, not a blocker.
+-- ============================================================
+
+create table public.recurring_expenses (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid references public.groups(id) on delete set null,
+  paid_by_member_id uuid not null references public.members(id),
+  amount numeric(12,2) not null check (amount > 0),
+  currency char(3) not null default 'EUR',
+  description text not null default '',
+  category text not null default '',
+  frequency text not null check (frequency in ('daily','weekly','monthly','yearly')),
+  start_date date not null,
+  last_processed_date date,
+  is_active boolean not null default true,
+  created_by uuid not null references auth.users(id),
+  created_at timestamptz not null default now()
+);
+
+create table public.recurring_expense_shares (
+  recurring_expense_id uuid not null references public.recurring_expenses(id) on delete cascade,
+  member_id uuid not null references public.members(id),
+  share_amount numeric(12,2) not null check (share_amount >= 0),
+  primary key (recurring_expense_id, member_id)
+);
+
+create index on public.recurring_expenses (group_id);
+create index on public.recurring_expense_shares (member_id);
+
+alter table public.recurring_expenses enable row level security;
+alter table public.recurring_expense_shares enable row level security;
+
+-- recurring_expenses: same visibility/mutation shape as expenses
+create policy "select recurring expenses in your groups" on public.recurring_expenses
+  for select using (
+    (group_id is null and created_by = auth.uid())
+    or (group_id is not null and is_group_member(group_id))
+  );
+create policy "insert recurring expenses in your groups" on public.recurring_expenses
+  for insert with check (
+    (group_id is null and created_by = auth.uid())
+    or (group_id is not null and is_group_member(group_id))
+  );
+create policy "update recurring expenses in your groups" on public.recurring_expenses
+  for update using (
+    (group_id is null and created_by = auth.uid())
+    or (group_id is not null and is_group_member(group_id))
+  );
+create policy "delete recurring expenses in your groups" on public.recurring_expenses
+  for delete using (
+    (group_id is null and created_by = auth.uid())
+    or (group_id is not null and is_group_member(group_id))
+  );
+
+-- recurring_expense_shares: visible/writable by whoever can see/write the parent template
+create policy "select shares of visible recurring expenses" on public.recurring_expense_shares
+  for select using (
+    exists (
+      select 1 from recurring_expenses re
+      where re.id = recurring_expense_shares.recurring_expense_id
+        and (
+          (re.group_id is null and re.created_by = auth.uid())
+          or (re.group_id is not null and is_group_member(re.group_id))
+        )
+    )
+  );
+create policy "insert shares of your recurring expenses" on public.recurring_expense_shares
+  for insert with check (
+    exists (
+      select 1 from recurring_expenses re
+      where re.id = recurring_expense_shares.recurring_expense_id
+        and (
+          (re.group_id is null and re.created_by = auth.uid())
+          or (re.group_id is not null and is_group_member(re.group_id))
+        )
+    )
+  );
+create policy "delete shares of your recurring expenses" on public.recurring_expense_shares
+  for delete using (
+    exists (
+      select 1 from recurring_expenses re
+      where re.id = recurring_expense_shares.recurring_expense_id
+        and (
+          (re.group_id is null and re.created_by = auth.uid())
+          or (re.group_id is not null and is_group_member(re.group_id))
+        )
+    )
+  );
+create policy "update shares of your recurring expenses" on public.recurring_expense_shares
+  for update using (
+    exists (
+      select 1 from recurring_expenses re
+      where re.id = recurring_expense_shares.recurring_expense_id
+        and (
+          (re.group_id is null and re.created_by = auth.uid())
+          or (re.group_id is not null and is_group_member(re.group_id))
         )
     )
   );
@@ -627,7 +706,7 @@ $$;
 -- command are OR'd together in Postgres, so this doesn't touch or replace
 -- the existing one).
 --
--- Separately: payments/expenses/recurring_payments already go to
+-- Separately: payments/expenses/recurring_expenses already go to
 -- `group_id is null` (not deleted) when their group is dissolved, by design
 -- (ON DELETE SET NULL on group_id) — the ledger survives. But their SELECT
 -- policies only granted the `group_id is null` branch to `created_by`,
@@ -671,17 +750,6 @@ create policy "members can remove themselves" on public.group_members
 
 -- payments: unscoped rows are also visible to the actual payer/payee.
 create policy "select unscoped payments you're a party to" on public.payments
-  for select using (
-    group_id is null
-    and exists (
-      select 1 from members m
-      where m.id in (payer_member_id, payee_member_id)
-        and m.account_id = auth.uid()
-    )
-  );
-
--- recurring_payments: same shape, ready for whenever that feature ships.
-create policy "select unscoped recurring you're a party to" on public.recurring_payments
   for select using (
     group_id is null
     and exists (
@@ -818,7 +886,7 @@ $$;
 -- groups" policy (created_by = auth.uid()) already permits it, and the FK
 -- cascade shape already does the right thing — group_members/invites are
 -- ON DELETE CASCADE (membership and pending invites vanish), payments/
--- expenses/recurring_payments are ON DELETE SET NULL (history survives,
+-- expenses/recurring_expenses are ON DELETE SET NULL (history survives,
 -- newly readable by the visibility-widening policies above). A plain
 -- `delete from groups where id = ...` is the whole operation; any
 -- outstanding-balance warning before calling it is a client-side confirm,
