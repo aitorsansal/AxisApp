@@ -801,22 +801,65 @@ the new table.
 - **Retired**: `Models/RecurringPayment.cs`, `Services/IRecurringPaymentsRepository.cs`,
   `Services/SupabaseRecurringPaymentsRepository.cs` deleted outright; the
   `recurring_payments` table, its RLS policies, and its unscoped-visibility
-  widening policy removed from `schema.sql`. **The live Supabase project
-  still has the actual table** — dropping it there is a separate, explicit,
-  confirmed-with-the-user migration (`drop table if exists
-  public.recurring_payments cascade;`, after verifying it's empty), not yet
-  run as of this write-up.
+  widening policy removed from `schema.sql`. The live Supabase table was
+  confirmed empty and dropped (`drop table if exists
+  public.recurring_payments cascade;`) the same day, after the additive
+  `recurring_expenses`/`recurring_expense_shares` migration was applied.
 
-**Not built as part of this pass, a deliberate follow-up**: the `pg_cron`
-materialization function that actually turns a due `recurring_expenses` row
-into a real `expenses`/`expense_shares` insert. It needs its own design pass
-(catch-up-after-downtime semantics — generating every missed occurrence
-since `last_processed_date` rather than just the next one, capped at a
-sane backlog size; per-frequency interval math; whether monthly on day-31
-in a 30-day month clamps or skips) and doesn't block the templates
-themselves being created/edited/viewed/paused today, the same way
-`recurring_payments` existed schema-first with no materialization for a
-long time before being retired unused.
+## pg_cron materialization for recurring expenses (2026-08-31)
+
+Built the same day as recurring expenses themselves, once the design
+questions flagged when that feature landed (catch-up semantics, run time,
+month-overflow behavior) were actually settled. `public
+.materialize_recurring_expenses()` (schema.sql) scans `recurring_expenses`
+for active, due templates and inserts real `expenses`/`expense_shares` rows
+for every missed occurrence since `last_processed_date` — not just the
+next one — capped at **24 occurrences per template per run** so a
+long-stale template can't flood a group's ledger in one go. The very first
+occurrence for a brand-new template is always exactly `start_date`
+regardless of frequency (an early draft of this function stepped "anchor +
+one period" from a null `last_processed_date`, which would have landed a
+weekly template's first occurrence 6 days late — caught before it ran
+against real data).
+
+- **Runs daily at 8am UTC** (`cron.schedule('materialize-recurring-expenses',
+  '0 8 * * *', ...)`) — deliberately not middle-of-the-night, so a future
+  push notification on a newly-materialized expense doesn't wake anyone up
+  at 3am. Daily is already fine-grained enough for every supported
+  frequency (`daily`/`weekly`/`monthly`/`yearly`); the job just checks
+  "is anything due yet," it doesn't need to run more often than that.
+- **Monthly/yearly stepping does not clamp to end-of-month** — Postgres's
+  native `date + interval '1 month'` overflows rather than clamping
+  (`date '2026-01-31' + interval '1 month'` = `2026-03-03`, not
+  `2026-02-28`), so a template anchored on day 29-31 will drift forward a
+  few days whenever it crosses a shorter month and never land back on day
+  31. Deliberately left unfixed — building real end-of-month clamping
+  (`LEAST(...)` against the month's last day) is real complexity for an
+  edge case that's just as easy to correct by editing the materialized
+  expense afterward, same as any other expense field.
+- **Never `security definer`** — pg_cron runs a scheduled job as whichever
+  role called `cron.schedule()` (the SQL editor's role, effectively
+  `postgres`), which already bypasses RLS entirely, so there's no real
+  permission gap to elevate here unlike `leave_group()`/
+  `transfer_group_ownership()`/etc. What *does* matter, and is easy to miss:
+  every function in `public` is reachable via PostgREST's `/rpc/` by any
+  authenticated user by default, and this one has zero caller-scoping (it
+  processes every group's templates, not just the caller's) — fixed with an
+  explicit `revoke execute ... from public, anon, authenticated;` right
+  after creating it. Confirmed via `information_schema.routine_privileges`
+  that only `postgres`/`service_role` can execute it, not `anon`/
+  `authenticated`.
+- **`pg_cron` extension**: was not enabled on the project (Free plan, Nano
+  compute — confirmed via the dashboard that pg_cron doesn't require an
+  upgrade). Enabled via Database → Extensions (must install into the
+  `pg_catalog` schema, the only option offered).
+- **Confirmed working end to end against the live project**: manually
+  invoked once after creating the job (rather than waiting for the next
+  8am UTC run) — a real overdue "Crunchy" template (yearly, started
+  2026-07-28, never processed) materialized into a real `expenses` row
+  (`$60.00`, `occurred_at = 2026-07-28`) with all 5 `expense_shares` rows,
+  and `last_processed_date` advanced to `2026-07-28` correctly (only one
+  occurrence, since the next yearly occurrence isn't due until 2027-07-28).
 
 ## Architecture
 

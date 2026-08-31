@@ -1077,3 +1077,99 @@ create policy "group members can delete receipts" on storage.objects
     bucket_id = 'receipts'
     and is_group_member((storage.foldername(name))[1]::uuid)
   );
+
+-- ============================================================
+-- materialize_recurring_expenses — added 2026-08-31, the pg_cron follow-up
+-- flagged when recurring_expenses was first built (see "Recurring expenses"
+-- remarks). Requires the pg_cron extension enabled on the project (Database
+-- -> Extensions in the dashboard, or `create extension pg_cron;`) before
+-- the cron.schedule() call at the bottom of this block will succeed.
+--
+-- Scans recurring_expenses for due templates and inserts real
+-- expenses/expense_shares rows for every missed occurrence since
+-- last_processed_date — not just the next one — capped at 24 per template
+-- per run, so a long-stale template (app unused for months, or the cron job
+-- itself paused) can't flood a group's ledger with hundreds of backdated
+-- expenses in a single run. The very first occurrence for a brand-new
+-- template is always exactly start_date, regardless of frequency — stepping
+-- "anchor + one period" from a null last_processed_date would land a weekly
+-- template's first occurrence 6 days late.
+--
+-- Monthly/yearly stepping uses Postgres's native `date + interval`
+-- arithmetic, which does NOT clamp to end-of-month — `date '2026-01-31' +
+-- interval '1 month'` overflows to 2026-03-03, not 2026-02-28. A template
+-- anchored on day 29-31 will drift forward a few days whenever it crosses a
+-- shorter month, and never land back on day 31. Deliberately not fixed with
+-- extra end-of-month clamping logic — a wrong date on the materialized
+-- expense is just as editable as any other expense field, and building real
+-- clamping (LEAST(...) against end-of-month) is real complexity for an edge
+-- case that's cheap to correct after the fact.
+--
+-- Never security definer: pg_cron runs a scheduled job as whichever role
+-- called cron.schedule() (the SQL editor's role, effectively postgres),
+-- which already bypasses RLS entirely — there's no real permission gap to
+-- elevate here, unlike leave_group()/transfer_group_ownership()/etc. What
+-- *does* matter is the explicit revoke below: without it, every function in
+-- `public` is reachable via PostgREST's /rpc/ by any authenticated user by
+-- default, and this one has zero caller-scoping (it processes every
+-- group's templates, not just the caller's) — a genuine privilege issue if
+-- left reachable.
+-- ============================================================
+
+create or replace function public.materialize_recurring_expenses()
+returns void
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_template recurring_expenses%rowtype;
+  v_occurrence date;
+  v_count int;
+  v_new_expense_id uuid;
+begin
+  for v_template in
+    select * from recurring_expenses
+    where is_active
+      and start_date <= current_date
+      and (last_processed_date is null or last_processed_date < current_date)
+  loop
+    v_occurrence := v_template.last_processed_date;
+    v_count := 0;
+
+    loop
+      v_occurrence := case
+        when v_occurrence is null then v_template.start_date
+        when v_template.frequency = 'daily' then v_occurrence + 1
+        when v_template.frequency = 'weekly' then v_occurrence + 7
+        when v_template.frequency = 'monthly' then (v_occurrence + interval '1 month')::date
+        when v_template.frequency = 'yearly' then (v_occurrence + interval '1 year')::date
+      end;
+
+      exit when v_occurrence > current_date or v_count >= 24;
+
+      insert into expenses (group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_by)
+      values (v_template.group_id, v_template.paid_by_member_id, v_template.amount, v_template.currency,
+              v_template.description, v_template.category, v_occurrence, v_template.created_by)
+      returning id into v_new_expense_id;
+
+      insert into expense_shares (expense_id, member_id, share_amount)
+      select v_new_expense_id, member_id, share_amount
+      from recurring_expense_shares
+      where recurring_expense_id = v_template.id;
+
+      update recurring_expenses set last_processed_date = v_occurrence where id = v_template.id;
+      v_count := v_count + 1;
+    end loop;
+  end loop;
+end;
+$$;
+
+revoke execute on function public.materialize_recurring_expenses() from public, anon, authenticated;
+
+-- Daily at 8am UTC — well past any reasonable notification-quiet-hours window
+-- (chosen specifically to avoid the 3am-wakeup problem a naive middle-of-the-
+-- night run would risk once push notifications exist), and daily is already
+-- the finest grain any recurring_expenses.frequency needs — the job just
+-- checks "is anything due yet," it doesn't need to align with a template's
+-- own frequency.
+select cron.schedule('materialize-recurring-expenses', '0 8 * * *', $$select public.materialize_recurring_expenses();$$);
