@@ -13,6 +13,12 @@ public interface IMembersRepository
     /// group yet.</summary>
     Task<Member?> GetMyMemberAsync();
 
+    /// <summary>Updates the given member row (DisplayName/BirthDate today) — sends the whole
+    /// model, same "carry every field over" caveat as SupabaseExpensesRepository.UpdateAsync, so
+    /// callers must start from a fully-loaded Member (e.g. GetMyMemberAsync's result), never a
+    /// freshly-constructed one. RLS restricts this to a member's own creator or claiming account.</summary>
+    Task<Member> UpdateAsync(Member member);
+
     /// <summary>Adds a phantom member (no linked account yet) created by the current user.</summary>
     Task<Member> AddPhantomAsync(string displayName);
 

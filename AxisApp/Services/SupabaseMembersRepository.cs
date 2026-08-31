@@ -62,6 +62,15 @@ public class SupabaseMembersRepository : IMembersRepository
         return result.Models.FirstOrDefault();
     }
 
+    public async Task<Member> UpdateAsync(Member member)
+    {
+        var result = await client.From<Member>()
+            .Filter("id", Constants.Operator.Equals, member.Id.ToString())
+            .Update(member);
+
+        return result.Model!;
+    }
+
     public async Task<Member> AddPhantomAsync(string displayName)
     {
         var member = new Member

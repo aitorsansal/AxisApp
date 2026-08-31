@@ -34,6 +34,11 @@ public class Member : BaseModel
     [Column("avatar_path")]
     public string? AvatarPath { get; set; }
 
+    /// <summary>Reserved for future birthday-related features — see schema.sql's "Profile page"
+    /// remarks. Self-only: only the claimed account this row belongs to can set it.</summary>
+    [Column("birth_date")]
+    public DateTime? BirthDate { get; set; }
+
     [JsonIgnore]
     public bool IsPhantom => AccountId is null;
 }

@@ -58,6 +58,7 @@ public static class AppConstants
         public const string AddExpense = "AddExpense";
         public const string RecurringExpenses = "RecurringExpenses";
         public const string NewGroup = "NewGroup";
+        public const string Profile = "Profile";
     }
 
     /// <summary>Web-facing invite links (Android App Links today; iOS Universal Links whenever that

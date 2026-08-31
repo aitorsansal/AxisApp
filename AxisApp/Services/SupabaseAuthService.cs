@@ -68,6 +68,35 @@ public class SupabaseAuthService : IAuthService
 
     public async Task SignOutAsync() => await client.Auth.SignOut();
 
+    /// <summary>client.Auth.Update(UserAttributes) — confirmed against a real reflection probe of
+    /// the installed Supabase.Gotrue 6.3.0 package (Task&lt;User&gt; Update(UserAttributes), not
+    /// docs, same caution this file already gives every other Gotrue call shape.</summary>
+    public async Task<AuthResult> UpdateEmailAsync(string newEmail)
+    {
+        try
+        {
+            await client.Auth.Update(new Supabase.Gotrue.UserAttributes { Email = newEmail });
+            return new AuthResult(true);
+        }
+        catch (Exception ex)
+        {
+            return new AuthResult(false, ex.Message);
+        }
+    }
+
+    public async Task<AuthResult> UpdatePasswordAsync(string newPassword)
+    {
+        try
+        {
+            await client.Auth.Update(new Supabase.Gotrue.UserAttributes { Password = newPassword });
+            return new AuthResult(true);
+        }
+        catch (Exception ex)
+        {
+            return new AuthResult(false, ex.Message);
+        }
+    }
+
     /// <summary>Must run once before any other call — wires up the child clients and restores
     /// a persisted session if one exists. Called from App's constructor. LoadSession() has to run
     /// first: InitializeAsync() alone never calls the configured SessionHandler on its own (found

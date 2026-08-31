@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
+    x:Class="AxisApp.Pages.ProfilePage"
+    x:DataType="vm:ProfileViewModel"
+    Shell.NavBarIsVisible="False"
+    Title="{loc:Translate Profile_Title}">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="{loc:Translate Profile_Title}" />
+
+        <ScrollView Grid.Row="1">
+                <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
+
+                    <!-- Avatar + photo actions -->
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}" HorizontalOptions="Center">
+                        <controls:ProfileCircle
+                            ImageUrl="{Binding AvatarUrl}"
+                            Initials="{Binding Initials}"
+                            Kind="Primary"
+                            Diameter="{StaticResource AvatarSizeL}"
+                            HorizontalOptions="Center" />
+                        <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="{StaticResource SpacingM}" HorizontalOptions="Center">
+                            <Label
+                                Grid.Column="0"
+                                Text="{loc:Translate Profile_ChangePhoto}"
+                                TextColor="{StaticResource Primary}"
+                                FontSize="{StaticResource TypeCaption}">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding ChangePhotoCommand}" />
+                                </Label.GestureRecognizers>
+                            </Label>
+                            <Label
+                                Grid.Column="1"
+                                Text="{loc:Translate Profile_RemovePhoto}"
+                                TextColor="{StaticResource Danger}"
+                                FontSize="{StaticResource TypeCaption}"
+                                IsVisible="{Binding AvatarUrl, Converter={StaticResource StringNotEmptyConverter}}">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding RemovePhotoCommand}" />
+                                </Label.GestureRecognizers>
+                            </Label>
+                        </Grid>
+                    </VerticalStackLayout>
+
+                    <!-- Display name -->
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <Label Text="{loc:Translate Profile_DisplayName}" Style="{StaticResource SectionHeaderTertiary}" />
+                        <Border Style="{StaticResource InputBorderStyle}">
+                            <Entry Text="{Binding DisplayName}" Placeholder="{loc:Translate Profile_DisplayNamePlaceholder}" />
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <!-- Birthday: decorative row with a transparent DatePicker on top once set,
+                         same "whole row is the tap target" pattern as AddExpensePage's date rows. -->
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <Label Text="{loc:Translate Profile_Birthday}" Style="{StaticResource SectionHeaderTertiary}" />
+                        <Border Style="{StaticResource InputBorderStyle}" IsVisible="{Binding HasBirthday}">
+                            <Grid>
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
+                                    <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Text="{Binding BirthdayDisplay}" VerticalOptions="Center" />
+                                    <Label Grid.Column="2" Text="{loc:Translate Profile_ClearBirthday}" TextColor="{StaticResource Danger}" VerticalOptions="Center">
+                                        <Label.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding ClearBirthdayCommand}" />
+                                        </Label.GestureRecognizers>
+                                    </Label>
+                                </Grid>
+                                <DatePicker Date="{Binding Birthday}" Opacity="0" />
+                            </Grid>
+                        </Border>
+                        <Button
+                            Text="{loc:Translate Profile_SetBirthday}"
+                            Command="{Binding SetBirthdayCommand}"
+                            Style="{StaticResource BtnOutlinePrimary}"
+                            IsVisible="{Binding HasBirthday, Converter={StaticResource InverseBoolConverter}}" />
+                    </VerticalStackLayout>
+
+                    <Button
+                        Text="{loc:Translate Common_Save}"
+                        Command="{Binding SaveProfileCommand}"
+                        Style="{StaticResource BtnPrimaryStyle}" />
+
+                    <Label
+                        Text="{Binding StatusMessage}"
+                        TextColor="{StaticResource Success}"
+                        FontSize="{StaticResource TypeCaption}"
+                        IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+                    <Label
+                        Text="{Binding ErrorMessage}"
+                        TextColor="{StaticResource Danger}"
+                        FontSize="{StaticResource TypeCaption}"
+                        IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+
+                    <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
+
+                    <!-- Language -->
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <Label Text="{loc:Translate Profile_Language}" Style="{StaticResource SectionHeaderTertiary}" />
+                        <Border Style="{StaticResource InputBorderStyle}">
+                            <VerticalStackLayout>
+                                <Label Text="{loc:Translate Profile_LanguageSystem}">
+                                    <Label.Padding>
+                                        <Thickness Left="0" Top="{StaticResource SpacingXS}" Right="0" Bottom="{StaticResource SpacingXS}" />
+                                    </Label.Padding>
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding ChangeLanguageCommand}" CommandParameter="" />
+                                    </Label.GestureRecognizers>
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="">
+                                            <Setter Property="TextColor" Value="{StaticResource Primary}" />
+                                            <Setter Property="FontAttributes" Value="Bold" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                                <Label Text="{loc:Translate Profile_LanguageEnglish}">
+                                    <Label.Padding>
+                                        <Thickness Left="0" Top="{StaticResource SpacingXS}" Right="0" Bottom="{StaticResource SpacingXS}" />
+                                    </Label.Padding>
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding ChangeLanguageCommand}" CommandParameter="en" />
+                                    </Label.GestureRecognizers>
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="en">
+                                            <Setter Property="TextColor" Value="{StaticResource Primary}" />
+                                            <Setter Property="FontAttributes" Value="Bold" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                                <Label Text="{loc:Translate Profile_LanguageSpanish}">
+                                    <Label.Padding>
+                                        <Thickness Left="0" Top="{StaticResource SpacingXS}" Right="0" Bottom="{StaticResource SpacingXS}" />
+                                    </Label.Padding>
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding ChangeLanguageCommand}" CommandParameter="es" />
+                                    </Label.GestureRecognizers>
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="es">
+                                            <Setter Property="TextColor" Value="{StaticResource Primary}" />
+                                            <Setter Property="FontAttributes" Value="Bold" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </VerticalStackLayout>
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
+
+                    <!-- Account: email + password -->
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <Label Text="{loc:Translate Profile_Email}" Style="{StaticResource SectionHeaderTertiary}" />
+                        <Label Text="{Binding UserEmail}" Style="{StaticResource LabelTertiary}" />
+                        <Border Style="{StaticResource InputBorderStyle}">
+                            <Entry Text="{Binding NewEmail}" Placeholder="{loc:Translate Profile_NewEmailPlaceholder}" Keyboard="Email" />
+                        </Border>
+                        <Button
+                            Text="{loc:Translate Profile_ChangeEmail}"
+                            Command="{Binding ChangeEmailCommand}"
+                            Style="{StaticResource BtnOutlinePrimary}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <Label Text="{loc:Translate Profile_Password}" Style="{StaticResource SectionHeaderTertiary}" />
+                        <Border Style="{StaticResource InputBorderStyle}">
+                            <Entry Text="{Binding NewPassword}" Placeholder="{loc:Translate Profile_NewPasswordPlaceholder}" IsPassword="True" />
+                        </Border>
+                        <Button
+                            Text="{loc:Translate Profile_ChangePassword}"
+                            Command="{Binding ChangePasswordCommand}"
+                            Style="{StaticResource BtnOutlinePrimary}" />
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+        </ScrollView>
+
+        <ActivityIndicator
+            Grid.Row="0" Grid.RowSpan="2"
+            IsRunning="{Binding IsBusy}"
+            IsVisible="{Binding IsBusy}"
+            Color="{StaticResource Primary}"
+            HorizontalOptions="Center"
+            VerticalOptions="Center" />
+
+    </Grid>
+</ContentPage>

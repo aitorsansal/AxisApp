@@ -21,6 +21,13 @@ public interface IAuthService
     Task<AuthResult> SignInAsync(string email, string password);
     Task SignOutAsync();
 
+    /// <summary>Changes the signed-in account's email. Supabase sends a confirmation link to the
+    /// new address and the change only takes effect once that's clicked — CurrentEmail keeps
+    /// showing the old address until then, this isn't a bug in the caller.</summary>
+    Task<AuthResult> UpdateEmailAsync(string newEmail);
+
+    Task<AuthResult> UpdatePasswordAsync(string newPassword);
+
     /// <summary>Restores a previously persisted session on app start, if one exists.</summary>
     Task RestoreSessionAsync();
 }

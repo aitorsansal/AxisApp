@@ -21,5 +21,11 @@ public class NotConfiguredAuthService : IAuthService
 
     public Task SignOutAsync() => Task.CompletedTask;
 
+    public Task<AuthResult> UpdateEmailAsync(string newEmail) =>
+        Task.FromResult(new AuthResult(false, "Supabase isn't configured yet — see /supabase/README.md."));
+
+    public Task<AuthResult> UpdatePasswordAsync(string newPassword) =>
+        Task.FromResult(new AuthResult(false, "Supabase isn't configured yet — see /supabase/README.md."));
+
     public Task RestoreSessionAsync() => Task.CompletedTask;
 }

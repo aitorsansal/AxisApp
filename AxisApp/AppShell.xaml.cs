@@ -16,5 +16,6 @@ public partial class AppShell : Shell
         Routing.RegisterRoute(AppConstants.Routes.RecurringExpenses, typeof(RecurringExpensesPage));
         Routing.RegisterRoute(AppConstants.Routes.JoinGroup, typeof(JoinGroupPage));
         Routing.RegisterRoute(AppConstants.Routes.NewGroup, typeof(NewGroupPage));
+        Routing.RegisterRoute(AppConstants.Routes.Profile, typeof(ProfilePage));
     }
 }

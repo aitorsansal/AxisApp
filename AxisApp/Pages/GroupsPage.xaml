@@ -187,70 +187,13 @@
                 </Label.Padding>
             </Label>
             <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
-            <Label Text="{loc:Translate Groups_ChangePhoto}">
+            <Label Text="{loc:Translate Groups_Profile}">
                 <Label.Padding>
                     <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
                 </Label.Padding>
                 <Label.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding ChangePhotoCommand}" />
+                    <TapGestureRecognizer Command="{Binding OpenProfileCommand}" />
                 </Label.GestureRecognizers>
-            </Label>
-            <Label Text="{loc:Translate Groups_RemovePhoto}" TextColor="{StaticResource Danger}" IsVisible="{Binding MyAvatarUrl, Converter={StaticResource StringNotEmptyConverter}}">
-                <Label.Padding>
-                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
-                </Label.Padding>
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding RemovePhotoCommand}" />
-                </Label.GestureRecognizers>
-            </Label>
-
-            <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
-            <Label Text="{loc:Translate Groups_Language}" Style="{StaticResource LabelTertiary}">
-                <Label.Padding>
-                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="0" />
-                </Label.Padding>
-            </Label>
-            <Label Text="{loc:Translate Groups_LanguageSystem}">
-                <Label.Padding>
-                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingXS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingXS}" />
-                </Label.Padding>
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding ChangeLanguageCommand}" CommandParameter="" />
-                </Label.GestureRecognizers>
-                <Label.Triggers>
-                    <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="">
-                        <Setter Property="TextColor" Value="{StaticResource Primary}" />
-                        <Setter Property="FontAttributes" Value="Bold" />
-                    </DataTrigger>
-                </Label.Triggers>
-            </Label>
-            <Label Text="{loc:Translate Groups_LanguageEnglish}">
-                <Label.Padding>
-                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingXS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingXS}" />
-                </Label.Padding>
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding ChangeLanguageCommand}" CommandParameter="en" />
-                </Label.GestureRecognizers>
-                <Label.Triggers>
-                    <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="en">
-                        <Setter Property="TextColor" Value="{StaticResource Primary}" />
-                        <Setter Property="FontAttributes" Value="Bold" />
-                    </DataTrigger>
-                </Label.Triggers>
-            </Label>
-            <Label Text="{loc:Translate Groups_LanguageSpanish}">
-                <Label.Padding>
-                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingXS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
-                </Label.Padding>
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding ChangeLanguageCommand}" CommandParameter="es" />
-                </Label.GestureRecognizers>
-                <Label.Triggers>
-                    <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="es">
-                        <Setter Property="TextColor" Value="{StaticResource Primary}" />
-                        <Setter Property="FontAttributes" Value="Bold" />
-                    </DataTrigger>
-                </Label.Triggers>
             </Label>
 
             <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />

@@ -1244,3 +1244,11 @@ select cron.schedule(
   ) as request_id;
   $$
 );
+
+-- ============================================================
+-- Profile page (2026-08-31) — birth_date, reserved for future birthday-
+-- related features (not built yet). Self-only field: no RLS change
+-- needed, the existing "update members you created or claim yourself"
+-- policy already covers a claimed member updating their own row.
+-- ============================================================
+alter table public.members add column birth_date date;

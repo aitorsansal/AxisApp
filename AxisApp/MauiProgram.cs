@@ -70,6 +70,8 @@ public static class MauiProgram
         builder.Services.AddTransient<JoinGroupPage>();
         builder.Services.AddTransient<NewGroupViewModel>();
         builder.Services.AddTransient<NewGroupPage>();
+        builder.Services.AddTransient<ProfileViewModel>();
+        builder.Services.AddTransient<ProfilePage>();
 
 #if DEBUG
         builder.Logging.AddDebug();
