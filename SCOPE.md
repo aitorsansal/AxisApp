@@ -67,13 +67,16 @@ exists).
   targeting ~100KB (downscale to ~1280px long edge, step quality/dimension down
   if still over target). **Done 2026-08-31** for expenses (capture/pick, upload,
   view via signed URL — see CLAUDE.md's "Receipt photos"); `payments` still has
-  `receipt_path` reserved but unused, and the cleanup Edge Function below isn't
-  built yet.
-- **Receipt cleanup**: weekly Edge Function on `pg_cron`. Orphaned receipts (no
-  expense/payment references them anymore) purged after **3 months**. Receipts
-  still attached to a real expense/payment get the *photo* purged after
-  **6 months** — the expense/payment record itself is never deleted, only the
-  image, with `receipt_path` nulled out.
+  `receipt_path` reserved but unused.
+- **Receipt cleanup**: weekly Edge Function on `pg_cron`, **done 2026-08-31**
+  (see CLAUDE.md's "Receipt cleanup" remarks), confirmed working against the
+  live project. Orphaned receipts (no expense references them anymore) get
+  purged after **3 months**; receipts still attached to a real expense get
+  the *photo* purged after **6 months** — the expense record itself is never
+  deleted, only the image, with `receipt_path` nulled out. Both windows are
+  measured off the file's own upload time (`storage.objects.created_at`),
+  not the expense's date. `payments.receipt_path` is out of scope here since
+  it's still unused (see above).
 - **Recurring expenses**: `recurring_expenses`/`recurring_expense_shares`
   (N-way split templates, mirroring `expenses`/`expense_shares`), the
   add/edit/view/pause/delete UI, and the `pg_cron` job that materializes

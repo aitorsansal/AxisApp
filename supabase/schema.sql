@@ -1173,3 +1173,74 @@ revoke execute on function public.materialize_recurring_expenses() from public, 
 -- checks "is anything due yet," it doesn't need to align with a template's
 -- own frequency.
 select cron.schedule('materialize-recurring-expenses', '0 8 * * *', $$select public.materialize_recurring_expenses();$$);
+
+-- ============================================================
+-- find_expired_receipts — added 2026-08-31, the read-only half of the
+-- receipt cleanup infra SCOPE.md's "Supporting infra" describes. Pure SQL,
+-- no deletion here on purpose: a plain `DELETE FROM storage.objects` only
+-- removes the metadata row, not the underlying stored file — real deletion
+-- has to go through the Storage API (`.storage.from(bucket).remove(...)`),
+-- which only the paired `cleanup-receipts` Edge Function
+-- (supabase/functions/cleanup-receipts/index.ts) can do. This function just
+-- answers "what qualifies," the Edge Function decides what to do about it.
+--
+-- Two categories, both measured off storage.objects.created_at (the file's
+-- own upload time — neither expenses nor recurring_expenses stores a
+-- separate "receipt attached at" timestamp):
+--   'orphan'   — a file in the receipts bucket no expenses.receipt_path
+--                points at, uploaded more than 3 months ago.
+--   'attached' — a file an expense's receipt_path DOES point at, uploaded
+--                more than 6 months ago; the expense itself is untouched,
+--                only its receipt_path gets nulled out and the file deleted.
+-- Never security definer: called only by the cleanup-receipts Edge
+-- Function using the service-role key (which already bypasses RLS
+-- entirely), same reasoning as materialize_recurring_expenses. Revoked
+-- from anon/authenticated for the same reason too — this has zero
+-- caller-scoping and must never be reachable via PostgREST's /rpc/.
+-- ============================================================
+
+create or replace function public.find_expired_receipts()
+returns table (path text, kind text, expense_id uuid)
+language sql
+stable
+set search_path = public
+as $$
+  select o.name as path, 'orphan'::text as kind, null::uuid as expense_id
+  from storage.objects o
+  where o.bucket_id = 'receipts'
+    and o.created_at < now() - interval '3 months'
+    and not exists (select 1 from expenses e where e.receipt_path = o.name)
+
+  union all
+
+  select e.receipt_path as path, 'attached'::text as kind, e.id as expense_id
+  from expenses e
+  join storage.objects o on o.bucket_id = 'receipts' and o.name = e.receipt_path
+  where e.receipt_path is not null
+    and o.created_at < now() - interval '6 months';
+$$;
+
+revoke execute on function public.find_expired_receipts() from public, anon, authenticated;
+
+-- Weekly, Sunday 4am UTC — same off-peak reasoning as the 8am recurring-
+-- expense job, just weekly since a 3/6-month retention window doesn't need
+-- daily attention. Calls the deployed cleanup-receipts Edge Function via
+-- pg_net, authenticating with the service-role key stored in Supabase
+-- Vault (Integrations -> Vault -> Secrets, name 'service_role_key') rather
+-- than hardcoding it here — this file is checked into git. Unlike the rest
+-- of this file, the URL below is this specific project's — a fresh project
+-- would need its own project ref substituted in before running this block.
+select cron.schedule(
+  'cleanup-receipts',
+  '0 4 * * 0',
+  $$
+  select net.http_post(
+    url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/cleanup-receipts',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+    ),
+    body := '{}'::jsonb
+  ) as request_id;
+  $$
+);

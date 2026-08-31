@@ -861,6 +861,80 @@ against real data).
   and `last_processed_date` advanced to `2026-07-28` correctly (only one
   occurrence, since the next yearly occurrence isn't due until 2027-07-28).
 
+## Receipt cleanup (2026-08-31)
+
+Built the same day as the recurring-expense cron, closing out the last
+piece SCOPE.md's "Supporting infra" described. Unlike
+`materialize_recurring_expenses()`, this one genuinely needs a Supabase
+**Edge Function**, not a pure SQL function — a plain `DELETE FROM
+storage.objects` only removes the metadata row, not the actual stored
+file, so real deletion has to go through the Storage API
+(`.storage.from(bucket).remove(...)`), which only runs in application
+code, not plain Postgres.
+
+- **`public.find_expired_receipts()`** (schema.sql) is the read-only half —
+  pure SQL, no deletion, just answers "what qualifies" as a table of
+  `(path, kind, expense_id)`. Two categories, both measured off
+  `storage.objects.created_at` (the file's own upload time — neither
+  `expenses` nor `recurring_expenses` stores a separate "receipt attached
+  at" timestamp): `'orphan'` (no `expenses.receipt_path` points at it,
+  uploaded >3 months ago) and `'attached'` (an expense's `receipt_path`
+  does point at it, uploaded >6 months ago — the expense survives, only
+  its `receipt_path` gets nulled and the file deleted). Same
+  revoke-from-anon/authenticated treatment as every other cron-only
+  function in this file.
+- **`supabase/functions/cleanup-receipts/index.ts`** (Deno/TypeScript,
+  version-controlled in-repo) is the Edge Function that does the actual
+  work: calls `find_expired_receipts()` via `.rpc()`, deletes every
+  candidate path in one `.storage.from('receipts').remove(...)` call, then
+  nulls `receipt_path` on the attached-but-old expenses — deliberately
+  *after* the delete succeeds, so an expense never ends up pointing at a
+  file that's already gone, or keeps a dangling reference because the
+  update step was skipped. `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` come
+  from the environment every Edge Function gets automatically — no extra
+  secret needed for this client. **Deployed via the Supabase dashboard's
+  browser code editor** ("Via Editor"), not the CLI — no `supabase/
+  config.toml` or CLI project link exists in this repo, and the dashboard
+  editor needed no local auth setup at all. If the deployed function is
+  ever hand-edited in the dashboard, this file is the one that needs
+  updating to match, not the other way around.
+- **`pg_net` extension** enabled the same way `pg_cron` was (Database ->
+  Extensions, into `pg_catalog`) — needed because a `pg_cron` job can only
+  run SQL, and calling the deployed Edge Function's URL from SQL is
+  exactly what `pg_net`'s `net.http_post` is for.
+- **The service-role key never appears in this repo.** It's the
+  `Authorization: Bearer` credential the cron job's HTTP call needs to pass
+  the function's default JWT verification (confirmed on by default at
+  deploy time — "Verify JWT with legacy secret" — and the legacy
+  `service_role` key, being a real JWT signed with the project's JWT
+  secret, satisfies it). Stored in Supabase Vault instead (Integrations ->
+  Vault -> Secrets, name `service_role_key`) via the dashboard's own "Add
+  new secret" UI — copied from Settings -> API Keys -> Legacy using its
+  **Copy button** and pasted straight into Vault's field, so the raw key
+  value never had to be typed or transcribed anywhere along the way. The
+  cron job's SQL (schema.sql) reads it at *call* time via `select
+  decrypted_secret from vault.decrypted_secrets where name =
+  'service_role_key'` — never hardcoded.
+- **Weekly, Sunday 4am UTC** — same off-peak reasoning as the recurring-
+  expense job's 8am choice, just weekly since a 3/6-month retention window
+  doesn't need daily attention.
+- **Confirmed working end to end against the live project**: manually ran
+  the exact `net.http_post` call the cron job will run, checked
+  `net._http_response` for the result — `200`, body
+  `{"orphans_deleted":0,"attached_photos_purged":0,"files_removed":0}`.
+  Zero is the *correct* answer here (the only receipt in the system at the
+  time was uploaded that same day, nowhere near either threshold) — this
+  confirms the full chain works (pg_net → Vault secret → Authorization
+  header → Edge Function → JWT verification → the RPC call), not that
+  nothing happened.
+- **One thing worth double-checking later, not verified this session**:
+  whether `.storage.from(bucket).remove(paths)` on an empty `paths` array
+  is safe to skip (the function already guards this with an `if (allPaths
+  .length > 0)` check, so it's moot in practice) — flagged only because it
+  wasn't exercised by this session's test run (zero candidates existed),
+  so the actual deletion path is unverified against real data. Worth a
+  real test once a receipt legitimately ages past 3 months.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
