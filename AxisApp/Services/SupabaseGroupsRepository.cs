@@ -45,4 +45,41 @@ public class SupabaseGroupsRepository : IGroupsRepository
             .Single()
             ?? throw new InvalidOperationException("create_group succeeded but the group could not be re-fetched.");
     }
+
+    public async Task<Group> GetByIdAsync(Guid groupId)
+    {
+        return await client.From<Group>()
+            .Filter("id", Constants.Operator.Equals, groupId.ToString())
+            .Single()
+            ?? throw new InvalidOperationException("Group not found.");
+    }
+
+    /// <summary>Same "least-assuming" Rpc call shape as CreateAsync/RedeemAsync — parameters
+    /// passed as strings even for a uuid column, since that's the one shape already confirmed
+    /// against a real build in this codebase. leave_group() returns void, so there's no response
+    /// body to parse; a thrown Postgrest exception (guard failures inside the function raise a
+    /// plain SQL exception) surfaces as-is to the caller.</summary>
+    public async Task LeaveAsync(Guid groupId)
+    {
+        await client.Rpc("leave_group", new Dictionary<string, object> { { "p_group_id", groupId.ToString() } });
+    }
+
+    public async Task TransferOwnershipAsync(Guid groupId, Guid newOwnerMemberId)
+    {
+        await client.Rpc("transfer_group_ownership", new Dictionary<string, object>
+        {
+            { "p_group_id", groupId.ToString() },
+            { "p_new_owner_member_id", newOwnerMemberId.ToString() }
+        });
+    }
+
+    /// <summary>No RPC needed — the "delete own groups" RLS policy already permits this for the
+    /// creator, and the FK cascade shape (group_members/invites cascade, payments/expenses/
+    /// recurring_payments set group_id null) already does the right thing. See schema.sql.</summary>
+    public async Task DeleteAsync(Guid groupId)
+    {
+        await client.From<Group>()
+            .Filter("id", Constants.Operator.Equals, groupId.ToString())
+            .Delete();
+    }
 }

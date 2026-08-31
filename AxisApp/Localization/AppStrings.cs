@@ -21,6 +21,7 @@ public static class AppStrings
     {
         // Common
         ["Common_Cancel"] = "Cancel",
+        ["Common_Yes"] = "Yes",
         ["Common_Save"] = "Save",
         ["Common_Add"] = "Add",
         ["Common_Create"] = "Create",
@@ -79,6 +80,17 @@ public static class AppStrings
         ["GroupDetail_OwesYou"] = "owes you",
         ["GroupDetail_YouOwe"] = "you owe",
         ["GroupDetail_Pays"] = "pays {0}",
+        ["GroupDetail_GroupOptions"] = "Group options",
+        ["GroupDetail_LeaveGroup"] = "Leave group",
+        ["GroupDetail_TransferOwnership"] = "Transfer ownership",
+        ["GroupDetail_DissolveGroup"] = "Dissolve group",
+        ["GroupDetail_LeaveGroupTitle"] = "Leave this group?",
+        ["GroupDetail_LeaveGroupConfirm"] = "You'll lose access to this group's balances and activity. This can't be undone.",
+        ["GroupDetail_DissolveGroupTitle"] = "Dissolve this group?",
+        ["GroupDetail_DissolveGroupConfirm"] = "Everyone will lose this group. Past expenses and payments stay in each person's own history, but this group can't be undone.",
+        ["GroupDetail_DissolveGroupConfirmWithBalances"] = "This group has unsettled balances — dissolving stops tracking them. Past expenses and payments stay in each person's own history, but this can't be undone.",
+        ["GroupDetail_TransferOwnershipTitle"] = "Transfer ownership to",
+        ["GroupDetail_NoTransferCandidates"] = "No one else here has an Axis account to transfer to yet.",
 
         // Add expense
         ["AddExpense_Title"] = "Add expense",
@@ -124,6 +136,7 @@ public static class AppStrings
     {
         // Common
         ["Common_Cancel"] = "Cancelar",
+        ["Common_Yes"] = "Sí",
         ["Common_Save"] = "Guardar",
         ["Common_Add"] = "Añadir",
         ["Common_Create"] = "Crear",
@@ -182,6 +195,17 @@ public static class AppStrings
         ["GroupDetail_OwesYou"] = "te debe",
         ["GroupDetail_YouOwe"] = "le debes",
         ["GroupDetail_Pays"] = "paga a {0}",
+        ["GroupDetail_GroupOptions"] = "Opciones del grupo",
+        ["GroupDetail_LeaveGroup"] = "Salir del grupo",
+        ["GroupDetail_TransferOwnership"] = "Transferir propiedad",
+        ["GroupDetail_DissolveGroup"] = "Disolver grupo",
+        ["GroupDetail_LeaveGroupTitle"] = "¿Salir de este grupo?",
+        ["GroupDetail_LeaveGroupConfirm"] = "Perderás el acceso a los saldos y la actividad de este grupo. Esto no se puede deshacer.",
+        ["GroupDetail_DissolveGroupTitle"] = "¿Disolver este grupo?",
+        ["GroupDetail_DissolveGroupConfirm"] = "Todos perderán este grupo. Los gastos y pagos pasados se conservan en el historial de cada persona, pero esto no se puede deshacer.",
+        ["GroupDetail_DissolveGroupConfirmWithBalances"] = "Este grupo tiene saldos sin liquidar — al disolverlo dejarán de rastrearse. Los gastos y pagos pasados se conservan en el historial de cada persona, pero esto no se puede deshacer.",
+        ["GroupDetail_TransferOwnershipTitle"] = "Transferir propiedad a",
+        ["GroupDetail_NoTransferCandidates"] = "Nadie más aquí tiene cuenta en Axis todavía para transferir la propiedad.",
 
         // Add expense
         ["AddExpense_Title"] = "Añadir gasto",

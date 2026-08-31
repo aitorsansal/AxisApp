@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
     xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:models="clr-namespace:AxisApp.Models"
     xmlns:local="clr-namespace:AxisApp"
     xmlns:loc="clr-namespace:AxisApp.Localization"
     x:Class="AxisApp.Pages.GroupDetailPage"
@@ -11,13 +12,14 @@
     Shell.NavBarIsVisible="False"
     Title="{Binding GroupName}">
 
+    <Grid>
     <Grid RowDefinitions="Auto,*">
 
         <controls:PageHeaderBar
             Grid.Row="0"
             HeaderTitle="{Binding GroupName}"
             ShowOverflow="True"
-            OverflowCommand="{Binding InvitePeopleCommand}" />
+            OverflowCommand="{Binding ToggleGroupOptionsMenuCommand}" />
 
         <Grid Grid.Row="1">
             <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
@@ -29,13 +31,23 @@
                             <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingM}" Right="{StaticResource SpacingM}" Bottom="88" />
                         </VerticalStackLayout.Padding>
 
-                        <!-- Regular, always-reachable entry point for InvitePeopleCommand — the
-                        header's overflow "⋮" (Grid.Column 2 above) sits under Windows' native
-                        caption buttons in windowed mode and isn't reliably clickable there. -->
-                        <Button
-                            Text="{loc:Translate GroupDetail_InvitePeople}"
-                            Command="{Binding InvitePeopleCommand}"
-                            Style="{StaticResource BtnOutlinePrimary}" />
+                        <!-- Regular, always-reachable entry points — the header's overflow "⋮"
+                        (Grid.Column 2 above, now toggling the group options menu below) sits under
+                        Windows' native caption buttons in windowed mode and isn't reliably
+                        clickable there. -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                            <Button
+                                Grid.Column="0"
+                                Text="{loc:Translate GroupDetail_InvitePeople}"
+                                Command="{Binding InvitePeopleCommand}"
+                                Style="{StaticResource BtnOutlinePrimary}" />
+                            <Button
+                                Grid.Column="1"
+                                Text="⋮"
+                                Command="{Binding ToggleGroupOptionsMenuCommand}"
+                                Style="{StaticResource BtnOutlinePrimary}"
+                                WidthRequest="48" />
+                        </Grid>
 
                         <Label
                             Text="{Binding ErrorMessage}"
@@ -179,5 +191,95 @@
                 Command="{Binding AddExpenseCommand}"
                 Style="{StaticResource FabButtonStyle}" />
         </Grid>
+    </Grid>
+
+    <!-- Scrim: tap anywhere outside the group options menu to dismiss it -->
+    <BoxView Color="Transparent" IsVisible="{Binding IsGroupOptionsMenuOpen}">
+        <BoxView.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding ToggleGroupOptionsMenuCommand}" />
+        </BoxView.GestureRecognizers>
+    </BoxView>
+
+    <Border
+        Style="{StaticResource ElevatedCard}"
+        IsVisible="{Binding IsGroupOptionsMenuOpen}"
+        HorizontalOptions="End"
+        VerticalOptions="Start"
+        Margin="0,58,16,0"
+        WidthRequest="220"
+        Padding="0">
+        <VerticalStackLayout>
+            <Label Text="{loc:Translate GroupDetail_LeaveGroup}" IsVisible="{Binding IsGroupCreator, Converter={StaticResource InverseBoolConverter}}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+                </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding LeaveGroupCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+
+            <Label Text="{loc:Translate GroupDetail_TransferOwnership}" IsVisible="{Binding IsGroupCreator}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+                </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding OpenTransferPickerCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+
+            <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" IsVisible="{Binding IsGroupCreator}" />
+            <Label Text="{loc:Translate GroupDetail_DissolveGroup}" TextColor="{StaticResource Danger}" IsVisible="{Binding IsGroupCreator}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+                </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding DissolveGroupCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+        </VerticalStackLayout>
+    </Border>
+
+    <!-- Scrim + picker for choosing who to transfer ownership to -->
+    <BoxView Color="Transparent" IsVisible="{Binding IsTransferPickerOpen}">
+        <BoxView.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding CancelTransferPickerCommand}" />
+        </BoxView.GestureRecognizers>
+    </BoxView>
+
+    <Border
+        Style="{StaticResource ElevatedCard}"
+        IsVisible="{Binding IsTransferPickerOpen}"
+        HorizontalOptions="Center"
+        VerticalOptions="Center"
+        WidthRequest="260">
+        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+            <Label Text="{loc:Translate GroupDetail_TransferOwnershipTitle}" Style="{StaticResource SectionHeaderTertiary}" Margin="0" />
+
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding TransferCandidates}" Spacing="{StaticResource SpacingXS}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="models:Member">
+                        <Border Style="{StaticResource ListItemCard}">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupDetailViewModel}}, Path=TransferOwnershipCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                            <Label Text="{Binding DisplayName}" />
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <Label
+                Text="{loc:Translate GroupDetail_NoTransferCandidates}"
+                Style="{StaticResource LabelTertiary}"
+                IsVisible="{Binding HasTransferCandidates, Converter={StaticResource InverseBoolConverter}}" />
+
+            <Button
+                Text="{loc:Translate Common_Cancel}"
+                Command="{Binding CancelTransferPickerCommand}"
+                Style="{StaticResource BtnOutlinePrimary}" />
+        </VerticalStackLayout>
+    </Border>
     </Grid>
 </ContentPage>

@@ -614,3 +614,214 @@ begin
   return v_group_id;
 end;
 $$;
+
+-- ============================================================
+-- Leave / transfer ownership / dissolve — added 2026-08-31 (see the app-side
+-- design discussion the same day). Entirely additive on top of everything
+-- above; run this block once against the already-live project.
+--
+-- group_members' only existing delete policy is "group creator can remove
+-- members" — there was no policy letting a member remove *themselves*, so
+-- leaving a group was RLS-impossible, not just missing UI. Fixed by adding a
+-- second permissive delete policy (multiple permissive policies for the same
+-- command are OR'd together in Postgres, so this doesn't touch or replace
+-- the existing one).
+--
+-- Separately: payments/expenses/recurring_payments already go to
+-- `group_id is null` (not deleted) when their group is dissolved, by design
+-- (ON DELETE SET NULL on group_id) — the ledger survives. But their SELECT
+-- policies only granted the `group_id is null` branch to `created_by`,
+-- meaning once a group dissolves, only whoever *recorded* each transaction
+-- keeps access to it — the actual payer/payee/expense-share participants
+-- (who may not be the same account) permanently lose visibility into their
+-- own financial history. New additive SELECT policies below extend that
+-- branch to any account that's an actual party to the row, not just its
+-- recorder. Unscoped rows stay update/delete-restricted to created_by only
+-- (unchanged) — deliberately read-only for everyone else once unscoped, so
+-- one ex-member can't silently edit a record other ex-members can no longer
+-- discuss in-app.
+-- ============================================================
+
+-- is_own_member_row: security definer for the same reason as
+-- is_group_member()/is_unscoped_expense_party() above — without it, the
+-- group_members DELETE policy below would query `members` directly (a plain
+-- table reference, subject to members' own RLS), and members' SELECT policy
+-- in turn queries `group_members` directly to check shared-group visibility.
+-- That's a two-table mutual reference: Postgres's RLS rewriter inlines each
+-- policy at the table reference it's currently expanding, and a cycle back
+-- to the relation already being expanded (group_members -> members ->
+-- group_members) trips "infinite recursion detected in policy for relation
+-- group_members" (42P17) even though each individual hop looks like it
+-- would terminate — hit live via leave_group()'s final delete. A security
+-- definer function's internal query bypasses RLS, so it never triggers
+-- members' policy at all, breaking the cycle at this edge.
+create or replace function public.is_own_member_row(p_member_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from members where id = p_member_id and account_id = auth.uid());
+$$;
+
+-- group_members: let a member remove their own row (leaving a group).
+create policy "members can remove themselves" on public.group_members
+  for delete using (is_own_member_row(member_id));
+
+-- payments: unscoped rows are also visible to the actual payer/payee.
+create policy "select unscoped payments you're a party to" on public.payments
+  for select using (
+    group_id is null
+    and exists (
+      select 1 from members m
+      where m.id in (payer_member_id, payee_member_id)
+        and m.account_id = auth.uid()
+    )
+  );
+
+-- recurring_payments: same shape, ready for whenever that feature ships.
+create policy "select unscoped recurring you're a party to" on public.recurring_payments
+  for select using (
+    group_id is null
+    and exists (
+      select 1 from members m
+      where m.id in (payer_member_id, payee_member_id)
+        and m.account_id = auth.uid()
+    )
+  );
+
+-- is_unscoped_expense_party: whether the current account is the payer or a
+-- share-holder on a specific unscoped (dissolved-group) expense. Has to be
+-- security definer, same reasoning as is_group_member() above — without it,
+-- expense_shares' own policy below would query expense_shares from inside
+-- its own USING clause to check "is there a share row for me on this
+-- expense", which makes Postgres re-evaluate that same policy on the
+-- sub-query and recurse infinitely (42P17 "infinite recursion detected in
+-- policy for relation expense_shares" — hit live via leave_group() reading
+-- group_balances, which sums expense_shares). A security definer function
+-- runs as the table owner, which bypasses RLS on the tables it queries
+-- internally, so this check doesn't re-trigger the calling policy.
+create or replace function public.is_unscoped_expense_party(p_expense_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from expenses e
+    where e.id = p_expense_id
+      and e.group_id is null
+      and (
+        exists (select 1 from members m where m.id = e.paid_by_member_id and m.account_id = auth.uid())
+        or exists (
+          select 1 from expense_shares es
+          join members m on m.id = es.member_id
+          where es.expense_id = e.id and m.account_id = auth.uid()
+        )
+      )
+  );
+$$;
+
+-- expenses: unscoped rows are also visible to the payer or any share-holder.
+create policy "select unscoped expenses you're a party to" on public.expenses
+  for select using (is_unscoped_expense_party(id));
+
+-- expense_shares: same party check, keyed off the parent expense.
+create policy "select unscoped shares you're a party to" on public.expense_shares
+  for select using (is_unscoped_expense_party(expense_shares.expense_id));
+
+-- leave_group: self-service leave for a non-creator member. Runs as the
+-- caller (no security definer needed) since the delete itself is already
+-- permitted by the "members can remove themselves" policy above (which
+-- routes through is_own_member_row() to avoid the group_members/members
+-- policy cycle — see that function's remarks) — the only things this
+-- function adds are the creator/balance guards, not an RLS bypass. The
+-- creator can't leave via this path (they'd orphan `created_by` on
+-- groups/group_members'-remove/the visibility fallback above) — they must
+-- transfer ownership or dissolve instead, both below.
+create or replace function public.leave_group(p_group_id uuid)
+returns void
+language plpgsql
+as $$
+declare
+  v_member_id uuid;
+  v_balance numeric;
+begin
+  if exists (select 1 from groups where id = p_group_id and created_by = auth.uid()) then
+    raise exception 'The group creator cannot leave directly — transfer ownership or dissolve the group instead';
+  end if;
+
+  select id into v_member_id
+    from members
+   where account_id = auth.uid()
+     and id in (select member_id from group_members where group_id = p_group_id)
+   limit 1;
+
+  if v_member_id is null then
+    raise exception 'You are not a member of this group';
+  end if;
+
+  select balance into v_balance
+    from group_balances
+   where group_id = p_group_id and member_id = v_member_id;
+  v_balance := coalesce(v_balance, 0);
+
+  if v_balance <> 0 then
+    raise exception 'Settle your balance in this group before leaving';
+  end if;
+
+  delete from group_members where group_id = p_group_id and member_id = v_member_id;
+end;
+$$;
+
+-- transfer_group_ownership: hands `groups.created_by` to another current,
+-- claimed (real-account) member. security definer, same reasoning as
+-- redeem_invite() — the plain "update own groups" policy has no explicit
+-- WITH CHECK, so it implicitly reuses its USING clause (created_by =
+-- auth.uid()) as the check too, which would reject the resulting row the
+-- instant created_by no longer equals the caller. Rather than juggle
+-- multi-policy OR semantics on top of that, this validates everything
+-- explicitly and bypasses RLS the same deliberate way redeem_invite() does.
+create or replace function public.transfer_group_ownership(p_group_id uuid, p_new_owner_member_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_new_owner_account uuid;
+begin
+  if not exists (select 1 from groups where id = p_group_id and created_by = auth.uid()) then
+    raise exception 'Only the current owner can transfer this group';
+  end if;
+
+  select account_id into v_new_owner_account from members where id = p_new_owner_member_id;
+
+  if v_new_owner_account is null then
+    raise exception 'Ownership can only be transferred to a member with an account';
+  end if;
+
+  if not exists (
+    select 1 from group_members
+    where group_id = p_group_id and member_id = p_new_owner_member_id
+  ) then
+    raise exception 'That member does not belong to this group';
+  end if;
+
+  update groups set created_by = v_new_owner_account where id = p_group_id;
+end;
+$$;
+
+-- Dissolve itself needs no new function: `groups`' existing "delete own
+-- groups" policy (created_by = auth.uid()) already permits it, and the FK
+-- cascade shape already does the right thing — group_members/invites are
+-- ON DELETE CASCADE (membership and pending invites vanish), payments/
+-- expenses/recurring_payments are ON DELETE SET NULL (history survives,
+-- newly readable by the visibility-widening policies above). A plain
+-- `delete from groups where id = ...` is the whole operation; any
+-- outstanding-balance warning before calling it is a client-side confirm,
+-- not a DB guard, since forcing an entire group to fully settle before its
+-- creator can walk away is a much bigger ask than the one-person case
+-- leave_group() enforces above.

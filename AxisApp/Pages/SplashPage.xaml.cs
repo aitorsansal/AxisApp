@@ -23,6 +23,17 @@ public partial class SplashPage : ContentPage
         if (started) return;
         started = true;
 
+        // Force this onto a fresh dispatcher tick before touching Shell.Current at all. Without
+        // this, when RestoreSessionAsync completes without ever truly awaiting (e.g. no persisted
+        // session, so nothing needs restoring), this whole async void method can run synchronously
+        // to completion within the same call stack as Shell's own initial "navigate to //Splash" —
+        // and GoToAsync below then reenters Shell navigation while that outer navigation hasn't
+        // finished, throwing "Pending Navigations still processing" and fail-fasting the process
+        // (0xc000027b) before anything is ever shown. Confirmed via axisapp-crash.log: identical
+        // stack every time, rooted entirely inside MauiWinUIApplication.OnLaunched with no frame of
+        // this class in it — the crash happens on the very first launch, not from a slow reaction.
+        await Task.Yield();
+
         var destination = AppConstants.Routes.Login;
         try
         {

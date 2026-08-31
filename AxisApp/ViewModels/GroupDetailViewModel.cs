@@ -50,6 +50,7 @@ public partial class ActivityItem : ObservableObject
 
 public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
 {
+    private readonly IGroupsRepository groupsRepository;
     private readonly IMembersRepository membersRepository;
     private readonly IBalancesRepository balancesRepository;
     private readonly IPaymentsRepository paymentsRepository;
@@ -64,6 +65,15 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private ObservableCollection<MemberBalanceItem> balances = [];
     [ObservableProperty] private ObservableCollection<ActivityItem> recentActivity = [];
     [ObservableProperty] private bool isBusy;
+
+    /// <summary>Whether the current account created this group — drives which of Leave/Transfer/
+    /// Dissolve show up in the group options menu (GroupDetailPage.xaml).</summary>
+    [ObservableProperty] private bool isGroupCreator;
+    [ObservableProperty] private bool hasOtherMembers;
+    [ObservableProperty] private bool isGroupOptionsMenuOpen;
+    [ObservableProperty] private bool isTransferPickerOpen;
+    [ObservableProperty] private ObservableCollection<Member> transferCandidates = [];
+    [ObservableProperty] private bool hasTransferCandidates;
 
     /// <summary>Per-device display preference, not group state — see
     /// AppConstants.Preferences.BalanceDisplayModePrefix. Set directly from the stored value in
@@ -80,12 +90,14 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     private string PreferenceKey => $"{AppConstants.Preferences.BalanceDisplayModePrefix}{groupId}";
 
     public GroupDetailViewModel(
+        IGroupsRepository groupsRepository,
         IMembersRepository membersRepository,
         IBalancesRepository balancesRepository,
         IPaymentsRepository paymentsRepository,
         IExpensesRepository expensesRepository,
         IAuthService authService)
     {
+        this.groupsRepository = groupsRepository;
         this.membersRepository = membersRepository;
         this.balancesRepository = balancesRepository;
         this.paymentsRepository = paymentsRepository;
@@ -111,14 +123,17 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
         IsBusy = true;
         try
         {
+            var loadGroup = groupsRepository.GetByIdAsync(groupId);
             var loadMembers = membersRepository.GetForGroupAsync(groupId);
             var loadPayments = paymentsRepository.GetForGroupAsync(groupId);
             var loadExpenses = expensesRepository.GetForGroupAsync(groupId);
-            await Task.WhenAll(loadMembers, loadPayments, loadExpenses);
+            await Task.WhenAll(loadGroup, loadMembers, loadPayments, loadExpenses);
 
             var members = loadMembers.Result;
             membersById = members.ToDictionary(m => m.Id);
             myMemberId = members.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)?.Id;
+            IsGroupCreator = loadGroup.Result.CreatedBy == authService.CurrentAccountId;
+            HasOtherMembers = members.Count > 1;
 
             await RefreshBalancesAsync();
 
@@ -354,4 +369,80 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
 
     [RelayCommand]
     private Task Refresh() => LoadAsync();
+
+    [RelayCommand]
+    private void ToggleGroupOptionsMenu() => IsGroupOptionsMenuOpen = !IsGroupOptionsMenuOpen;
+
+    /// <summary>Self-service leave. The confirm dialog only covers the always-true "you'll lose
+    /// access" consequence — the creator-only and nonzero-balance guards live server-side in
+    /// leave_group() (see schema.sql), so a rejection surfaces as ErrorMessage via RunSafeAsync
+    /// rather than being pre-checked here. The group options menu only offers this item to
+    /// non-creators (see GroupDetailPage.xaml) so the common creator case never even reaches it.</summary>
+    [RelayCommand]
+    private Task LeaveGroup() => RunSafeAsync(async () =>
+    {
+        IsGroupOptionsMenuOpen = false;
+        var loc = LocalizationResourceManager.Instance;
+        var confirmed = await Shell.Current.DisplayAlert(
+            loc["GroupDetail_LeaveGroupTitle"],
+            loc["GroupDetail_LeaveGroupConfirm"],
+            loc["Common_Yes"],
+            loc["Common_Cancel"]);
+        if (!confirmed) return;
+
+        await groupsRepository.LeaveAsync(groupId);
+        await Shell.Current.GoToAsync(AppConstants.Routes.Groups);
+    });
+
+    /// <summary>Opens the transfer-target picker with every current claimed (real-account) member
+    /// except the creator themselves — a phantom has no account to own the group, so it's excluded
+    /// rather than shown disabled.</summary>
+    [RelayCommand]
+    private void OpenTransferPicker()
+    {
+        IsGroupOptionsMenuOpen = false;
+        TransferCandidates = new ObservableCollection<Member>(
+            membersById.Values.Where(m => !m.IsPhantom && m.Id != myMemberId));
+        HasTransferCandidates = TransferCandidates.Count > 0;
+        IsTransferPickerOpen = true;
+    }
+
+    [RelayCommand]
+    private void CancelTransferPicker() => IsTransferPickerOpen = false;
+
+    [RelayCommand]
+    private Task TransferOwnership(Member? newOwner) => RunSafeAsync(async () =>
+    {
+        if (newOwner is null) return;
+        IsTransferPickerOpen = false;
+        await groupsRepository.TransferOwnershipAsync(groupId, newOwner.Id);
+        await LoadAsync();
+    });
+
+    /// <summary>Dissolves the group outright — the only path available to a creator, whether
+    /// they're the last member (equivalent to leaving) or there are others still in it. Warns
+    /// about outstanding balances rather than blocking on them, since forcing an entire group to
+    /// fully settle before its creator can walk away is a much bigger ask than the one-person case
+    /// LeaveGroup enforces server-side.</summary>
+    [RelayCommand]
+    private Task DissolveGroup() => RunSafeAsync(async () =>
+    {
+        IsGroupOptionsMenuOpen = false;
+        var loc = LocalizationResourceManager.Instance;
+        var groupBalances = await balancesRepository.GetForGroupAsync(groupId);
+        var hasOutstanding = groupBalances.Any(b => b.Balance != 0);
+        var message = hasOutstanding
+            ? loc["GroupDetail_DissolveGroupConfirmWithBalances"]
+            : loc["GroupDetail_DissolveGroupConfirm"];
+
+        var confirmed = await Shell.Current.DisplayAlert(
+            loc["GroupDetail_DissolveGroupTitle"],
+            message,
+            loc["Common_Yes"],
+            loc["Common_Cancel"]);
+        if (!confirmed) return;
+
+        await groupsRepository.DeleteAsync(groupId);
+        await Shell.Current.GoToAsync(AppConstants.Routes.Groups);
+    });
 }
