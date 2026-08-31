@@ -45,7 +45,8 @@ public static class AppStrings
         ["Groups_YourGroups"] = "Your groups",
         ["Groups_JoinWithCode"] = "Join with code",
         ["Groups_EmptyState"] = "No groups yet — tap New group to start one.",
-        ["Groups_Profile"] = "Profile",
+        ["Groups_ChangePhoto"] = "Change photo",
+        ["Groups_RemovePhoto"] = "Remove photo",
         ["Groups_LogOut"] = "Log out",
         ["Groups_Language"] = "Language",
         ["Groups_LanguageSystem"] = "System",
@@ -138,8 +139,6 @@ public static class AppStrings
         ["Members_Remove"] = "Remove",
         ["Members_RemoveConfirmTitle"] = "Remove {0}?",
         ["Members_RemoveConfirmMessage"] = "They'll lose access to this group. Past expenses and payments stay in their history. This can't be undone.",
-        ["Members_SetAliasTitle"] = "Rename {0}",
-        ["Members_SetAliasMessage"] = "Only you will see this name.",
     };
 
     private static readonly Dictionary<string, string> Es = new()
@@ -170,7 +169,8 @@ public static class AppStrings
         ["Groups_YourGroups"] = "Tus grupos",
         ["Groups_JoinWithCode"] = "Unirse con código",
         ["Groups_EmptyState"] = "Aún no tienes grupos — toca Nuevo grupo para crear uno.",
-        ["Groups_Profile"] = "Perfil",
+        ["Groups_ChangePhoto"] = "Cambiar foto",
+        ["Groups_RemovePhoto"] = "Eliminar foto",
         ["Groups_LogOut"] = "Cerrar sesión",
         ["Groups_Language"] = "Idioma",
         ["Groups_LanguageSystem"] = "Sistema",
@@ -263,8 +263,6 @@ public static class AppStrings
         ["Members_Remove"] = "Eliminar",
         ["Members_RemoveConfirmTitle"] = "¿Eliminar a {0}?",
         ["Members_RemoveConfirmMessage"] = "Perderá el acceso a este grupo. Los gastos y pagos pasados se conservan en su historial. Esto no se puede deshacer.",
-        ["Members_SetAliasTitle"] = "Renombrar a {0}",
-        ["Members_SetAliasMessage"] = "Solo tú verás este nombre.",
     };
 
     private static readonly Dictionary<string, Dictionary<string, string>> Tables = new()

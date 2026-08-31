@@ -29,10 +29,13 @@ public partial class MembersViewModel : BaseViewModel, IQueryAttributable
     private readonly IAuthService authService;
 
     private Guid groupId;
+    private MemberRowItem? renamingItem;
 
     [ObservableProperty] private string groupName = "";
     [ObservableProperty] private ObservableCollection<MemberRowItem> members = [];
     [ObservableProperty] private bool isBusy;
+    [ObservableProperty] private bool isRenameOverlayOpen;
+    [ObservableProperty] private string renameInput = "";
 
     public MembersViewModel(
         IMembersRepository membersRepository,
@@ -93,32 +96,45 @@ public partial class MembersViewModel : BaseViewModel, IQueryAttributable
     private Task InvitePeople() => RunSafeAsync(() =>
         Shell.Current.GoToAsync($"{AppConstants.Routes.JoinGroup}?groupId={groupId}&groupName={Uri.EscapeDataString(GroupName)}"));
 
-    /// <summary>Prompts for a private, per-account nickname (Services/MemberDisplay.cs) — always
-    /// keyed off the member's real DisplayName in the title so it's clear who's being renamed even
-    /// when an alias is already set. Submitting the real name (or clearing the field) resets to no
-    /// alias rather than storing a pointless override; cancelling the prompt (null result) is a
-    /// no-op.</summary>
+    /// <summary>Opens an inline rename overlay (MembersPage.xaml) rather than
+    /// Shell.Current.DisplayPromptAsync — that API is a known WinUI crash on Windows (fail-fast in
+    /// Microsoft.UI.Xaml.dll, microsoft/microsoft-ui-xaml#10897; see GroupsViewModel.NewGroup's
+    /// remarks, which is why NewGroupPage exists as a dedicated screen instead of a prompt too).
+    /// DisplayAlert (used elsewhere in this ViewModel and throughout GroupDetailViewModel) is a
+    /// different ContentDialog configuration and has been confirmed safe repeatedly this session —
+    /// only the text-input prompt variant is the problem.</summary>
     [RelayCommand]
-    private Task SetAlias(MemberRowItem? item) => RunSafeAsync(async () =>
+    private void OpenRenameOverlay(MemberRowItem? item)
     {
         if (item is null) return;
+        renamingItem = item;
+        RenameInput = item.Name;
+        IsRenameOverlayOpen = true;
+    }
 
-        var loc = LocalizationResourceManager.Instance;
-        var input = await Shell.Current.DisplayPromptAsync(
-            loc.Format("Members_SetAliasTitle", item.Member.DisplayName),
-            loc["Members_SetAliasMessage"],
-            loc["Common_Save"],
-            loc["Common_Cancel"],
-            initialValue: item.Name);
+    [RelayCommand]
+    private void CancelRenameOverlay()
+    {
+        renamingItem = null;
+        IsRenameOverlayOpen = false;
+    }
 
-        if (input is null) return;
+    /// <summary>Submitting the member's real DisplayName (or an empty field) resets to no alias
+    /// rather than storing a pointless override — same behavior the old DisplayPromptAsync version
+    /// had.</summary>
+    [RelayCommand]
+    private Task ConfirmRename() => RunSafeAsync(async () =>
+    {
+        if (renamingItem is not { } item) return;
+        IsRenameOverlayOpen = false;
 
-        var trimmed = input.Trim();
+        var trimmed = RenameInput.Trim();
         if (string.IsNullOrEmpty(trimmed) || trimmed == item.Member.DisplayName)
             await aliasesRepository.ClearAliasAsync(item.Member.Id);
         else
             await aliasesRepository.SetAliasAsync(item.Member.Id, trimmed);
 
+        renamingItem = null;
         await LoadAsync();
     });
 

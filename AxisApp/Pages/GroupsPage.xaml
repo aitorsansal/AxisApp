@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
     xmlns:loc="clr-namespace:AxisApp.Localization"
     x:Class="AxisApp.Pages.GroupsPage"
     x:DataType="vm:GroupsViewModel"
@@ -33,9 +34,11 @@
                 <Border.GestureRecognizers>
                     <TapGestureRecognizer Command="{Binding ToggleAccountMenuCommand}" />
                 </Border.GestureRecognizers>
-                <Border Style="{StaticResource AvatarCirclePrimary}">
-                    <Label Text="{Binding UserInitials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeCaption}" />
-                </Border>
+                <controls:ProfileCircle
+                    ImageUrl="{Binding MyAvatarUrl}"
+                    Initials="{Binding UserInitials}"
+                    Kind="Primary"
+                    Diameter="{StaticResource AvatarSizeM}" />
             </Border>
         </Grid>
 
@@ -184,12 +187,21 @@
                 </Label.Padding>
             </Label>
             <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
-            <!-- Coming-soon placeholder: no Profile page exists yet, so this stays visually
-            and functionally disabled (no gesture recognizer) until one is built. -->
-            <Label Text="{loc:Translate Groups_Profile}" Opacity="0.5">
+            <Label Text="{loc:Translate Groups_ChangePhoto}">
                 <Label.Padding>
                     <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
                 </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ChangePhotoCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+            <Label Text="{loc:Translate Groups_RemovePhoto}" TextColor="{StaticResource Danger}" IsVisible="{Binding MyAvatarUrl, Converter={StaticResource StringNotEmptyConverter}}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+                </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding RemovePhotoCommand}" />
+                </Label.GestureRecognizers>
             </Label>
 
             <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />

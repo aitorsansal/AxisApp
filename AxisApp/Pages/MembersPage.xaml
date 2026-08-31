@@ -10,6 +10,7 @@
     Shell.NavBarIsVisible="False"
     Title="{Binding GroupName}">
 
+    <Grid>
     <Grid RowDefinitions="Auto,*">
 
         <controls:PageHeaderBar Grid.Row="0" HeaderTitle="{Binding GroupName}" />
@@ -70,7 +71,7 @@
                                             VerticalOptions="Center">
                                             <Border.GestureRecognizers>
                                                 <TapGestureRecognizer
-                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MembersViewModel}}, Path=SetAliasCommand}"
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MembersViewModel}}, Path=OpenRenameOverlayCommand}"
                                                     CommandParameter="{Binding .}" />
                                             </Border.GestureRecognizers>
                                             <Label Text="&#9998;" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{StaticResource TextTertiary}" />
@@ -96,5 +97,40 @@
                 </VerticalStackLayout>
             </ScrollView>
         </RefreshView>
+    </Grid>
+
+    <!-- Inline rename overlay — not Shell.Current.DisplayPromptAsync, which fail-fasts on Windows
+    (see MembersViewModel.OpenRenameOverlay's remarks). Same scrim+card pattern as GroupDetailPage's
+    transfer-ownership picker. -->
+    <BoxView Color="Transparent" IsVisible="{Binding IsRenameOverlayOpen}">
+        <BoxView.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding CancelRenameOverlayCommand}" />
+        </BoxView.GestureRecognizers>
+    </BoxView>
+
+    <Border
+        Style="{StaticResource ElevatedCard}"
+        IsVisible="{Binding IsRenameOverlayOpen}"
+        HorizontalOptions="Center"
+        VerticalOptions="Center"
+        WidthRequest="280">
+        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+            <Border Style="{StaticResource InputBorderStyle}">
+                <Entry Text="{Binding RenameInput}" />
+            </Border>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource SpacingS}">
+                <Button
+                    Grid.Column="0"
+                    Text="{loc:Translate Common_Cancel}"
+                    Command="{Binding CancelRenameOverlayCommand}"
+                    Style="{StaticResource BtnOutlinePrimary}" />
+                <Button
+                    Grid.Column="1"
+                    Text="{loc:Translate Common_Save}"
+                    Command="{Binding ConfirmRenameCommand}"
+                    Style="{StaticResource BtnPrimaryStyle}" />
+            </Grid>
+        </VerticalStackLayout>
+    </Border>
     </Grid>
 </ContentPage>

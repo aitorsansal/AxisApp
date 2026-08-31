@@ -48,7 +48,8 @@ Login → Groups (list) → Group detail (balances + recent activity for that gr
 repositories — see `CLAUDE.md`'s "Current state" for the specifics
 (edit-expense flow, the two bugs found while wiring it up, and the
 2026-08-31 additions: leave/transfer-ownership/dissolve a group, viewing a
-group's members, and removing a phantom). Built from a locked design handout
+group's members, removing a phantom, per-account member aliases, and avatar
+photos). Built from a locked design handout
 generated via Claude Design; that handout isn't checked into the repo, so if
 it's needed again (new screens, revisiting a layout decision) it'll need
 regenerating — the prompt used is reconstructable from this doc's token

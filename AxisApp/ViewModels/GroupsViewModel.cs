@@ -4,6 +4,7 @@ using AxisApp.Models;
 using AxisApp.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Maui.Media;
 
 namespace AxisApp.ViewModels;
 
@@ -27,13 +28,17 @@ public partial class GroupsViewModel : BaseViewModel
     private readonly IGroupsRepository groupsRepository;
     private readonly IMembersRepository membersRepository;
     private readonly IBalancesRepository balancesRepository;
+    private readonly IAvatarsRepository avatarsRepository;
     private readonly IAuthService authService;
+
+    private Member? myMember;
 
     [ObservableProperty] private ObservableCollection<GroupListItem> groups = [];
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private bool isEmpty;
     [ObservableProperty] private string userInitials = "";
     [ObservableProperty] private string userEmail = "";
+    [ObservableProperty] private string? myAvatarUrl;
     [ObservableProperty] private bool isAccountMenuOpen;
     [ObservableProperty] private string selectedLanguageOverride;
 
@@ -41,11 +46,13 @@ public partial class GroupsViewModel : BaseViewModel
         IGroupsRepository groupsRepository,
         IMembersRepository membersRepository,
         IBalancesRepository balancesRepository,
+        IAvatarsRepository avatarsRepository,
         IAuthService authService)
     {
         this.groupsRepository = groupsRepository;
         this.membersRepository = membersRepository;
         this.balancesRepository = balancesRepository;
+        this.avatarsRepository = avatarsRepository;
         this.authService = authService;
 
         UserInitials = Initials(authService.CurrentEmail ?? "?");
@@ -73,7 +80,11 @@ public partial class GroupsViewModel : BaseViewModel
         {
             var loadGroups = groupsRepository.GetMyGroupsAsync();
             var loadBalances = balancesRepository.GetMyBalancesAsync();
-            await Task.WhenAll(loadGroups, loadBalances);
+            var loadMyMember = membersRepository.GetMyMemberAsync();
+            await Task.WhenAll(loadGroups, loadBalances, loadMyMember);
+
+            myMember = loadMyMember.Result;
+            MyAvatarUrl = myMember is null ? null : MemberDisplay.AvatarUrl(myMember);
 
             var balancesByGroup = loadBalances.Result.ToDictionary(b => b.GroupId, b => b.Balance);
 
@@ -150,11 +161,39 @@ public partial class GroupsViewModel : BaseViewModel
     [RelayCommand]
     private void ToggleAccountMenu() => IsAccountMenuOpen = !IsAccountMenuOpen;
 
-    /// <summary>Real profile content (name/photo/whatever) isn't designed yet — the menu still
-    /// shows the row so the shape matches the eventual account menu, it just doesn't navigate
-    /// anywhere yet. Revisit once there's an actual Profile screen.</summary>
+    /// <summary>The first real thing the account menu does beyond language/logout — picks a photo,
+    /// resizes/encodes it client-side (Services/ImageResizer.cs), and uploads it via
+    /// IAvatarsRepository. Needs myMember to exist, which it always will once someone's created or
+    /// joined a group (create_group()/redeem_invite() both make a Member row for the caller) — a
+    /// brand-new account on this very first screen with zero groups is the one edge case where it
+    /// wouldn't yet, so this silently no-ops rather than erroring in that narrow window.</summary>
     [RelayCommand]
-    private void OpenProfile() => IsAccountMenuOpen = false;
+    private Task ChangePhoto() => RunSafeAsync(async () =>
+    {
+        IsAccountMenuOpen = false;
+        if (myMember is null) return;
+
+        var photo = await MediaPicker.Default.PickPhotoAsync();
+        if (photo is null) return;
+
+        await using var stream = await photo.OpenReadAsync();
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory);
+
+        var webp = ImageResizer.ToAvatarWebp(memory.ToArray());
+        myMember = await avatarsRepository.SetAvatarAsync(myMember, webp);
+        MyAvatarUrl = MemberDisplay.AvatarUrl(myMember);
+    });
+
+    [RelayCommand]
+    private Task RemovePhoto() => RunSafeAsync(async () =>
+    {
+        IsAccountMenuOpen = false;
+        if (myMember is null) return;
+
+        myMember = await avatarsRepository.RemoveAvatarAsync(myMember);
+        MyAvatarUrl = null;
+    });
 
     [RelayCommand]
     private Task Logout() => RunSafeAsync(async () =>

@@ -43,6 +43,25 @@ public class SupabaseMembersRepository : IMembersRepository
             .Filter("id", Constants.Operator.Equals, memberId.ToString())
             .Single();
 
+    /// <summary>Ordered by created_at so this is deterministic even if the account somehow ended
+    /// up with more than one members row — Postgres gives no row-order guarantee at all without an
+    /// explicit ORDER BY, so an unordered .FirstOrDefault() here could return a different row
+    /// across different sessions/query plans, which would explain something like "my avatar shows
+    /// right after uploading it but not after logging back in" if a stray duplicate row (missing
+    /// the avatar) got picked on the second query. This doesn't fix duplicate rows themselves if
+    /// they exist — only makes the symptom stable — see if there's actually more than one row for
+    /// this account in the members table.</summary>
+    public async Task<Member?> GetMyMemberAsync()
+    {
+        var accountId = authService.RequireAccountId();
+        var result = await client.From<Member>()
+            .Filter("account_id", Constants.Operator.Equals, accountId.ToString())
+            .Order("created_at", Constants.Ordering.Ascending)
+            .Get();
+
+        return result.Models.FirstOrDefault();
+    }
+
     public async Task<Member> AddPhantomAsync(string displayName)
     {
         var member = new Member

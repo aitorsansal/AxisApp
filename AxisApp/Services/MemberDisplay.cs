@@ -20,9 +20,13 @@ public static class MemberDisplay
         return parts.Length == 0 ? "?" : string.Concat(parts.Take(2).Select(w => char.ToUpperInvariant(w[0])));
     }
 
-    /// <summary>Always null for now — members.avatar_path is reserved but nothing populates or
-    /// resolves it to a real URL yet. See schema.sql's "Member aliases + reserved avatar column"
-    /// remarks. ProfileCircle already renders this correctly (falls back to Initials) so nothing
-    /// else needs to change once Storage upload exists — just this one method.</summary>
-    public static string? AvatarUrl(Member member) => null;
+    /// <summary>Phantoms never have an avatar (see schema.sql's "Avatar photos" remarks — enforced
+    /// at the database level too, not just here). For a claimed member with one set, the URL is a
+    /// plain deterministic string: the `avatars` bucket is public, so this needs no live
+    /// Supabase.Client/Storage call the way a private bucket's signed URL would — same reasoning
+    /// AppConstants.Links.BuildInviteUrl already uses for a different fixed-host URL.</summary>
+    public static string? AvatarUrl(Member member) =>
+        member.IsPhantom || member.AvatarPath is null
+            ? null
+            : $"{AxisApp.SupabaseConfig.Url}/storage/v1/object/public/avatars/{member.AvatarPath}";
 }

@@ -916,3 +916,57 @@ create policy "manage your own aliases" on public.member_aliases
 -- already has a real (if always-null-for-now) field to resolve once that
 -- follow-up lands, instead of needing a second migration later.
 alter table public.members add column avatar_path text;
+
+-- ============================================================
+-- Avatar photos — added 2026-08-31, following up on the reserved
+-- members.avatar_path column above. client.Storage's API shape (Upload/
+-- GetPublicUrl/Remove) is now confirmed against a real build of the
+-- installed Supabase 1.6.0 package (reflection probe against
+-- Supabase.Storage 2.7.0, not docs) — see the app-side design discussion.
+--
+-- Deliberately public bucket, unlike the private `receipts` bucket planned
+-- in SCOPE.md: an avatar is low-sensitivity (not a financial record), and a
+-- public bucket means GetPublicUrl is a pure deterministic string build with
+-- no signed-URL expiry/refresh plumbing — MemberDisplay.AvatarUrl stays a
+-- plain sync method. Path is `{member_id}/{new guid}.webp` per upload
+-- (never overwritten in place) specifically so changing a photo gets a new
+-- URL — an overwritten same-path file would leave stale copies in any
+-- client-side image cache showing the old photo forever.
+--
+-- Phantoms deliberately get NO avatar support at all, not just
+-- creator-restricted: a profile picture is self-presentation, and a phantom
+-- has no way to see, object to, or remove whatever anyone else uploads "for"
+-- it. This is enforced twice: the storage policy below only matches a
+-- claimed member's own account (account_id is null for every phantom, so
+-- they're excluded automatically, no extra check needed), and the check
+-- constraint on members makes it a real database invariant rather than
+-- trusting every future code path to respect it — members' own "update
+-- members you created or claim yourself" policy would otherwise let a
+-- phantom's creator set avatar_path directly, bypassing Storage entirely.
+insert into storage.buckets (id, name, public) values ('avatars', 'avatars', true);
+
+create policy "anyone can view avatars" on storage.objects
+  for select using (bucket_id = 'avatars');
+
+create policy "manage your own avatar" on storage.objects
+  for insert with check (
+    bucket_id = 'avatars'
+    and exists (
+      select 1 from members m
+      where m.account_id = auth.uid()
+        and m.id::text = (storage.foldername(name))[1]
+    )
+  );
+
+create policy "delete your own avatar" on storage.objects
+  for delete using (
+    bucket_id = 'avatars'
+    and exists (
+      select 1 from members m
+      where m.account_id = auth.uid()
+        and m.id::text = (storage.foldername(name))[1]
+    )
+  );
+
+alter table public.members add constraint avatar_requires_account
+  check (avatar_path is null or account_id is not null);

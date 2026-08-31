@@ -531,6 +531,128 @@ via Add Expense's participant picker — there was no members list. Added:
 Confirmed working end to end, including a non-owner account successfully
 removing a phantom — validating the "any member" permission choice above.
 
+## Member aliases and the ProfileCircle control (2026-08-31)
+
+A private, per-account nickname override — e.g. seeing "Dave" instead of
+"David Kim" — with a reusable avatar control built alongside it in
+anticipation of profile photos (see "Avatar photos" below, added the same
+day once this landed).
+
+- **`member_aliases(owner_id, member_id, alias)`**, RLS scoped to
+  `owner_id = auth.uid()` only (same `for all using/with check` shape as
+  `device_tokens`) — fully private, no other account ever sees your
+  aliases. Keyed off `member_id`, not an account id, specifically so a
+  phantom (no account at all) can be aliased exactly like a claimed member.
+- **`Services/MemberDisplay.cs`** is the one place resolving a member's
+  displayed `Name`/`Initials`/`AvatarUrl` — alias-if-set-else-DisplayName,
+  initials derived from that resolved name, image-if-set-else-null. Every
+  screen that used to read `Member.DisplayName` directly (balances, recent
+  activity, the members list, the expense split/payer pickers) goes through
+  this instead, replacing several near-identical private `Initials(string)`
+  helpers that existed per-ViewModel before.
+- **`Controls/ProfileCircle`** (mirrors `PageHeaderBar`'s plain-bindable-
+  property pattern): `ImageUrl`/`Initials`/`Kind` (Default/Primary/Phantom,
+  picks the `AvatarCircle*` style variant internally)/`Diameter`. Image is a
+  later sibling than the initials `Label` in the same `Grid` cell, so when
+  it's visible it simply paints over the fallback rather than needing a
+  second "hide the label" binding.
+- **Rename UI**: a pencil icon on `MembersPage` rows opens an inline
+  overlay (`Entry` + Save/Cancel in a scrim'd `Border` card, same shape as
+  `GroupDetailPage`'s transfer-ownership picker) — **not**
+  `Shell.Current.DisplayPromptAsync`, which was tried first and is a known
+  WinUI crash on Windows (fail-fast in `Microsoft.UI.Xaml.dll`,
+  microsoft/microsoft-ui-xaml#10897 — the exact reason `GroupsViewModel
+  .NewGroup` already routes to a dedicated page instead of a prompt, a
+  precedent missed when this was first built). `DisplayAlert` (used
+  elsewhere in both this ViewModel and `GroupDetailViewModel`) is a
+  different ContentDialog configuration and has been confirmed safe
+  repeatedly — only the text-input prompt variant is the problem.
+- **Real bug hit live**: creating an alias threw `new row violates row-level
+  security policy for table "member_aliases"` even though `OwnerId` was set
+  correctly in code. Root cause: `MemberAlias.OwnerId`'s `[PrimaryKey]`
+  attribute defaulted to `shouldInsert: false` (Postgrest's default for a
+  primary key, since PKs are normally auto-generated) — `owner_id` has no
+  DB default, so it was silently dropped from the insert payload, landing as
+  `null` and failing the `owner_id = auth.uid()` check. Exact same footgun
+  already documented on `GroupMember.GroupId`; fixed the same way
+  (`shouldInsert: true`).
+
+## Avatar photos (2026-08-31)
+
+Built the same day, once `MemberDisplay`/`ProfileCircle` above existed to
+receive it — a profile picture per **claimed** member, deliberately **not**
+available to phantoms at all (not just creator-restricted): a picture is
+self-presentation, and a phantom has no way to see, object to, or remove
+whatever anyone else uploads "for" it.
+
+- **`avatars` Storage bucket, public** (unlike the private `receipts`
+  bucket SCOPE.md already plans) — an avatar is low-sensitivity, and public
+  means `MemberDisplay.AvatarUrl` stays the plain synchronous string-builder
+  it already was, instead of needing signed-URL expiry/refresh plumbing
+  each of the many places it's rendered. `client.Storage`'s API shape
+  (`.From(bucket).Upload/GetPublicUrl/Remove`) was confirmed against a real
+  build via a reflection probe of the installed `Supabase.Storage 2.7.0`
+  package (not docs) before writing any of this — see `IAvatarsRepository`.
+- **Path is `{member_id}/{new guid}.webp` per upload, never overwritten in
+  place** — an overwritten same-path file would leave stale copies in any
+  client-side image cache showing the old photo forever; a new path per
+  upload gets a genuinely new URL instead. `SetAvatarAsync` uploads the new
+  file, points `members.avatar_path` at it, then best-effort deletes
+  whatever the previous file was (a leftover orphan if that delete fails is
+  harmless, same "cleanup isn't critical" bucket SCOPE.md already put
+  receipts in).
+- **Phantom exclusion enforced twice**: the storage insert/delete policies
+  only match a claimed member's own account (`account_id is null` for every
+  phantom, so they're excluded automatically with no extra check), and a
+  `members` check constraint (`avatar_path is null or account_id is not
+  null`) makes it a real database invariant — needed because `members`'
+  existing update policy (`created_by = auth.uid() or account_id =
+  auth.uid()`) would otherwise let a phantom's *creator* set `avatar_path`
+  directly, bypassing Storage entirely.
+- **`Services/ImageResizer.cs`** (SkiaSharp `4.151.1` — a major-version
+  jump from the old well-known 2.88.x line, confirmed compatible with
+  `net10.0` and WebP encoding confirmed via an actual resize+encode round
+  trip before adding it) resizes to `maxDimension` (256px — see below) and
+  encodes WebP client-side before every upload, so output size is bounded
+  by these settings regardless of the original photo's size; no separate
+  upload-size validation needed.
+- **Sizing tuned from real uploads**: started at 512px, but the largest an
+  avatar ever actually renders in this app is `AvatarSizeL` (44px, see
+  `Tokens.xaml`) — even at 3x display density that's ~132px of real pixels,
+  so 512 was roughly 4x more resolution than anything would ever show.
+  Dropped to 256px once real uploads (7-18KB at 512px) confirmed there was
+  no reason to keep that headroom for something rendered this small and
+  shown this often (every balance/activity/member row, unlike a receipt
+  opened rarely).
+- **"Change photo"/"Remove photo"** replace `GroupsPage`'s account-menu
+  "Profile" placeholder (previously a disabled no-op — the first real thing
+  that menu does beyond language/logout) — `MediaPicker.Default
+  .PickPhotoAsync()` (ships with the MAUI SDK, no new package needed) picks
+  the photo, `ImageResizer` processes it, `IAvatarsRepository` uploads it.
+  New `IMembersRepository.GetMyMemberAsync()` finds the current account's
+  one member row with no group context needed (a claimed account has
+  exactly one, reused across every group — see "members vs. accounts"
+  above).
+- **Real bug hit live**: right after uploading, the new photo showed
+  correctly everywhere; after a full logout/login, `GroupsPage`'s own
+  avatar reverted to initials while `MembersPage` still showed it correctly
+  for the same account. Root cause: `GetMyMemberAsync()` filtered by
+  `account_id` with no `ORDER BY` before `.FirstOrDefault()` — Postgres
+  gives no row-order guarantee at all without one, so if the account ever
+  ended up with more than one `members` row (plausible residue from this
+  project's own testing churn, not something this feature introduced),
+  which row came back could vary across sessions/query plans.
+  `GetForGroupAsync` never had this ambiguity, since it scopes by
+  `group_members.group_id` to the specific row actually in that group.
+  Fixed by ordering `GetMyMemberAsync()` by `created_at` — makes the
+  symptom deterministic, but doesn't itself resolve a duplicate row if one
+  actually exists; worth checking the live `members` table for that
+  specifically if this account's avatar ever looks wrong again.
+
+Confirmed working end to end after these fixes: upload, removal, and
+cross-account visibility (a second account viewing the same group's
+members list) all verified against the live project.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
@@ -640,10 +762,17 @@ static site, so it's easy to change one side and forget the other:
 | `group_members` | Which members belong to which groups. |
 | `payments` | A single payment between two members, optionally scoped to a group. |
 | `recurring_payments` | Template for periodic auto-generated payments. |
-| `categories` | User-defined payment categories. |
 | `invites` | A redeemable token to join a group, or to claim a specific phantom member. |
 | `expenses` / `expense_shares` | N-way split expenses, separate from the pairwise `payments` table. |
 | `device_tokens` | Per-account push tokens for the notification feature. |
+| `member_aliases` | Private, per-account nickname override for how a member is displayed. |
+
+(No `categories` table — removed 2026-08-28; see schema.sql's remarks. Categories
+are now a small fixed list of keys in `AppConstants.Categories`, localized
+client-side, not stored data.)
+
+Also a public `avatars` Storage bucket (`storage.buckets`/`storage.objects`,
+not `public.*`) — see "Avatar photos" above for the bucket/policy shape.
 
 Read-only views (no primary key, `security_invoker = true` so they enforce
 RLS as the querying user, never inserted/updated/deleted):
@@ -682,7 +811,8 @@ uniformly.
 | `Microsoft.Maui.Controls` | 10.0.10 | MAUI runtime |
 | `CommunityToolkit.Maui` | 13.0.0 | UI controls & behaviors |
 | `CommunityToolkit.Mvvm` | 8.4.0 | MVVM source generators |
-| `Supabase` | 1.6.0 | Supabase client (Auth + Postgrest + Realtime) |
+| `Supabase` | 1.6.0 | Supabase client (Auth + Postgrest + Realtime + Storage) |
+| `SkiaSharp` | 4.151.1 | Client-side image resize/WebP encode for avatar uploads |
 
 Be skeptical of assuming an SDK's API surface without checking a real local
 build — the Models' namespace was briefly `Postgrest.*` instead of the

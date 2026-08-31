@@ -7,6 +7,12 @@ public interface IMembersRepository
     Task<List<Member>> GetForGroupAsync(Guid groupId);
     Task<Member?> GetByIdAsync(Guid memberId);
 
+    /// <summary>The current account's own member row — a claimed account has exactly one, reused
+    /// across every group it belongs to (see the members-vs-accounts design note in CLAUDE.md), so
+    /// there's no group context needed to find it. Null if the account has never joined/created a
+    /// group yet.</summary>
+    Task<Member?> GetMyMemberAsync();
+
     /// <summary>Adds a phantom member (no linked account yet) created by the current user.</summary>
     Task<Member> AddPhantomAsync(string displayName);
 
