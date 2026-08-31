@@ -825,3 +825,59 @@ $$;
 -- not a DB guard, since forcing an entire group to fully settle before its
 -- creator can walk away is a much bigger ask than the one-person case
 -- leave_group() enforces above.
+
+-- ============================================================
+-- remove_group_member — added 2026-08-31, alongside the Members page (see
+-- the app-side design discussion the same day). Lets any current group
+-- member remove a phantom from the group — deliberately not restricted to
+-- the creator, mirroring "group members can add members" above (adding a
+-- phantom was already widened past creator-only for the Link flow; leaving
+-- removal creator-only while anyone can add would be an odd asymmetry).
+-- security definer for the same recursion-avoidance reason as leave_group()
+-- and transfer_group_ownership() — running as invoker here would combine
+-- group_members/members references in one function body the same way
+-- leave_group() originally risked, and this function's checks (phantom-only,
+-- balance-zero) are explicit business rules anyway, not something RLS alone
+-- expresses. A claimed member can only ever remove themselves (LeaveGroup),
+-- never be removed by someone else's action — same "a real account joins by
+-- its own action, never someone else's" principle CLAUDE.md documents for
+-- adding members.
+create or replace function public.remove_group_member(p_group_id uuid, p_member_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_target_account uuid;
+  v_balance numeric;
+begin
+  if not is_group_member(p_group_id) then
+    raise exception 'You are not a member of this group';
+  end if;
+
+  if not exists (
+    select 1 from group_members
+    where group_id = p_group_id and member_id = p_member_id
+  ) then
+    raise exception 'That member does not belong to this group';
+  end if;
+
+  select account_id into v_target_account from members where id = p_member_id;
+
+  if v_target_account is not null then
+    raise exception 'Only a phantom member can be removed this way — a real account must leave on its own';
+  end if;
+
+  select balance into v_balance
+    from group_balances
+   where group_id = p_group_id and member_id = p_member_id;
+  v_balance := coalesce(v_balance, 0);
+
+  if v_balance <> 0 then
+    raise exception 'Settle this member''s balance before removing them';
+  end if;
+
+  delete from group_members where group_id = p_group_id and member_id = p_member_id;
+end;
+$$;

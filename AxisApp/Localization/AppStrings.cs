@@ -81,6 +81,7 @@ public static class AppStrings
         ["GroupDetail_YouOwe"] = "you owe",
         ["GroupDetail_Pays"] = "pays {0}",
         ["GroupDetail_GroupOptions"] = "Group options",
+        ["GroupDetail_ViewMembers"] = "View members",
         ["GroupDetail_LeaveGroup"] = "Leave group",
         ["GroupDetail_TransferOwnership"] = "Transfer ownership",
         ["GroupDetail_DissolveGroup"] = "Dissolve group",
@@ -130,6 +131,13 @@ public static class AppStrings
         ["JoinGroup_Joined"] = "Joined group",
         ["JoinGroup_ShareText"] = "Join my Axis group \"{0}\": {1}",
         ["JoinGroup_ShareTitle"] = "Invite to Axis",
+
+        // Members
+        ["Members_SectionHeader"] = "Members",
+        ["Members_You"] = "You",
+        ["Members_Remove"] = "Remove",
+        ["Members_RemoveConfirmTitle"] = "Remove {0}?",
+        ["Members_RemoveConfirmMessage"] = "They'll lose access to this group. Past expenses and payments stay in their history. This can't be undone.",
     };
 
     private static readonly Dictionary<string, string> Es = new()
@@ -196,6 +204,7 @@ public static class AppStrings
         ["GroupDetail_YouOwe"] = "le debes",
         ["GroupDetail_Pays"] = "paga a {0}",
         ["GroupDetail_GroupOptions"] = "Opciones del grupo",
+        ["GroupDetail_ViewMembers"] = "Ver miembros",
         ["GroupDetail_LeaveGroup"] = "Salir del grupo",
         ["GroupDetail_TransferOwnership"] = "Transferir propiedad",
         ["GroupDetail_DissolveGroup"] = "Disolver grupo",
@@ -245,6 +254,13 @@ public static class AppStrings
         ["JoinGroup_Joined"] = "Te has unido al grupo",
         ["JoinGroup_ShareText"] = "Únete a mi grupo de Axis \"{0}\": {1}",
         ["JoinGroup_ShareTitle"] = "Invitación a Axis",
+
+        // Members
+        ["Members_SectionHeader"] = "Miembros",
+        ["Members_You"] = "Tú",
+        ["Members_Remove"] = "Eliminar",
+        ["Members_RemoveConfirmTitle"] = "¿Eliminar a {0}?",
+        ["Members_RemoveConfirmMessage"] = "Perderá el acceso a este grupo. Los gastos y pagos pasados se conservan en su historial. Esto no se puede deshacer.",
     };
 
     private static readonly Dictionary<string, Dictionary<string, string>> Tables = new()

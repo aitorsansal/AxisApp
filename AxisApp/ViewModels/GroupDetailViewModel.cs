@@ -315,9 +315,12 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     });
 
     [RelayCommand]
-    private Task InvitePeople() => RunSafeAsync(() =>
-        Shell.Current.GoToAsync(
-            $"{AppConstants.Routes.JoinGroup}?groupId={groupId}&groupName={Uri.EscapeDataString(GroupName)}"));
+    private Task ViewMembers() => RunSafeAsync(() =>
+    {
+        IsGroupOptionsMenuOpen = false;
+        return Shell.Current.GoToAsync(
+            $"{AppConstants.Routes.Members}?groupId={groupId}&groupName={Uri.EscapeDataString(GroupName)}");
+    });
 
     /// <summary>Records a real payments row for one balance row's amount. Works the same way
     /// regardless of display mode, since both modes ultimately produce a (payer, payee, amount)

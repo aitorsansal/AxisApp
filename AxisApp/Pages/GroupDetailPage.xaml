@@ -17,9 +17,37 @@
 
         <controls:PageHeaderBar
             Grid.Row="0"
-            HeaderTitle="{Binding GroupName}"
-            ShowOverflow="True"
-            OverflowCommand="{Binding ToggleGroupOptionsMenuCommand}" />
+            HeaderTitle="{Binding GroupName}" />
+
+        <!-- Custom overflow trigger drawn directly in the header row rather than using
+        PageHeaderBar's built-in ShowOverflow — that one sits under Windows' native window caption
+        buttons (minimize/maximize/close) in windowed mode and isn't reliably clickable there. This
+        sits in the same visual slot but is a plain sibling in this page's own header row, so it
+        can be repositioned independently of the shared control other pages also use. Margin
+        mirrors PageHeaderBar's own Grid.Margin/Padding math so it lines up with the back chevron
+        row above the content below. -->
+        <Border
+            Grid.Row="0"
+            BackgroundColor="Transparent"
+            StrokeThickness="0"
+            WidthRequest="44" HeightRequest="44"
+            Padding="0"
+            HorizontalOptions="End"
+            VerticalOptions="Start">
+            <Border.Margin>
+                <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="{StaticResource SpacingM}" Bottom="0" />
+            </Border.Margin>
+            <Label
+                Text="&#8942;"
+                FontSize="{StaticResource TypeTitle}"
+                TextColor="{StaticResource TextPrimary}"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ToggleGroupOptionsMenuCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+        </Border>
 
         <Grid Grid.Row="1">
             <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
@@ -30,24 +58,6 @@
                         <VerticalStackLayout.Padding>
                             <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingM}" Right="{StaticResource SpacingM}" Bottom="88" />
                         </VerticalStackLayout.Padding>
-
-                        <!-- Regular, always-reachable entry points — the header's overflow "⋮"
-                        (Grid.Column 2 above, now toggling the group options menu below) sits under
-                        Windows' native caption buttons in windowed mode and isn't reliably
-                        clickable there. -->
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
-                            <Button
-                                Grid.Column="0"
-                                Text="{loc:Translate GroupDetail_InvitePeople}"
-                                Command="{Binding InvitePeopleCommand}"
-                                Style="{StaticResource BtnOutlinePrimary}" />
-                            <Button
-                                Grid.Column="1"
-                                Text="⋮"
-                                Command="{Binding ToggleGroupOptionsMenuCommand}"
-                                Style="{StaticResource BtnOutlinePrimary}"
-                                WidthRequest="48" />
-                        </Grid>
 
                         <Label
                             Text="{Binding ErrorMessage}"
@@ -209,6 +219,16 @@
         WidthRequest="220"
         Padding="0">
         <VerticalStackLayout>
+            <Label Text="{loc:Translate GroupDetail_ViewMembers}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+                </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ViewMembersCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+
+            <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
             <Label Text="{loc:Translate GroupDetail_LeaveGroup}" IsVisible="{Binding IsGroupCreator, Converter={StaticResource InverseBoolConverter}}">
                 <Label.Padding>
                     <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />

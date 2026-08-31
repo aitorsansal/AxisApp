@@ -53,6 +53,7 @@ public static class AppConstants
         public const string Login = "//Login";
         public const string Groups = "//Groups";
         public const string GroupDetails = "GroupDetails";
+        public const string Members = "Members";
         public const string JoinGroup = "JoinGroup";
         public const string AddExpense = "AddExpense";
         public const string NewGroup = "NewGroup";

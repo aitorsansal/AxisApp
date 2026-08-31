@@ -23,4 +23,10 @@ public interface IGroupsRepository
     /// recurring_payments survive as unscoped (group_id set null) history. See schema.sql's
     /// "Leave / transfer ownership / dissolve" block.</summary>
     Task DeleteAsync(Guid groupId);
+
+    /// <summary>Removes a phantom member from the group via the remove_group_member() RPC.
+    /// Callable by any current group member (mirrors add-a-phantom's permissiveness); rejects a
+    /// claimed member (they must leave on their own) and a nonzero balance. See schema.sql's
+    /// remove_group_member() remarks.</summary>
+    Task RemoveMemberAsync(Guid groupId, Guid memberId);
 }

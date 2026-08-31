@@ -82,4 +82,13 @@ public class SupabaseGroupsRepository : IGroupsRepository
             .Filter("id", Constants.Operator.Equals, groupId.ToString())
             .Delete();
     }
+
+    public async Task RemoveMemberAsync(Guid groupId, Guid memberId)
+    {
+        await client.Rpc("remove_group_member", new Dictionary<string, object>
+        {
+            { "p_group_id", groupId.ToString() },
+            { "p_member_id", memberId.ToString() }
+        });
+    }
 }
