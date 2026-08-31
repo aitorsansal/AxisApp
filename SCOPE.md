@@ -65,7 +65,10 @@ exists).
 - **Receipts**: Supabase Storage bucket (`receipts`), private with policies
   scoped to group members. Client resizes + encodes to WebP before upload,
   targeting ~100KB (downscale to ~1280px long edge, step quality/dimension down
-  if still over target).
+  if still over target). **Done 2026-08-31** for expenses (capture/pick, upload,
+  view via signed URL — see CLAUDE.md's "Receipt photos"); `payments` still has
+  `receipt_path` reserved but unused, and the cleanup Edge Function below isn't
+  built yet.
 - **Receipt cleanup**: weekly Edge Function on `pg_cron`. Orphaned receipts (no
   expense/payment references them anymore) purged after **3 months**. Receipts
   still attached to a real expense/payment get the *photo* purged after

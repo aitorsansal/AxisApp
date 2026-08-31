@@ -247,15 +247,37 @@
                     </Grid>
                 </Border>
 
-                <!-- Receipt photo (upload not wired yet - see SCOPE.md's Storage/receipts note) -->
+                <!-- Receipt photo: tapping opens Take photo / Choose from gallery / Remove photo.
+                     Grows taller once a photo is attached — a receipt is a tall document shot, and
+                     the empty-state's compact 88px strip would otherwise crop it down to a sliver. -->
                 <Border Style="{StaticResource ReceiptDropZone}">
-                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="{StaticResource SpacingXS}">
-                        <Label Text="&#128247;" HorizontalOptions="Center" FontSize="{StaticResource TypeEmojiLg}" />
-                        <Label
-                            Text="{loc:Translate AddExpense_ReceiptPhoto}"
-                            Style="{StaticResource LabelTertiary}"
-                            HorizontalOptions="Center" />
-                    </VerticalStackLayout>
+                    <Border.Triggers>
+                        <DataTrigger TargetType="Border" Binding="{Binding ReceiptPreviewUrl, Converter={StaticResource StringNotEmptyConverter}}" Value="True">
+                            <Setter Property="HeightRequest" Value="220" />
+                        </DataTrigger>
+                    </Border.Triggers>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding PickReceiptCommand}" />
+                    </Border.GestureRecognizers>
+                    <Grid>
+                        <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="{StaticResource SpacingXS}">
+                            <Label Text="&#128247;" HorizontalOptions="Center" FontSize="{StaticResource TypeEmojiLg}" />
+                            <Label
+                                Text="{loc:Translate AddExpense_ReceiptPhoto}"
+                                Style="{StaticResource LabelTertiary}"
+                                HorizontalOptions="Center" />
+                        </VerticalStackLayout>
+                        <Image
+                            Source="{Binding ReceiptPreviewUrl}"
+                            Aspect="AspectFit"
+                            IsVisible="{Binding ReceiptPreviewUrl, Converter={StaticResource StringNotEmptyConverter}}" />
+                        <ActivityIndicator
+                            IsRunning="{Binding IsReceiptBusy}"
+                            IsVisible="{Binding IsReceiptBusy}"
+                            Color="{StaticResource Primary}"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center" />
+                    </Grid>
                 </Border>
 
             </VerticalStackLayout>
@@ -287,6 +309,38 @@
             Color="{StaticResource Primary}"
             HorizontalOptions="Center"
             VerticalOptions="Center" />
+
+        <!-- Receipt preview overlay: bigger view of the already-attached photo, with Change/Remove
+             actions, instead of jumping straight to the source-picker action sheet on every tap. -->
+        <BoxView Grid.Row="0" Grid.RowSpan="3" Color="Transparent" IsVisible="{Binding IsReceiptPreviewOpen}">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding CloseReceiptPreviewCommand}" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <Border
+            Grid.Row="0" Grid.RowSpan="3"
+            Style="{StaticResource ElevatedCard}"
+            IsVisible="{Binding IsReceiptPreviewOpen}"
+            HorizontalOptions="Fill"
+            VerticalOptions="Fill"
+            Margin="{StaticResource SpacingM}">
+            <Grid RowDefinitions="*,Auto" RowSpacing="{StaticResource SpacingS}">
+                <Image Grid.Row="0" Source="{Binding ReceiptPreviewUrl}" Aspect="AspectFit" />
+                <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="{StaticResource SpacingS}">
+                    <Button
+                        Grid.Column="0"
+                        Text="{loc:Translate AddExpense_ChangePhoto}"
+                        Command="{Binding ChangeReceiptCommand}"
+                        Style="{StaticResource BtnOutlinePrimary}" />
+                    <Button
+                        Grid.Column="1"
+                        Text="{loc:Translate AddExpense_RemovePhoto}"
+                        Command="{Binding RemoveReceiptCommand}"
+                        Style="{StaticResource BtnOutlineDanger}" />
+                </Grid>
+            </Grid>
+        </Border>
 
     </Grid>
 </ContentPage>

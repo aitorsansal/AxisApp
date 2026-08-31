@@ -653,6 +653,88 @@ Confirmed working end to end after these fixes: upload, removal, and
 cross-account visibility (a second account viewing the same group's
 members list) all verified against the live project.
 
+## Receipt photos (2026-08-31)
+
+Built the same day, once avatars proved out the Storage/resize plumbing —
+see SCOPE.md's "Supporting infra" note. Scoped down deliberately from
+SCOPE.md's original description: **expenses only** (`payments.receipt_path`
+stays reserved-but-unused, same "reserve now, wire up later" treatment
+`currency` already got — a settle-up rarely has a receipt the way a bill
+does), and the cleanup Edge Function (`pg_cron`, orphan/attached-photo
+purge) is **not built yet**, left for later infra work.
+
+- **`receipts` Storage bucket, private** — unlike `avatars`' public bucket,
+  a receipt is a financial document, not self-presentation, so it needs
+  real access control rather than just an unguessable path. Viewing goes
+  through a live signed URL (`IReceiptsRepository.GetSignedUrlAsync`,
+  `client.Storage.From(bucket).CreateSignedUrl(path, expiresIn)`) instead
+  of `MemberDisplay.AvatarUrl`'s plain deterministic string.
+  `CreateSignedUrl`'s shape was reflection-probed against the installed
+  `Supabase.Storage 2.7.0` package the same way the avatars work was — and
+  the first pass at that probe got it wrong (assumed a
+  `CreateSignedUrlResponse` wrapper with a `SignedUrl` property, going by
+  a same-named response type that exists in the assembly for a *different*
+  method); the actual signature returns `Task<string>` directly. Caught
+  immediately by a real `dotnet build` (`CS1061`), not by re-reading
+  reflection output more carefully — worth remembering that a reflection
+  probe still needs a real compile to confirm, the same "docs vs. real
+  build" caution this file already gives NuGet API surfaces generally.
+- **Path is `{group_id}/{guid}.webp`, not `{expense_id}/{guid}.webp`** —
+  deliberately scoped by group rather than by the specific expense a
+  receipt will attach to. A brand-new expense doesn't have an id yet until
+  `Save` actually inserts it, so a policy joined against `expenses` would
+  reject a photo captured while still filling out Add Expense (the common
+  case — a receipt is naturally photographed while entering the expense,
+  not after). Scoping storage RLS by `is_group_member(group_id)` directly
+  (no join to `expenses`, so no recursion risk either) sidesteps that
+  chicken-and-egg. `ReceiptPath` just rides along as a plain field on the
+  `Expense` being inserted/updated, same as `Description`/`Category` — no
+  separate "attach" step. An upload that's never attached (Add Expense is
+  cancelled after a photo was taken) becomes exactly the "orphaned
+  receipt" case SCOPE.md's (still unbuilt) cleanup function already
+  expects to purge after 3 months, not a new failure mode.
+- **`ImageResizer.ToReceiptWebp`** targets SCOPE.md's ~100KB (vs. avatars'
+  256px/~7-18KB) — starts at 1280px long edge (a receipt is viewed
+  full-screen occasionally, unlike an avatar rendered at 44px everywhere),
+  steps quality down through a fixed list, then shrinks dimension and
+  retries down to a 480px floor if still over target.
+- **Capture UI**: tapping `AddExpensePage`'s existing (previously
+  unwired) drop zone opens `Shell.Current.DisplayActionSheet` with Take
+  photo / Choose from gallery / Remove photo (last one only offered once a
+  receipt exists) — `DisplayActionSheet` is the same class of standard MAUI
+  primitive as `DisplayAlert`, not the `DisplayPromptAsync`/`Toast`/`Popup`
+  shapes that have bitten this project before. `MediaPicker.Default
+  .CapturePhotoAsync()` needed a new `CAMERA` `<uses-permission>` (plus a
+  `required="false"` camera `<uses-feature>` so a camera-less device still
+  installs) added to `Platforms/Android/AndroidManifest.xml` — confirmed
+  merged into the built manifest (`obj/.../android/AndroidManifest.xml`)
+  after a real `dotnet build`, but the actual runtime permission-prompt
+  flow on a real device is **not yet manually verified** the same way
+  avatars' upload path was.
+- **Real bug hit live, pre-existing and unrelated to the receipt work
+  itself, only surfaced by it**: saving an edited expense (any field, not
+  just the receipt) threw `23503 insert or update on table "expenses"
+  violates foreign key constraint "expenses_created_by_fkey"`. Root cause:
+  `AddExpenseViewModel.Save()` builds a brand-new `Expense` object for both
+  add and edit mode, and edit mode never carried `CreatedBy`/`CreatedAt`
+  over from the original row — `SupabaseExpensesRepository.UpdateAsync`'s
+  `Update(model)` sends the *whole* model, so `CreatedBy` went out as
+  `Guid.Empty` (FK violation) and `CreatedAt` would have silently reset to
+  `0001-01-01` even without one. Same class of bug as `Token`/`ExpiresAt`
+  defaulting silently (see "Invite redemption was completely broken"
+  above) — a pattern worth checking anywhere else a fresh model object gets
+  reused for an update. Fixed by having `LoadExistingExpense` capture the
+  original `CreatedBy`/`CreatedAt` into two ViewModel fields
+  (`editingCreatedBy`/`editingCreatedAt`) and `Save()` re-applying them onto
+  the update payload before calling `UpdateAsync`. Editing an expense had
+  apparently never actually been save-tested before this session — the edit
+  *screen* worked (loads existing data correctly), just never a real save.
+
+Not yet done for this feature specifically: a real device/emulator run
+(camera capture in particular — gallery-picker mirrors avatars' already-
+confirmed `PickPhotoAsync` path, but `CapturePhotoAsync` is new to this
+codebase), and the cleanup Edge Function described above.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
@@ -771,8 +853,9 @@ static site, so it's easy to change one side and forget the other:
 are now a small fixed list of keys in `AppConstants.Categories`, localized
 client-side, not stored data.)
 
-Also a public `avatars` Storage bucket (`storage.buckets`/`storage.objects`,
-not `public.*`) — see "Avatar photos" above for the bucket/policy shape.
+Also a public `avatars` Storage bucket and a private `receipts` Storage
+bucket (`storage.buckets`/`storage.objects`, not `public.*`) — see "Avatar
+photos" and "Receipt photos" above for the bucket/policy shapes.
 
 Read-only views (no primary key, `security_invoker = true` so they enforce
 RLS as the querying user, never inserted/updated/deleted):

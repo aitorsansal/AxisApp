@@ -105,6 +105,10 @@ public static class AppStrings
         ["AddExpense_Remaining"] = "Remaining: {0:0.00}",
         ["AddExpense_Category"] = "Category",
         ["AddExpense_ReceiptPhoto"] = "Add receipt photo (optional)",
+        ["AddExpense_TakePhoto"] = "Take photo",
+        ["AddExpense_ChooseFromGallery"] = "Choose from gallery",
+        ["AddExpense_ChangePhoto"] = "Change photo",
+        ["AddExpense_RemovePhoto"] = "Remove photo",
         ["AddExpense_SaveExpense"] = "Save expense",
         ["AddExpense_DeleteExpense"] = "Delete expense",
 
@@ -229,6 +233,10 @@ public static class AppStrings
         ["AddExpense_Remaining"] = "Restante: {0:0.00}",
         ["AddExpense_Category"] = "Categoría",
         ["AddExpense_ReceiptPhoto"] = "Añadir foto del recibo (opcional)",
+        ["AddExpense_TakePhoto"] = "Hacer foto",
+        ["AddExpense_ChooseFromGallery"] = "Elegir de la galería",
+        ["AddExpense_ChangePhoto"] = "Cambiar foto",
+        ["AddExpense_RemovePhoto"] = "Quitar foto",
         ["AddExpense_SaveExpense"] = "Guardar gasto",
         ["AddExpense_DeleteExpense"] = "Eliminar gasto",
 

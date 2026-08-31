@@ -83,10 +83,13 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     private readonly IMembersRepository membersRepository;
     private readonly IExpensesRepository expensesRepository;
     private readonly IAliasesRepository aliasesRepository;
+    private readonly IReceiptsRepository receiptsRepository;
     private readonly IAuthService authService;
 
     private Guid groupId;
     private Guid? editingExpenseId;
+    private Guid editingCreatedBy;
+    private DateTime editingCreatedAt;
     private bool redistributing;
 
     [ObservableProperty] private ObservableCollection<ExpenseParticipant> participants = [];
@@ -106,16 +109,22 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private bool isEditMode;
     [ObservableProperty] private string pageTitle = LocalizationResourceManager.Instance["AddExpense_Title"];
+    [ObservableProperty] private string? receiptPath;
+    [ObservableProperty] private string? receiptPreviewUrl;
+    [ObservableProperty] private bool isReceiptBusy;
+    [ObservableProperty] private bool isReceiptPreviewOpen;
 
     public AddExpenseViewModel(
         IMembersRepository membersRepository,
         IExpensesRepository expensesRepository,
         IAliasesRepository aliasesRepository,
+        IReceiptsRepository receiptsRepository,
         IAuthService authService)
     {
         this.membersRepository = membersRepository;
         this.expensesRepository = expensesRepository;
         this.aliasesRepository = aliasesRepository;
+        this.receiptsRepository = receiptsRepository;
         this.authService = authService;
     }
 
@@ -180,7 +189,11 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 
             var existingExpense = loadExpense.Result;
             if (existingExpense is not null)
+            {
                 LoadExistingExpense(existingExpense, loadShares.Result);
+                if (ReceiptPath is not null)
+                    ReceiptPreviewUrl = await receiptsRepository.GetSignedUrlAsync(ReceiptPath);
+            }
             else
             {
                 var myPayerOption = PayerOptions.FirstOrDefault(p => p.Member.AccountId == authService.CurrentAccountId)
@@ -203,6 +216,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     private void LoadExistingExpense(Expense expense, List<ExpenseShare> shares)
     {
         IsManualSplit = true;
+        editingCreatedBy = expense.CreatedBy;
+        editingCreatedAt = expense.CreatedAt;
 
         redistributing = true;
         try
@@ -230,6 +245,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         Description = expense.Description;
         OccurredOn = expense.OccurredAt;
         AmountText = expense.Amount.ToString("0.00", CultureInfo.InvariantCulture);
+        ReceiptPath = expense.ReceiptPath;
 
         SelectedCategory = expense.Category;
         var matchingChip = CategoryChips.FirstOrDefault(c => c.Key == expense.Category);
@@ -370,7 +386,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                 Amount = Amount,
                 Description = Description,
                 Category = SelectedCategory,
-                OccurredAt = OccurredOn.ToUniversalTime()
+                OccurredAt = OccurredOn.ToUniversalTime(),
+                ReceiptPath = ReceiptPath
             };
 
             var shares = Participants
@@ -381,6 +398,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             if (IsEditMode && editingExpenseId is { } id)
             {
                 expense.Id = id;
+                expense.CreatedBy = editingCreatedBy;
+                expense.CreatedAt = editingCreatedAt;
                 await expensesRepository.UpdateAsync(expense, shares);
             }
             else
@@ -412,6 +431,93 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             IsBusy = false;
         }
     });
+
+    /// <summary>Tapping the drop zone opens the bigger preview overlay if a receipt already exists
+    /// (so you can actually see it before deciding to change/remove it), or goes straight to the
+    /// source picker if there's nothing to preview yet.</summary>
+    [RelayCommand]
+    private Task PickReceipt() => RunSafeAsync(async () =>
+    {
+        if (ReceiptPath is not null)
+        {
+            IsReceiptPreviewOpen = true;
+            return;
+        }
+
+        await ChooseReceiptSourceAsync();
+    });
+
+    [RelayCommand]
+    private void CloseReceiptPreview() => IsReceiptPreviewOpen = false;
+
+    [RelayCommand]
+    private Task ChangeReceipt() => RunSafeAsync(async () =>
+    {
+        IsReceiptPreviewOpen = false;
+        await ChooseReceiptSourceAsync();
+    });
+
+    [RelayCommand]
+    private Task RemoveReceipt() => RunSafeAsync(async () =>
+    {
+        IsReceiptPreviewOpen = false;
+        await RemoveReceiptAsync();
+    });
+
+    /// <summary>Uploaded eagerly to the `receipts` bucket (Services/IReceiptsRepository.cs) as soon
+    /// as a photo is picked, rather than deferred until Save — ReceiptPath just rides along as a
+    /// plain field on the Expense being inserted/updated, same as Description/Category. Works even
+    /// in Add mode, before the expense itself exists, because the bucket's RLS scopes by group
+    /// membership rather than by expense id (see schema.sql's "Receipts" remarks) — an upload that
+    /// never gets attached (Cancel is tapped afterward) becomes an orphan the cleanup Edge Function
+    /// purges later (SCOPE.md), not a correctness problem here.</summary>
+    private async Task ChooseReceiptSourceAsync()
+    {
+        var loc = LocalizationResourceManager.Instance;
+        var choice = await Shell.Current.DisplayActionSheet(
+            loc["AddExpense_ReceiptPhoto"], loc["Common_Cancel"], null,
+            loc["AddExpense_TakePhoto"], loc["AddExpense_ChooseFromGallery"]);
+
+        if (choice == loc["AddExpense_TakePhoto"])
+            await CaptureReceiptAsync(useCamera: true);
+        else if (choice == loc["AddExpense_ChooseFromGallery"])
+            await CaptureReceiptAsync(useCamera: false);
+    }
+
+    private async Task CaptureReceiptAsync(bool useCamera)
+    {
+        var photo = useCamera
+            ? await MediaPicker.Default.CapturePhotoAsync()
+            : await MediaPicker.Default.PickPhotoAsync();
+        if (photo is null) return;
+
+        await using var stream = await photo.OpenReadAsync();
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory);
+
+        var webp = ImageResizer.ToReceiptWebp(memory.ToArray());
+
+        IsReceiptBusy = true;
+        try
+        {
+            var newPath = await receiptsRepository.UploadAsync(groupId, webp, ReceiptPath);
+            ReceiptPath = newPath;
+            ReceiptPreviewUrl = await receiptsRepository.GetSignedUrlAsync(newPath);
+        }
+        finally
+        {
+            IsReceiptBusy = false;
+        }
+    }
+
+    private async Task RemoveReceiptAsync()
+    {
+        if (ReceiptPath is null) return;
+
+        await receiptsRepository.RemoveAsync(ReceiptPath);
+        ReceiptPath = null;
+        ReceiptPreviewUrl = null;
+    }
 
     [RelayCommand]
     private Task Cancel() => RunSafeAsync(() => Shell.Current.GoToAsync(".."));

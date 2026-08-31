@@ -48,6 +48,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IInvitesRepository, SupabaseInvitesRepository>();
         builder.Services.AddSingleton<IAliasesRepository, SupabaseAliasesRepository>();
         builder.Services.AddSingleton<IAvatarsRepository, SupabaseAvatarsRepository>();
+        builder.Services.AddSingleton<IReceiptsRepository, SupabaseReceiptsRepository>();
         builder.Services.AddSingleton<IDeviceTokensRepository, SupabaseDeviceTokensRepository>();
 
         builder.Services.AddTransient<SplashPage>();

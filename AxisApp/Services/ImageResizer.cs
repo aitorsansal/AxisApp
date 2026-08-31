@@ -29,4 +29,43 @@ public static class ImageResizer
         using var encoded = image.Encode(SKEncodedImageFormat.Webp, quality);
         return encoded.ToArray();
     }
+
+    /// <summary>Targets SCOPE.md's ~100KB per receipt: starts at maxDimension and steps quality down
+    /// through a fixed list before shrinking the dimension and retrying, down to a 480px floor. A
+    /// receipt is viewed full-screen occasionally rather than as a 44px circle everywhere the way an
+    /// avatar is, so it keeps real resolution (1280px) instead of avatars' aggressively small 256px.</summary>
+    public static byte[] ToReceiptWebp(byte[] original, int maxDimension = 1280, long targetBytes = 100_000)
+    {
+        using var bitmap = SKBitmap.Decode(original)
+            ?? throw new InvalidOperationException("Could not decode the selected image.");
+
+        var dimension = maxDimension;
+        byte[] encoded;
+        do
+        {
+            var scale = Math.Min(1.0, dimension / (double)Math.Max(bitmap.Width, bitmap.Height));
+            var targetWidth = Math.Max(1, (int)Math.Round(bitmap.Width * scale));
+            var targetHeight = Math.Max(1, (int)Math.Round(bitmap.Height * scale));
+
+            using var resized = bitmap.Resize(new SKImageInfo(targetWidth, targetHeight), SKSamplingOptions.Default)
+                ?? throw new InvalidOperationException("Could not resize the selected image.");
+            using var image = SKImage.FromBitmap(resized);
+
+            encoded = EncodeSteppingQuality(image, targetBytes);
+            dimension = dimension * 2 / 3;
+        } while (encoded.Length > targetBytes && dimension >= 480);
+
+        return encoded;
+    }
+
+    private static byte[] EncodeSteppingQuality(SKImage image, long targetBytes)
+    {
+        var best = image.Encode(SKEncodedImageFormat.Webp, 80).ToArray();
+        foreach (var quality in new[] { 65, 50, 35 })
+        {
+            if (best.Length <= targetBytes) break;
+            best = image.Encode(SKEncodedImageFormat.Webp, quality).ToArray();
+        }
+        return best;
+    }
 }

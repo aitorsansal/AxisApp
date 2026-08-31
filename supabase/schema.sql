@@ -970,3 +970,42 @@ create policy "delete your own avatar" on storage.objects
 
 alter table public.members add constraint avatar_requires_account
   check (avatar_path is null or account_id is not null);
+
+-- ============================================================
+-- Receipts — added 2026-08-31 (see SCOPE.md's "Supporting infra" note and
+-- the app-side design discussion the same day). expenses.receipt_path was
+-- already reserved (Phase 1 additions block above); this is the Storage
+-- bucket + policies to actually back it. Private, unlike the public
+-- `avatars` bucket — a receipt is a financial document, not
+-- self-presentation, so it needs real access control, not just an
+-- unguessable path.
+--
+-- Path is `{group_id}/{guid}.webp`, scoped by group rather than by the
+-- specific expense it'll attach to — deliberately, so a photo can be
+-- captured/uploaded from Add Expense before that expense has been saved at
+-- all (no expense id exists yet to scope a policy against, unlike avatars'
+-- claimed-member-always-has-a-row case). Scoping storage RLS by group
+-- membership directly (is_group_member(), no join to `expenses`) sidesteps
+-- that chicken-and-egg entirely. An upload that never ends up attached (the
+-- Add Expense flow gets cancelled) is exactly the "orphaned receipt" case
+-- SCOPE.md's cleanup Edge Function already expects to purge after 3 months
+-- — not a new failure mode this design introduces.
+insert into storage.buckets (id, name, public) values ('receipts', 'receipts', false);
+
+create policy "group members can view receipts" on storage.objects
+  for select using (
+    bucket_id = 'receipts'
+    and is_group_member((storage.foldername(name))[1]::uuid)
+  );
+
+create policy "group members can upload receipts" on storage.objects
+  for insert with check (
+    bucket_id = 'receipts'
+    and is_group_member((storage.foldername(name))[1]::uuid)
+  );
+
+create policy "group members can delete receipts" on storage.objects
+  for delete using (
+    bucket_id = 'receipts'
+    and is_group_member((storage.foldername(name))[1]::uuid)
+  );
