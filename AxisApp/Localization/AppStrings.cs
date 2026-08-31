@@ -138,6 +138,8 @@ public static class AppStrings
         ["Members_Remove"] = "Remove",
         ["Members_RemoveConfirmTitle"] = "Remove {0}?",
         ["Members_RemoveConfirmMessage"] = "They'll lose access to this group. Past expenses and payments stay in their history. This can't be undone.",
+        ["Members_SetAliasTitle"] = "Rename {0}",
+        ["Members_SetAliasMessage"] = "Only you will see this name.",
     };
 
     private static readonly Dictionary<string, string> Es = new()
@@ -261,6 +263,8 @@ public static class AppStrings
         ["Members_Remove"] = "Eliminar",
         ["Members_RemoveConfirmTitle"] = "¿Eliminar a {0}?",
         ["Members_RemoveConfirmMessage"] = "Perderá el acceso a este grupo. Los gastos y pagos pasados se conservan en su historial. Esto no se puede deshacer.",
+        ["Members_SetAliasTitle"] = "Renombrar a {0}",
+        ["Members_SetAliasMessage"] = "Solo tú verás este nombre.",
     };
 
     private static readonly Dictionary<string, Dictionary<string, string>> Tables = new()

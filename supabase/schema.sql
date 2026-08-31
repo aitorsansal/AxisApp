@@ -881,3 +881,38 @@ begin
   delete from group_members where group_id = p_group_id and member_id = p_member_id;
 end;
 $$;
+
+-- ============================================================
+-- Member aliases + reserved avatar column — added 2026-08-31 (see the
+-- app-side design discussion the same day). Both additive.
+-- ============================================================
+
+-- member_aliases: a private, per-account nickname override for how a member
+-- is displayed — e.g. seeing "Dave" instead of "David Kim". Deliberately
+-- keyed off member_id, not an account/auth id, so a phantom (no account at
+-- all) can be aliased exactly like a claimed member. Fully self-owned data,
+-- same "for all using/with check (owner = auth.uid())" shape as
+-- device_tokens above — no other account ever needs to read your aliases.
+create table public.member_aliases (
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  member_id uuid not null references public.members(id) on delete cascade,
+  alias text not null,
+  primary key (owner_id, member_id)
+);
+
+alter table public.member_aliases enable row level security;
+
+create policy "manage your own aliases" on public.member_aliases
+  for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+-- members.avatar_path: reserved the same way payments/expenses reserved
+-- `currency` before conversion logic existed (see that block above) — no
+-- Storage bucket, upload pipeline, or MediaPicker wiring exists yet for
+-- this. That's real new infra (a Storage bucket + policies, plus
+-- client.Storage's exact API shape, which — unlike .Rpc()/.From<T>() — is
+-- not yet confirmed against this installed Supabase 1.6.0 package) and is
+-- deliberately left as a separate follow-up rather than bundled in here.
+-- Reserving the column now means Services/MemberDisplay.cs's AvatarUrl
+-- already has a real (if always-null-for-now) field to resolve once that
+-- follow-up lands, instead of needing a second migration later.
+alter table public.members add column avatar_path text;

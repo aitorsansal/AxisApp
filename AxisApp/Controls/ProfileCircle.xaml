@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="AxisApp.Controls.ProfileCircle"
+    x:Name="Root">
+
+    <!-- Image-if-set-else-initials: Image is a later sibling than the initials Label, so when
+         it's visible it paints on top and fully covers the fallback rather than needing a second
+         "hide the label" binding. Kind picks which AvatarCircle* style variant applies, so callers
+         don't repeat the DataTrigger-based style-switching this replaces (see GroupDetailPage's
+         Balances section before this control existed). -->
+    <Border
+        Style="{StaticResource AvatarCircle}"
+        WidthRequest="{Binding Diameter, Source={x:Reference Root}}"
+        HeightRequest="{Binding Diameter, Source={x:Reference Root}}">
+        <Border.Triggers>
+            <DataTrigger TargetType="Border" Binding="{Binding Kind, Source={x:Reference Root}}" Value="Primary">
+                <Setter Property="Style" Value="{StaticResource AvatarCirclePrimary}" />
+            </DataTrigger>
+            <DataTrigger TargetType="Border" Binding="{Binding Kind, Source={x:Reference Root}}" Value="Phantom">
+                <Setter Property="Style" Value="{StaticResource AvatarCirclePhantom}" />
+            </DataTrigger>
+        </Border.Triggers>
+        <Grid>
+            <Label
+                Text="{Binding Initials, Source={x:Reference Root}}"
+                Style="{StaticResource AvatarInitialsLabel}" />
+            <Image
+                Source="{Binding ImageUrl, Source={x:Reference Root}}"
+                Aspect="AspectFill"
+                IsVisible="{Binding ImageUrl, Source={x:Reference Root}, Converter={StaticResource StringNotEmptyConverter}}" />
+        </Grid>
+    </Border>
+</ContentView>

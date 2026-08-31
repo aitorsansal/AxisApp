@@ -41,25 +41,42 @@
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:MemberRowItem">
                                 <Border Style="{StaticResource ListItemCard}">
-                                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
-                                        <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="{StaticResource AvatarSizeM}" HeightRequest="{StaticResource AvatarSizeM}">
-                                            <Border.Triggers>
-                                                <DataTrigger TargetType="Border" Binding="{Binding IsYou}" Value="True">
-                                                    <Setter Property="Style" Value="{StaticResource AvatarCirclePrimary}" />
+                                    <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                                        <controls:ProfileCircle
+                                            Grid.Column="0"
+                                            ImageUrl="{Binding AvatarUrl}"
+                                            Initials="{Binding Initials}"
+                                            Diameter="{StaticResource AvatarSizeM}">
+                                            <controls:ProfileCircle.Triggers>
+                                                <DataTrigger TargetType="controls:ProfileCircle" Binding="{Binding IsYou}" Value="True">
+                                                    <Setter Property="Kind" Value="Primary" />
                                                 </DataTrigger>
-                                                <DataTrigger TargetType="Border" Binding="{Binding IsPhantom}" Value="True">
-                                                    <Setter Property="Style" Value="{StaticResource AvatarCirclePhantom}" />
+                                                <DataTrigger TargetType="controls:ProfileCircle" Binding="{Binding IsPhantom}" Value="True">
+                                                    <Setter Property="Kind" Value="Phantom" />
                                                 </DataTrigger>
-                                            </Border.Triggers>
-                                            <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeCaption}" />
-                                        </Border>
+                                            </controls:ProfileCircle.Triggers>
+                                        </controls:ProfileCircle>
                                         <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                                            <Label Text="{Binding Member.DisplayName}" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                                            <Label Text="{Binding Name}" FontAttributes="Bold" LineBreakMode="TailTruncation" />
                                             <Label Text="{loc:Translate Members_You}" Style="{StaticResource LabelTertiary}" IsVisible="{Binding IsYou}" />
                                             <Label Text="{loc:Translate JoinGroup_PhantomMember}" Style="{StaticResource LabelTertiary}" IsVisible="{Binding IsPhantom}" />
                                         </VerticalStackLayout>
-                                        <Button
+                                        <Border
                                             Grid.Column="2"
+                                            BackgroundColor="Transparent"
+                                            StrokeThickness="0"
+                                            WidthRequest="36" HeightRequest="36"
+                                            Padding="0"
+                                            VerticalOptions="Center">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MembersViewModel}}, Path=SetAliasCommand}"
+                                                    CommandParameter="{Binding .}" />
+                                            </Border.GestureRecognizers>
+                                            <Label Text="&#9998;" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{StaticResource TextTertiary}" />
+                                        </Border>
+                                        <Button
+                                            Grid.Column="3"
                                             Text="{loc:Translate Members_Remove}"
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MembersViewModel}}, Path=RemoveMemberCommand}"
                                             CommandParameter="{Binding .}"

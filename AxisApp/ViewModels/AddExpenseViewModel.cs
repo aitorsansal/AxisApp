@@ -14,7 +14,9 @@ namespace AxisApp.ViewModels;
 public partial class ExpenseParticipant : ObservableObject
 {
     public Member Member { get; init; } = null!;
+    public string Name { get; init; } = "";
     public string Initials { get; init; } = "";
+    public string? AvatarUrl { get; init; }
 
     [ObservableProperty] private bool isIncluded = true;
     [ObservableProperty] private decimal owes;
@@ -51,7 +53,9 @@ public partial class ExpenseParticipant : ObservableObject
 public partial class PayerOption : ObservableObject
 {
     public Member Member { get; init; } = null!;
+    public string Name { get; init; } = "";
     public string Initials { get; init; } = "";
+    public string? AvatarUrl { get; init; }
 
     [ObservableProperty] private bool isSelected;
 }
@@ -78,6 +82,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 {
     private readonly IMembersRepository membersRepository;
     private readonly IExpensesRepository expensesRepository;
+    private readonly IAliasesRepository aliasesRepository;
     private readonly IAuthService authService;
 
     private Guid groupId;
@@ -105,10 +110,12 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     public AddExpenseViewModel(
         IMembersRepository membersRepository,
         IExpensesRepository expensesRepository,
+        IAliasesRepository aliasesRepository,
         IAuthService authService)
     {
         this.membersRepository = membersRepository;
         this.expensesRepository = expensesRepository;
+        this.aliasesRepository = aliasesRepository;
         this.authService = authService;
     }
 
@@ -140,7 +147,10 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             var loadMembers = membersRepository.GetForGroupAsync(groupId);
             var loadExpense = forExpenseId is { } id ? expensesRepository.GetByIdAsync(id) : Task.FromResult<Expense?>(null);
             var loadShares = forExpenseId is { } sharesId ? expensesRepository.GetSharesAsync(sharesId) : Task.FromResult(new List<ExpenseShare>());
-            await Task.WhenAll(loadMembers, loadExpense, loadShares);
+            var loadAliases = aliasesRepository.GetMyAliasesAsync();
+            await Task.WhenAll(loadMembers, loadExpense, loadShares, loadAliases);
+
+            var aliases = loadAliases.Result;
 
             foreach (var participant in Participants)
                 participant.PropertyChanged -= ParticipantChanged;
@@ -150,13 +160,15 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 
             foreach (var member in loadMembers.Result)
             {
-                var initials = Initials(member.DisplayName);
+                var name = MemberDisplay.Name(member, aliases);
+                var initials = MemberDisplay.Initials(member, aliases);
+                var avatarUrl = MemberDisplay.AvatarUrl(member);
 
-                var participant = new ExpenseParticipant { Member = member, Initials = initials };
+                var participant = new ExpenseParticipant { Member = member, Name = name, Initials = initials, AvatarUrl = avatarUrl };
                 participant.PropertyChanged += ParticipantChanged;
                 Participants.Add(participant);
 
-                PayerOptions.Add(new PayerOption { Member = member, Initials = initials });
+                PayerOptions.Add(new PayerOption { Member = member, Name = name, Initials = initials, AvatarUrl = avatarUrl });
             }
 
             CategoryChips = new ObservableCollection<CategoryChip>(
@@ -403,10 +415,4 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 
     [RelayCommand]
     private Task Cancel() => RunSafeAsync(() => Shell.Current.GoToAsync(".."));
-
-    private static string Initials(string name)
-    {
-        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length == 0 ? "?" : string.Concat(parts.Take(2).Select(w => char.ToUpperInvariant(w[0])));
-    }
 }

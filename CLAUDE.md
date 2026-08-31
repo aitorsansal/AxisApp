@@ -385,6 +385,152 @@ decides where to land, instead of unconditionally inside `window.Created`.
 `CreateWindow` is back to just `new Window(new AppShell())` — `App` no
 longer takes `IAuthService` at all.
 
+## Splash-launch crash — "Pending Navigations still processing" (2026-08-31)
+
+Found while trying to actually run the built `.exe` for the first time in a
+while — a real, pre-existing bug, unrelated to whatever else was being worked
+on that day: `%TEMP%\axisapp-crash.log` (an `AppDomain.CurrentDomain
+.UnhandledException` logger already wired up in `App.xaml.cs`) had identical
+crash stacks dated back to **2026-08-26**, meaning the app had been silently
+uninstallable-by-launch on Windows for days.
+
+Root cause: `SplashPage.OnAppearing` called `Shell.Current.GoToAsync
+(destination)` immediately after `authService.RestoreSessionAsync()`. When
+there's no persisted session to restore, that call can complete without ever
+truly yielding — so the whole `async void OnAppearing` method ran straight
+through to `GoToAsync` on the **same call stack** as Shell's own initial
+navigation to `//Splash`, which was still mid-flight at that point (still
+inside `MauiWinUIApplication.OnLaunched`). Shell's navigation code has a
+reentrancy guard for exactly this and throws `InvalidOperationException:
+Pending Navigations still processing` — an unhandled exception outside any
+`[RelayCommand]`/`BaseViewModel.RunSafeAsync` path (it's thrown from deep
+inside MAUI's own Shell internals during window creation, not from app code),
+so it fail-fasts the whole WinUI process (`0xc000027b`) before any window
+ever shows. Confirmed via Windows Event Viewer's Application log
+(`APPCRASH`/`Application Error` entries, module `Microsoft.UI.Xaml.dll`,
+exception code `0xc000027b`) matching the crash-log timestamps exactly.
+
+Fixed with `await Task.Yield();` as the very first line of `OnAppearing`,
+forcing the method onto a fresh dispatcher tick before touching
+`Shell.Current` at all — guarantees the outer "navigate to Splash" call has
+fully unwound before Splash's own redirect logic runs. Verified with several
+consecutive launches (`AxisApp.exe` directly, not `dotnet build`'s own
+run) — all clean, no new `axisapp-crash.log` entries.
+
+## Leaving, transferring ownership, and dissolving a group (2026-08-31)
+
+There was previously no way to leave a group, hand off ownership, or destroy
+a group outright. The schema had already half-anticipated this: `groups` has
+a `delete own groups` policy (`created_by = auth.uid()`), and the FK cascade
+shape is deliberately split — `group_members`/`invites` are `ON DELETE
+CASCADE` (membership and pending invites vanish with the group), while
+`payments`/`expenses`/`recurring_payments` are `ON DELETE SET NULL` on
+`group_id` (the ledger rows **survive**, just losing their group
+association). What was actually missing:
+
+- **`group_members` had no self-leave policy** — only `"group creator can
+  remove members"` existed, so leaving a group was RLS-impossible, not just
+  missing UI. Fixed with an additive `"members can remove themselves"`
+  delete policy (multiple permissive policies for the same command are OR'd
+  together in Postgres, so this didn't touch the existing one).
+- **Dissolving a group silently orphaned other people's history.** The
+  `group_id is null` branch of `payments`/`expenses`/`expense_shares`/
+  `recurring_payments`'s `SELECT` policies only granted access to
+  `created_by` — meaning once a group dissolved, only whoever *recorded*
+  each transaction kept visibility into it, not the actual payer/payee/
+  share-holders (who may not be the same account). Fixed with additive
+  `SELECT` policies extending that branch to any real party to the row.
+  Unscoped rows stay update/delete-restricted to `created_by` only
+  (deliberately read-only for everyone else once unscoped).
+- **Two genuine RLS infinite-recursion bugs (`42P17`), both hit live and
+  both fixed the same way — routing the self-referential check through a
+  `SECURITY DEFINER` helper function, same technique `is_group_member()`
+  already used:**
+  1. The new `expense_shares` policy queried `expense_shares` from *within
+     its own* `USING` clause (checking "is there another share row for me on
+     this expense") — Postgres re-evaluates the same policy on the
+     sub-query and recurses infinitely. Fixed with
+     `is_unscoped_expense_party()`.
+  2. The new `group_members` self-leave policy queried `members` directly,
+     and `members`' own policy queries `group_members` directly right back —
+     a two-table mutual reference. Postgres's RLS rewriter inlines each
+     policy at the table reference it's currently expanding, and a cycle
+     back to the relation already being expanded trips the same guard, even
+     though naively tracing the call graph suggests it should terminate.
+     Fixed with `is_own_member_row()`.
+- **`leave_group(p_group_id)`** (plain, not security definer — no
+  permission gap, only the guards below): rejects the group's creator (they
+  must transfer or dissolve instead — **RLS alone is actually more
+  permissive** than this business rule, since `"group creator can remove
+  members"` would otherwise let a creator delete their own row too) and
+  rejects a nonzero balance in that group (checked against `group_balances`).
+- **`transfer_group_ownership(p_group_id, p_new_owner_member_id)`** —
+  creator-only, target must be a current, claimed (real-account) member.
+  `SECURITY DEFINER`: the plain `"update own groups"` policy has no explicit
+  `WITH CHECK`, so Postgres reuses its `USING` clause for the check too,
+  which would reject the very act of transferring `created_by` away from
+  the caller.
+- **Dissolve needed no new function at all** — a plain `DELETE FROM groups`
+  already works via the existing policy + FK cascade shape described above.
+  The client shows a confirm dialog warning about outstanding balances
+  first, but doesn't hard-block on them (unlike `leave_group`) — forcing an
+  entire group to fully settle before its creator can walk away is a much
+  bigger ask than the one-person case.
+
+App side: `GroupDetailPage`'s `⋮` menu gained Leave/Transfer ownership/
+Dissolve (shown per role via `GroupDetailViewModel.IsGroupCreator`/
+`HasOtherMembers`), `IGroupsRepository` gained `LeaveAsync`/
+`TransferOwnershipAsync`/`DeleteAsync`. Confirmed working end to end
+against the live project, including both recursion bugs above (found via
+the exact Postgrest error text, `{"code":"42P17",...}`, surfacing through
+`BaseViewModel.RunSafeAsync` into `ErrorMessage`) and a non-owner
+successfully leaving a group afterward. This is also the first place in the
+app using `Shell.Current.DisplayAlert` for a confirm dialog — new to this
+codebase (everywhere else uses the plain `ErrorMessage` label or the custom
+dropdown-menu pattern), but it's a standard MAUI primitive, not the kind of
+package-version-specific API (`CommunityToolkit.Maui`'s `Popup`, `Toast`)
+that's bitten this project before.
+
+## Group members page and phantom removal (2026-08-31)
+
+Previously the only way to see who was actually in a group was indirectly,
+via Add Expense's participant picker — there was no members list. Added:
+
+- **`Pages/MembersPage.xaml` + `MembersViewModel`** (route `Members`,
+  reached from `GroupDetailPage`'s `⋮` menu as "View members"): roster of
+  the group's members (avatar, name, "You"/"Phantom member" caption, sorted
+  alphabetically), reusing the existing `IMembersRepository
+  .GetForGroupAsync` call `GroupDetailViewModel` already made for balances/
+  activity.
+- **"Invite people" moved here** from `GroupDetailPage` (previously a
+  dedicated always-visible button there) — it's a low-frequency action, not
+  worth a permanent top-level button competing with "+ Add expense".
+- **`remove_group_member(p_group_id, p_member_id)`** RPC, backing a
+  "Remove" action shown only on phantom rows: callable by **any current
+  group member**, not just the creator — deliberately mirrors `"group
+  members can add members"` (already widened past creator-only for the
+  Link flow in `JoinGroupPage`; leaving removal creator-only while adding is
+  open to everyone would be an odd asymmetry). Rejects removing a claimed
+  member (a real account can only ever remove itself, via Leave — same "a
+  real account joins by its own action, never someone else's" principle
+  documented above for adding members) and rejects a nonzero balance, same
+  shape as `leave_group()`. `SECURITY DEFINER` for the same recursion-
+  avoidance reason as `leave_group`/`transfer_group_ownership` above, not a
+  genuine permission gap.
+- **Fixed a duplicated `⋮`**: `PageHeaderBar`'s built-in overflow and a
+  separately-added inline "+ Invite people"/"⋮" row had both ended up bound
+  to the same group-options-menu toggle, showing two identical "⋮" glyphs on
+  screen. Collapsed to a single custom `⋮` drawn directly in
+  `GroupDetailPage`'s own header row (not `PageHeaderBar`'s `ShowOverflow`)
+  — confirmed clickable in a non-maximized window on Windows, the same
+  corner `GroupsPage`'s avatar-menu trigger already uses reliably (the
+  original concern about Windows' native caption buttons overlapping a
+  header overflow turned out to be specific to `PageHeaderBar`'s own
+  positioning, not a fundamental "top-right is dead" limitation).
+
+Confirmed working end to end, including a non-owner account successfully
+removing a phantom — validating the "any member" permission choice above.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
@@ -422,11 +568,11 @@ now: interface → concrete Supabase-backed implementation, singleton.
 ### Navigation
 
 Uses **MAUI Shell**, routes declared as constants in `AppConstants.Routes`
-(`Splash`, `Login`, `Groups`, `GroupDetails`, `JoinGroup`, `AddExpense`,
-`NewGroup`) rather than hardcoded strings — follow that pattern for any new
-screen. `Splash` is the first `ShellContent` in `AppShell.xaml` (see "Splash
-screen" above); it decides between `//Login` and `//Groups` before anything
-else renders.
+(`Splash`, `Login`, `Groups`, `GroupDetails`, `Members`, `JoinGroup`,
+`AddExpense`, `NewGroup`) rather than hardcoded strings — follow that pattern
+for any new screen. `Splash` is the first `ShellContent` in `AppShell.xaml`
+(see "Splash screen" above); it decides between `//Login` and `//Groups`
+before anything else renders.
 
 ### Deep linking (group invites)
 
@@ -509,12 +655,25 @@ RLS as the querying user, never inserted/updated/deleted):
 | `pairwise_balances` | Real two-party net balance between every pair of members who've actually shared money in a group. |
 | `my_pairwise_balances` | `pairwise_balances` reoriented around the current account, sign-normalized to "positive = they owe me". |
 
-RLS is enabled on every table. The one function that intentionally bypasses
-it is `redeem_invite()` (`SECURITY DEFINER`) — it exists specifically because
-redeeming an invite requires adding a `group_members` row for someone who, by
-definition, isn't a group member yet. Don't add other `SECURITY DEFINER`
-functions without a similarly specific reason; prefer expressing access rules
-as RLS policies so Postgres enforces them uniformly.
+RLS is enabled on every table. Several functions intentionally bypass it via
+`SECURITY DEFINER` — `redeem_invite()` (adding a `group_members` row for
+someone who, by definition, isn't a group member yet),
+`transfer_group_ownership()` (the plain `update own groups` policy would
+reject the very act of transferring `created_by` away from the caller),
+`remove_group_member()` (business rules — phantom-only, balance-zero — not
+expressible as a plain RLS policy), and the small helper functions
+`is_group_member()`/`is_own_member_row()`/`is_unscoped_expense_party()` (used
+*inside* other policies specifically to avoid Postgres RLS recursion when two
+tables' policies would otherwise reference each other — see "Leaving,
+transferring ownership, and dissolving a group" above for two real 42P17
+recursion bugs this caused). `leave_group()` and `create_group()` are
+notably **not** security definer — every operation they perform is already
+permitted under existing RLS, so there's no permission gap to bypass, only
+atomicity (`create_group`) or explicit business-rule guards (`leave_group`).
+Don't add a new `SECURITY DEFINER` function without a similarly specific
+reason (a real permission gap, or breaking an RLS recursion cycle); prefer
+expressing access rules as plain RLS policies so Postgres enforces them
+uniformly.
 
 ## NuGet Packages (key)
 

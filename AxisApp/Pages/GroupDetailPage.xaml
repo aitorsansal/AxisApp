@@ -89,10 +89,13 @@
                                                 </DataTrigger>
                                             </Border.Triggers>
                                             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}">
-                                                <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="{StaticResource AvatarSizeM}" HeightRequest="{StaticResource AvatarSizeM}" Opacity="0.85">
-                                                    <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeCaption}" />
-                                                </Border>
-                                                <Label Grid.Column="1" Text="{Binding Member.DisplayName}" VerticalOptions="Center" FontAttributes="Bold" LineBreakMode="TailTruncation">
+                                                <controls:ProfileCircle
+                                                    Grid.Column="0"
+                                                    ImageUrl="{Binding AvatarUrl}"
+                                                    Initials="{Binding Initials}"
+                                                    Diameter="{StaticResource AvatarSizeM}"
+                                                    Opacity="0.85" />
+                                                <Label Grid.Column="1" Text="{Binding Name}" VerticalOptions="Center" FontAttributes="Bold" LineBreakMode="TailTruncation">
                                                     <Label.Triggers>
                                                         <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
                                                             <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />

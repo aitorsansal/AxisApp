@@ -28,6 +28,12 @@ public class Member : BaseModel
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
 
+    /// <summary>Reserved, not yet populated by anything — see schema.sql's "Member aliases +
+    /// reserved avatar column" remarks. Services/MemberDisplay.cs.AvatarUrl always resolves to
+    /// null until Storage upload exists.</summary>
+    [Column("avatar_path")]
+    public string? AvatarPath { get; set; }
+
     [JsonIgnore]
     public bool IsPhantom => AccountId is null;
 }

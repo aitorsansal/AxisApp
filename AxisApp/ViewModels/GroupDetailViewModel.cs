@@ -15,7 +15,9 @@ namespace AxisApp.ViewModels;
 public partial class MemberBalanceItem : ObservableObject
 {
     public Member Member { get; init; } = null!;
+    public string Name { get; init; } = "";
     public string Initials { get; init; } = "";
+    public string? AvatarUrl { get; init; }
     public string? ToName { get; init; }
     public Guid? ToMemberId { get; init; }
     public bool IsNeutral { get; init; }
@@ -55,10 +57,12 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     private readonly IBalancesRepository balancesRepository;
     private readonly IPaymentsRepository paymentsRepository;
     private readonly IExpensesRepository expensesRepository;
+    private readonly IAliasesRepository aliasesRepository;
     private readonly IAuthService authService;
 
     private Guid groupId;
     private Dictionary<Guid, Member> membersById = new();
+    private Dictionary<Guid, string> aliases = new();
     private Guid? myMemberId;
 
     [ObservableProperty] private string groupName = "";
@@ -95,6 +99,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
         IBalancesRepository balancesRepository,
         IPaymentsRepository paymentsRepository,
         IExpensesRepository expensesRepository,
+        IAliasesRepository aliasesRepository,
         IAuthService authService)
     {
         this.groupsRepository = groupsRepository;
@@ -102,6 +107,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
         this.balancesRepository = balancesRepository;
         this.paymentsRepository = paymentsRepository;
         this.expensesRepository = expensesRepository;
+        this.aliasesRepository = aliasesRepository;
         this.authService = authService;
     }
 
@@ -127,10 +133,12 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             var loadMembers = membersRepository.GetForGroupAsync(groupId);
             var loadPayments = paymentsRepository.GetForGroupAsync(groupId);
             var loadExpenses = expensesRepository.GetForGroupAsync(groupId);
-            await Task.WhenAll(loadGroup, loadMembers, loadPayments, loadExpenses);
+            var loadAliases = aliasesRepository.GetMyAliasesAsync();
+            await Task.WhenAll(loadGroup, loadMembers, loadPayments, loadExpenses, loadAliases);
 
             var members = loadMembers.Result;
             membersById = members.ToDictionary(m => m.Id);
+            aliases = loadAliases.Result;
             myMemberId = members.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)?.Id;
             IsGroupCreator = loadGroup.Result.CreatedBy == authService.CurrentAccountId;
             HasOtherMembers = members.Count > 1;
@@ -141,8 +149,10 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             var activity = new List<ActivityItem>();
             foreach (var payment in loadPayments.Result)
             {
-                var payer = membersById.GetValueOrDefault(payment.PayerMemberId)?.DisplayName ?? loc["GroupDetail_SomeoneCapitalized"];
-                var payee = membersById.GetValueOrDefault(payment.PayeeMemberId)?.DisplayName ?? loc["GroupDetail_SomeoneLower"];
+                var payer = membersById.TryGetValue(payment.PayerMemberId, out var payerMember)
+                    ? MemberDisplay.Name(payerMember, aliases) : loc["GroupDetail_SomeoneCapitalized"];
+                var payee = membersById.TryGetValue(payment.PayeeMemberId, out var payeeMember)
+                    ? MemberDisplay.Name(payeeMember, aliases) : loc["GroupDetail_SomeoneLower"];
                 activity.Add(new ActivityItem
                 {
                     Description = string.IsNullOrWhiteSpace(payment.Description) ? loc["GroupDetail_SettleUp"] : payment.Description,
@@ -155,7 +165,8 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             }
             foreach (var expense in loadExpenses.Result)
             {
-                var payer = membersById.GetValueOrDefault(expense.PaidByMemberId)?.DisplayName ?? loc["GroupDetail_SomeoneCapitalized"];
+                var payer = membersById.TryGetValue(expense.PaidByMemberId, out var expensePayer)
+                    ? MemberDisplay.Name(expensePayer, aliases) : loc["GroupDetail_SomeoneCapitalized"];
                 var shares = await expensesRepository.GetSharesAsync(expense.Id);
                 var categoryLabel = string.IsNullOrEmpty(expense.Category) ? "" : loc[$"Category_{expense.Category}"];
                 activity.Add(new ActivityItem
@@ -184,7 +195,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     {
         var items = IsPairwiseMode
             ? await BuildPairwiseItemsAsync()
-            : BuildSimplifiedItems(await balancesRepository.GetForGroupAsync(groupId), membersById, myMemberId);
+            : BuildSimplifiedItems(await balancesRepository.GetForGroupAsync(groupId), membersById, myMemberId, aliases);
 
         Balances = new ObservableCollection<MemberBalanceItem>(items);
     }
@@ -203,7 +214,9 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             var item = new MemberBalanceItem
             {
                 Member = member,
-                Initials = Initials(member.DisplayName),
+                Name = MemberDisplay.Name(member, aliases),
+                Initials = MemberDisplay.Initials(member, aliases),
+                AvatarUrl = MemberDisplay.AvatarUrl(member),
                 Amount = Math.Abs(row.Balance)
             };
             if (row.Balance > 0)
@@ -231,7 +244,8 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     /// the viewer is actually one of its two parties; otherwise it's shown neutrally as
     /// "X pays Y", since it's not a statement about the viewer at all.</summary>
     private static List<MemberBalanceItem> BuildSimplifiedItems(
-        IEnumerable<GroupBalance> balances, IReadOnlyDictionary<Guid, Member> membersById, Guid? myMemberId)
+        IEnumerable<GroupBalance> balances, IReadOnlyDictionary<Guid, Member> membersById, Guid? myMemberId,
+        IReadOnlyDictionary<Guid, string> aliases)
     {
         var items = new List<MemberBalanceItem>();
         foreach (var transfer in DebtSimplifier.Simplify(balances.Select(b => (b.MemberId, b.Balance))))
@@ -245,7 +259,9 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                 items.Add(new MemberBalanceItem
                 {
                     Member = to,
-                    Initials = Initials(to.DisplayName),
+                    Name = MemberDisplay.Name(to, aliases),
+                    Initials = MemberDisplay.Initials(to, aliases),
+                    AvatarUrl = MemberDisplay.AvatarUrl(to),
                     Amount = transfer.Amount,
                     IsOwing = true,
                     IsSettled = false,
@@ -258,7 +274,9 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                 items.Add(new MemberBalanceItem
                 {
                     Member = from,
-                    Initials = Initials(from.DisplayName),
+                    Name = MemberDisplay.Name(from, aliases),
+                    Initials = MemberDisplay.Initials(from, aliases),
+                    AvatarUrl = MemberDisplay.AvatarUrl(from),
                     Amount = transfer.Amount,
                     IsOwed = true,
                     IsSettled = false,
@@ -268,16 +286,19 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             }
             else
             {
+                var toName = MemberDisplay.Name(to, aliases);
                 items.Add(new MemberBalanceItem
                 {
                     Member = from,
-                    Initials = Initials(from.DisplayName),
-                    ToName = to.DisplayName,
+                    Name = MemberDisplay.Name(from, aliases),
+                    Initials = MemberDisplay.Initials(from, aliases),
+                    AvatarUrl = MemberDisplay.AvatarUrl(from),
+                    ToName = toName,
                     ToMemberId = to.Id,
                     Amount = transfer.Amount,
                     IsNeutral = true,
                     AmountText = $"${transfer.Amount:0.00}",
-                    CaptionText = loc.Format("GroupDetail_Pays", to.DisplayName)
+                    CaptionText = loc.Format("GroupDetail_Pays", toName)
                 });
             }
         }
@@ -293,12 +314,6 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
         if (elapsed.TotalDays < 1) return loc.Format("GroupDetail_HoursAgo", (int)elapsed.TotalHours);
         if (elapsed.TotalDays < 7) return loc.Format("GroupDetail_DaysAgo", (int)elapsed.TotalDays);
         return occurredAtUtc.ToLocalTime().ToString("MMM d");
-    }
-
-    private static string Initials(string name)
-    {
-        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length == 0 ? "?" : string.Concat(parts.Take(2).Select(w => char.ToUpperInvariant(w[0])));
     }
 
     [RelayCommand]

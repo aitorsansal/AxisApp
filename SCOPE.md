@@ -43,12 +43,14 @@ all for money-tracking. This is what "done" looks like before Phase 2 starts.
 Login → Groups (list) → Group detail (balances + recent activity for that group)
 → Add expense / Add payment → Invite/Join group flow.
 
-**Built.** All four screens (`GroupsPage`, `GroupDetailPage`, `AddExpensePage`,
-`JoinGroupPage`) exist and are wired to the real repositories — see
-`CLAUDE.md`'s "Current state" for the specifics (edit-expense flow, the two
-bugs found while wiring it up). Built from a locked design handout generated
-via Claude Design; that handout isn't checked into the repo, so if it's
-needed again (new screens, revisiting a layout decision) it'll need
+**Built.** All five screens (`GroupsPage`, `GroupDetailPage`, `MembersPage`,
+`AddExpensePage`, `JoinGroupPage`) exist and are wired to the real
+repositories — see `CLAUDE.md`'s "Current state" for the specifics
+(edit-expense flow, the two bugs found while wiring it up, and the
+2026-08-31 additions: leave/transfer-ownership/dissolve a group, viewing a
+group's members, and removing a phantom). Built from a locked design handout
+generated via Claude Design; that handout isn't checked into the repo, so if
+it's needed again (new screens, revisiting a layout decision) it'll need
 regenerating — the prompt used is reconstructable from this doc's token
 values plus the screen descriptions above.
 

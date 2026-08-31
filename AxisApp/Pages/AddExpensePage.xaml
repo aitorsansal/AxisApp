@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
     xmlns:loc="clr-namespace:AxisApp.Localization"
     x:Class="AxisApp.Pages.AddExpensePage"
     x:DataType="vm:AddExpenseViewModel"
@@ -91,20 +92,13 @@
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:AddExpenseViewModel}}, Path=SelectPayerCommand}"
                                             CommandParameter="{Binding .}" />
                                     </VerticalStackLayout.GestureRecognizers>
-                                    <Border
-                                        Style="{StaticResource AvatarCircle}"
-                                        WidthRequest="{StaticResource AvatarSizeL}" HeightRequest="{StaticResource AvatarSizeL}"
-                                        HorizontalOptions="Center">
-                                        <Border.Triggers>
-                                            <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
-                                                <Setter Property="Stroke" Value="{StaticResource PrimaryHover}" />
-                                                <Setter Property="StrokeThickness" Value="2" />
-                                            </DataTrigger>
-                                        </Border.Triggers>
-                                        <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeBody}" />
-                                    </Border>
+                                    <controls:ProfileCircle
+                                        ImageUrl="{Binding AvatarUrl}"
+                                        Initials="{Binding Initials}"
+                                        Diameter="{StaticResource AvatarSizeL}"
+                                        HorizontalOptions="Center" />
                                     <Label
-                                        Text="{Binding Member.DisplayName}"
+                                        Text="{Binding Name}"
                                         FontSize="{StaticResource TypeLabel}"
                                         TextColor="{StaticResource TextTertiary}"
                                         HorizontalTextAlignment="Center"
@@ -181,16 +175,15 @@
                                         </Border>
                                     </Border>
 
-                                    <Border
+                                    <controls:ProfileCircle
                                         Grid.Column="1"
-                                        Style="{StaticResource AvatarCircle}"
-                                        WidthRequest="{StaticResource AvatarSizeS}" HeightRequest="{StaticResource AvatarSizeS}">
-                                        <Label Text="{Binding Initials}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeLabel}" />
-                                    </Border>
+                                        ImageUrl="{Binding AvatarUrl}"
+                                        Initials="{Binding Initials}"
+                                        Diameter="{StaticResource AvatarSizeS}" />
 
                                     <Label
                                         Grid.Column="2"
-                                        Text="{Binding Member.DisplayName}"
+                                        Text="{Binding Name}"
                                         VerticalOptions="Center"
                                         LineBreakMode="TailTruncation" />
 
