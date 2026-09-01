@@ -40,7 +40,7 @@
             <Label
                 Text="&#8942;"
                 FontSize="{StaticResource TypeTitle}"
-                TextColor="{StaticResource TextPrimary}"
+                TextColor="{DynamicResource TextPrimary}"
                 HorizontalOptions="Center"
                 VerticalOptions="Center">
                 <Label.GestureRecognizers>
@@ -61,7 +61,7 @@
 
                         <Label
                             Text="{Binding ErrorMessage}"
-                            TextColor="{StaticResource Danger}"
+                            TextColor="{DynamicResource Danger}"
                             FontSize="{StaticResource TypeCaption}"
                             IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
@@ -98,10 +98,10 @@
                                                 <Label Grid.Column="1" Text="{Binding Name}" VerticalOptions="Center" FontAttributes="Bold" LineBreakMode="TailTruncation">
                                                     <Label.Triggers>
                                                         <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
-                                                            <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
                                                         </DataTrigger>
                                                         <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
-                                                            <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
                                                         </DataTrigger>
                                                     </Label.Triggers>
                                                 </Label>
@@ -109,20 +109,20 @@
                                                     <Label Text="{Binding AmountText}" FontSize="{StaticResource TypeTitle}" FontAttributes="Bold" HorizontalTextAlignment="End">
                                                         <Label.Triggers>
                                                             <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
-                                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+                                                                <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
                                                             </DataTrigger>
                                                             <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
-                                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+                                                                <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
                                                             </DataTrigger>
                                                         </Label.Triggers>
                                                     </Label>
                                                     <Label Text="{Binding CaptionText}" FontSize="{StaticResource TypeCaption}" HorizontalTextAlignment="End">
                                                         <Label.Triggers>
                                                             <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
-                                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+                                                                <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
                                                             </DataTrigger>
                                                             <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
-                                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+                                                                <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
                                                             </DataTrigger>
                                                         </Label.Triggers>
                                                     </Label>
@@ -182,7 +182,7 @@
                                                         HorizontalTextAlignment="End">
                                                         <Label.Triggers>
                                                             <DataTrigger TargetType="Label" Binding="{Binding IsSettlement}" Value="True">
-                                                                <Setter Property="TextColor" Value="{StaticResource Success}" />
+                                                                <Setter Property="TextColor" Value="{DynamicResource Success}" />
                                                             </DataTrigger>
                                                         </Label.Triggers>
                                                     </Label>
@@ -261,7 +261,7 @@
             </Label>
 
             <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" IsVisible="{Binding IsGroupCreator}" />
-            <Label Text="{loc:Translate GroupDetail_DissolveGroup}" TextColor="{StaticResource Danger}" IsVisible="{Binding IsGroupCreator}">
+            <Label Text="{loc:Translate GroupDetail_DissolveGroup}" TextColor="{DynamicResource Danger}" IsVisible="{Binding IsGroupCreator}">
                 <Label.Padding>
                     <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
                 </Label.Padding>

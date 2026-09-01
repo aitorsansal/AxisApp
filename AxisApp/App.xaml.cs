@@ -18,6 +18,10 @@ namespace AxisApp
             InitializeComponent();
             Application.Current!.UserAppTheme = AppTheme.Dark;
 
+            // Must run after InitializeComponent (Resources.MergedDictionaries don't exist until
+            // App.xaml is parsed) — unlike Localization.Bootstrap above, which must run before it.
+            Services.ThemeService.Instance.Bootstrap();
+
             AppDomain.CurrentDomain.UnhandledException += (_, e) =>
                 LogCrash(e.ExceptionObject as Exception);
             TaskScheduler.UnobservedTaskException += (_, e) =>

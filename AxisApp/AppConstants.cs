@@ -15,6 +15,11 @@ public static class AppConstants
         /// <summary>Per-device language override ("en"/"es"), empty string means "follow the
         /// device's OS locale" — see LocalizationResourceManager.</summary>
         public const string LanguageOverride = "language_override";
+
+        /// <summary>Per-device accent color choice (an AccentPreset name) — see ThemeService.
+        /// Local only, same "personal viewing preference, not group state" reasoning as
+        /// BalanceDisplayModePrefix.</summary>
+        public const string AccentPreset = "accent_preset";
     }
 
     /// <summary>Fixed, developer-maintained expense categories — not a database table. Each key

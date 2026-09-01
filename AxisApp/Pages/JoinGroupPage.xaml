@@ -21,14 +21,14 @@
                 <Border Style="{StaticResource ElevatedCard}" IsVisible="{Binding HasActiveGroup}">
                     <VerticalStackLayout Spacing="{StaticResource SpacingM}" HorizontalOptions="Center">
                         <Border
-                            BackgroundColor="{StaticResource QrPlaceholderBg}"
+                            BackgroundColor="{DynamicResource QrPlaceholderBg}"
                             WidthRequest="132" HeightRequest="132"
                             StrokeThickness="0">
                             <Border.StrokeShape>
                                 <RoundRectangle CornerRadius="{StaticResource ShapeControl}" />
                             </Border.StrokeShape>
                             <!-- QR generation not wired yet; placeholder swatch -->
-                            <Label Text="QR" TextColor="{StaticResource TextOnAccent}" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" />
+                            <Label Text="QR" TextColor="{DynamicResource TextOnAccent}" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" />
                         </Border>
 
                         <HorizontalStackLayout Spacing="{StaticResource SpacingS}">
@@ -83,7 +83,7 @@
 
                 <Label
                     Text="{Binding ErrorMessage}"
-                    TextColor="{StaticResource Danger}"
+                    TextColor="{DynamicResource Danger}"
                     FontSize="{StaticResource TypeCaption}"
                     IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
@@ -185,7 +185,7 @@
             Grid.Row="0" Grid.RowSpan="2"
             IsRunning="{Binding IsBusy}"
             IsVisible="{Binding IsBusy}"
-            Color="{StaticResource Primary}"
+            Color="{DynamicResource Primary}"
             HorizontalOptions="Center"
             VerticalOptions="Center" />
 

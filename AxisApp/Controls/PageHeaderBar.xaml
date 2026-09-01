@@ -22,7 +22,7 @@
             <Label
                 Text="&#8249;"
                 FontSize="{StaticResource TypeIcon}"
-                TextColor="{StaticResource TextPrimary}"
+                TextColor="{DynamicResource TextPrimary}"
                 HorizontalOptions="Center"
                 VerticalOptions="Center">
                 <Label.GestureRecognizers>
@@ -46,7 +46,7 @@
             <Label
                 Text="&#8942;"
                 FontSize="{StaticResource TypeTitle}"
-                TextColor="{StaticResource TextPrimary}"
+                TextColor="{DynamicResource TextPrimary}"
                 HorizontalOptions="Center"
                 VerticalOptions="Center">
                 <Label.GestureRecognizers>

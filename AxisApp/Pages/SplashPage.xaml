@@ -20,7 +20,7 @@
 
             <ActivityIndicator
                 IsRunning="True"
-                Color="{StaticResource Primary}"
+                Color="{DynamicResource Primary}"
                 HorizontalOptions="Center" />
 
         </VerticalStackLayout>

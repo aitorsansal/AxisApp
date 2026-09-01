@@ -33,7 +33,7 @@
 
                     <Label
                         Text="{Binding ErrorMessage}"
-                        TextColor="{StaticResource Danger}"
+                        TextColor="{DynamicResource Danger}"
                         FontSize="{StaticResource TypeCaption}"
                         IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
@@ -81,7 +81,7 @@
                                                     Command="{Binding Source={RelativeSource AncestorType={x:Type vm:RecurringExpensesViewModel}}, Path=EditRecurringCommand}"
                                                     CommandParameter="{Binding .}" />
                                             </Border.GestureRecognizers>
-                                            <Label Text="&#9998;" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{StaticResource TextTertiary}" />
+                                            <Label Text="&#9998;" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{DynamicResource TextTertiary}" />
                                         </Border>
 
                                         <Button
@@ -97,7 +97,7 @@
                                             <Button.Triggers>
                                                 <DataTrigger TargetType="Button" Binding="{Binding IsActive}" Value="False">
                                                     <Setter Property="Text" Value="{loc:Translate RecurringExpenses_Paused}" />
-                                                    <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+                                                    <Setter Property="TextColor" Value="{DynamicResource TextTertiary}" />
                                                 </DataTrigger>
                                             </Button.Triggers>
                                         </Button>
@@ -108,7 +108,7 @@
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:RecurringExpensesViewModel}}, Path=DeleteRecurringCommand}"
                                             CommandParameter="{Binding .}"
                                             Style="{StaticResource BtnOutlinePrimary}"
-                                            TextColor="{StaticResource Danger}"
+                                            TextColor="{DynamicResource Danger}"
                                             FontSize="{StaticResource TypeCaption}"
                                             Padding="{StaticResource SpacingS}"
                                             MinimumHeightRequest="36"

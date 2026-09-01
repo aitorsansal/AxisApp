@@ -22,7 +22,7 @@
                 Text="{loc:Translate Common_Cancel}"
                 Command="{Binding CancelCommand}"
                 Style="{StaticResource BtnTextStyle}"
-                TextColor="{StaticResource TextSecondary}"
+                TextColor="{DynamicResource TextSecondary}"
                 MinimumWidthRequest="76"
                 MinimumHeightRequest="44"
                 VerticalOptions="Center" />
@@ -41,7 +41,7 @@
                 Command="{Binding SaveCommand}"
                 IsEnabled="{Binding CanSave}"
                 Style="{StaticResource BtnTextStyle}"
-                TextColor="{StaticResource Primary}"
+                TextColor="{DynamicResource Primary}"
                 MinimumWidthRequest="76"
                 MinimumHeightRequest="44"
                 VerticalOptions="Center" />
@@ -57,19 +57,19 @@
                             Text="$"
                             FontSize="{StaticResource TypeAmountPrefix}"
                             FontAttributes="Bold"
-                            TextColor="{StaticResource TextTertiary}"
+                            TextColor="{DynamicResource TextTertiary}"
                             VerticalOptions="Center" />
                         <Entry
                             Text="{Binding AmountText}"
                             Keyboard="Numeric"
                             FontSize="{StaticResource TypeAmountHero}"
                             FontAttributes="Bold"
-                            TextColor="{StaticResource TextPrimary}"
+                            TextColor="{DynamicResource TextPrimary}"
                             BackgroundColor="Transparent"
                             HorizontalTextAlignment="Center"
                             WidthRequest="180" />
                     </HorizontalStackLayout>
-                    <BoxView HeightRequest="2" WidthRequest="120" Color="{StaticResource Primary}" HorizontalOptions="Center" />
+                    <BoxView HeightRequest="2" WidthRequest="120" Color="{DynamicResource Primary}" HorizontalOptions="Center" />
                 </VerticalStackLayout>
 
                 <!-- Description -->
@@ -100,12 +100,12 @@
                                     <Label
                                         Text="{Binding Name}"
                                         FontSize="{StaticResource TypeLabel}"
-                                        TextColor="{StaticResource TextTertiary}"
+                                        TextColor="{DynamicResource TextTertiary}"
                                         HorizontalTextAlignment="Center"
                                         LineBreakMode="TailTruncation">
                                         <Label.Triggers>
                                             <DataTrigger TargetType="Label" Binding="{Binding IsSelected}" Value="True">
-                                                <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+                                                <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
                                                 <Setter Property="FontAttributes" Value="Bold" />
                                             </DataTrigger>
                                         </Label.Triggers>
@@ -167,7 +167,7 @@
                                             <Label
                                                 Text="&#10003;"
                                                 IsVisible="{Binding IsIncluded}"
-                                                TextColor="{StaticResource TextOnAccent}"
+                                                TextColor="{DynamicResource TextOnAccent}"
                                                 FontSize="{StaticResource TypeCaption}"
                                                 FontAttributes="Bold"
                                                 HorizontalOptions="Center"
@@ -221,10 +221,10 @@
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:AddExpenseViewModel}}, Path=SelectCategoryCommand}"
                                             CommandParameter="{Binding .}" />
                                     </Border.GestureRecognizers>
-                                    <Label Text="{Binding Name}" FontSize="{StaticResource TypeCaption}" TextColor="{StaticResource TextSecondary}" VerticalOptions="Center">
+                                    <Label Text="{Binding Name}" FontSize="{StaticResource TypeCaption}" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center">
                                         <Label.Triggers>
                                             <DataTrigger TargetType="Label" Binding="{Binding IsSelected}" Value="True">
-                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+                                                <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
                                             </DataTrigger>
                                         </Label.Triggers>
                                     </Label>
@@ -250,7 +250,7 @@
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
                             <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
                             <Label Grid.Column="1" Text="{Binding OccurredOnDisplay}" VerticalOptions="Center" />
-                            <Label Grid.Column="2" Text="&#8250;" TextColor="{StaticResource TextTertiary}" VerticalOptions="Center" />
+                            <Label Grid.Column="2" Text="&#8250;" TextColor="{DynamicResource TextTertiary}" VerticalOptions="Center" />
                         </Grid>
                         <DatePicker Date="{Binding OccurredOn}" Opacity="0" />
                     </Grid>
@@ -263,7 +263,7 @@
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
                                 <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
                                 <Label Grid.Column="1" Text="{Binding StartDateDisplay}" VerticalOptions="Center" />
-                                <Label Grid.Column="2" Text="&#8250;" TextColor="{StaticResource TextTertiary}" VerticalOptions="Center" />
+                                <Label Grid.Column="2" Text="&#8250;" TextColor="{DynamicResource TextTertiary}" VerticalOptions="Center" />
                             </Grid>
                             <DatePicker Date="{Binding StartDate}" Opacity="0" />
                         </Grid>
@@ -282,10 +282,10 @@
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:AddExpenseViewModel}}, Path=SelectFrequencyCommand}"
                                             CommandParameter="{Binding .}" />
                                     </Border.GestureRecognizers>
-                                    <Label Text="{Binding Label}" FontSize="{StaticResource TypeCaption}" TextColor="{StaticResource TextSecondary}" VerticalOptions="Center">
+                                    <Label Text="{Binding Label}" FontSize="{StaticResource TypeCaption}" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center">
                                         <Label.Triggers>
                                             <DataTrigger TargetType="Label" Binding="{Binding IsSelected}" Value="True">
-                                                <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+                                                <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
                                             </DataTrigger>
                                         </Label.Triggers>
                                     </Label>
@@ -324,7 +324,7 @@
                         <ActivityIndicator
                             IsRunning="{Binding IsReceiptBusy}"
                             IsVisible="{Binding IsReceiptBusy}"
-                            Color="{StaticResource Primary}"
+                            Color="{DynamicResource Primary}"
                             HorizontalOptions="Center"
                             VerticalOptions="Center" />
                     </Grid>
@@ -336,7 +336,7 @@
         <VerticalStackLayout Grid.Row="2" Spacing="{StaticResource SpacingS}" Margin="{StaticResource SpacingM}">
             <Label
                 Text="{Binding ErrorMessage}"
-                TextColor="{StaticResource Danger}"
+                TextColor="{DynamicResource Danger}"
                 FontSize="{StaticResource TypeCaption}"
                 HorizontalTextAlignment="Center"
                 IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
@@ -356,7 +356,7 @@
             Grid.Row="0" Grid.RowSpan="3"
             IsRunning="{Binding IsBusy}"
             IsVisible="{Binding IsBusy}"
-            Color="{StaticResource Primary}"
+            Color="{DynamicResource Primary}"
             HorizontalOptions="Center"
             VerticalOptions="Center" />
 

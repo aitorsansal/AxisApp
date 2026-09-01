@@ -42,13 +42,13 @@
 
                 <Label
                     Text="{Binding ErrorMessage}"
-                    TextColor="{StaticResource Danger}"
+                    TextColor="{DynamicResource Danger}"
                     FontSize="{StaticResource TypeCaption}"
                     IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
                 <Label
                     Text="{Binding StatusMessage}"
-                    TextColor="{StaticResource Primary}"
+                    TextColor="{DynamicResource Primary}"
                     FontSize="{StaticResource TypeCaption}"
                     IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
@@ -65,13 +65,13 @@
                     IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
 
                 <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
-                    <BoxView Grid.Column="0" HeightRequest="1" Color="{StaticResource TextDisabled}" VerticalOptions="Center" />
+                    <BoxView Grid.Column="0" HeightRequest="1" Color="{DynamicResource TextDisabled}" VerticalOptions="Center" />
                     <Label
                         Grid.Column="1"
                         Text="{loc:Translate Login_Or}"
-                        TextColor="{StaticResource TextTertiary}"
+                        TextColor="{DynamicResource TextTertiary}"
                         FontSize="{StaticResource TypeCaption}" />
-                    <BoxView Grid.Column="2" HeightRequest="1" Color="{StaticResource TextDisabled}" VerticalOptions="Center" />
+                    <BoxView Grid.Column="2" HeightRequest="1" Color="{DynamicResource TextDisabled}" VerticalOptions="Center" />
                 </Grid>
 
                 <Border
@@ -88,7 +88,7 @@
 
                 <Label
                     Text="{loc:Translate Login_ForgotPassword}"
-                    TextColor="{StaticResource TextSecondary}"
+                    TextColor="{DynamicResource TextSecondary}"
                     FontSize="{StaticResource TypeCaption}"
                     HorizontalOptions="Center">
                     <Label.GestureRecognizers>
@@ -100,7 +100,7 @@
         </ScrollView>
 
         <BoxView
-            Color="{StaticResource BgDeep}"
+            Color="{DynamicResource BgDeep}"
             Opacity="0.6"
             IsVisible="{Binding IsBusy}"
             InputTransparent="False" />
@@ -108,7 +108,7 @@
         <ActivityIndicator
             IsRunning="{Binding IsBusy}"
             IsVisible="{Binding IsBusy}"
-            Color="{StaticResource Primary}"
+            Color="{DynamicResource Primary}"
             HorizontalOptions="Center"
             VerticalOptions="Center" />
 

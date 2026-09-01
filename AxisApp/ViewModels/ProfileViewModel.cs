@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using AxisApp.Localization;
 using AxisApp.Models;
@@ -7,6 +8,15 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Media;
 
 namespace AxisApp.ViewModels;
+
+/// <summary>One selectable swatch in Profile's accent-color row — see ThemeService.</summary>
+public partial class AccentSwatch : ObservableObject
+{
+    public AccentPreset Preset { get; init; }
+    public Color Color { get; init; } = Colors.Transparent;
+
+    [ObservableProperty] private bool isSelected;
+}
 
 /// <summary>Everything that used to live directly in GroupsPage's floating account menu beyond
 /// language/logout — own display name, birthday, avatar, language, and account credentials — now
@@ -30,6 +40,7 @@ public partial class ProfileViewModel : BaseViewModel
     [ObservableProperty] private DateTime birthday = DateTime.Today.AddYears(-25);
     [ObservableProperty] private string birthdayDisplay = "";
     [ObservableProperty] private string selectedLanguageOverride;
+    public ObservableCollection<AccentSwatch> AccentSwatches { get; }
     [ObservableProperty] private string newEmail = "";
     [ObservableProperty] private string newPassword = "";
     [ObservableProperty] private string statusMessage = "";
@@ -42,6 +53,15 @@ public partial class ProfileViewModel : BaseViewModel
 
         UserEmail = authService.CurrentEmail ?? "";
         selectedLanguageOverride = LocalizationResourceManager.Instance.CurrentOverride;
+
+        var currentAccent = ThemeService.Instance.Current;
+        AccentSwatches = new ObservableCollection<AccentSwatch>(Enum.GetValues<AccentPreset>().Select(preset =>
+            new AccentSwatch
+            {
+                Preset = preset,
+                Color = AccentPalettes.SwatchColor(preset),
+                IsSelected = preset == currentAccent,
+            }));
     }
 
     public Task LoadAsync() => RunSafeAsync(async () =>
@@ -168,6 +188,14 @@ public partial class ProfileViewModel : BaseViewModel
     {
         LocalizationResourceManager.Instance.SetLanguage(languageCode);
         SelectedLanguageOverride = languageCode ?? "";
+    }
+
+    [RelayCommand]
+    private void ChangeAccentColor(AccentSwatch swatch)
+    {
+        ThemeService.Instance.SetPreset(swatch.Preset);
+        foreach (var s in AccentSwatches)
+            s.IsSelected = s == swatch;
     }
 
     [RelayCommand]

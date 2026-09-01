@@ -29,7 +29,7 @@
                             <Label
                                 Grid.Column="0"
                                 Text="{loc:Translate Profile_ChangePhoto}"
-                                TextColor="{StaticResource Primary}"
+                                TextColor="{DynamicResource Primary}"
                                 FontSize="{StaticResource TypeCaption}">
                                 <Label.GestureRecognizers>
                                     <TapGestureRecognizer Command="{Binding ChangePhotoCommand}" />
@@ -38,7 +38,7 @@
                             <Label
                                 Grid.Column="1"
                                 Text="{loc:Translate Profile_RemovePhoto}"
-                                TextColor="{StaticResource Danger}"
+                                TextColor="{DynamicResource Danger}"
                                 FontSize="{StaticResource TypeCaption}"
                                 IsVisible="{Binding AvatarUrl, Converter={StaticResource StringNotEmptyConverter}}">
                                 <Label.GestureRecognizers>
@@ -65,7 +65,7 @@
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
                                     <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
                                     <Label Grid.Column="1" Text="{Binding BirthdayDisplay}" VerticalOptions="Center" />
-                                    <Label Grid.Column="2" Text="{loc:Translate Profile_ClearBirthday}" TextColor="{StaticResource Danger}" VerticalOptions="Center">
+                                    <Label Grid.Column="2" Text="{loc:Translate Profile_ClearBirthday}" TextColor="{DynamicResource Danger}" VerticalOptions="Center">
                                         <Label.GestureRecognizers>
                                             <TapGestureRecognizer Command="{Binding ClearBirthdayCommand}" />
                                         </Label.GestureRecognizers>
@@ -88,12 +88,12 @@
 
                     <Label
                         Text="{Binding StatusMessage}"
-                        TextColor="{StaticResource Success}"
+                        TextColor="{DynamicResource Success}"
                         FontSize="{StaticResource TypeCaption}"
                         IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotEmptyConverter}}" />
                     <Label
                         Text="{Binding ErrorMessage}"
-                        TextColor="{StaticResource Danger}"
+                        TextColor="{DynamicResource Danger}"
                         FontSize="{StaticResource TypeCaption}"
                         IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
@@ -113,7 +113,7 @@
                                     </Label.GestureRecognizers>
                                     <Label.Triggers>
                                         <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="">
-                                            <Setter Property="TextColor" Value="{StaticResource Primary}" />
+                                            <Setter Property="TextColor" Value="{DynamicResource Primary}" />
                                             <Setter Property="FontAttributes" Value="Bold" />
                                         </DataTrigger>
                                     </Label.Triggers>
@@ -127,7 +127,7 @@
                                     </Label.GestureRecognizers>
                                     <Label.Triggers>
                                         <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="en">
-                                            <Setter Property="TextColor" Value="{StaticResource Primary}" />
+                                            <Setter Property="TextColor" Value="{DynamicResource Primary}" />
                                             <Setter Property="FontAttributes" Value="Bold" />
                                         </DataTrigger>
                                     </Label.Triggers>
@@ -141,13 +141,36 @@
                                     </Label.GestureRecognizers>
                                     <Label.Triggers>
                                         <DataTrigger TargetType="Label" Binding="{Binding SelectedLanguageOverride}" Value="es">
-                                            <Setter Property="TextColor" Value="{StaticResource Primary}" />
+                                            <Setter Property="TextColor" Value="{DynamicResource Primary}" />
                                             <Setter Property="FontAttributes" Value="Bold" />
                                         </DataTrigger>
                                     </Label.Triggers>
                                 </Label>
                             </VerticalStackLayout>
                         </Border>
+                    </VerticalStackLayout>
+
+                    <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
+
+                    <!-- Accent color -->
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <Label Text="{loc:Translate Profile_AccentColor}" Style="{StaticResource SectionHeaderTertiary}" />
+                        <CollectionView ItemsSource="{Binding AccentSwatches}" HeightRequest="44">
+                            <CollectionView.ItemsLayout>
+                                <LinearItemsLayout Orientation="Horizontal" ItemSpacing="{StaticResource SpacingS}" />
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:AccentSwatch">
+                                    <Border Style="{StaticResource AccentSwatchBorder}" BackgroundColor="{Binding Color}">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:ProfileViewModel}}, Path=ChangeAccentColorCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
                     </VerticalStackLayout>
 
                     <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
@@ -183,7 +206,7 @@
             Grid.Row="0" Grid.RowSpan="2"
             IsRunning="{Binding IsBusy}"
             IsVisible="{Binding IsBusy}"
-            Color="{StaticResource Primary}"
+            Color="{DynamicResource Primary}"
             HorizontalOptions="Center"
             VerticalOptions="Center" />
 

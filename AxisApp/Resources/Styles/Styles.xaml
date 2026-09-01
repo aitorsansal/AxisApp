@@ -7,18 +7,18 @@
          Base Typography
          ======================= -->
     <Style TargetType="Label">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="FontSize" Value="{StaticResource TypeBody}" />
     </Style>
 
 
     <Style x:Key="LabelSecondary" TargetType="Label">
-        <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
         <Setter Property="FontSize" Value="{StaticResource TypeCaption}" />
     </Style>
 
     <Style x:Key="LabelTertiary" TargetType="Label">
-        <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextTertiary}" />
         <Setter Property="FontSize" Value="{StaticResource TypeCaption}" />
     </Style>
 
@@ -26,12 +26,12 @@
          Page / Layout Defaults
          ======================= -->
     <Style TargetType="ContentPage">
-        <Setter Property="BackgroundColor" Value="{StaticResource BgPrimary}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource BgPrimary}" />
     </Style>
 
     <Style x:Key="SurfaceFrame" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource Surface}" />
-        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="Background" Value="{DynamicResource Surface}" />
+        <Setter Property="Stroke" Value="{DynamicResource Border}" />
         <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="Padding" Value="{StaticResource SpacingM}" />
         <Setter Property="StrokeShape">
@@ -42,11 +42,11 @@
     </Style>
 
     <Style x:Key="ElevatedCard" TargetType="Border" BasedOn="{StaticResource SurfaceFrame}">
-        <Setter Property="Background" Value="{StaticResource SurfaceElevated}" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevated}" />
     </Style>
 
     <Style x:Key="SectionDivider" TargetType="BoxView">
-        <Setter Property="Color" Value="{StaticResource BorderSubtle}" />
+        <Setter Property="Color" Value="{DynamicResource BorderSubtle}" />
         <Setter Property="HeightRequest" Value="1" />
         <Setter Property="Opacity" Value="1" />
         <Setter Property="HorizontalOptions" Value="Fill" />
@@ -59,8 +59,8 @@
          + Entry/Editor styles for text/placeholder/cursor. -->
 
     <Style x:Key="InputBorderStyle" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource InputBg}" />
-        <Setter Property="Stroke" Value="{StaticResource InputBorder}" />
+        <Setter Property="Background" Value="{DynamicResource InputBg}" />
+        <Setter Property="Stroke" Value="{DynamicResource InputBorder}" />
         <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="Padding">
             <Setter.Value>
@@ -75,38 +75,38 @@
     </Style>
 
     <Style x:Key="InputBorderFocused" TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
-        <Setter Property="Stroke" Value="{StaticResource Primary}" />
+        <Setter Property="Stroke" Value="{DynamicResource Primary}" />
     </Style>
 
     <Style x:Key="InputBorderError" TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
-        <Setter Property="Stroke" Value="{StaticResource Danger}" />
+        <Setter Property="Stroke" Value="{DynamicResource Danger}" />
     </Style>
 
     <Style x:Key="InputBorderDisabled" TargetType="Border" BasedOn="{StaticResource InputBorderStyle}">
-        <Setter Property="Background" Value="{StaticResource InputDisabledBg}" />
-        <Setter Property="Stroke" Value="{StaticResource BorderSubtle}" />
+        <Setter Property="Background" Value="{DynamicResource InputDisabledBg}" />
+        <Setter Property="Stroke" Value="{DynamicResource BorderSubtle}" />
         <Setter Property="Opacity" Value="0.38" />
     </Style>
 
     <Style TargetType="Entry">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="PlaceholderColor" Value="{StaticResource InputPlaceholder}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource InputPlaceholder}" />
         <Setter Property="CursorPosition" Value="0" />
         <Setter Property="ClearButtonVisibility" Value="WhileEditing" />
         <Setter Property="BackgroundColor" Value="Transparent" />
     </Style>
 
     <Style x:Key="ValidEntryStyle" TargetType="Entry">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
     </Style>
 
     <Style x:Key="InvalidEntryStyle" TargetType="Entry">
-        <Setter Property="TextColor" Value="{StaticResource Danger}" />
+        <Setter Property="TextColor" Value="{DynamicResource Danger}" />
     </Style>
 
     <Style TargetType="Editor">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="PlaceholderColor" Value="{StaticResource InputPlaceholder}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource InputPlaceholder}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="AutoSize" Value="TextChanges" />
     </Style>
@@ -145,7 +145,7 @@
         <Setter Property="FontSize" Value="{StaticResource TypeBody}" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="BorderWidth" Value="0" />
-        <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
     </Style>
 
     <!-- Borderless variant for header actions (Cancel / Save-style buttons) -->
@@ -156,7 +156,7 @@
 
     <!-- Primary -->
     <Style x:Key="BtnPrimaryStyle" TargetType="Button" BasedOn="{StaticResource BtnBase}">
-        <Setter Property="BackgroundColor" Value="{StaticResource BtnPrimary}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource BtnPrimary}" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
@@ -167,21 +167,21 @@
                     </VisualState>
                     <VisualState x:Name="PointerOver">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource BtnPrimaryHover}" />
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BtnPrimaryHover}" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Pressed">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource BtnPrimaryPressed}" />
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BtnPrimaryPressed}" />
                             <Setter Property="Scale" Value="0.97" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource BtnPrimaryDisabledBg}" />
-                            <Setter Property="TextColor" Value="{StaticResource BtnPrimaryDisabledText}" />
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BtnPrimaryDisabledBg}" />
+                            <Setter Property="TextColor" Value="{DynamicResource BtnPrimaryDisabledText}" />
                             <Setter Property="BorderWidth" Value="1" />
-                            <Setter Property="BorderColor" Value="{StaticResource BtnPrimaryDisabledBorder}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource BtnPrimaryDisabledBorder}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -191,7 +191,7 @@
 
     <!-- Secondary -->
     <Style x:Key="BtnSecondaryStyle" TargetType="Button" BasedOn="{StaticResource BtnBase}">
-        <Setter Property="BackgroundColor" Value="{StaticResource Secondary}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource Secondary}" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
@@ -202,21 +202,21 @@
                     </VisualState>
                     <VisualState x:Name="PointerOver">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource BtnSecondaryHover}" />
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BtnSecondaryHover}" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Pressed">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource BtnSecondaryPressed}" />
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BtnSecondaryPressed}" />
                             <Setter Property="Scale" Value="0.97" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource BtnSecondaryDisabledBg}" />
-                            <Setter Property="TextColor" Value="{StaticResource BtnSecondaryDisabledText}" />
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BtnSecondaryDisabledBg}" />
+                            <Setter Property="TextColor" Value="{DynamicResource BtnSecondaryDisabledText}" />
                             <Setter Property="BorderWidth" Value="1" />
-                            <Setter Property="BorderColor" Value="{StaticResource BtnSecondaryDisabledBorder}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource BtnSecondaryDisabledBorder}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -227,9 +227,9 @@
     <!-- Outline Primary -->
     <Style x:Key="BtnOutlinePrimary" TargetType="Button" BasedOn="{StaticResource BtnBase}">
         <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="BorderWidth" Value="1" />
-        <Setter Property="BorderColor" Value="{StaticResource BtnOutlinePrimaryBorder}" />
+        <Setter Property="BorderColor" Value="{DynamicResource BtnOutlinePrimaryBorder}" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
@@ -240,19 +240,19 @@
                     </VisualState>
                     <VisualState x:Name="PointerOver">
                         <VisualState.Setters>
-                            <Setter Property="BorderColor" Value="{StaticResource Primary}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Primary}" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Pressed">
                         <VisualState.Setters>
-                            <Setter Property="BorderColor" Value="{StaticResource BtnPrimaryPressed}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource BtnPrimaryPressed}" />
                             <Setter Property="Scale" Value="0.97" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="BorderColor" Value="{StaticResource BtnOutlineDisabledBorder}" />
-                            <Setter Property="TextColor" Value="{StaticResource BtnOutlineDisabledText}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource BtnOutlineDisabledBorder}" />
+                            <Setter Property="TextColor" Value="{DynamicResource BtnOutlineDisabledText}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -298,9 +298,9 @@
     <!-- Outline Secondary -->
     <Style x:Key="BtnOutlineSecondary" TargetType="Button" BasedOn="{StaticResource BtnBase}">
         <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="BorderWidth" Value="1" />
-        <Setter Property="BorderColor" Value="{StaticResource BtnOutlineSecondaryBorder}" />
+        <Setter Property="BorderColor" Value="{DynamicResource BtnOutlineSecondaryBorder}" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
@@ -311,19 +311,19 @@
                     </VisualState>
                     <VisualState x:Name="PointerOver">
                         <VisualState.Setters>
-                            <Setter Property="BorderColor" Value="{StaticResource Secondary}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Secondary}" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Pressed">
                         <VisualState.Setters>
-                            <Setter Property="BorderColor" Value="{StaticResource BtnSecondaryPressed}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource BtnSecondaryPressed}" />
                             <Setter Property="Scale" Value="0.97" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="BorderColor" Value="{StaticResource BtnOutlineDisabledBorder}" />
-                            <Setter Property="TextColor" Value="{StaticResource BtnOutlineDisabledText}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource BtnOutlineDisabledBorder}" />
+                            <Setter Property="TextColor" Value="{DynamicResource BtnOutlineDisabledText}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -335,7 +335,7 @@
          Borders (utility)
          ======================= -->
     <Style x:Key="BorderThin" TargetType="Border">
-        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="Stroke" Value="{DynamicResource Border}" />
         <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="Padding">
             <Setter.Value>
@@ -357,28 +357,28 @@
             </Setter.Value>
         </Setter>
         <Setter Property="BackgroundColor" Value="Transparent"/>
-        <Setter Property="Stroke" Value="{StaticResource Border}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Border}"/>
         <Style.Triggers>
             <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
-                <Setter Property="BackgroundColor" Value="{StaticResource Primary}"/>
-                <Setter Property="Stroke" Value="{StaticResource Primary}"/>
+                <Setter Property="BackgroundColor" Value="{DynamicResource Primary}"/>
+                <Setter Property="Stroke" Value="{DynamicResource Primary}"/>
             </DataTrigger>
         </Style.Triggers>
     </Style>
 
     <Style x:Key="BorderFocusRing" TargetType="Border" BasedOn="{StaticResource BorderThin}">
-        <Setter Property="Stroke" Value="{StaticResource Focus}" />
+        <Setter Property="Stroke" Value="{DynamicResource Focus}" />
         <Setter Property="StrokeThickness" Value="2" />
     </Style>
 
 
     <Style x:Key="BorderOwns" TargetType="Border" BasedOn="{StaticResource BorderThin}">
-        <Setter Property="Stroke" Value="{StaticResource BtnOutlineSecondaryBorder}"/>
+        <Setter Property="Stroke" Value="{DynamicResource BtnOutlineSecondaryBorder}"/>
         <Setter Property="StrokeThickness" Value="2"/>
     </Style>
 
     <Style x:Key="BorderOwe" TargetType="Border" BasedOn="{StaticResource BorderOwns}">
-        <Setter Property="Stroke" Value="{StaticResource InputBorderError}"/>
+        <Setter Property="Stroke" Value="{DynamicResource InputBorderError}"/>
     </Style>
 
     <!-- =======================
@@ -386,8 +386,8 @@
          ======================= -->
     <!-- Usage: wrap your nav in a Border/Grid and apply these -->
     <Style x:Key="BottomNavContainer" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource Surface}" />
-        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="Background" Value="{DynamicResource Surface}" />
+        <Setter Property="Stroke" Value="{DynamicResource Border}" />
         <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="Padding" Value="{StaticResource SpacingS}" />
         <Setter Property="StrokeShape">
@@ -401,12 +401,12 @@
 
     <Style x:Key="BottomNavItemLabel" TargetType="Label">
         <Setter Property="FontSize" Value="{StaticResource TypeLabel}" />
-        <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextTertiary}" />
         <Setter Property="HorizontalTextAlignment" Value="Center" />
     </Style>
 
     <Style x:Key="BottomNavItemLabelActive" TargetType="Label" BasedOn="{StaticResource BottomNavItemLabel}">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
     </Style>
 
     <!-- If you use ImageButton icons -->
@@ -433,7 +433,7 @@
          Section Headers
          ======================= -->
     <Style x:Key="SectionHeader" TargetType="Label">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="FontSize" Value="{StaticResource TypeTitle}" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="Margin">
@@ -446,7 +446,7 @@
     <Style x:Key="SectionHeaderTertiary" TargetType="Label" BasedOn="{StaticResource SectionHeader}">
         <Setter Property="FontSize" Value="{StaticResource TypeCaption}" />
         <Setter Property="FontAttributes" Value="None" />
-        <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextTertiary}" />
         <Setter Property="CharacterSpacing" Value="1" />
     </Style>
 
@@ -454,8 +454,8 @@
          List Item Card
          ======================= -->
     <Style x:Key="ListItemCard" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource SurfaceElevated}" />
-        <Setter Property="Stroke" Value="{StaticResource BorderSubtle}" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevated}" />
+        <Setter Property="Stroke" Value="{DynamicResource BorderSubtle}" />
         <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="Padding" Value="{StaticResource SpacingM}" />
         <Setter Property="Margin">
@@ -474,8 +474,8 @@
          Danger Button
          ======================= -->
     <Style x:Key="BtnDangerStyle" TargetType="Button" BasedOn="{StaticResource BtnBase}">
-        <Setter Property="BackgroundColor" Value="{StaticResource Danger}" />
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource Danger}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
@@ -503,14 +503,14 @@
     <!-- Outline Danger -->
     <Style x:Key="BtnOutlineDanger" TargetType="Button" BasedOn="{StaticResource BtnBase}">
         <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="TextColor" Value="{StaticResource Danger}" />
+        <Setter Property="TextColor" Value="{DynamicResource Danger}" />
         <Setter Property="BorderWidth" Value="1" />
-        <Setter Property="BorderColor" Value="{StaticResource Danger}" />
+        <Setter Property="BorderColor" Value="{DynamicResource Danger}" />
     </Style>
 
     <!-- Primary-colored circular ImageButton (for icon-only action buttons) -->
     <Style x:Key="ImageButtonPrimaryStyle" TargetType="ImageButton">
-        <Setter Property="BackgroundColor" Value="{StaticResource Primary}"/>
+        <Setter Property="BackgroundColor" Value="{DynamicResource Primary}"/>
         <Setter Property="CornerRadius" Value="20"/> <!-- half of WidthRequest/HeightRequest below - circle math, not the radius scale -->
         <Setter Property="Padding" Value="{StaticResource SpacingS}"/>
         <Setter Property="WidthRequest" Value="40"/>
@@ -525,14 +525,14 @@
 
     <!-- Receive -->
     <LinearGradientBrush x:Key="ReceiveGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="{StaticResource Success}" Offset="0.10" />
-        <GradientStop Color="{StaticResource Secondary}" Offset="1.00" />
+        <GradientStop Color="{DynamicResource Success}" Offset="0.10" />
+        <GradientStop Color="{DynamicResource Secondary}" Offset="1.00" />
     </LinearGradientBrush>
 
     <!-- Pay -->
     <LinearGradientBrush x:Key="PayGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="{StaticResource Danger}" Offset="0.10" />
-        <GradientStop Color="{StaticResource DarkerDanger}" Offset="1.00" />
+        <GradientStop Color="{DynamicResource Danger}" Offset="0.10" />
+        <GradientStop Color="{DynamicResource DarkerDanger}" Offset="1.00" />
     </LinearGradientBrush>
 
     <Style x:Key="ReceivePayTileBase" TargetType="Border">
@@ -571,14 +571,14 @@
     </Style>
 
     <Style x:Key="ReceivePayTitle" TargetType="Label">
-        <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
         <Setter Property="FontSize" Value="{StaticResource TypeCaption}" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="HorizontalTextAlignment" Value="Center" />
     </Style>
 
     <Style x:Key="ReceivePayAmount" TargetType="Label">
-        <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
         <Setter Property="FontSize" Value="{StaticResource TypeAmountPrefix}" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="HorizontalTextAlignment" Value="Center" />
@@ -588,7 +588,7 @@
          Avatars
          ======================= -->
     <Style x:Key="AvatarCircle" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource SurfaceEmphasis}" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceEmphasis}" />
         <Setter Property="StrokeThickness" Value="0" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="StrokeShape">
@@ -599,17 +599,38 @@
     </Style>
 
     <Style x:Key="AvatarCirclePrimary" TargetType="Border" BasedOn="{StaticResource AvatarCircle}">
-        <Setter Property="Background" Value="{StaticResource Primary}" />
+        <Setter Property="Background" Value="{DynamicResource Primary}" />
     </Style>
 
     <!-- Selected-payer ring, Add Expense's "Paid by" row -->
     <Style x:Key="AvatarCircleSelectedRing" TargetType="Border" BasedOn="{StaticResource AvatarCircle}">
-        <Setter Property="Stroke" Value="{StaticResource PrimaryHover}" />
+        <Setter Property="Stroke" Value="{DynamicResource PrimaryHover}" />
         <Setter Property="StrokeThickness" Value="2" />
     </Style>
 
+    <!-- Profile's accent-color picker — one circle per AccentSwatch. A near-white ring (not
+         Primary) marks the selected one, since Primary is itself one of the colors being chosen
+         between and would be invisible against a swatch of the same hue. -->
+    <Style x:Key="AccentSwatchBorder" TargetType="Border">
+        <Setter Property="WidthRequest" Value="36" />
+        <Setter Property="HeightRequest" Value="36" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="{StaticResource ShapePill}" />
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                <Setter Property="Stroke" Value="{DynamicResource TextPrimary}" />
+                <Setter Property="StrokeThickness" Value="3" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="AvatarInitialsLabel" TargetType="Label">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="HorizontalTextAlignment" Value="Center" />
         <Setter Property="VerticalTextAlignment" Value="Center" />
@@ -619,7 +640,7 @@
 
     <!-- Dashed ring around a phantom member's avatar (Invite screen's pending-invites list) -->
     <Style x:Key="AvatarCirclePhantom" TargetType="Border" BasedOn="{StaticResource AvatarCircle}">
-        <Setter Property="Stroke" Value="{StaticResource BorderAccent}" />
+        <Setter Property="Stroke" Value="{DynamicResource BorderAccent}" />
         <Setter Property="StrokeThickness" Value="1.5" />
         <Setter Property="StrokeDashArray" Value="3,2" />
     </Style>
@@ -632,7 +653,7 @@
         <Setter Property="HorizontalOptions" Value="Center" />
         <Setter Property="VerticalOptions" Value="End" />
         <Setter Property="FontSize" Value="{StaticResource TypeIcon}" />
-        <Setter Property="BorderColor" Value="{StaticResource BtnPrimaryHover}"/>
+        <Setter Property="BorderColor" Value="{DynamicResource BtnPrimaryHover}"/>
         <Setter Property="BorderWidth" Value="1"/>
         <Setter Property="Margin">
             <Setter.Value>
@@ -650,8 +671,8 @@
          Segmented pill (Add Expense: Equally / Manually)
          ======================= -->
     <Style x:Key="SegmentPillContainer" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource Surface}" />
-        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="Background" Value="{DynamicResource Surface}" />
+        <Setter Property="Stroke" Value="{DynamicResource Border}" />
         <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="Padding" Value="{StaticResource SpacingXS}" />
         <Setter Property="StrokeShape">
@@ -674,13 +695,13 @@
     </Style>
 
     <Style x:Key="SegmentButtonSelected" TargetType="Button" BasedOn="{StaticResource SegmentButtonBase}">
-        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
-        <Setter Property="TextColor" Value="{StaticResource TextOnAccent}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource Primary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
     </Style>
 
     <Style x:Key="SegmentButtonUnselected" TargetType="Button" BasedOn="{StaticResource SegmentButtonBase}">
         <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextTertiary}" />
     </Style>
 
     <!-- =======================
@@ -691,7 +712,7 @@
          Pair with a "✓" Label inside whose IsVisible binds to the same bool. -->
     <Style x:Key="SplitCheckboxStyle" TargetType="Border">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="Stroke" Value="{DynamicResource Border}" />
         <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="WidthRequest" Value="20" />
         <Setter Property="HeightRequest" Value="20" />
@@ -704,8 +725,8 @@
         </Setter>
         <Style.Triggers>
             <DataTrigger TargetType="Border" Binding="{Binding IsIncluded}" Value="True">
-                <Setter Property="Background" Value="{StaticResource Primary}" />
-                <Setter Property="Stroke" Value="{StaticResource Primary}" />
+                <Setter Property="Background" Value="{DynamicResource Primary}" />
+                <Setter Property="Stroke" Value="{DynamicResource Primary}" />
                 <Setter Property="Opacity" Value="1" />
             </DataTrigger>
         </Style.Triggers>
@@ -738,8 +759,8 @@
          Receipt drop zone (Add Expense)
          ======================= -->
     <Style x:Key="ReceiptDropZone" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource Surface}" />
-        <Setter Property="Stroke" Value="{StaticResource Border}" />
+        <Setter Property="Background" Value="{DynamicResource Surface}" />
+        <Setter Property="Stroke" Value="{DynamicResource Border}" />
         <Setter Property="StrokeThickness" Value="1.5" />
         <Setter Property="StrokeDashArray" Value="4,4" />
         <Setter Property="HeightRequest" Value="88" />
