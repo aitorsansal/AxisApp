@@ -13,6 +13,7 @@ namespace AxisApp.Services;
 public class SupabaseAuthService : IAuthService
 {
     private readonly Client client;
+    private readonly IGoogleAuthService googleAuthService;
 
     public bool IsAuthenticated => client.Auth.CurrentSession is not null;
 
@@ -21,14 +22,36 @@ public class SupabaseAuthService : IAuthService
 
     public string? CurrentEmail => client.Auth.CurrentUser?.Email;
 
+    /// <summary>UserMetadata is a Dictionary&lt;string, object&gt; (confirmed via reflection
+    /// against the installed Supabase.Gotrue 6.3.0 package, same caution as every other Gotrue
+    /// call in this file) — Google's claims land here as "avatar_url" and "picture" (both seen
+    /// populated with the same value in a real token from this project), never a plain string
+    /// property, so this has to look the value up rather than reading a typed field.</summary>
+    public string? ProviderAvatarUrl
+    {
+        get
+        {
+            var metadata = client.Auth.CurrentUser?.UserMetadata;
+            if (metadata is null) return null;
+
+            if (metadata.TryGetValue("avatar_url", out var avatarUrl) && avatarUrl is not null)
+                return avatarUrl.ToString();
+            if (metadata.TryGetValue("picture", out var picture) && picture is not null)
+                return picture.ToString();
+
+            return null;
+        }
+    }
+
     public event EventHandler? AuthStateChanged;
 
     /// <summary>Takes the shared Client instance (registered once in MauiProgram) rather than
     /// constructing its own, so every Supabase*Repository talks to the same authenticated
     /// session instead of each service holding an independent, unauthenticated client.</summary>
-    public SupabaseAuthService(Client client)
+    public SupabaseAuthService(Client client, IGoogleAuthService googleAuthService)
     {
         this.client = client;
+        this.googleAuthService = googleAuthService;
         client.Auth.AddStateChangedListener((_, _) => AuthStateChanged?.Invoke(this, EventArgs.Empty));
     }
 
@@ -66,6 +89,15 @@ public class SupabaseAuthService : IAuthService
         }
     }
 
+    public async Task<AuthResult> SignInWithGoogleAsync()
+    {
+        var result = await googleAuthService.SignInAsync(client);
+        if (result.Success)
+            await client.InitializeAsync();
+
+        return result;
+    }
+
     public async Task SignOutAsync() => await client.Auth.SignOut();
 
     /// <summary>client.Auth.Update(UserAttributes) — confirmed against a real reflection probe of
@@ -89,6 +121,29 @@ public class SupabaseAuthService : IAuthService
         try
         {
             await client.Auth.Update(new Supabase.Gotrue.UserAttributes { Password = newPassword });
+            return new AuthResult(true);
+        }
+        catch (Exception ex)
+        {
+            return new AuthResult(false, ex.Message);
+        }
+    }
+
+    /// <summary>ResetPasswordForEmailOptions(email) — confirmed against a reflection probe of the
+    /// installed Supabase.Gotrue 6.3.0 package, same caution as every other Gotrue call in this
+    /// file. Deliberately leaves FlowType at its default (Implicit, confirmed by the same probe)
+    /// rather than PKCE: PKCE's code_verifier is generated and stored on *this* client, but the
+    /// link gets clicked in a browser — a different client entirely — which would never have that
+    /// verifier. Implicit's token travels whole in the URL, so it works across that client
+    /// boundary.</summary>
+    public async Task<AuthResult> ForgotPasswordAsync(string email)
+    {
+        try
+        {
+            await client.Auth.ResetPasswordForEmail(new Supabase.Gotrue.ResetPasswordForEmailOptions(email)
+            {
+                RedirectTo = AppConstants.Links.PasswordResetUrl
+            });
             return new AuthResult(true);
         }
         catch (Exception ex)

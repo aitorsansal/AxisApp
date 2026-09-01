@@ -31,7 +31,7 @@
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>
 
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23.0</SupportedOSPlatformVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 	</PropertyGroup>
@@ -60,6 +60,15 @@
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
 		<PackageReference Include="SkiaSharp" Version="4.151.1" />
 		<PackageReference Include="Supabase" Version="1.6.0" />
+	</ItemGroup>
+
+	<!-- Android Credential Manager + Google Identity, for native Google sign-in
+	     (Services/Platforms/Android/GoogleAuthService.cs) — same packages/versions PokeCards
+	     already uses for the identical flow. -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<PackageReference Include="Xamarin.AndroidX.Credentials" Version="1.6.0.1" />
+		<PackageReference Include="Xamarin.AndroidX.Credentials.PlayServicesAuth" Version="1.6.0.1" />
+		<PackageReference Include="Xamarin.Google.Android.Libraries.Identity.GoogleId" Version="1.1.0.15" />
 	</ItemGroup>
 
 </Project>

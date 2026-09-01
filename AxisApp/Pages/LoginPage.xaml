@@ -46,6 +46,12 @@
                     FontSize="{StaticResource TypeCaption}"
                     IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
+                <Label
+                    Text="{Binding StatusMessage}"
+                    TextColor="{StaticResource Primary}"
+                    FontSize="{StaticResource TypeCaption}"
+                    IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+
                 <Button
                     Text="{loc:Translate Login_SignIn}"
                     Command="{Binding SignInCommand}"
@@ -57,6 +63,38 @@
                     Command="{Binding SignUpCommand}"
                     Style="{StaticResource BtnOutlinePrimary}"
                     IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+
+                <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
+                    <BoxView Grid.Column="0" HeightRequest="1" Color="{StaticResource TextDisabled}" VerticalOptions="Center" />
+                    <Label
+                        Grid.Column="1"
+                        Text="{loc:Translate Login_Or}"
+                        TextColor="{StaticResource TextTertiary}"
+                        FontSize="{StaticResource TypeCaption}" />
+                    <BoxView Grid.Column="2" HeightRequest="1" Color="{StaticResource TextDisabled}" VerticalOptions="Center" />
+                </Grid>
+
+                <Border
+                    Style="{StaticResource BtnGoogleStyle}"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding LoginWithGoogleCommand}" />
+                    </Border.GestureRecognizers>
+                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="{StaticResource SpacingS}">
+                        <Image Source="google_logo.png" WidthRequest="20" HeightRequest="20" VerticalOptions="Center" />
+                        <Label Text="{loc:Translate Login_ContinueWithGoogle}" Style="{StaticResource BtnGoogleLabel}" />
+                    </HorizontalStackLayout>
+                </Border>
+
+                <Label
+                    Text="{loc:Translate Login_ForgotPassword}"
+                    TextColor="{StaticResource TextSecondary}"
+                    FontSize="{StaticResource TypeCaption}"
+                    HorizontalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding ForgotPasswordCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
 
             </VerticalStackLayout>
         </ScrollView>

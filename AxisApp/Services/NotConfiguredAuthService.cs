@@ -10,6 +10,7 @@ public class NotConfiguredAuthService : IAuthService
     public bool IsAuthenticated => false;
     public Guid? CurrentAccountId => null;
     public string? CurrentEmail => null;
+    public string? ProviderAvatarUrl => null;
 
     public event EventHandler? AuthStateChanged { add { } remove { } }
 
@@ -19,12 +20,18 @@ public class NotConfiguredAuthService : IAuthService
     public Task<AuthResult> SignInAsync(string email, string password) =>
         Task.FromResult(new AuthResult(false, "Supabase isn't configured yet — see /supabase/README.md."));
 
+    public Task<AuthResult> SignInWithGoogleAsync() =>
+        Task.FromResult(new AuthResult(false, "Supabase isn't configured yet — see /supabase/README.md."));
+
     public Task SignOutAsync() => Task.CompletedTask;
 
     public Task<AuthResult> UpdateEmailAsync(string newEmail) =>
         Task.FromResult(new AuthResult(false, "Supabase isn't configured yet — see /supabase/README.md."));
 
     public Task<AuthResult> UpdatePasswordAsync(string newPassword) =>
+        Task.FromResult(new AuthResult(false, "Supabase isn't configured yet — see /supabase/README.md."));
+
+    public Task<AuthResult> ForgotPasswordAsync(string email) =>
         Task.FromResult(new AuthResult(false, "Supabase isn't configured yet — see /supabase/README.md."));
 
     public Task RestoreSessionAsync() => Task.CompletedTask;

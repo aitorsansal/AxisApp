@@ -39,6 +39,12 @@ public static class AppStrings
         ["Login_CreateAccount"] = "Create Account",
         ["Login_SignInFailed"] = "Sign in failed.",
         ["Login_SignUpFailed"] = "Sign up failed.",
+        ["Login_ForgotPassword"] = "Forgot your password?",
+        ["Login_ForgotPasswordNeedsEmail"] = "Enter your email above first.",
+        ["Login_ForgotPasswordFailed"] = "Couldn't send the reset email.",
+        ["Login_ForgotPasswordSent"] = "Check your email for a password reset link.",
+        ["Login_Or"] = "OR",
+        ["Login_ContinueWithGoogle"] = "Continue with Google",
 
         // Groups
         ["Groups_Title"] = "Groups",
@@ -207,6 +213,12 @@ public static class AppStrings
         ["Login_CreateAccount"] = "Crear cuenta",
         ["Login_SignInFailed"] = "No se pudo iniciar sesión.",
         ["Login_SignUpFailed"] = "No se pudo crear la cuenta.",
+        ["Login_ForgotPassword"] = "¿Olvidaste tu contraseña?",
+        ["Login_ForgotPasswordNeedsEmail"] = "Introduce tu correo electrónico primero.",
+        ["Login_ForgotPasswordFailed"] = "No se pudo enviar el correo de recuperación.",
+        ["Login_ForgotPasswordSent"] = "Revisa tu correo para restablecer la contraseña.",
+        ["Login_Or"] = "O",
+        ["Login_ContinueWithGoogle"] = "Continuar con Google",
 
         // Groups
         ["Groups_Title"] = "Grupos",

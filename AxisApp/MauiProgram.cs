@@ -17,6 +17,9 @@ public static class MauiProgram
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("lucide.ttf", "Lucide");
+                // Required by Google's "Sign in with Google" branding guidelines for the button
+                // text — see LoginPage's Google button.
+                fonts.AddFont("GoogleSansMedium.ttf", "GoogleSansMedium");
             });
 
         // Persists the Gotrue session to SecureStorage across app launches — without this,
@@ -38,6 +41,11 @@ public static class MauiProgram
                 SessionHandler = provider.GetRequiredService<Supabase.Gotrue.Interfaces.IGotrueSessionPersistence<Supabase.Gotrue.Session>>()
             }));
 
+        // Platform-specific implementation — Platforms/Android/GoogleAuthService.cs or
+        // Platforms/Windows/GoogleAuthService.cs, whichever this TargetFramework actually
+        // compiles; both share the AxisApp namespace/class name so this registration doesn't
+        // need to branch on platform itself.
+        builder.Services.AddSingleton<IGoogleAuthService, GoogleAuthService>();
         builder.Services.AddSingleton<IAuthService, SupabaseAuthService>();
         builder.Services.AddSingleton<IMembersRepository, SupabaseMembersRepository>();
         builder.Services.AddSingleton<IGroupsRepository, SupabaseGroupsRepository>();

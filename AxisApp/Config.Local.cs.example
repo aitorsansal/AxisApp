@@ -8,4 +8,10 @@ internal static class SupabaseConfig
 {
     public const string Url = "https://YOUR-PROJECT-REF.supabase.co";
     public const string PublishableKey = "sb_publishable_...";
+
+    /// <summary>The Web OAuth client id entered in Supabase Dashboard -> Authentication ->
+    /// Providers -> Google. Used directly by Android's GoogleAuthService (Credential Manager's
+    /// SetServerClientId) — Windows' GoogleAuthService doesn't need this at all, since it goes
+    /// through Supabase's own authorize endpoint instead of talking to Google directly.</summary>
+    public const string GoogleWebClientId = "YOUR-WEB-CLIENT-ID.apps.googleusercontent.com";
 }

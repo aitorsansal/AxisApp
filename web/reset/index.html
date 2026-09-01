@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset your Axis password</title>
+<style>
+  :root {
+    --bg: #0B1220;
+    --card: #121A2B;
+    --text: #E8ECF4;
+    --muted: #8A93A6;
+    --accent: #3D7EFF;
+    --accent2: #F5A623;
+    --border: #22304A;
+    --danger: #F2545B;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px 28px;
+    text-align: center;
+  }
+  .mark {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    margin: 0 auto 20px;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 8px; }
+  p { color: var(--muted); line-height: 1.5; margin: 0 0 24px; font-size: 0.95rem; }
+  input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 1rem;
+    margin-bottom: 12px;
+    font-family: inherit;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px 20px;
+    border-radius: 12px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    margin-bottom: 12px;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:disabled { opacity: 0.6; cursor: default; }
+  .msg { font-size: 0.85rem; margin: 0 0 16px; text-align: left; }
+  .msg-error { color: var(--danger); }
+  .msg-success { color: var(--accent); }
+  form[hidden], .msg[hidden] { display: none; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark"></div>
+    <h1 id="title">Reset your password</h1>
+    <p id="subtitle">Choose a new password for your Axis account.</p>
+
+    <p class="msg msg-error" id="errorMsg" hidden></p>
+    <p class="msg msg-success" id="successMsg" hidden></p>
+
+    <form id="resetForm" hidden>
+      <input type="password" id="password" placeholder="New password" autocomplete="new-password" minlength="6" required>
+      <input type="password" id="confirmPassword" placeholder="Confirm new password" autocomplete="new-password" minlength="6" required>
+      <button class="btn btn-primary" type="submit" id="submitBtn">Set new password</button>
+    </form>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  var SUPABASE_URL = "https://foepkovwmwyygulbdahv.supabase.co";
+  var SUPABASE_PUBLISHABLE_KEY = "sb_publishable_h7tpW4wGOAwyKteJMq43zw_g9zegq_K";
+
+  var client = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+  var form = document.getElementById('resetForm');
+  var errorMsg = document.getElementById('errorMsg');
+  var successMsg = document.getElementById('successMsg');
+  var submitBtn = document.getElementById('submitBtn');
+  var title = document.getElementById('title');
+  var subtitle = document.getElementById('subtitle');
+
+  function showError(text) {
+    errorMsg.textContent = text;
+    errorMsg.hidden = false;
+  }
+
+  function invalidLink() {
+    title.textContent = 'This link is invalid or expired';
+    subtitle.textContent = 'Password reset links only work once and expire after a while. Go back to Axis and request a new one from the login screen.';
+  }
+
+  // The Supabase JS client auto-parses the recovery token out of the URL on load
+  // (detectSessionInUrl, on by default) and fires this with a real, usable session —
+  // no server call needed here. If it never fires, there was no valid recovery token in the URL.
+  var recoveryReady = false;
+  client.auth.onAuthStateChange(function (event, session) {
+    if (event === 'PASSWORD_RECOVERY' && session) {
+      recoveryReady = true;
+      form.hidden = false;
+    }
+  });
+
+  setTimeout(function () {
+    if (!recoveryReady) invalidLink();
+  }, 2000);
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    errorMsg.hidden = true;
+
+    var password = document.getElementById('password').value;
+    var confirm = document.getElementById('confirmPassword').value;
+
+    if (password.length < 6) {
+      showError('Password must be at least 6 characters.');
+      return;
+    }
+    if (password !== confirm) {
+      showError('Passwords do not match.');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+
+    client.auth.updateUser({ password: password }).then(function (result) {
+      if (result.error) {
+        showError(result.error.message);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Set new password';
+        return;
+      }
+
+      form.hidden = true;
+      title.textContent = 'Password updated';
+      subtitle.hidden = true;
+      successMsg.textContent = 'You can close this tab and sign in with your new password in Axis.';
+      successMsg.hidden = false;
+    });
+  });
+</script>
+</body>
+</html>

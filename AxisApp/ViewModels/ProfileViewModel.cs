@@ -51,12 +51,33 @@ public partial class ProfileViewModel : BaseViewModel
         {
             myMember = await membersRepository.GetMyMemberAsync();
             ApplyMemberToFields();
+            await BackfillGoogleAvatarAsync();
         }
         finally
         {
             IsBusy = false;
         }
     });
+
+    /// <summary>Only ever fills in a photo the member doesn't already have — never overwrites or
+    /// re-adds one after a deliberate RemovePhoto, since this re-checks AvatarPath fresh every
+    /// Profile visit rather than tracking a one-time "already tried" flag. That's a deliberate,
+    /// simple tradeoff: whoever's account this is controls it entirely by whether they currently
+    /// have a photo set, not by some hidden state.</summary>
+    private async Task BackfillGoogleAvatarAsync()
+    {
+        if (myMember is null || myMember.AvatarPath is not null) return;
+
+        var googleAvatarUrl = authService.ProviderAvatarUrl;
+        if (googleAvatarUrl is null) return;
+
+        using var http = new HttpClient();
+        var bytes = await http.GetByteArrayAsync(googleAvatarUrl);
+
+        var webp = ImageResizer.ToAvatarWebp(bytes);
+        myMember = await avatarsRepository.SetAvatarAsync(myMember, webp);
+        AvatarUrl = MemberDisplay.AvatarUrl(myMember);
+    }
 
     private void ApplyMemberToFields()
     {

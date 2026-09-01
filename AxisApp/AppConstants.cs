@@ -71,6 +71,13 @@ public static class AppConstants
     {
         public const string InviteHost = "axisapp.aitorsansal.com";
 
+        /// <summary>Where Supabase redirects after a password-recovery link is clicked — a
+        /// standalone page (web/reset/index.html) that reads the recovery session straight out of
+        /// the URL via the Supabase JS SDK and lets the user set a new password there. Not an App
+        /// Link/deep-link target like BuildInviteUrl: Windows has no deep-link support at all, so
+        /// this has to work as a plain browser page regardless of platform.</summary>
+        public const string PasswordResetUrl = $"https://{InviteHost}/reset";
+
         public static string BuildInviteUrl(string code) =>
             $"https://{InviteHost}/invite?code={Uri.EscapeDataString(code)}";
 

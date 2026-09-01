@@ -260,6 +260,41 @@
         </Setter>
     </Style>
 
+    <!-- "Continue with Google" — colors are Google's official Dark theme values from the Sign
+         in with Google branding guidelines (developers.google.com/identity/branding-guidelines),
+         since this app enforces dark theme globally. Not just a style choice: following these is
+         required for OAuth app verification. A Border, not a Button — Button.ImageSource wasn't
+         the real problem (an earlier guess here was wrong); the actual cause was referencing the
+         source .svg's own extension instead of the .png MAUI's resizetizer always rasterizes
+         SVGs to and registers the logical resource name under, regardless of the source file's
+         own extension (see google_logo.svg in Resources/Images, referenced as "google_logo.png"
+         in LoginPage). Kept as a hand-composed Image + Label here anyway since it already works
+         and gives full control over the exact spacing/colors the branding guidelines call for. -->
+    <Style x:Key="BtnGoogleStyle" TargetType="Border">
+        <Setter Property="Background" Value="#131314" />
+        <Setter Property="Stroke" Value="#8E918F" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="StrokeShape">
+            <Setter.Value>
+                <RoundRectangle CornerRadius="{StaticResource ShapeControl}" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Google's spec calls for "Google Sans Medium" specifically — see MauiProgram's font
+         registration (GoogleSansMedium.ttf, downloaded from Google Fonts). -->
+    <Style x:Key="BtnGoogleLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="GoogleSansMedium" />
+        <Setter Property="TextColor" Value="#E3E3E3" />
+        <Setter Property="FontSize" Value="{StaticResource TypeBody}" />
+        <Setter Property="VerticalOptions" Value="Center" />
+    </Style>
+
     <!-- Outline Secondary -->
     <Style x:Key="BtnOutlineSecondary" TargetType="Button" BasedOn="{StaticResource BtnBase}">
         <Setter Property="BackgroundColor" Value="Transparent" />
