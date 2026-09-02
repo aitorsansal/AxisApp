@@ -28,9 +28,31 @@ public abstract partial class BaseViewModel : ObservableObject
             ErrorMessage = "";
             await action();
         }
+        catch (Exception ex) when (IsClockSkewRejection(ex))
+        {
+            // Transient Supabase clock-skew rejection (PGRST303 "JWT issued at future") — a
+            // brief drift between the device clock and the server at the exact moment a token
+            // was issued, not something the app or the user can fix. PostgREST rejects this at
+            // the auth-check step, before the query itself ever runs, so a bare retry is safe —
+            // nothing partially executed. Wait a moment for the skew to pass, then retry once;
+            // a second consecutive failure is no longer "just a blip", so that one is surfaced
+            // normally instead of retried or swallowed again.
+            try
+            {
+                await Task.Delay(750);
+                await action();
+            }
+            catch (Exception retryEx)
+            {
+                ErrorMessage = retryEx.Message;
+            }
+        }
         catch (Exception ex)
         {
             ErrorMessage = ex.Message;
         }
     }
+
+    private static bool IsClockSkewRejection(Exception ex) =>
+        ex.Message.Contains("JWT issued at future") || ex.Message.Contains("PGRST303");
 }

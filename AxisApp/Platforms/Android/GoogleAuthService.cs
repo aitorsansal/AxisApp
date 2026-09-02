@@ -20,6 +20,17 @@ namespace AxisApp;
 /// shows.</summary>
 public class GoogleAuthService : IGoogleAuthService
 {
+    // Same duration as Windows' loopback-listener timeout — long enough for a user to actually
+    // pick an account in the bottom sheet, but bounded. Added after a real device (MIUI) showed
+    // Play Services' own picker process (com.google.android.gms:identitycredentials,
+    // CredentialChooserActivity) can crash during init before ever showing UI or calling back —
+    // confirmed via logcat ("Killing ...identitycredentials...: error during init" immediately
+    // after CredentialManager reported CREDENTIALS_RECEIVED). When that happens neither
+    // ICredentialManagerCallback.OnResult nor OnError ever fires, so awaiting the callback's
+    // TaskCompletionSource with no timeout hangs forever with no exception — exactly the "stuck on
+    // the spinner" symptom this guards against.
+    private static readonly TimeSpan SignInTimeout = TimeSpan.FromMinutes(2);
+
     private class InlineExecutor : Object, IExecutor
     {
         public void Execute(IRunnable? command) => command?.Run();
@@ -56,6 +67,10 @@ public class GoogleAuthService : IGoogleAuthService
         GetCredentialResponse credentialResponse;
         try
         {
+            var finished = await Task.WhenAny(tcs.Task, Task.Delay(SignInTimeout));
+            if (finished != tcs.Task)
+                return new AuthResult(false, "Google sign-in timed out. Try again, or check for a Google Play services update.");
+
             credentialResponse = await tcs.Task;
         }
         catch (GetCredentialCancellationException)
