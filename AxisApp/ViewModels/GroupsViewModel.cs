@@ -28,6 +28,7 @@ public partial class GroupsViewModel : BaseViewModel
     private readonly IMembersRepository membersRepository;
     private readonly IBalancesRepository balancesRepository;
     private readonly IAuthService authService;
+    private readonly IPushRegistrationService pushRegistrationService;
 
     [ObservableProperty] private ObservableCollection<GroupListItem> groups = [];
     [ObservableProperty] private bool isBusy;
@@ -41,12 +42,14 @@ public partial class GroupsViewModel : BaseViewModel
         IGroupsRepository groupsRepository,
         IMembersRepository membersRepository,
         IBalancesRepository balancesRepository,
-        IAuthService authService)
+        IAuthService authService,
+        IPushRegistrationService pushRegistrationService)
     {
         this.groupsRepository = groupsRepository;
         this.membersRepository = membersRepository;
         this.balancesRepository = balancesRepository;
         this.authService = authService;
+        this.pushRegistrationService = pushRegistrationService;
 
         UserInitials = Initials(authService.CurrentEmail ?? "?");
         UserEmail = authService.CurrentEmail ?? "";
@@ -92,6 +95,14 @@ public partial class GroupsViewModel : BaseViewModel
 
             Groups = new ObservableCollection<GroupListItem>(items);
             IsEmpty = Groups.Count == 0;
+
+            // Fire-and-forget, deliberately not awaited: it may show a permission prompt, and
+            // this screen's own IsBusy spinner shouldn't sit up waiting on the user answering it.
+            // IPushRegistrationService.RegisterAsync never throws (see its remarks), and this runs
+            // on every Groups load — sign-in, sign-up, Google sign-in, and a restored session on
+            // relaunch all land here, so this is the one choke point that covers every path
+            // without duplicating the call across LoginViewModel/SplashPage.
+            _ = pushRegistrationService.RegisterAsync();
         }
         finally
         {
@@ -160,6 +171,10 @@ public partial class GroupsViewModel : BaseViewModel
     private Task Logout() => RunSafeAsync(async () =>
     {
         IsAccountMenuOpen = false;
+        // Must run before SignOutAsync, while the session that authorizes deleting this device's
+        // own device_tokens row is still valid — otherwise a device later reused by a second
+        // account would keep receiving the first account's group notifications.
+        await pushRegistrationService.UnregisterAsync();
         await authService.SignOutAsync();
         await Shell.Current.GoToAsync(AppConstants.Routes.Login);
     });

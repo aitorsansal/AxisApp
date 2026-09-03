@@ -657,12 +657,18 @@ drop table if exists public.categories cascade;
 -- its own creator. Same fix shape as redeem_invite() below: move the whole
 -- multi-step write into one Postgres function, which runs as a single
 -- transaction — if any statement fails, all of it rolls back.
--- Unlike redeem_invite(), this one does NOT need `security definer` — every
--- individual insert here is already permitted to the calling user under the
--- existing RLS policies (see "insert groups"/"insert members"/"group members
--- can add members" above); the only problem being solved is atomicity, not
--- a permission gap, so it runs as the caller (the default) rather than with
--- elevated rights.
+-- Every individual insert here is already permitted to the calling user
+-- under the existing RLS policies (see "insert groups"/"insert members"/
+-- "group members can add members" above) — atomicity, not a permission gap,
+-- was the original reason for wrapping this in a function. It still needs
+-- `security definer`, though: the `auth.users` lookup below (for the
+-- creator's email, same as redeem_invite() does) is a plain table-grant
+-- issue, not RLS — `authenticated` has no SELECT grant on auth.users at
+-- all, so that sub-select fails with 42501 unless the function runs as its
+-- owner. Same fix shape as redeem_invite(); the query itself still only
+-- ever reads the caller's own row (`id = auth.uid()`), so this doesn't
+-- widen access to any other tables/rows the way granting SELECT on
+-- auth.users directly to `authenticated` would.
 -- Run this against the live project the same way every other block in this
 -- file has needed to be — it isn't applied automatically.
 -- ============================================================
@@ -670,6 +676,8 @@ drop table if exists public.categories cascade;
 create or replace function public.create_group(p_name text)
 returns uuid
 language plpgsql
+security definer
+set search_path = public
 as $$
 declare
   v_group_id uuid;
@@ -1252,3 +1260,145 @@ select cron.schedule(
 -- policy already covers a claimed member updating their own row.
 -- ============================================================
 alter table public.members add column birth_date date;
+
+-- ============================================================
+-- Push notifications — server-side trigger (2026-09-03), the follow-up to
+-- the client-side registration work (device_tokens + IPushRegistrationService,
+-- see CLAUDE.md). Scoped to the actual parties to each transaction, not the
+-- whole group: for an expense, that's paid_by_member_id plus every
+-- expense_shares row on it; for a payment, the two members on it. A
+-- "balance <> 0" check would have been wrong here — that's the group's
+-- overall net position, unrelated to who's actually in *this* expense.
+-- Excludes whoever recorded the row (created_by) — no one needs to be
+-- notified about their own action — and naturally excludes phantom members,
+-- since they have no account_id to match a device_tokens row against.
+--
+-- Both recipient functions are plain SQL (not security definer — see
+-- materialize_recurring_expenses' remarks on why: called only by the
+-- send-push Edge Function using the service-role key, which already
+-- bypasses RLS, so there's no permission gap to bridge, only the usual
+-- revoke-from-anon/authenticated so they're never reachable via PostgREST's
+-- /rpc/ by an ordinary user). Test each directly in the SQL editor with a
+-- real expense/payment id before trusting the trigger to have wired them up
+-- correctly, same as materialize_recurring_expenses/find_expired_receipts
+-- were before their own cron jobs went live.
+-- ============================================================
+
+create or replace function public.expense_notification_recipients(p_expense_id uuid)
+returns table (account_id uuid, push_token text, platform text)
+language sql
+stable
+set search_path = public
+as $$
+  with involved as (
+    select e.paid_by_member_id as member_id, e.created_by
+    from expenses e
+    where e.id = p_expense_id
+    union
+    select es.member_id, e.created_by
+    from expense_shares es
+    join expenses e on e.id = es.expense_id
+    where es.expense_id = p_expense_id
+  )
+  select distinct dt.account_id, dt.push_token, dt.platform
+  from involved i
+  join members m on m.id = i.member_id
+  join device_tokens dt on dt.account_id = m.account_id
+  where m.account_id is not null
+    and m.account_id <> i.created_by;
+$$;
+
+revoke execute on function public.expense_notification_recipients(uuid) from public, anon, authenticated;
+
+create or replace function public.payment_notification_recipients(p_payment_id uuid)
+returns table (account_id uuid, push_token text, platform text)
+language sql
+stable
+set search_path = public
+as $$
+  with involved as (
+    select p.payer_member_id as member_id, p.created_by
+    from payments p
+    where p.id = p_payment_id
+    union
+    select p.payee_member_id, p.created_by
+    from payments p
+    where p.id = p_payment_id
+  )
+  select distinct dt.account_id, dt.push_token, dt.platform
+  from involved i
+  join members m on m.id = i.member_id
+  join device_tokens dt on dt.account_id = m.account_id
+  where m.account_id is not null
+    and m.account_id <> i.created_by;
+$$;
+
+revoke execute on function public.payment_notification_recipients(uuid) from public, anon, authenticated;
+
+-- AFTER INSERT triggers, firing the send-push Edge Function via pg_net —
+-- same net.http_post + Vault service_role_key pattern the cleanup-receipts
+-- cron job already uses, just fired by a row event instead of a schedule.
+-- pg_net queues the HTTP call asynchronously and returns immediately, so
+-- this never blocks or slows down the actual expense/payment insert, and a
+-- send-push failure can never roll back or fail the transaction that
+-- triggered it. materialize_recurring_expenses inserting into expenses
+-- server-side means a materialized recurring expense fires this too, same
+-- as any other expense — deliberately left as-is for v1 rather than
+-- suppressed, see CLAUDE.md's recurring-expenses remarks.
+--
+-- SECURITY DEFINER, unlike materialize_recurring_expenses/find_expired_receipts
+-- above — a real permission gap this time, not just the usual habit: those two
+-- only ever run via pg_cron, as whichever role called cron.schedule() (postgres,
+-- which already has Vault access). These triggers fire on a plain app-level
+-- INSERT done by an ordinary signed-in user through Postgrest, so without
+-- SECURITY DEFINER the function body runs as `authenticated` — which has no
+-- grant on the vault schema at all and fails with `permission denied for
+-- schema vault` (42501, hit for real the first time an expense was saved
+-- after this trigger went live). The caller never sees the decrypted secret
+-- itself, only this function body does, so this isn't a broader elevation
+-- than the one specific read it needs.
+create or replace function public.notify_new_expense()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform net.http_post(
+    url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/send-push',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+    ),
+    body := jsonb_build_object('expense_id', new.id)
+  );
+  return new;
+end;
+$$;
+
+create trigger expenses_notify_after_insert
+  after insert on public.expenses
+  for each row execute function public.notify_new_expense();
+
+create or replace function public.notify_new_payment()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform net.http_post(
+    url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/send-push',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+    ),
+    body := jsonb_build_object('payment_id', new.id)
+  );
+  return new;
+end;
+$$;
+
+create trigger payments_notify_after_insert
+  after insert on public.payments
+  for each row execute function public.notify_new_payment();

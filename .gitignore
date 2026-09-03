@@ -68,3 +68,11 @@ appsettings.local.json
 *.tmp
 *.bak
 *.swp
+
+
+# Firma Android compartida (keystore + contraseñas): nunca subir al repo,
+# se comparte por un canal seguro. Ver PDA/keystore.local.props.template
+AxisApp/keystore.local.props
+AxisApp/keystore/
+*.keystore
+*.jks

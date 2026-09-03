@@ -5,4 +5,7 @@
 	<uses-permission android:name="android.permission.INTERNET" />
 	<uses-permission android:name="android.permission.CAMERA" />
 	<uses-feature android:name="android.hardware.camera" android:required="false" />
+	<!-- Android 13+ (API 33) requires this as a runtime-requested permission, not just this
+	     manifest entry, before a notification can show at all — see PushRegistrationService. -->
+	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

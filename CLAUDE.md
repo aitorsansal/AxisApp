@@ -935,6 +935,390 @@ code, not plain Postgres.
   so the actual deletion path is unverified against real data. Worth a
   real test once a receipt legitimately ages past 3 months.
 
+## Localization — English/Spanish (2026-08-28)
+
+`AxisApp/Localization/` (`AppStrings.cs`, `LocalizationResourceManager.cs`,
+`TranslateExtension.cs`) — every user-facing string in the app has an en/es
+pair, switchable live without restarting. `LocalizationResourceManager` is a
+singleton exposing a plain, ordinarily-notified `CurrentLanguage` property;
+`TranslateExtension` (`{loc:Translate Key}` in XAML) binds to it through a
+converter rather than to the manager's `this[string]` indexer directly —
+the indexer approach (`PropertyChanged("Item[]")`, the WPF convention for
+refreshing indexer bindings) was tried first and confirmed via a real
+Windows build **not** to work in MAUI: newly-navigated pages picked up a
+language change, already-open ones never refreshed. Binding to an ordinary
+property uses the same mechanism every other binding in the app already
+relies on.
+
+`SetLanguage(overrideLanguage)` takes `null`/`""` to mean "follow the
+device's OS language" (resolved once at first access, via
+`CultureInfo.CurrentUICulture`, into a `DeviceLanguage` captured before
+`Bootstrap` ever overrides it) or an explicit `"en"`/`"es"` override,
+persisted per-device via `Preferences` (`AppConstants.Preferences
+.LanguageOverride`) and reapplied by `Bootstrap()` before the first page
+renders. `Format(key, args)` always formats numeric/date placeholders with
+`InvariantCulture`, not the active UI culture — same reasoning as
+`AmountText`/`OwesText` elsewhere: a `decimal.TryParse` round-trip
+downstream must never see `"1,50"` just because the UI is in Spanish.
+`AppConstants.Categories` predates this and was already designed around it
+(a stable, language-independent key, resolved to a label per-viewer at
+render time, never stored as text — see its own remarks).
+
+The language picker itself now lives on `ProfilePage` (see below) — it
+originally lived directly in `GroupsPage`'s account-menu dropdown, moved
+when Profile was split out.
+
+## Profile page (2026-08-31)
+
+Previously "Profile" was a disabled placeholder in `GroupsPage`'s
+account-menu dropdown, and everything else account-related (avatar
+change/remove, language) lived directly in that same dropdown alongside
+email/logout. `Pages/ProfilePage.xaml` + `ProfileViewModel` (route
+`Profile`, reached via `GroupsViewModel.OpenProfileCommand`) consolidates
+all of it onto its own page — the dropdown is trimmed back down to just
+email, a "Profile" link, and "Log out". Adds:
+
+- **Own display name + birthday**, backed by a new `members.birth_date`
+  column (nullable, no RLS change needed — the existing "update members you
+  created or claim yourself" policy already covers a claimed member editing
+  their own row). `SaveProfile` mutates the already-loaded `myMember` in
+  place before calling `IMembersRepository.UpdateAsync` rather than
+  building a fresh `Member`, avoiding the same "fresh object silently
+  drops `CreatedBy`/`CreatedAt`" footgun documented for `Expense` edits
+  above. Nothing yet *uses* `birth_date` beyond storing/displaying it — a
+  reserved field, same treatment `currency` and `payments.receipt_path`
+  already got.
+- **Avatar change/remove** — moved verbatim from the old dropdown
+  (`IAvatarsRepository.SetAvatarAsync`/`RemoveAvatarAsync`, unchanged).
+- **Language picker** — moved verbatim from the old dropdown (see
+  "Localization" above).
+- **Email + password change**, the first thing in the app calling
+  `IAuthService.UpdateEmailAsync`/`UpdatePasswordAsync`
+  (`client.Auth.Update(UserAttributes)`, confirmed against a reflection
+  probe of the installed `Supabase.Gotrue` 6.3.0 package — same "reflection,
+  not docs" caution as everywhere else in this file). Changing email sends
+  a confirmation link to the new address and only takes effect once it's
+  clicked; `IAuthService.CurrentEmail` keeps showing the old address until
+  then, which is correct behavior, not a bug to chase.
+
+`IMembersRepository` gained `UpdateAsync` (saving a member's own row) to
+support this.
+
+## Google sign-in, password reset, and avatar backfill (2026-09-01 – 09-02)
+
+- **Google sign-in** (`IGoogleAuthService`, one implementation per platform
+  under `Platforms/{Android,Windows}/GoogleAuthService.cs` — the
+  `Platforms/<X>` folder convention means only the matching TargetFramework
+  compiles each one, so `MauiProgram` registers `IGoogleAuthService,
+  GoogleAuthService` with no platform branching needed) reaches a signed-in
+  Supabase session by genuinely different means per platform:
+  - **Android**: native Jetpack Credential Manager account picker (ported
+    from the sibling `PokeCards` project, same `Xamarin.AndroidX
+    .Credentials`/`Xamarin.AndroidX.Credentials.PlayServicesAuth`/
+    `Xamarin.Google.Android.Libraries.Identity.GoogleId` packages), handing
+    a native ID token to `client.Auth.SignInWithIdToken(Provider.Google,
+    idToken)`. Needs `SupabaseConfig.GoogleWebClientId` (the **Web** OAuth
+    client id from Supabase's Google provider settings, not a separate
+    Android one — Credential Manager wants a client id Supabase's backend
+    can verify) plus a registered SHA-1 signing-key fingerprint, or every
+    request is rejected before any UI shows. Required bumping Android's
+    `SupportedOSPlatformVersion` from 21.0 to 23.0 in the `.csproj`.
+    **Real bug hit on a real device (MIUI)**: Play Services' own account-
+    picker process can crash during init before ever showing UI or invoking
+    either callback (confirmed via logcat), which hung the awaited
+    `TaskCompletionSource` forever with no exception — the "stuck on the
+    spinner" symptom. Fixed with a 2-minute timeout (`fdac580`,
+    2026-09-02) racing the callback via `Task.WhenAny`.
+  - **Windows**: no Credential Manager equivalent and no working deep-link
+    path back into this unpackaged Win32 app, so this can't mirror Android.
+    Originally built on `client.Auth.SignIn(Provider, SignInOptions)` with
+    PKCE, gotrue-csharp's own documented native-app pattern — but hit a
+    reproducible `bad_oauth_state` rejection every time (root-caused via
+    Supabase's own Auth Logs: state rejected ~6-9s into a clean
+    `/authorize` → `/callback` round trip, ruling out expiry; a manual
+    browser test of the identical round trip with no PKCE/explicit state
+    completed cleanly), matching an open upstream issue
+    (`supabase-community/supabase-csharp#222`) about that SDK's PKCE state
+    handling. Worked around by hand-building the `/authorize` URL and using
+    the plain implicit flow instead — which returns the token in the URL
+    **fragment**, never sent to a server, so a small local `HttpListener`
+    (`http://localhost:48291/`, deliberately `localhost` not `127.0.0.1` —
+    Supabase's ecosystem has documented sensitivity to that exact
+    distinction) serves a page whose JS reads `location.hash` and
+    re-submits it as a real query string to a second local request, which
+    the listener can actually read and hand to `client.Auth.SetSession
+    (accessToken, refreshToken)`.
+  - Both implementations return `AuthResult(false, null)` — a **null**, not
+    empty, `ErrorMessage` — for a user-cancelled sign-in (dismissed picker /
+    closed tab), a signal `LoginViewModel.LoginWithGoogle` uses to stay
+    silent instead of showing a "sign-in failed" message; every genuine
+    failure elsewhere carries a real message.
+  - **Google-branding-compliant button** on `LoginPage` (official
+    colors/logo, `Resources/Fonts/GoogleSansMedium.ttf` registered in
+    `MauiProgram` as font alias `GoogleSansMedium`) — required by Google's
+    sign-in-button branding guidelines for app verification, not a design
+    choice.
+- **Forgot-password**: `LoginPage` reuses its existing Email field (no
+  separate prompt — `Shell.Current.DisplayPromptAsync` is the same known
+  WinUI fail-fast crash already avoided elsewhere, see `MembersPage`'s
+  rename overlay) plus `IAuthService.ForgotPasswordAsync` →
+  `client.Auth.ResetPasswordForEmail(...)` with `RedirectTo =
+  AppConstants.Links.PasswordResetUrl`. The reset itself completes on a new
+  standalone page, `web/reset/index.html`, using the Supabase JS SDK
+  directly in the browser — deliberately **not** a deep link back into the
+  app, since Windows has no deep-link support at all and this has to work
+  in whatever browser opens the link regardless of platform. Deliberately
+  left on the SDK's default **Implicit** flow rather than PKCE: PKCE's
+  `code_verifier` is generated and stored on the client that started the
+  flow, but the recovery link is clicked in a completely different
+  browser/client that never had it.
+- **New `web/privacy/` and `web/termsofservice/` pages**, plus
+  `web/email-templates/{reset-password,change-email}.html` and
+  `web/email-assets/icon.svg` — Axis-branded HTML email templates (for
+  Supabase's auth emails) and the legal pages Google's app-verification
+  process requires a public privacy policy/ToS URL for.
+- **Avatar backfill from Google**: `IAuthService.ProviderAvatarUrl` reads
+  `client.Auth.CurrentUser.UserMetadata["avatar_url"]` (falling back to
+  `"picture"` — Google populates both with the same value; `UserMetadata`
+  is a plain `Dictionary<string, object>`, confirmed via reflection against
+  the installed `Supabase.Gotrue` 6.3.0 package, not a typed property) and
+  returns `null` for a plain email/password account.
+  `ProfileViewModel.LoadAsync` calls this once per Profile visit
+  (`BackfillGoogleAvatarAsync`) and only ever *fills in* a photo when the
+  member doesn't already have one (`AvatarPath is null`) — it never
+  overwrites a deliberately-removed photo, since it re-checks fresh on
+  every visit rather than tracking a one-time "already tried" flag. Reuses
+  the same `ImageResizer`/`IAvatarsRepository` upload path `ChangePhoto`
+  already used.
+
+## Per-device accent color picker (2026-09-01)
+
+**Directly supersedes SCOPE.md's old "Theming: discussed, not planned"
+section** — the "presets first" recommendation written there got built.
+Profile's new "Accent color" row (`AccentSwatches`,
+`ChangeAccentColorCommand`) lets each device pick from **8 fixed presets**
+(`AccentPreset`: Blue/Green/Red/Purple/Pink/Amber/Orange/Navy — see
+`Services/AccentPalettes.cs`), independent of dark-theme-vs-light (the app
+is dark-only regardless) and independent per group member (a per-device
+`Preferences` value, `AppConstants.Preferences.AccentPreset`, same "personal
+viewing preference, not group state" treatment as
+`BalanceDisplayModePrefix`/`LanguageOverride`).
+
+- **Scoped to ~35 accent-*derived* keys, not the full ~111-key
+  `Colors.xaml`** — backgrounds/surfaces/status colors (Success/Warning/
+  Danger/Info) stay fixed for every preset; only Primary/Secondary and
+  everything visually derived from them (button states, switches,
+  checkboxes, focus rings, sliders, nav/tab indicators, badges) change.
+  Values are **precomputed per preset**, not derived at runtime (HSL
+  lighten/darken off each base hue for Hover/Pressed, on-accent text picked
+  per-color by WCAG contrast against the app's dark/light extremes,
+  Secondary as a fixed hue rotation off Primary — the same relationship the
+  original hardcoded blue/amber pair already had) — `ThemeService` itself
+  has no color-math dependency, just a lookup plus in-place dictionary
+  writes.
+- **`ThemeService.Instance`**, a plain singleton (not DI-registered — reads
+  directly from `Preferences` and mutates a `ResourceDictionary` merged
+  once into `Application.Current.Resources` at `Bootstrap()`, called from
+  `App.xaml.cs` after `InitializeComponent`, since `MergedDictionaries`
+  doesn't exist before that). `SetPreset` **mutates the existing
+  dictionary's keys in place** rather than removing and re-adding a whole
+  dictionary object — tried remove-then-add first (the pattern MAUI's own
+  light/dark theming samples use) and confirmed via a real Windows
+  build/run that it **under-updates**: an idle-state `Button
+  .BackgroundColor` set via a bare style-level `Setter` never picked up the
+  new color until a hover/press VisualState transition forced it to
+  re-apply, even though `DynamicResource` resolution itself was clearly
+  working. In-place key mutation raises a per-key resource-changed
+  notification instead of a coarse "a dictionary changed" one, which native
+  WinUI button chrome actually listens to. One further gap even with that
+  fix: an **already-rendered** WinUI `Button`'s native background brush
+  still doesn't repaint itself from the now-correct `DynamicResource` value
+  without a push — `RefreshVisibleButtons()` walks the current page's
+  visual tree and calls `Handler?.UpdateValue(nameof(Button
+  .BackgroundColor))` on every `Button` found, deliberately scoped to only
+  the page currently on screen (every other page already reads the correct
+  value the next time it's navigated to).
+- Every color consumed from `Styles.xaml`/pages had to move from
+  `{StaticResource ...}` (resolved once at load) to `{DynamicResource
+  ...}` for the ~35 accent keys specifically — the bulk of this commit's
+  `Styles.xaml`/page-XAML diff.
+- **Not built, and explicitly out of scope for this pass**: a fully
+  custom user-picked color (SCOPE.md's harder tier — deriving
+  hover/pressed/disabled siblings and a contrast guard programmatically,
+  plus a color-picker UI MAUI has no built-in control for). 8 curated
+  presets fully satisfies what SCOPE.md called the "easy" tier; the
+  "custom palette as a follow-on" recommendation there still stands as the
+  next step if ever picked up.
+
+## Android Google sign-in timeout, and retrying transient clock-skew errors (2026-09-02)
+
+Two independent hardening fixes, bundled in one commit:
+
+- The MIUI account-picker-crash timeout described under "Google sign-in"
+  above (`GoogleAuthService.SignInTimeout`, 2 minutes, same duration as
+  Windows' loopback-listener timeout).
+- **`BaseViewModel.RunSafeAsync` now retries once on a transient Supabase
+  clock-skew rejection** (`PGRST303`/"JWT issued at future" — a brief
+  device/server clock drift at the exact moment a token was issued, not
+  something the app or user can fix). PostgREST rejects this at the
+  auth-check step before the query itself ever runs, so a bare retry after
+  a 750ms delay is safe — nothing partially executed. A second consecutive
+  failure is no longer treated as "just a blip" and surfaces normally
+  instead of retrying again. This is the same crash class `RunSafeAsync`
+  was originally built to contain (see "Session persistence, sign-out,
+  Settle, and crash-safety" above) — this commit specifically targeted the
+  clock-skew case that kept recurring, per that section's own note that it
+  was "confirmed repeatedly this session."
+
+## Push notifications — client-side registration (2026-09-03)
+
+First real code against the last unbuilt piece of Phase 1's infra list
+(`SCOPE.md`). Decided **against** the OneSignal wrapper `SCOPE.md`
+originally named: this app is an unpackaged Win32 build on Windows, and
+native Windows notification APIs already required MSIX packaging once
+before on this exact codebase (`AppNotificationManager`, see the
+crash-safety notes above) — OneSignal's actual Windows/WNS support for an
+unpackaged MAUI app was an unverified assumption, not worth building
+against. Went with **raw Firebase Cloud Messaging, Android-only** instead —
+Android's delivery is FCM either way, so skipping OneSignal removes a
+vendor dependency without losing anything Android-side; Windows push is a
+separate, not-yet-started investigation.
+
+- **Firebase project** (`axisapp-ee018`) created, `google-services.json`
+  added under `Platforms/Android/` and wired via a `<GoogleServicesJson>`
+  item in the `.csproj` (dropping the file in the folder alone doesn't
+  register it — confirmed against Microsoft's own MAUI docs, not guessed).
+  `Xamarin.Firebase.Messaging` (125.1.1.1) added Android-only. Hit a real
+  transitive-dependency conflict getting there: Firebase pulls in
+  `Xamarin.AndroidX.Fragment` 1.9.0, but Credential Manager's own
+  `Fragment.Ktx` dependency (pinned to the 1.8.8.1 series) expected an
+  older `Fragment` — the mismatch merged two different-generation copies of
+  the same AAR and duplicated `FragmentKt.class` at the R8/dex step
+  (`Compilación correcta` only after explicitly pinning `Fragment.Ktx` up
+  to `1.9.0` to match). Xamarin as a product line is EOL — the binding
+  still installs and works (confirmed, see below), same as Google
+  sign-in's `Xamarin.AndroidX.Credentials` already proved for this
+  codebase, but treat its exact API surface as unverified-until-built, same
+  rule as every other SDK here.
+- **`IPushRegistrationService`** (`RegisterAsync`/`UnregisterAsync`), same
+  one-interface-per-platform shape as `IGoogleAuthService`.
+  **Android** (`Platforms/Android/PushRegistrationService.cs`): requests
+  `Permissions.PostNotifications` (MAUI's built-in Android 13+ permission
+  class — no custom permission type needed in .NET 9/10), then retrieves an
+  FCM token via the raw `Firebase.Messaging.FirebaseMessaging` binding.
+  `GetToken()`/`DeleteToken()` return a Java `Android.Gms.Tasks.Task`, not a
+  C# `Task` — wrapped in a `TaskCompletionSource` via
+  `AddOnSuccessListener`/`AddOnFailureListener`, the exact same shape
+  `GoogleAuthService`'s `ICredentialManagerCallback` wrapping already uses
+  for the identical "Java callback API" problem. Both methods swallow their
+  own exceptions internally — a push-registration hiccup (permission
+  denied, no network) should never block sign-in, Groups loading, or
+  sign-out, so callers invoke them with no try/catch of their own.
+  **Windows** (`Platforms/Windows/PushRegistrationService.cs`): deliberate
+  no-op, per the Windows-deferred decision above.
+- **`SupabaseDeviceTokensRepository.RegisterAsync` fixed to be idempotent**
+  — it previously did a plain `Insert`, but `push_token` carries a real
+  unique constraint and this is called on every Groups-page load (see
+  below), not just first sign-in; a repeat call with the same token would
+  have thrown. Fixed by deleting any existing row for that exact token
+  first, rather than guessing at Postgrest's `Upsert`/`OnConflict` API
+  surface — zero new unverified API risk, reuses only the `.Filter(...)
+  .Delete()` shape `UnregisterAsync` already had.
+- **`AndroidManifest.xml`** gained `POST_NOTIFICATIONS` — required as an
+  actual manifest entry before `Permissions.RequestAsync` will even
+  attempt the runtime prompt on Android 13+, same requirement `CAMERA`
+  already needed for receipt photos.
+- **Wiring**: `GroupsViewModel.LoadAsync` fires `RegisterAsync()`
+  fire-and-forget (not awaited — it may show a permission prompt, and this
+  page's own `IsBusy` spinner shouldn't sit waiting on the user answering
+  it) at the end of every load. `LoadAsync` runs on every path that lands
+  on Groups — sign-in, sign-up, Google sign-in, and a session restored on
+  relaunch — so this one choke point covers all of them without duplicating
+  the call into `LoginViewModel`/`SplashPage`. `GroupsViewModel.Logout`
+  awaits `UnregisterAsync()` **before** `SignOutAsync()` — it has to run
+  while the session that authorizes deleting this device's own
+  `device_tokens` row is still valid, or a device later reused by a second
+  account would keep receiving the first account's notifications.
+- **Confirmed working end to end against a real emulator run**: signed in,
+  `POST_NOTIFICATIONS` granted, a row appeared in `device_tokens` with the
+  correct `account_id`/`platform`, and a test campaign sent from the
+  Firebase console arrived and displayed on the emulator. Deploying to a
+  device from the CLI needs `dotnet build -f net10.0-android -t:Run` (not
+  a plain `adb install` of the Debug APK — that installs a "Fast
+  Deployment" stub whose assemblies get synced separately, and aborts with
+  `No assemblies found ... Assuming this is part of Fast Deployment` if
+  installed directly); with more than one device attached, pin the target
+  explicitly with `-p:AdbTarget="-s <serial>"` — an unpinned run silently
+  picked whichever device the tooling defaulted to once, not necessarily
+  the intended one.
+- **One known gap, not yet built**: no `FirebaseMessagingService` for
+  custom foreground handling or tap-to-open deep linking (the test
+  notification displayed using Firebase's own default fallback channel —
+  logcat warned `Missing Default Notification Channel metadata`, worth a
+  real "Axis" channel later). The server-side send half described as
+  missing here is now done — see below.
+
+## Push notifications — server-side send (2026-09-03)
+
+The other half of the same day's work, once client-side registration
+proved out. Scoped to the actual parties to each transaction, not the
+whole group, per real design pushback during this session: a naive
+"everyone in the group" send, or a "balance ≠ 0" heuristic, are both
+wrong — the former spams uninvolved members of a large group, the latter
+reflects the group's overall net position, not who's actually in *this*
+expense.
+
+- **`expense_notification_recipients(expense_id)` /
+  `payment_notification_recipients(payment_id)`** (`schema.sql`) — plain
+  SQL, mirroring `find_expired_receipts`'s "pure read, no side effects"
+  role. For an expense: `paid_by_member_id` unioned with every
+  `expense_shares.member_id` on it. For a payment: the two parties. Both
+  exclude whoever recorded the row (`created_by` — no one needs telling
+  about their own action) and join to `device_tokens` via `members
+  .account_id`, which naturally excludes phantom members (no account, no
+  token) with no special-casing needed. Verified directly in the SQL
+  editor against a real expense before trusting the trigger, same
+  discipline `find_expired_receipts`/`materialize_recurring_expenses` got.
+- **`notify_new_expense()`/`notify_new_payment()`** — `AFTER INSERT`
+  triggers on `expenses`/`payments`, calling the new `send-push` Edge
+  Function via `net.http_post`, same Vault-`service_role_key`-as-bearer
+  pattern `cleanup-receipts`' cron job already used. `pg_net` queues the
+  call asynchronously, so this never blocks or can fail the actual
+  insert. **Real bug, hit live on the first save after deploying**:
+  `permission denied for schema vault` (`42501`). Root cause: unlike
+  `cleanup-receipts`'s cron call (which runs as `postgres`, the role that
+  called `cron.schedule()`, which already has Vault access),
+  these triggers fire on a plain app-level `INSERT` from an ordinary
+  signed-in user via Postgrest — the trigger function ran as
+  `authenticated` by default, which has no grant on the `vault` schema at
+  all. Fixed with `security definer` — a genuine permission gap this
+  time, not the usual RLS-recursion-avoidance reason every other
+  `SECURITY DEFINER` function in this file exists for. Safe the same way
+  those are: the caller never sees the decrypted secret, only the
+  function body does.
+- **`supabase/functions/send-push/index.ts`** — reads the recipient
+  function, looks up the expense/payment's description/amount/group
+  name/payer name via embedded Postgrest selects, exchanges the Firebase
+  service-account credential for an FCM OAuth2 access token (RS256 JWT
+  hand-signed via Deno's native Web Crypto API — no external auth library
+  dependency needed for just that), then POSTs to FCM's HTTP v1 API once
+  per Android recipient token. **Correction to earlier guidance in this
+  same session**: the service-account JSON belongs in this function's own
+  **Edge Function Secrets** (`FIREBASE_SERVICE_ACCOUNT_KEY`, read via
+  `Deno.env.get`), not Supabase Vault — Vault is for secrets a *SQL*
+  caller needs (like `service_role_key` above, read by the trigger), this
+  one is only ever read inside the Deno runtime itself.
+- **Confirmed working end to end against the live project, including the
+  real trigger firing on its own** (not just a manual invoke): saved a
+  real expense in the Windows build (`AxisApp.exe` run directly, not via
+  `dotnet build`), the trigger fired, `send-push` ran, and the correctly
+  scoped recipient (one of 4 real accounts on the expense, minus the
+  actor) received a real push instantly — title = group name, body =
+  `"{payer name} added {description} — {amount} {currency}"`. Tapping the
+  notification currently just opens the app to whatever Shell's default
+  route is (Groups), not the specific group — the same
+  `FirebaseMessagingService`/tap-to-open gap noted above, unbuilt.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
@@ -1096,6 +1480,9 @@ uniformly.
 | `CommunityToolkit.Mvvm` | 8.4.0 | MVVM source generators |
 | `Supabase` | 1.6.0 | Supabase client (Auth + Postgrest + Realtime + Storage) |
 | `SkiaSharp` | 4.151.1 | Client-side image resize/WebP encode for avatar uploads |
+| `Xamarin.AndroidX.Credentials` | 1.6.0.1 | Android-only: Credential Manager for native Google sign-in |
+| `Xamarin.AndroidX.Credentials.PlayServicesAuth` | 1.6.0.1 | Android-only, paired with the above |
+| `Xamarin.Google.Android.Libraries.Identity.GoogleId` | 1.1.0.15 | Android-only: Google ID token credential type |
 
 Be skeptical of assuming an SDK's API surface without checking a real local
 build — the Models' namespace was briefly `Postgrest.*` instead of the

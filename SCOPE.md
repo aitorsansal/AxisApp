@@ -43,9 +43,9 @@ all for money-tracking. This is what "done" looks like before Phase 2 starts.
 Login → Groups (list) → Group detail (balances + recent activity for that group)
 → Add expense / Add payment → Invite/Join group flow.
 
-**Built.** All five screens (`GroupsPage`, `GroupDetailPage`, `MembersPage`,
-`AddExpensePage`, `JoinGroupPage`) exist and are wired to the real
-repositories — see `CLAUDE.md`'s "Current state" for the specifics
+**Built.** All core screens (`GroupsPage`, `GroupDetailPage`, `MembersPage`,
+`AddExpensePage`, `JoinGroupPage`, `NewGroupPage`) exist and are wired to
+the real repositories — see `CLAUDE.md`'s "Current state" for the specifics
 (edit-expense flow, the two bugs found while wiring it up, and the
 2026-08-31 additions: leave/transfer-ownership/dissolve a group, viewing a
 group's members, removing a phantom, per-account member aliases, and avatar
@@ -55,9 +55,13 @@ it's needed again (new screens, revisiting a layout decision) it'll need
 regenerating — the prompt used is reconstructable from this doc's token
 values plus the screen descriptions above.
 
-Not yet built: a dedicated "create group" screen (currently a native
-`DisplayPromptAsync` prompt — fine for MVP, revisit if group creation needs
-more than a name), and editing a settle-up `Payment` (only `Expense` editing
+Since then, `ProfilePage` (own name/birthday/avatar/language/email/password,
+consolidated off `GroupsPage`'s account menu) and Google sign-in +
+forgot-password (`LoginPage`) were added — see CLAUDE.md's "Profile page"
+and "Google sign-in, password reset, and avatar backfill" sections
+(2026-08-31 / 2026-09-01–02).
+
+Not yet built: editing a settle-up `Payment` (only `Expense` editing
 exists).
 
 ### Supporting infra
@@ -89,10 +93,30 @@ exists).
   math to `Expense(paid_by=payer, participants=[payee], share=amount)`, so
   a 1-way recurring expense fully covers what `recurring_payments` was
   for, and nothing had ever built UI for it.
-- **Push notifications**: Supabase Edge Function triggered by DB webhook/trigger
-  on new expense/payment, calling **OneSignal** (wraps FCM for Android + WNS for
-  Windows behind one API, matching Axis's current two active targets) rather than
-  integrating each platform's push service directly.
+- **Push notifications**: **plan revised 2026-09-03** — dropped the OneSignal
+  wrapper originally described here in favor of raw Firebase Cloud Messaging,
+  **Android-only for now**. Windows is an unpackaged Win32 build, and this
+  codebase already hit exactly this class of wall once before (native
+  Windows notification APIs requiring MSIX packaging — see CLAUDE.md's
+  crash-safety notes); OneSignal's actual Windows/WNS support for an
+  unpackaged MAUI app was never a verified fact, and Android's delivery is
+  FCM either way, so the wrapper wasn't buying real cross-platform coverage.
+  Windows push is deferred to its own separate investigation, not attempted
+  here.
+  **Client-side registration and server-side send: both done 2026-09-03**
+  (`IPushRegistrationService` on the client; `expense_notification_recipients`/
+  `payment_notification_recipients` + `notify_new_expense`/`notify_new_payment`
+  triggers + the `send-push` Edge Function on the server — see CLAUDE.md's
+  "Push notifications — client-side registration" and "— server-side send"
+  for the full detail), confirmed working end to end against the live
+  project with the real `AFTER INSERT` trigger firing on its own, correctly
+  scoped to only the expense/payment's actual participants (not the whole
+  group, and not a "balance ≠ 0" heuristic — see CLAUDE.md for why that
+  would have been wrong). **Still not built**: a `FirebaseMessagingService`
+  for foreground handling and tap-to-open deep linking (tapping a
+  notification currently just opens the app to Groups, not the specific
+  group) and a proper "Axis" notification channel (currently falls back to
+  Firebase's own default).
 
 ### Explicitly deferred within Phase 1
 
@@ -129,33 +153,38 @@ Treated as its own scope, tackled only after native events (Phase 2) ship:
 
 This is real, independent scope — not a checkbox on the events feature.
 
-## Theming (discussed, not planned)
+## Theming
 
-Came up as a "how hard would it be" question, not a commitment — recorded here
-so it isn't re-litigated from scratch if it comes up again, and so a future
-session knows this was discussed, not silently missed.
+**Presets: done 2026-09-01.** What used to be a "how hard would it be"
+discussion (recorded below, kept for the reasoning) turned into
+`Services/ThemeService.cs` + `Services/AccentPalettes.cs` — a per-device
+accent-color picker on `ProfilePage` with **8 fixed presets** (Blue, Green,
+Red, Purple, Pink, Amber, Orange, Navy), covering exactly the "presets
+first" plumbing described below almost exactly as speculated: `Colors.xaml`
+references switched from `{StaticResource ...}` to `{DynamicResource ...}`
+for the ~35 accent-derived keys, `ThemeService` swaps values into a merged
+`ResourceDictionary` and persists the choice via `Preferences`, applied at
+startup. See CLAUDE.md's "Per-device accent color picker" section for the
+real WinUI-specific snags hit along the way (in-place key mutation vs.
+remove-and-readd, and a live `Button`'s native chrome needing an explicit
+handler refresh even after the resource value is correct). Scoped
+deliberately to just Primary/Secondary and what derives from them —
+backgrounds/surfaces/status colors stay fixed across every preset.
 
-- **Multiple preset color palettes, user-selectable**: genuinely easy given
-  how this codebase is already structured — every color is centralized in
-  `Colors.xaml` and consumed only through named styles in `Styles.xaml`
-  (never hardcoded in pages). The one real change needed: `Styles.xaml`'s
-  color references are `{StaticResource ...}`, which resolves once at load;
-  runtime theme-swapping needs `{DynamicResource ...}` instead. From there:
-  one `Colors.xaml`-shaped file per preset, a small `ThemeService` that swaps
-  which one is in `Application.Current.Resources.MergedDictionaries` and
-  persists the choice via `Preferences`, applied at startup next to the
-  existing `UserAppTheme = AppTheme.Dark` line in `App.xaml.cs`. Most of the
-  actual effort is designing palettes that read well in a dark UI, not the
-  plumbing.
-- **Fully custom user-defined palette** (not just picking a preset): harder.
-  Reuses the same runtime-swap mechanism, but a user-picked color doesn't
+**Fully custom user-defined palette: still not planned**, harder tier,
+unchanged from the original discussion below.
+
+- Reuses the same runtime-swap mechanism, but a user-picked color doesn't
   come with its hover/pressed/disabled siblings (~15+ tokens per accent) —
   those need deriving programmatically (lighten/darken, compute a readable
-  text color against it) rather than hand-picked. Also needs a color-picker
-  UI (MAUI has none built in) and a contrast guard so someone can't pick a
-  primary color that's unreadable against the dark background.
-- **Recommendation if this gets picked up**: presets first, custom palette
-  as a follow-on once the `DynamicResource` plumbing already exists.
+  text color against it) rather than hand-picked, unlike the 8 presets
+  above, which were precomputed by hand. Also needs a color-picker UI (MAUI
+  has none built in) and a contrast guard so someone can't pick a primary
+  color that's unreadable against the dark background.
+- **Recommendation if this gets picked up**: the `DynamicResource` plumbing
+  the presets needed already exists now, so this is a smaller lift than it
+  was when first discussed — but the palette-derivation math and
+  color-picker UI are still new work.
 
 ## Non-goals (for now)
 

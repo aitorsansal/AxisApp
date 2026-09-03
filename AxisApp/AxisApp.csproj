@@ -36,6 +36,13 @@
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 	</PropertyGroup>
 
+	<!--Keystore for always building with the same SHA1-->
+	<Import Project="keystore.local.props" Condition="Exists('keystore.local.props')" />
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0-android|AnyCPU'">
+		<AndroidPackageFormat>apk</AndroidPackageFormat>
+		<AndroidKeyStore>True</AndroidKeyStore>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<!-- App Icon -->
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#0B1220" />
@@ -69,6 +76,26 @@
 		<PackageReference Include="Xamarin.AndroidX.Credentials" Version="1.6.0.1" />
 		<PackageReference Include="Xamarin.AndroidX.Credentials.PlayServicesAuth" Version="1.6.0.1" />
 		<PackageReference Include="Xamarin.Google.Android.Libraries.Identity.GoogleId" Version="1.1.0.15" />
+		<PackageReference Include="Xamarin.Firebase.Messaging" Version="125.1.1.1" />
+
+		<!-- Pin: Xamarin.Firebase.Messaging pulls in Xamarin.AndroidX.Fragment 1.9.0
+		     transitively, but Credential Manager's own Xamarin.AndroidX.Fragment.Ktx
+		     dependency graph asks for a matching 1.8.8.1-series Fragment — the mismatch
+		     merges two different-generation copies of the same AAR and duplicates
+		     FragmentKt.class at the R8/dex step. Pinning Fragment.Ktx up to the 1.9.0
+		     series it actually needs to pair with resolves it. -->
+		<PackageReference Include="Xamarin.AndroidX.Fragment.Ktx" Version="1.9.0" />
+
+		<!-- Firebase client config (project id/app id/API key — not a secret) — tells the
+		     Firebase Android SDK which project to register push tokens against. The server-side
+		     credential (a service account key, used to *send* pushes) is a different file and
+		     never goes in this repo — see CLAUDE.md's push notifications section. -->
+		<GoogleServicesJson Include="Platforms\Android\google-services.json" />
+	</ItemGroup>
+	
+	
+	<ItemGroup>
+	  <Folder Include="keystore\" />
 	</ItemGroup>
 
 </Project>
