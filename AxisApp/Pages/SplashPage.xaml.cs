@@ -50,6 +50,13 @@ public partial class SplashPage : ContentPage
         }
 
         await Shell.Current.GoToAsync(destination);
+
+        // Must come after the GoToAsync above, not before — this is the actual "safe to navigate"
+        // signal App.QueueOrNavigate waits on (see its remarks: Shell.Current's nullness alone
+        // isn't reliable, since AxisFirebaseMessagingService can construct the Shell object graph
+        // by starting this app's process with no Activity ever appearing, well before this method
+        // ever runs).
+        App.MarkReadyToNavigate();
         await App.ReplayPendingDeepLinkAsync();
     }
 }

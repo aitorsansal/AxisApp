@@ -112,11 +112,15 @@ exists).
   project with the real `AFTER INSERT` trigger firing on its own, correctly
   scoped to only the expense/payment's actual participants (not the whole
   group, and not a "balance ≠ 0" heuristic — see CLAUDE.md for why that
-  would have been wrong). **Still not built**: a `FirebaseMessagingService`
-  for foreground handling and tap-to-open deep linking (tapping a
-  notification currently just opens the app to Groups, not the specific
-  group) and a proper "Axis" notification channel (currently falls back to
-  Firebase's own default).
+  would have been wrong). **Tap-to-open and a real channel: also done
+  2026-09-03** — `AxisFirebaseMessagingService` builds the notification on
+  an "Axis notifications" channel and routes a tap directly to the
+  specific group (see CLAUDE.md's "tap-to-open, a real channel, and a
+  real cold-start bug" section for a genuinely interesting bug this
+  surfaced — `Shell.Current` being non-null turned out not to be a
+  reliable "safe to navigate" signal once a background service could
+  start the app's process with no UI ever appearing). Push notifications
+  are now fully built for Android.
 
 ### Explicitly deferred within Phase 1
 
@@ -126,6 +130,19 @@ exists).
 - Multi-payer expenses (one expense split among many payers, not just one payer
   + many owers) — not currently planned; single `paid_by_member_id` is enough
   for the target use case.
+- **Stale `device_tokens` cleanup**: found 2026-09-03 while testing push —
+  redeploying the app can invalidate a previously-registered FCM token
+  (documented FCM behavior, not a bug), and `send-push` currently just logs
+  a failed send and moves on, leaving the dead row in `device_tokens`
+  forever until that account happens to reopen the app and re-register
+  (`GroupsViewModel.LoadAsync` re-fires `RegisterAsync` on every visit,
+  which is what actually recovers it today). Not urgent — the client-side
+  self-healing already covers the common case — but the real fix, when
+  picked up: FCM's HTTP v1 API returns a specific `UNREGISTERED` error
+  status for a dead token; `send-push` should delete that `device_tokens`
+  row when it sees that, same "cleanup on a specific detected failure"
+  shape as the receipt cleanup Edge Function, just event-driven instead of
+  scheduled.
 
 ## Phase 2 — Events & Calendar
 
@@ -135,10 +152,50 @@ Builds on the same primitives Phase 1 establishes, not a new architecture:
   created_by) — same table shape pattern as `expenses`.
 - `event_attendees` (event_id, member_id, response) — same shape as
   `expense_shares`.
-- Reminders reuse the Phase 1 push infra (OneSignal + Edge Function) and the
-  Phase 1 `pg_cron` pattern (scan upcoming events instead of due recurring
-  expenses).
-- UI: calendar view per group, RSVP to events.
+- Reminders reuse the Phase 1 push infra (raw FCM + Edge Function — the
+  OneSignal wrapper originally planned here was dropped 2026-09-03, see
+  CLAUDE.md's push-notifications remarks) and the Phase 1 `pg_cron` pattern
+  (scan upcoming events instead of due recurring expenses).
+- UI: calendar view per group, RSVP to events. This is also where
+  birthdays live (a member's `birth_date`, already a reserved column on
+  `members` — see "Profile page" in CLAUDE.md — surfaced as a recurring
+  yearly entry on this same calendar, not a separate feature).
+
+### Notification design for this phase (decided 2026-09-03, ahead of the
+### feature itself, so it isn't re-litigated once events actually get built)
+
+**The shared-membership duplicate-send problem, and why the fix is server-side,
+not a channel**: two members who share several groups (a birthday, unlike an
+expense, isn't scoped to one group — it's a fact about a *person*) would each
+get one push per shared group's reminder if the reminder logic naively fired
+per group membership. A notification channel can't fix this — a channel only
+controls where an *already-sent* notification lands and whether it makes
+noise, it can't prevent two separate sends from happening in the first place.
+The fix is the same shape Phase 1's `expense_notification_recipients`/
+`payment_notification_recipients` already established: compute the
+**distinct** recipient account set once (across every group the reminder is
+relevant to, deduplicated by `account_id`), and send exactly one push per
+account — not one per (group × account) pair. Whatever function eventually
+computes birthday/event reminder recipients should follow that same
+`select distinct ... account_id` pattern, not iterate group-by-group.
+
+**Channels: flat and shared across groups, not one per group.** A per-group
+channel (or per-group-per-type channel group) was considered — Android
+supports it natively (dynamic channel creation + `NotificationChannelGroup`
+for a "Group X" heading containing sub-channels) — but rejected once the
+dedup fix above was on the table: per-group channels were originally meant
+to *solve* the duplicate-send problem (mute the second group's version of
+the same reminder), and once that's fixed server-side, there's no longer a
+real reason for that granularity. What's actually wanted is just "let me
+mute this whole *category* of notification" — so the plan is **three flat
+channels, shared across every group**: Expenses (& payments), Events, and
+Anniversaries/birthdays. This avoids the real cost a per-group scheme would
+have had (Android's notification Settings screen growing one entry per
+group the user's in, for every group they're in) while still giving the
+control that's actually wanted. Per-group muting (mute *just this group's*
+expense pings) is a real but much narrower need than category-level
+muting — not planned now, but nothing about the flat-channel design blocks
+adding it later if it turns out to matter.
 
 Not started until Phase 1 is fully working and has proven the backend pattern.
 

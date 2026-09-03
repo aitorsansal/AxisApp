@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
   let recipients: Recipient[] = [];
   let title = "Axis";
   let body = "";
+  let groupId = "";
 
   if (expense_id) {
     const { data: recipientRows, error: recError } = await supabase
@@ -126,7 +127,7 @@ Deno.serve(async (req) => {
 
     const { data: expense } = await supabase
       .from("expenses")
-      .select("description, amount, currency, groups(name), members!expenses_paid_by_member_id_fkey(display_name)")
+      .select("group_id, description, amount, currency, groups(name), members!expenses_paid_by_member_id_fkey(display_name)")
       .eq("id", expense_id)
       .single();
 
@@ -137,6 +138,7 @@ Deno.serve(async (req) => {
       const payerName = e.members?.display_name ?? "Someone";
       title = groupName;
       body = `${payerName} added ${e.description || "an expense"} — ${e.amount} ${e.currency}`;
+      groupId = e.group_id ?? "";
     }
   } else {
     const { data: recipientRows, error: recError } = await supabase
@@ -149,7 +151,7 @@ Deno.serve(async (req) => {
 
     const { data: payment } = await supabase
       .from("payments")
-      .select("amount, currency, groups(name)")
+      .select("group_id, amount, currency, groups(name)")
       .eq("id", payment_id)
       .single();
 
@@ -158,6 +160,7 @@ Deno.serve(async (req) => {
       const p = payment as any;
       title = p.groups?.name ?? "Axis";
       body = `A payment of ${p.amount} ${p.currency} was recorded`;
+      groupId = p.group_id ?? "";
     }
   }
 
@@ -196,11 +199,21 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         message: {
           token: recipient.push_token,
-          notification: { title, body },
+          // Data-only, deliberately no "notification" block — that would make Android
+          // auto-display it using Firebase's own default handling, with no way to control the
+          // tap action or the channel it lands in. Sending everything as data instead forces
+          // AxisFirebaseMessagingService.OnMessageReceived to fire and build the notification
+          // itself (channel, tap-to-open PendingIntent carrying group_id) — see CLAUDE.md's
+          // push-notifications remarks. All values must be strings; FCM data payloads don't
+          // support other JSON types.
           data: {
             type: expense_id ? "expense" : "payment",
             expense_id: expense_id ?? "",
             payment_id: payment_id ?? "",
+            group_id: groupId,
+            group_name: title,
+            title,
+            body,
           },
         },
       }),

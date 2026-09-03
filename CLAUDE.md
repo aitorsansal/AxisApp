@@ -1319,6 +1319,72 @@ expense.
   route is (Groups), not the specific group — the same
   `FirebaseMessagingService`/tap-to-open gap noted above, unbuilt.
 
+## Push notifications — tap-to-open, a real channel, and a real cold-start bug (2026-09-03)
+
+Closes the two gaps the sections above left open. Discussed with the user
+first (see the design-pushback exchange in that session — a per-group
+channel was considered and rejected once server-side recipient dedup made
+it unnecessary; see `SCOPE.md`'s Phase 2 notification-design notes) before
+any of this was written.
+
+- **`send-push` now sends a data-only FCM message** (no `notification`
+  block) — deliberately, since a `notification` block makes Android
+  auto-display it via Firebase's own default handling, with no way to
+  control the tap action or which channel it lands in. `data` now carries
+  `group_id`/`group_name` alongside the existing `type`/`expense_id`/
+  `payment_id`/`title`/`body` (the expense/payment selects gained
+  `group_id`) — everything the client needs to build its own notification
+  and route a tap.
+- **`Platforms/Android/AxisFirebaseMessagingService.cs`** (new) — receives
+  every message, creates a real `axis_default` channel ("Axis
+  notifications") via `NotificationChannel`/`NotificationManager`
+  (idempotent — Android dedupes by channel id, so this runs on every
+  message rather than once at startup), and builds the shown notification
+  by hand with a `PendingIntent` back to `MainActivity` carrying
+  `group_id`/`group_name` as Intent extras.
+- **`MainActivity.HandleIntent`** now also reads those extras (alongside
+  the existing App Link URI check) and calls the new
+  `App.HandleNotificationTap`. **`App.xaml.cs`**'s old invite-link-only
+  `pendingDeepLink` queue was generalized into `pendingRoute`, shared by
+  both `HandleDeepLink` (invite links) and `HandleNotificationTap` (push
+  taps) — both resolve to an already-built route string before queuing,
+  rather than duplicating the "queue until ready" logic per source.
+- **Real bug, found via a live repro session on a physical device, not
+  guessed**: tapping a notification while the app had been fully killed
+  landed on the right group's page — title and layout rendered — but
+  showed **"Group not found."**, even though the signed-in account
+  genuinely was a member of that exact group (confirmed by hand: pulled
+  the group's real member list via SQL and cross-checked against the
+  account signed in on the device). Diagnostic `Log.Debug` calls added at
+  every handoff (`OnMessageReceived` → `HandleIntent` → the route string)
+  proved `group_id` was byte-for-byte correct the entire way through —
+  ruling out a data bug. What actually happened, confirmed by one more
+  diagnostic round: **`AxisFirebaseMessagingService` can start the app's
+  process with no Activity ever appearing** — Android starts the process
+  purely to run the messaging service, and MAUI's `Application`/`Window`/
+  `Shell` object graph gets constructed as soon as *that* process starts
+  (`CreateWindow()` runs unconditionally), well before `SplashPage` —
+  the page that actually calls `RestoreSessionAsync` — has ever rendered.
+  The old queue logic used `Shell.Current is null` as its "is it safe to
+  navigate yet" signal; in this state `Shell.Current` was already
+  non-null (from that headless construction), so a notification tapped
+  shortly after saw it as "ready" and navigated immediately — straight
+  into an RLS-gated query with no session ever restored. The result
+  ("Group not found") is indistinguishable from a real permission
+  failure from the client's point of view: PostgREST returns the same
+  empty result set whether `auth.uid()` is a real account that isn't a
+  member, or genuinely null. This exact race was never observable before
+  this feature — every prior entry point (invite links, normal launches)
+  always went through a real `MainActivity.OnCreate` first, and this is
+  the first thing in the app that can start the process without one.
+  **Fixed** with an explicit `App.isReadyToNavigate` flag, set true only
+  once `SplashPage.OnAppearing` has actually finished `RestoreSessionAsync`
+  and landed on Login/Groups — `Shell.Current`'s nullness is no longer
+  consulted at all for this decision. Confirmed fixed against the same
+  live repro (force-stop the app, send a push, tap it) after the fix
+  deployed; the temporary diagnostic logging used to find this was removed
+  once confirmed.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule

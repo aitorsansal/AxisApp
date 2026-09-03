@@ -34,9 +34,27 @@ namespace AxisApp
 
         private static void HandleIntent(Intent? intent)
         {
-            var uri = intent?.Data?.ToString();
+            if (intent is null) return;
+
+            var uri = intent.Data?.ToString();
             if (!string.IsNullOrEmpty(uri))
+            {
                 App.HandleDeepLink(uri);
+                return;
+            }
+
+            // A tapped push notification — see AxisFirebaseMessagingService, whose PendingIntent
+            // targets this same Activity with these extras. No group_id means either a
+            // notification with no group context, or (group_id is nullable on expenses/payments —
+            // it's set null if the group was later dissolved) a group that no longer exists by the
+            // time it's tapped; either way, falling through to the app's normal Login/Groups
+            // landing is the right behavior, not an error.
+            var groupId = intent.GetStringExtra("group_id");
+            if (string.IsNullOrEmpty(groupId)) return;
+
+            var groupName = intent.GetStringExtra("group_name") ?? "";
+            App.HandleNotificationTap(
+                $"{AppConstants.Routes.GroupDetails}?groupId={groupId}&groupName={Uri.EscapeDataString(groupName)}");
         }
     }
 }
