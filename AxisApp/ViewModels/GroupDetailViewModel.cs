@@ -64,20 +64,23 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     private Dictionary<Guid, Member> membersById = new();
     private Dictionary<Guid, string> aliases = new();
     private Guid? myMemberId;
+    private Group? currentGroup;
 
     [ObservableProperty] private string groupName = "";
     [ObservableProperty] private ObservableCollection<MemberBalanceItem> balances = [];
     [ObservableProperty] private ObservableCollection<ActivityItem> recentActivity = [];
     [ObservableProperty] private bool isBusy;
 
-    /// <summary>Whether the current account created this group — drives which of Leave/Transfer/
-    /// Dissolve show up in the group options menu (GroupDetailPage.xaml).</summary>
+    /// <summary>Whether the current account created this group — drives which of Rename/Leave/
+    /// Transfer/Dissolve show up in the group options menu (GroupDetailPage.xaml).</summary>
     [ObservableProperty] private bool isGroupCreator;
     [ObservableProperty] private bool hasOtherMembers;
     [ObservableProperty] private bool isGroupOptionsMenuOpen;
     [ObservableProperty] private bool isTransferPickerOpen;
     [ObservableProperty] private ObservableCollection<Member> transferCandidates = [];
     [ObservableProperty] private bool hasTransferCandidates;
+    [ObservableProperty] private bool isRenameGroupOverlayOpen;
+    [ObservableProperty] private string renameGroupInput = "";
 
     /// <summary>Per-device display preference, not group state — see
     /// AppConstants.Preferences.BalanceDisplayModePrefix. Set directly from the stored value in
@@ -140,7 +143,8 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             membersById = members.ToDictionary(m => m.Id);
             aliases = loadAliases.Result;
             myMemberId = members.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)?.Id;
-            IsGroupCreator = loadGroup.Result.CreatedBy == authService.CurrentAccountId;
+            currentGroup = loadGroup.Result;
+            IsGroupCreator = currentGroup.CreatedBy == authService.CurrentAccountId;
             HasOtherMembers = members.Count > 1;
 
             await RefreshBalancesAsync();
@@ -398,6 +402,35 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
 
     [RelayCommand]
     private void ToggleGroupOptionsMenu() => IsGroupOptionsMenuOpen = !IsGroupOptionsMenuOpen;
+
+    /// <summary>Opens an inline rename overlay rather than Shell.Current.DisplayPromptAsync — same
+    /// known WinUI crash avoided by MembersViewModel.OpenRenameOverlay (see its remarks). Only ever
+    /// offered to the creator (see GroupDetailPage.xaml), matching the "owner-only" RLS policy
+    /// backing IGroupsRepository.RenameAsync.</summary>
+    [RelayCommand]
+    private void OpenRenameGroupOverlay()
+    {
+        IsGroupOptionsMenuOpen = false;
+        RenameGroupInput = GroupName;
+        IsRenameGroupOverlayOpen = true;
+    }
+
+    [RelayCommand]
+    private void CancelRenameGroupOverlay() => IsRenameGroupOverlayOpen = false;
+
+    [RelayCommand]
+    private Task ConfirmRenameGroup() => RunSafeAsync(async () =>
+    {
+        IsRenameGroupOverlayOpen = false;
+        if (currentGroup is not { } group) return;
+
+        var trimmed = RenameGroupInput.Trim();
+        if (string.IsNullOrEmpty(trimmed) || trimmed == group.Name) return;
+
+        group.Name = trimmed;
+        currentGroup = await groupsRepository.RenameAsync(group);
+        GroupName = currentGroup.Name;
+    });
 
     /// <summary>Self-service leave. The confirm dialog only covers the always-true "you'll lose
     /// access" consequence — the creator-only and nonzero-balance guards live server-side in

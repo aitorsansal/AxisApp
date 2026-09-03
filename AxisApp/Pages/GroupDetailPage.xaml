@@ -241,6 +241,16 @@
                 </Label.GestureRecognizers>
             </Label>
 
+            <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" IsVisible="{Binding IsGroupCreator}" />
+            <Label Text="{loc:Translate GroupDetail_RenameGroup}" IsVisible="{Binding IsGroupCreator}">
+                <Label.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
+                </Label.Padding>
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding OpenRenameGroupOverlayCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+
             <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
             <Label Text="{loc:Translate GroupDetail_LeaveGroup}" IsVisible="{Binding IsGroupCreator, Converter={StaticResource InverseBoolConverter}}">
                 <Label.Padding>
@@ -312,6 +322,38 @@
                 Text="{loc:Translate Common_Cancel}"
                 Command="{Binding CancelTransferPickerCommand}"
                 Style="{StaticResource BtnOutlinePrimary}" />
+        </VerticalStackLayout>
+    </Border>
+
+    <!-- Scrim + inline rename overlay — not DisplayPromptAsync, see GroupDetailViewModel.OpenRenameGroupOverlay remarks -->
+    <BoxView Color="Transparent" IsVisible="{Binding IsRenameGroupOverlayOpen}">
+        <BoxView.GestureRecognizers>
+            <TapGestureRecognizer Command="{Binding CancelRenameGroupOverlayCommand}" />
+        </BoxView.GestureRecognizers>
+    </BoxView>
+
+    <Border
+        Style="{StaticResource ElevatedCard}"
+        IsVisible="{Binding IsRenameGroupOverlayOpen}"
+        HorizontalOptions="Center"
+        VerticalOptions="Center"
+        WidthRequest="280">
+        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+            <Border Style="{StaticResource InputBorderStyle}">
+                <Entry Text="{Binding RenameGroupInput}" />
+            </Border>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource SpacingS}">
+                <Button
+                    Grid.Column="0"
+                    Text="{loc:Translate Common_Cancel}"
+                    Command="{Binding CancelRenameGroupOverlayCommand}"
+                    Style="{StaticResource BtnOutlinePrimary}" />
+                <Button
+                    Grid.Column="1"
+                    Text="{loc:Translate Common_Save}"
+                    Command="{Binding ConfirmRenameGroupCommand}"
+                    Style="{StaticResource BtnPrimaryStyle}" />
+            </Grid>
         </VerticalStackLayout>
     </Border>
     </Grid>

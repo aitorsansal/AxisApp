@@ -9,6 +9,15 @@ public interface IGroupsRepository
     Task<Group> GetByIdAsync(Guid groupId);
     Task<Group> CreateAsync(string name);
 
+    /// <summary>Renames a group. Owner-only — enforced by the existing "update own groups" RLS
+    /// policy (created_by = auth.uid()), the same policy transfer_group_ownership() routes around
+    /// via a security-definer RPC because it needs to change created_by itself; a plain rename
+    /// doesn't touch created_by, so it needs no RPC. Takes the full loaded Group (Name mutated by
+    /// the caller) rather than just (id, name), same "never build a fresh model for an update"
+    /// discipline as SupabaseMembersRepository.UpdateAsync — a fresh Group would silently zero
+    /// CreatedBy/CreatedAt.</summary>
+    Task<Group> RenameAsync(Group group);
+
     /// <summary>Self-service leave via the leave_group() RPC. Rejects the group's creator (they
     /// must transfer ownership or dissolve instead) and rejects a nonzero balance in that group —
     /// see schema.sql's leave_group() remarks.</summary>

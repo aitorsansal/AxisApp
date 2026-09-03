@@ -46,6 +46,15 @@ public class SupabaseGroupsRepository : IGroupsRepository
             ?? throw new InvalidOperationException("create_group succeeded but the group could not be re-fetched.");
     }
 
+    public async Task<Group> RenameAsync(Group group)
+    {
+        var result = await client.From<Group>()
+            .Filter("id", Constants.Operator.Equals, group.Id.ToString())
+            .Update(group);
+
+        return result.Model!;
+    }
+
     public async Task<Group> GetByIdAsync(Guid groupId)
     {
         return await client.From<Group>()
