@@ -91,12 +91,6 @@
                         TextColor="{DynamicResource Success}"
                         FontSize="{StaticResource TypeCaption}"
                         IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotEmptyConverter}}" />
-                    <Label
-                        Text="{Binding ErrorMessage}"
-                        TextColor="{DynamicResource Danger}"
-                        FontSize="{StaticResource TypeCaption}"
-                        IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
-
                     <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
 
                     <!-- Language -->
@@ -199,6 +193,18 @@
                             Style="{StaticResource BtnOutlinePrimary}" />
                     </VerticalStackLayout>
 
+                    <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
+
+                    <!-- Danger zone: account deletion -->
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <Label Text="{loc:Translate Profile_DeleteAccountSection}" Style="{StaticResource SectionHeaderTertiary}" TextColor="{DynamicResource Danger}" />
+                        <Label Text="{loc:Translate Profile_DeleteAccountDescription}" Style="{StaticResource LabelTertiary}" />
+                        <Button
+                            Text="{loc:Translate Profile_DeleteAccountButton}"
+                            Command="{Binding DeleteAccountCommand}"
+                            Style="{StaticResource BtnOutlineDanger}" />
+                    </VerticalStackLayout>
+
                 </VerticalStackLayout>
         </ScrollView>
 
@@ -209,6 +215,8 @@
             Color="{DynamicResource Primary}"
             HorizontalOptions="Center"
             VerticalOptions="Center" />
+
+        <controls:ErrorPopup Grid.Row="0" Grid.RowSpan="2" Message="{Binding ErrorMessage}" />
 
     </Grid>
 </ContentPage>

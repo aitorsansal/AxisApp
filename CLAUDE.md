@@ -1385,6 +1385,158 @@ any of this was written.
   deployed; the temporary diagnostic logging used to find this was removed
   once confirmed.
 
+## Self-service account deletion (2026-09-04)
+
+`web/delete-account/index.html` (added the same day, before this) documented
+a manual, email-triggered deletion process — created only because Play
+Console's app-verification flow flagged the *absence* of any account-
+deletion info, not because a real deletion flow existed. Built the real
+thing instead: a "Delete account" section on `ProfilePage`, **blocking**
+(not auto-transferring) if the account still owns a group with other
+members — deliberately mirroring `leave_group()`'s existing "creator must
+transfer or dissolve first" rule rather than silently reassigning ownership
+without asking anyone.
+
+- **Schema migration required first**: `auth.users(id)` was referenced with
+  no `ON DELETE` action (`RESTRICT`) by `members.created_by`,
+  `payments.created_by`, `invites.created_by`, `expenses.created_by`, and
+  `recurring_expenses.created_by` (all `not null`) — meaning
+  `auth.admin.deleteUser()` would fail with a foreign-key violation for
+  almost any real account, since nearly everyone has created at least one
+  expense or their own member row. Relaxed all five to `on delete set
+  null` (and dropped their `not null`) — the same "row survives, its
+  reference nulls out" treatment already used for `payments`/`expenses`/
+  `recurring_expenses.group_id` when a group dissolves, not a new design
+  idea. `groups.created_by` deliberately keeps its original `RESTRICT`
+  behavior: `delete_account()` explicitly deletes every group the account
+  still owns before the account row itself goes, so no `groups` row should
+  ever survive with a dangling `created_by`.
+- **`public.delete_account()`** (schema.sql) — `security definer`, needed
+  because unlinking `members.account_id` for a member the caller *claimed*
+  (rather than created themselves) would otherwise fail the plain "update
+  members you created or claim yourself" policy's implicit `WITH CHECK`
+  (reuses the `USING` clause — `created_by = auth.uid() or account_id =
+  auth.uid()` — no longer true once `account_id` is nulled), the exact same
+  footgun `transfer_group_ownership()` already exists to work around. Blocks
+  with the same `raise exception '<message>'` style as `leave_group()` if
+  the account owns a group with other members; otherwise deletes the
+  account's `device_tokens`, deletes every group it owns (guard above
+  ensures none have other members left), and nulls the claimed
+  `members.account_id`/`avatar_path`, returning the pre-nulled `avatar_path`
+  so the Edge Function below knows what Storage file to remove. Does **not**
+  delete the `auth.users` row itself — that has to go through the Admin API.
+  Known minor limitation, not worth guarding against: if the account ever
+  had more than one `members` row (the duplicate-row scenario already
+  flagged as unconfirmed-but-plausible under `GetMyMemberAsync`), only one
+  row's `avatar_path` is returned, so a second stale avatar file could
+  survive — same harmless-orphan bucket the receipt-cleanup function
+  already tolerates.
+- **`supabase/functions/delete-account/index.ts`** — the **first Edge
+  Function in this repo called directly from the app**, rather than from a
+  SQL trigger/cron via `pg_net` like `send-push`/`cleanup-receipts` (both of
+  which trust their caller implicitly, since only `pg_net` holding the
+  Vault service-role secret can reach them). This one authenticates its own
+  caller: a caller-scoped client (built from the forwarded `Authorization`
+  bearer token) calls `delete_account()` so it runs under the caller's own
+  `auth.uid()`/RLS — a blocked guard surfaces as a 400 with the raw
+  exception message. Only the final step — deleting the Storage avatar file
+  and calling `supabase.auth.admin.deleteUser(userId)` — uses a
+  service-role admin client. `auth.admin.deleteUser` is used deliberately
+  instead of a raw `delete from auth.users`, since only the Admin API
+  correctly cleans up GoTrue's own internal session/identity tables — no
+  existing precedent either way in this repo, so this follows Supabase's
+  documented-correct approach rather than the shortcut.
+- **`IAuthService.DeleteAccountAsync()`** (`SupabaseAuthService.cs`) is the
+  **first direct Edge-Function call from C#** — a plain `HttpClient` POST to
+  `{SupabaseConfig.Url}/functions/v1/delete-account` with the current
+  session's `AccessToken` as the bearer token and `SupabaseConfig
+  .PublishableKey` as `apikey`, since no HTTP wrapper existed for this
+  before. `NotConfiguredAuthService` also got a matching stub — the
+  interface addition broke its build too, easy to miss since it's an
+  unregistered fallback with no direct caller in normal operation.
+- **`ProfileViewModel.DeleteAccountCommand`** follows
+  `GroupDetailViewModel.LeaveGroup`'s exact confirm-then-act-then-navigate
+  shape (`RunSafeAsync` → `Shell.Current.DisplayAlert` → early return on
+  cancel → call the service → `Shell.Current.GoToAsync(AppConstants.Routes
+  .Login)`, the same ending `GroupsViewModel.Logout` already uses). No
+  explicit device-token unregister beforehand the way `Logout` does one —
+  `delete_account()` already deletes every `device_tokens` row for the
+  account server-side, not just this device's.
+- Confirmed building clean on both `net10.0-windows10.0.19041.0` and
+  `net10.0-android` after this change. **Not yet manually tested against
+  the live project** — the schema migration block and `delete_account()`
+  still need to be run in the SQL editor, and `delete-account` deployed via
+  the dashboard's "Via Editor" flow (same as `send-push`/`cleanup-receipts`),
+  before either the blocked-path or success-path can be verified for real.
+- `delete_account()`'s guard names the specific blocked groups
+  (`select string_agg(g.name, ', ' order by g.name) into v_blocked_names ...`
+  then `raise exception 'Transfer ownership or dissolve before deleting your
+  account: %', v_blocked_names`) rather than a generic "you still own
+  groups" message — found worth doing once the first real test showed the
+  blocked message with no indication of *which* group.
+- **Building the real popup surfaced that the blocked error was effectively
+  invisible**: every ViewModel's `RunSafeAsync` sets a plain `ErrorMessage`
+  string, and every page had its own independently-placed `<Label
+  Text="{Binding ErrorMessage}">` — on `ProfilePage` that label sat up near
+  the Birthday/Save section, nowhere near the Delete Account button at the
+  bottom that actually triggered it. Fixed app-wide (all 9 pages that bound
+  `ErrorMessage`: `GroupsPage`, `GroupDetailPage`, `MembersPage`,
+  `RecurringExpensesPage`, `NewGroupPage`, `JoinGroupPage`, `AddExpensePage`,
+  `LoginPage`, `ProfilePage`) with a new **`Controls/ErrorPopup`** — a
+  hand-built scrim (`BoxView`, `Black`/`Opacity="0.55"`) + centered
+  `ElevatedCard` with an OK button, mirroring `AddExpensePage`'s existing
+  receipt-preview overlay construction (scrim + full-bleed `Border`) rather
+  than introducing anything new. Deliberately **not**
+  `CommunityToolkit.Maui.Popup` — same reason `BaseViewModel`'s own remarks
+  already give for avoiding it (its `Close()`/`Page.ShowPopupAsync()` don't
+  exist in the 13.0.0 version this app is pinned to). `ErrorPopup.Message`
+  is a `BindableProperty` with `BindingMode.TwoWay` as its *default* mode
+  (`ProfileCircle`'s plain-bindable-property pattern, extended) — every page
+  just writes `Message="{Binding ErrorMessage}"`, and dismissing (scrim tap
+  or OK) writes `""` straight back onto the ViewModel, the same value
+  `RunSafeAsync` already resets to at the start of every command. Added as
+  the last child of each page's outermost `Grid` (a plain child on the
+  pages already double-Grid-wrapped for exactly this "cover everything"
+  behavior — `GroupDetailPage`, `MembersPage`, `GroupsPage`, `LoginPage`; an
+  explicit `Grid.RowSpan` matching each page's own `ActivityIndicator`
+  overlay everywhere else — `ProfilePage`/`NewGroupPage`/`JoinGroupPage`/
+  `RecurringExpensesPage` at 2, `AddExpensePage` at 3, matching its own
+  receipt-preview overlay's `RowSpan="3"` exactly).
+- Two new `Common_*` localization keys (`Common_OK`, `Common_Error`) back
+  the popup's button/heading, en/es.
+- **Confirmed working end to end against the live project** — real
+  deletion, real signed-in account, real success. Getting there surfaced
+  two more real bugs, both in `SupabaseAuthService.DeleteAccountAsync`/
+  `ProfileViewModel.DeleteAccount`, not the SQL/Edge Function side:
+  1. `DeleteAccountCommand` had no re-entrancy guard —
+     `CommunityToolkit.Mvvm`'s generated `AsyncRelayCommand` allows
+     concurrent executions by default, so a double-tap (or just an
+     impatient second tap during the confirm dialog/network round trip)
+     could fire `DeleteAccountAsync` twice on the same cached access
+     token. Fixed with `[RelayCommand(AllowConcurrentExecutions = false)]`.
+  2. **The real bug**, and the one actually hit live: even a single,
+     successful call showed a raw GoTrue error
+     (`{"code":403,"error_code":"user_not_found","msg":"User from sub
+     claim in JWT does not exist"}`) in the new `ErrorPopup` instead of
+     navigating to Login — even though the account genuinely had been
+     deleted. Root cause: `DeleteAccountAsync` called `client.Auth
+     .SignOut()` *after* the Edge Function's success response, but by
+     then `auth.users` no longer had that row, so `SignOut()`'s own
+     server-side `/logout` call got the identical "sub claim doesn't
+     exist" rejection — that exception was caught by the method's outer
+     `catch` and reported as an overall failure, even though deletion had
+     already fully succeeded. Fixed by wrapping just the `SignOut()` call
+     in its own try/catch and always returning success once the Edge
+     Function itself has confirmed deletion — a lingering local session
+     from a failed remote sign-out is harmless, since `SplashPage
+     .OnAppearing`'s own try/catch around `RestoreSessionAsync` already
+     falls back to Login on any failure there.
+- `web/delete-account/index.html` updated to lead with the in-app path
+  (Profile → Danger zone → Delete account, immediate) now that it exists,
+  keeping the email flow as the documented fallback for someone who no
+  longer has the app installed — the "30 days" turnaround note now
+  explicitly scopes to that email path only.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule

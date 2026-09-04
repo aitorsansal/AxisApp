@@ -233,4 +233,36 @@ public partial class ProfileViewModel : BaseViewModel
         NewPassword = "";
         StatusMessage = LocalizationResourceManager.Instance["Profile_PasswordUpdated"];
     });
+
+    /// <summary>No explicit device-token unregister beforehand (unlike GroupsViewModel.Logout) —
+    /// delete_account() already deletes every device_tokens row for the account server-side, not
+    /// just this device's.
+    ///
+    /// AllowConcurrentExecutions = false — without it, AsyncRelayCommand allows a second
+    /// invocation to fire while the first is still awaiting the confirm dialog/network round trip
+    /// (a double-tap, or just an impatient second tap before the page navigates away). A real
+    /// second call reuses the same still-cached access token; if it reaches the Edge Function after
+    /// the first call's admin.deleteUser already succeeded, GoTrue correctly rejects it with
+    /// "User from sub claim in JWT does not exist" — confirmed live: the account was actually
+    /// deleted, this was just the second call's failure surfacing in ErrorMessage.</summary>
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    private Task DeleteAccount() => RunSafeAsync(async () =>
+    {
+        var loc = LocalizationResourceManager.Instance;
+        var confirmed = await Shell.Current.DisplayAlert(
+            loc["Profile_DeleteAccountTitle"],
+            loc["Profile_DeleteAccountConfirm"],
+            loc["Common_Yes"],
+            loc["Common_Cancel"]);
+        if (!confirmed) return;
+
+        var result = await authService.DeleteAccountAsync();
+        if (!result.Success)
+        {
+            ErrorMessage = result.ErrorMessage ?? "";
+            return;
+        }
+
+        await Shell.Current.GoToAsync(AppConstants.Routes.Login);
+    });
 }

@@ -32,12 +32,6 @@
                     </Grid>
 
                     <Label
-                        Text="{Binding ErrorMessage}"
-                        TextColor="{DynamicResource Danger}"
-                        FontSize="{StaticResource TypeCaption}"
-                        IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
-
-                    <Label
                         Text="{loc:Translate RecurringExpenses_Empty}"
                         Style="{StaticResource LabelTertiary}"
                         IsVisible="{Binding IsEmpty}" />
@@ -122,5 +116,7 @@
                 </VerticalStackLayout>
             </ScrollView>
         </RefreshView>
+
+        <controls:ErrorPopup Grid.Row="0" Grid.RowSpan="2" Message="{Binding ErrorMessage}" />
     </Grid>
 </ContentPage>

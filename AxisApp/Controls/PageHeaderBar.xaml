@@ -19,15 +19,15 @@
         </Grid.Margin>
 
         <Border Grid.Column="0" BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnBackTapped" />
+            </Border.GestureRecognizers>
             <Label
                 Text="&#8249;"
                 FontSize="{StaticResource TypeIcon}"
                 TextColor="{DynamicResource TextPrimary}"
                 HorizontalOptions="Center"
                 VerticalOptions="Center">
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnBackTapped" />
-                </Label.GestureRecognizers>
             </Label>
         </Border>
 

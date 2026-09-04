@@ -32,12 +32,6 @@
                             VerticalOptions="Center" />
                     </Grid>
 
-                    <Label
-                        Text="{Binding ErrorMessage}"
-                        TextColor="{DynamicResource Danger}"
-                        FontSize="{StaticResource TypeCaption}"
-                        IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
-
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding Members}" Spacing="{StaticResource SpacingS}">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:MemberRowItem">
@@ -132,5 +126,7 @@
             </Grid>
         </VerticalStackLayout>
     </Border>
+
+    <controls:ErrorPopup Message="{Binding ErrorMessage}" />
     </Grid>
 </ContentPage>

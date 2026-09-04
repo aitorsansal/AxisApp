@@ -48,4 +48,11 @@ public interface IAuthService
 
     /// <summary>Restores a previously persisted session on app start, if one exists.</summary>
     Task RestoreSessionAsync();
+
+    /// <summary>Permanently deletes the signed-in account via the delete-account Edge Function —
+    /// unlinks the account's member row back to a phantom (ledger history stays intact), deletes
+    /// any group the account owns with no other members, and removes the auth user itself. Fails
+    /// with the server's raise-exception message (surfaced verbatim as ErrorMessage) if the
+    /// account still owns a group that has other members — see schema.sql's delete_account().</summary>
+    Task<AuthResult> DeleteAccountAsync();
 }

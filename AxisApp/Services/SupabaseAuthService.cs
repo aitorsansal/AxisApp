@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using Supabase;
 
 namespace AxisApp.Services;
@@ -162,5 +163,61 @@ public class SupabaseAuthService : IAuthService
     {
         client.Auth.LoadSession();
         await client.InitializeAsync();
+    }
+
+    /// <summary>First direct Edge Function call from the app (every other Edge Function so far —
+    /// send-push, cleanup-receipts — is only ever invoked server-side, from a SQL trigger/cron via
+    /// pg_net). Session.AccessToken is the standard Gotrue property name but, like every other
+    /// Gotrue call shape in this file, hasn't been independently reflection-probed against the
+    /// installed 6.3.0 package — flag it the same way if this doesn't compile.</summary>
+    private static readonly HttpClient httpClient = new();
+
+    public async Task<AuthResult> DeleteAccountAsync()
+    {
+        try
+        {
+            var accessToken = client.Auth.CurrentSession?.AccessToken;
+            if (accessToken is null) return new AuthResult(false, "Not signed in");
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{SupabaseConfig.Url}/functions/v1/delete-account");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            request.Headers.Add("apikey", SupabaseConfig.PublishableKey);
+
+            using var response = await httpClient.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                return new AuthResult(false, ExtractError(body) ?? "Failed to delete account");
+
+            // The account is already gone server-side at this point (the Edge Function's success
+            // response means auth.admin.deleteUser already completed) — SignOut()'s own remote
+            // call can legitimately fail here with the exact same "sub claim in JWT does not
+            // exist" rejection, since it's trying to revoke a session for a user that no longer
+            // exists. That must not turn an already-successful deletion into a reported failure —
+            // confirmed live: a real deletion succeeded, then this exact SignOut() call threw and
+            // its exception was caught by the outer catch below, reporting AuthResult(false, ...)
+            // and leaving the caller stuck on ProfilePage instead of navigating to Login. Any
+            // lingering local session is harmless — SplashPage.OnAppearing's own try/catch around
+            // RestoreSessionAsync already falls back to Login on any failure there.
+            try
+            {
+                await client.Auth.SignOut();
+            }
+            catch
+            {
+            }
+
+            return new AuthResult(true);
+        }
+        catch (Exception ex)
+        {
+            return new AuthResult(false, ex.Message);
+        }
+    }
+
+    private static string? ExtractError(string json)
+    {
+        try { return Newtonsoft.Json.Linq.JObject.Parse(json)["error"]?.ToString(); }
+        catch { return null; }
     }
 }

@@ -37,15 +37,15 @@
             <Border.Margin>
                 <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="{StaticResource SpacingM}" Bottom="0" />
             </Border.Margin>
+            <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ToggleGroupOptionsMenuCommand}" />
+            </Border.GestureRecognizers>
             <Label
                 Text="&#8942;"
                 FontSize="{StaticResource TypeTitle}"
                 TextColor="{DynamicResource TextPrimary}"
                 HorizontalOptions="Center"
                 VerticalOptions="Center">
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding ToggleGroupOptionsMenuCommand}" />
-                </Label.GestureRecognizers>
             </Label>
         </Border>
 
@@ -58,12 +58,6 @@
                         <VerticalStackLayout.Padding>
                             <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingM}" Right="{StaticResource SpacingM}" Bottom="88" />
                         </VerticalStackLayout.Padding>
-
-                        <Label
-                            Text="{Binding ErrorMessage}"
-                            TextColor="{DynamicResource Danger}"
-                            FontSize="{StaticResource TypeCaption}"
-                            IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
                         <VerticalStackLayout Spacing="{StaticResource SpacingS}">
                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}">
@@ -356,5 +350,7 @@
             </Grid>
         </VerticalStackLayout>
     </Border>
+
+    <controls:ErrorPopup Message="{Binding ErrorMessage}" />
     </Grid>
 </ContentPage>

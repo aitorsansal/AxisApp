@@ -1402,3 +1402,99 @@ $$;
 create trigger payments_notify_after_insert
   after insert on public.payments
   for each row execute function public.notify_new_payment();
+
+-- ============================================================
+-- Account deletion (2026-09-04)
+-- ============================================================
+-- `auth.users(id)` was referenced with no ON DELETE action (i.e. RESTRICT) by
+-- every `created_by` column below, so deleting an auth user would fail with a
+-- foreign-key violation the moment they'd ever created anything. Relaxed to
+-- ON DELETE SET NULL — same "row survives, its reference nulls out" treatment
+-- already used for payments/expenses/recurring_expenses.group_id when a group
+-- dissolves. groups.created_by deliberately keeps its original RESTRICT
+-- behavior — delete_account() below explicitly deletes every group the
+-- account still owns before the account row itself goes, so no groups row
+-- should ever survive with a dangling created_by.
+alter table public.members alter column created_by drop not null;
+alter table public.members drop constraint members_created_by_fkey;
+alter table public.members add constraint members_created_by_fkey
+  foreign key (created_by) references auth.users(id) on delete set null;
+
+alter table public.payments alter column created_by drop not null;
+alter table public.payments drop constraint payments_created_by_fkey;
+alter table public.payments add constraint payments_created_by_fkey
+  foreign key (created_by) references auth.users(id) on delete set null;
+
+alter table public.invites alter column created_by drop not null;
+alter table public.invites drop constraint invites_created_by_fkey;
+alter table public.invites add constraint invites_created_by_fkey
+  foreign key (created_by) references auth.users(id) on delete set null;
+
+alter table public.expenses alter column created_by drop not null;
+alter table public.expenses drop constraint expenses_created_by_fkey;
+alter table public.expenses add constraint expenses_created_by_fkey
+  foreign key (created_by) references auth.users(id) on delete set null;
+
+alter table public.recurring_expenses alter column created_by drop not null;
+alter table public.recurring_expenses drop constraint recurring_expenses_created_by_fkey;
+alter table public.recurring_expenses add constraint recurring_expenses_created_by_fkey
+  foreign key (created_by) references auth.users(id) on delete set null;
+
+-- Cleans up this account's app-level data and reports its avatar path (so the
+-- delete-account Edge Function knows what Storage file to remove), but does
+-- NOT delete the auth.users row itself — that has to go through the Auth
+-- Admin API (supabase.auth.admin.deleteUser), which is the only thing that
+-- correctly cleans up GoTrue's own internal session/identity tables, not a
+-- plain `delete from auth.users`.
+--
+-- security definer: unlinking members.account_id for a member the caller
+-- *claimed* (rather than created themselves) would otherwise fail the plain
+-- "update members you created or claim yourself" policy's implicit
+-- WITH CHECK (it reuses the USING clause — created_by = auth.uid() or
+-- account_id = auth.uid() — which is no longer true once account_id is
+-- nulled), same footgun transfer_group_ownership() already works around.
+--
+-- Known minor limitation, not worth guarding against: if this account ever
+-- ended up with more than one members row (the duplicate-row scenario
+-- flagged as unconfirmed-but-plausible for GetMyMemberAsync), the `select
+-- ... into` below only picks one row's avatar_path arbitrarily, so a second
+-- stale avatar file could survive in Storage — same harmless-orphan bucket
+-- the receipt-cleanup function already tolerates.
+create or replace function public.delete_account()
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_avatar_path text;
+  v_blocked_names text;
+begin
+  select string_agg(g.name, ', ' order by g.name) into v_blocked_names
+  from groups g
+  where g.created_by = v_uid
+    and exists (
+      select 1
+      from group_members gm
+      join members m on m.id = gm.member_id
+      where gm.group_id = g.id
+        and m.account_id is distinct from v_uid
+    );
+
+  if v_blocked_names is not null then
+    raise exception 'Transfer ownership or dissolve before deleting your account: %', v_blocked_names;
+  end if;
+
+  delete from device_tokens where account_id = v_uid;
+  delete from groups where created_by = v_uid;
+
+  select avatar_path into v_avatar_path from members where account_id = v_uid;
+  update members set account_id = null, avatar_path = null where account_id = v_uid;
+
+  return v_avatar_path;
+end;
+$$;
+
+revoke execute on function public.delete_account() from public, anon;
+grant execute on function public.delete_account() to authenticated;

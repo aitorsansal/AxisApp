@@ -47,12 +47,6 @@
                 <ScrollView>
                     <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingS}">
 
-                        <Label
-                            Text="{Binding ErrorMessage}"
-                            TextColor="{DynamicResource Danger}"
-                            FontSize="{StaticResource TypeCaption}"
-                            IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
-
                         <Grid ColumnDefinitions="*,Auto">
                             <Label Grid.Column="0" Text="{loc:Translate Groups_YourGroups}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
                             <Border Grid.Column="1" BackgroundColor="Transparent" StrokeThickness="0" Padding="{StaticResource SpacingS}" VerticalOptions="Center">
@@ -207,5 +201,7 @@
             </Label>
         </VerticalStackLayout>
     </Border>
+
+    <controls:ErrorPopup Message="{Binding ErrorMessage}" />
     </Grid>
 </ContentPage>

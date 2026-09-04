@@ -81,12 +81,6 @@
                         Style="{StaticResource BtnPrimaryStyle}" />
                 </Grid>
 
-                <Label
-                    Text="{Binding ErrorMessage}"
-                    TextColor="{DynamicResource Danger}"
-                    FontSize="{StaticResource TypeCaption}"
-                    IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
-
                 <!-- Add phantom member -->
                 <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding HasActiveGroup}">
                     <Label Text="{loc:Translate JoinGroup_AddMemberByName}" Style="{StaticResource SectionHeaderTertiary}" />
@@ -188,6 +182,8 @@
             Color="{DynamicResource Primary}"
             HorizontalOptions="Center"
             VerticalOptions="Center" />
+
+        <controls:ErrorPopup Grid.Row="0" Grid.RowSpan="2" Message="{Binding ErrorMessage}" />
 
     </Grid>
 </ContentPage>

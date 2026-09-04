@@ -27,12 +27,6 @@
                 </Border>
             </VerticalStackLayout>
 
-            <Label
-                Text="{Binding ErrorMessage}"
-                TextColor="{DynamicResource Danger}"
-                FontSize="{StaticResource TypeCaption}"
-                IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
-
             <Button
                 Text="{loc:Translate Common_Create}"
                 Command="{Binding CreateCommand}"
@@ -47,6 +41,8 @@
             Color="{DynamicResource Primary}"
             HorizontalOptions="Center"
             VerticalOptions="Center" />
+
+        <controls:ErrorPopup Grid.Row="0" Grid.RowSpan="2" Message="{Binding ErrorMessage}" />
 
     </Grid>
 </ContentPage>

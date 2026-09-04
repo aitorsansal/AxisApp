@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
+    x:Class="AxisApp.Controls.ErrorPopup"
+    x:Name="Root">
+
+    <!-- Message-if-set-else-nothing: the whole overlay (scrim + card) is only visible while Root's
+         Message is non-empty, so this control can sit as an always-present last child on every page
+         without needing a per-page IsVisible binding. Message is TwoWay by default (see code-behind)
+         so tapping the scrim or OK writes back through the caller's own ErrorMessage binding,
+         clearing it the same way RunSafeAsync does at the start of every command. -->
+    <Grid IsVisible="{Binding Message, Source={x:Reference Root}, Converter={StaticResource StringNotEmptyConverter}}">
+        <BoxView Color="Black" Opacity="0.55">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnScrimTapped" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <Border
+            Style="{StaticResource ElevatedCard}"
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            WidthRequest="300"
+            Margin="{StaticResource SpacingL}">
+            <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                <Label
+                    Text="{loc:Translate Common_Error}"
+                    Style="{StaticResource SectionHeaderTertiary}"
+                    TextColor="{DynamicResource Danger}"
+                    Margin="0" />
+                <Label Text="{Binding Message, Source={x:Reference Root}}" />
+                <Button
+                    Text="{loc:Translate Common_OK}"
+                    Clicked="OnDismissClicked"
+                    Style="{StaticResource BtnPrimaryStyle}" />
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentView>

@@ -35,4 +35,7 @@ public class NotConfiguredAuthService : IAuthService
         Task.FromResult(new AuthResult(false, "Supabase isn't configured yet — see /supabase/README.md."));
 
     public Task RestoreSessionAsync() => Task.CompletedTask;
+
+    public Task<AuthResult> DeleteAccountAsync() =>
+        Task.FromResult(new AuthResult(false, "Supabase isn't configured yet — see /supabase/README.md."));
 }

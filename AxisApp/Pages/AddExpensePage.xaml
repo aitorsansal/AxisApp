@@ -334,12 +334,6 @@
         </ScrollView>
 
         <VerticalStackLayout Grid.Row="2" Spacing="{StaticResource SpacingS}" Margin="{StaticResource SpacingM}">
-            <Label
-                Text="{Binding ErrorMessage}"
-                TextColor="{DynamicResource Danger}"
-                FontSize="{StaticResource TypeCaption}"
-                HorizontalTextAlignment="Center"
-                IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
             <Button
                 Text="{loc:Translate AddExpense_SaveExpense}"
                 Command="{Binding SaveCommand}"
@@ -391,6 +385,8 @@
                 </Grid>
             </Grid>
         </Border>
+
+        <controls:ErrorPopup Grid.Row="0" Grid.RowSpan="3" Message="{Binding ErrorMessage}" />
 
     </Grid>
 </ContentPage>

@@ -69,6 +69,11 @@ appsettings.local.json
 *.bak
 *.swp
 
+####################################
+# Cloudflare Wrangler (local cache/state)
+####################################
+web/.wrangler/
+
 
 # Firma Android compartida (keystore + contraseñas): nunca subir al repo,
 # se comparte por un canal seguro. Ver PDA/keystore.local.props.template

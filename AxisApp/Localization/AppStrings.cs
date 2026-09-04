@@ -22,6 +22,8 @@ public static class AppStrings
         // Common
         ["Common_Cancel"] = "Cancel",
         ["Common_Yes"] = "Yes",
+        ["Common_OK"] = "OK",
+        ["Common_Error"] = "Something went wrong",
         ["Common_Save"] = "Save",
         ["Common_Add"] = "Add",
         ["Common_Create"] = "Create",
@@ -191,6 +193,11 @@ public static class AppStrings
         ["Profile_ChangePassword"] = "Change password",
         ["Profile_PasswordUpdated"] = "Password updated.",
         ["Profile_ProfileSaved"] = "Saved.",
+        ["Profile_DeleteAccountSection"] = "Danger zone",
+        ["Profile_DeleteAccountDescription"] = "Permanently delete your account and credentials. Shared expenses and payments stay in the group's history, but you'll need to transfer ownership or dissolve any group you own that still has other members first.",
+        ["Profile_DeleteAccountButton"] = "Delete account",
+        ["Profile_DeleteAccountTitle"] = "Delete your account?",
+        ["Profile_DeleteAccountConfirm"] = "This permanently deletes your account and can't be undone. Shared history stays with the groups you're in.",
     };
 
     private static readonly Dictionary<string, string> Es = new()
@@ -198,6 +205,8 @@ public static class AppStrings
         // Common
         ["Common_Cancel"] = "Cancelar",
         ["Common_Yes"] = "Sí",
+        ["Common_OK"] = "Aceptar",
+        ["Common_Error"] = "Algo salió mal",
         ["Common_Save"] = "Guardar",
         ["Common_Add"] = "Añadir",
         ["Common_Create"] = "Crear",
@@ -367,6 +376,11 @@ public static class AppStrings
         ["Profile_ChangePassword"] = "Cambiar contraseña",
         ["Profile_PasswordUpdated"] = "Contraseña actualizada.",
         ["Profile_ProfileSaved"] = "Guardado.",
+        ["Profile_DeleteAccountSection"] = "Zona de peligro",
+        ["Profile_DeleteAccountDescription"] = "Elimina tu cuenta y credenciales permanentemente. Los gastos y pagos compartidos se conservan en el historial del grupo, pero antes deberás transferir la propiedad o disolver cualquier grupo tuyo que aún tenga otros miembros.",
+        ["Profile_DeleteAccountButton"] = "Eliminar cuenta",
+        ["Profile_DeleteAccountTitle"] = "¿Eliminar tu cuenta?",
+        ["Profile_DeleteAccountConfirm"] = "Esto elimina tu cuenta de forma permanente y no se puede deshacer. El historial compartido permanece en los grupos en los que participas.",
     };
 
     private static readonly Dictionary<string, Dictionary<string, string>> Tables = new()
