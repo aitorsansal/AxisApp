@@ -34,9 +34,12 @@ all for money-tracking. This is what "done" looks like before Phase 2 starts.
 - **`group_balances`** (view) — net balance per member per group, computed from
   `expenses`/`expense_shares` alone (settlements included, via `is_settlement`),
   so the client queries one thing instead of aggregating two tables itself.
-- **`currency`** column reserved (default e.g. `'EUR'`) on `expenses`
-  while the schema is still young — no conversion logic yet, just not retrofitting
-  the column onto real rows later.
+- **Multi-currency**: `groups.currency` (picked once at creation, never
+  editable) plus a per-expense `currency`, converted to the group's currency
+  and snapshotted at write time (`expenses.amount_in_group_currency`/
+  `exchange_rate`, `expense_shares.share_amount_in_group_currency`) via a
+  daily Frankfurter rate cache (`exchange_rates`, a singleton table) — see
+  `/MULTI_CURRENCY_PLAN.md` for the full design and milestone status.
 - **`device_tokens`** — account/member → push token, needed for the push feature
   below.
 
@@ -128,8 +131,6 @@ See CLAUDE.md's "Merge payments into expenses" remarks.
 
 ### Explicitly deferred within Phase 1
 
-- Multi-currency **logic** (conversion, display formatting) — column reserved,
-  nothing else.
 - Group-level settings/preferences — groups need to exist and be used first.
 - Multi-payer expenses (one expense split among many payers, not just one payer
   + many owers) — not currently planned; single `paid_by_member_id` is enough

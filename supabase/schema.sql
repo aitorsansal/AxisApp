@@ -32,9 +32,23 @@ create table public.members (
   created_at timestamptz not null default now()
 );
 
+-- currency: picked once, on NewGroupPage, at the same insert that creates
+-- the group. Never editable afterward — enforced by the app (no edit path
+-- is ever exposed), not the DB, so the choice is always a deliberate one
+-- made before any expense exists, never something that could be perceived
+-- as falling out of whatever the first expense happened to use. The check
+-- list is Frankfurter's (frankfurter.dev, ECB reference rates) actual
+-- supported currency set, verified against its live /v1/currencies
+-- response, not guessed — AppConstants.Currencies mirrors this exact list.
 create table public.groups (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  currency char(3) not null default 'EUR'
+    check (currency in (
+      'AUD','BRL','CAD','CHF','CNY','CZK','DKK','EUR','GBP','HKD','HUF','IDR',
+      'ILS','INR','ISK','JPY','KRW','MXN','MYR','NOK','NZD','PHP','PLN','RON',
+      'SEK','SGD','THB','TRY','USD','ZAR'
+    )),
   created_by uuid not null references auth.users(id),
   created_at timestamptz not null default now()
 );
@@ -235,9 +249,13 @@ $$;
 -- of everything above; nothing here alters existing rows.
 -- ============================================================
 
--- Reserve a currency column on the money tables while the schema is still
--- young, even with no conversion logic yet — see SCOPE.md's "multi-currency"
--- note. expenses gets the column baked in from the start below.
+-- currency: what the expense was actually entered in — may differ from its
+-- group's currency (e.g. a foreign-currency purchase in an otherwise-EUR
+-- group). amount_in_group_currency/exchange_rate are snapshotted once, by
+-- a BEFORE INSERT/UPDATE trigger (below, after expense_shares), at the
+-- moment the row is written — never re-derived later, so a balance never
+-- silently drifts just because today's exchange rate moved. See
+-- /MULTI_CURRENCY_PLAN.md for the full design.
 
 -- expenses: a bill one member fronted, split across participants via
 -- expense_shares. is_settlement marks a settle-up ("I paid you back $20") —
@@ -248,7 +266,14 @@ create table public.expenses (
   group_id uuid references public.groups(id) on delete set null,
   paid_by_member_id uuid not null references public.members(id),
   amount numeric(12,2) not null check (amount > 0),
-  currency char(3) not null default 'EUR',
+  currency char(3) not null default 'EUR'
+    check (currency in (
+      'AUD','BRL','CAD','CHF','CNY','CZK','DKK','EUR','GBP','HKD','HUF','IDR',
+      'ILS','INR','ISK','JPY','KRW','MXN','MYR','NOK','NZD','PHP','PLN','RON',
+      'SEK','SGD','THB','TRY','USD','ZAR'
+    )),
+  amount_in_group_currency numeric(12,2) not null,
+  exchange_rate numeric(18,8) not null default 1,
   description text not null default '',
   category text not null default '',
   occurred_at timestamptz not null default now(),
@@ -262,6 +287,7 @@ create table public.expense_shares (
   expense_id uuid not null references public.expenses(id) on delete cascade,
   member_id uuid not null references public.members(id),
   share_amount numeric(12,2) not null check (share_amount >= 0),
+  share_amount_in_group_currency numeric(12,2) not null,
   primary key (expense_id, member_id)
 );
 
@@ -271,6 +297,125 @@ create index on public.expense_shares (member_id);
 
 alter table public.expenses enable row level security;
 alter table public.expense_shares enable row level security;
+
+-- ============================================================
+-- exchange_rates — a SINGLETON table (the `id boolean primary key default
+-- true check (id)` trick: id can only ever be `true`, and being the primary
+-- key, that means at most one row can ever exist). Deliberately not one row
+-- per day: every expense snapshots its own converted amount at write time
+-- (via the triggers below), so once a row exists, historical rates serve no
+-- purpose — only "the latest known rate" is ever needed to compute a *new*
+-- snapshot. Written by a daily Edge Function (fetch-exchange-rates, not
+-- built yet — see /MULTI_CURRENCY_PLAN.md's Milestone 2) via delete-then-
+-- insert, matching this project's existing "delete then insert, not
+-- upsert" idiom for enforcing uniqueness (see
+-- SupabaseDeviceTokensRepository.RegisterAsync's own remarks). rates is
+-- EUR-pivoted (units of X per 1 EUR, matching Frankfurter's native base)
+-- and, per Frankfurter's own response shape, does NOT include an "EUR"
+-- key — the conversion trigger below treats EUR as implicitly 1 rather
+-- than requiring the Edge Function to inject it.
+-- ============================================================
+create table public.exchange_rates (
+  id boolean primary key default true,
+  as_of date not null,
+  rates jsonb not null,
+  constraint exchange_rates_single_row check (id)
+);
+
+alter table public.exchange_rates enable row level security;
+
+create policy "authenticated users can read exchange rates" on public.exchange_rates
+  for select to authenticated using (true);
+
+-- No insert/update/delete policy for authenticated/anon — only the daily
+-- Edge Function (service-role client, bypasses RLS entirely) ever writes
+-- this table.
+
+-- ============================================================
+-- snapshot_expense_currency_conversion(): BEFORE INSERT/UPDATE on expenses,
+-- computes amount_in_group_currency/exchange_rate once at write time. Not
+-- security definer — the caller already has legitimate SELECT access to
+-- both groups (a real group member, per "select expenses in your groups"'s
+-- own is_group_member check) and exchange_rates (the authenticated-read
+-- policy above), so there's no permission gap to bypass here, unlike e.g.
+-- leave_group()/transfer_group_ownership(). Raises rather than silently
+-- treating a missing rate as 1:1 — a blocked save is a better failure mode
+-- than a silently wrong conversion in a ledger.
+-- ============================================================
+create or replace function public.snapshot_expense_currency_conversion()
+returns trigger
+language plpgsql
+as $$
+declare
+  v_group_currency char(3);
+  v_rates jsonb;
+  v_from_rate numeric;
+  v_to_rate numeric;
+begin
+  if new.group_id is null then
+    -- Unscoped expense (its group was dissolved) — no group currency left
+    -- to convert against, and group_balances/pairwise_balances already
+    -- exclude group_id is null rows entirely, so this value is unused
+    -- beyond keeping the column non-null.
+    new.exchange_rate := 1;
+    new.amount_in_group_currency := new.amount;
+    return new;
+  end if;
+
+  select currency into v_group_currency from public.groups where id = new.group_id;
+
+  if new.currency = v_group_currency then
+    new.exchange_rate := 1;
+    new.amount_in_group_currency := new.amount;
+    return new;
+  end if;
+
+  select rates into v_rates from public.exchange_rates limit 1;
+
+  if v_rates is null then
+    raise exception 'No exchange rate data available yet — cannot convert % to %', new.currency, v_group_currency;
+  end if;
+
+  v_from_rate := case when new.currency = 'EUR' then 1 else (v_rates->>new.currency)::numeric end;
+  v_to_rate := case when v_group_currency = 'EUR' then 1 else (v_rates->>v_group_currency)::numeric end;
+
+  if v_from_rate is null or v_to_rate is null then
+    raise exception 'No exchange rate available for % or %', new.currency, v_group_currency;
+  end if;
+
+  new.exchange_rate := v_to_rate / v_from_rate;
+  new.amount_in_group_currency := round(new.amount * new.exchange_rate, 2);
+  return new;
+end;
+$$;
+
+create trigger expenses_snapshot_currency_conversion
+  before insert or update of amount, currency on public.expenses
+  for each row execute function public.snapshot_expense_currency_conversion();
+
+-- snapshot_expense_share_currency_conversion(): BEFORE INSERT/UPDATE on
+-- expense_shares. Always reads its parent expense's already-computed
+-- exchange_rate (set by the trigger above, which has already run by the
+-- time a share is inserted/updated — confirmed against
+-- SupabaseExpensesRepository.AddAsync/UpdateAsync, both of which await the
+-- expense insert/update before touching expense_shares) rather than
+-- re-deriving currency codes itself.
+create or replace function public.snapshot_expense_share_currency_conversion()
+returns trigger
+language plpgsql
+as $$
+declare
+  v_rate numeric;
+begin
+  select exchange_rate into v_rate from public.expenses where id = new.expense_id;
+  new.share_amount_in_group_currency := round(new.share_amount * coalesce(v_rate, 1), 2);
+  return new;
+end;
+$$;
+
+create trigger expense_shares_snapshot_currency_conversion
+  before insert or update of share_amount on public.expense_shares
+  for each row execute function public.snapshot_expense_share_currency_conversion();
 
 -- expenses: visible/writable by any current group member
 create policy "select expenses in your groups" on public.expenses
@@ -369,7 +514,12 @@ create table public.recurring_expenses (
   group_id uuid references public.groups(id) on delete set null,
   paid_by_member_id uuid not null references public.members(id),
   amount numeric(12,2) not null check (amount > 0),
-  currency char(3) not null default 'EUR',
+  currency char(3) not null default 'EUR'
+    check (currency in (
+      'AUD','BRL','CAD','CHF','CNY','CZK','DKK','EUR','GBP','HKD','HUF','IDR',
+      'ILS','INR','ISK','JPY','KRW','MXN','MYR','NOK','NZD','PHP','PLN','RON',
+      'SEK','SGD','THB','TRY','USD','ZAR'
+    )),
   description text not null default '',
   category text not null default '',
   frequency text not null check (frequency in ('daily','weekly','monthly','yearly')),
@@ -479,12 +629,12 @@ create policy "update shares of your recurring expenses" on public.recurring_exp
 create view public.group_balances
 with (security_invoker = true) as
 with expense_payer_net as (
-  select group_id, paid_by_member_id as member_id, amount as delta
+  select group_id, paid_by_member_id as member_id, amount_in_group_currency as delta
   from expenses
   where group_id is not null
 ),
 expense_share_net as (
-  select e.group_id, es.member_id, -es.share_amount as delta
+  select e.group_id, es.member_id, -es.share_amount_in_group_currency as delta
   from expense_shares es
   join expenses e on e.id = es.expense_id
   where e.group_id is not null
@@ -550,7 +700,7 @@ where m.account_id = auth.uid();
 create view public.pairwise_balances
 with (security_invoker = true) as
 with edges as (
-  select e.group_id, es.member_id as debtor_id, e.paid_by_member_id as creditor_id, es.share_amount as amount
+  select e.group_id, es.member_id as debtor_id, e.paid_by_member_id as creditor_id, es.share_amount_in_group_currency as amount
   from expense_shares es
   join expenses e on e.id = es.expense_id
   where e.group_id is not null and es.member_id <> e.paid_by_member_id
