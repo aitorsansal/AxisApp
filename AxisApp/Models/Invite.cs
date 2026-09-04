@@ -25,7 +25,7 @@ public class Invite : BaseModel
     public Guid? TargetMemberId { get; set; }
 
     [Column("created_by")]
-    public Guid CreatedBy { get; set; }
+    public Guid? CreatedBy { get; set; }
 
     [Column("expires_at")]
     public DateTime ExpiresAt { get; set; }

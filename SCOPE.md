@@ -26,13 +26,15 @@ all for money-tracking. This is what "done" looks like before Phase 2 starts.
 
 - **`expenses` + `expense_shares`** — N-way bill splitting. `expenses` has one
   `paid_by_member_id` who fronted the money; `expense_shares` records what each
-  participating member owes toward it. `payments` (already in schema.sql) stays
-  as-is for direct pairwise settle-ups ("I paid you back $20") — it's a different
-  transaction shape, not a special case of an expense.
+  participating member owes toward it. A direct pairwise settle-up ("I paid you
+  back $20") is just an Expense with `is_settlement` true and exactly one share
+  — there used to be a separate `payments` table for this, retired 2026-09-04
+  once the balance math was confirmed identical (see CLAUDE.md's "Merge
+  payments into expenses" remarks).
 - **`group_balances`** (view) — net balance per member per group, computed from
-  both `payments` and `expenses`/`expense_shares`, so the client queries one
-  thing instead of aggregating two tables itself.
-- **`currency`** column reserved (default e.g. `'EUR'`) on `expenses`/`payments`
+  `expenses`/`expense_shares` alone (settlements included, via `is_settlement`),
+  so the client queries one thing instead of aggregating two tables itself.
+- **`currency`** column reserved (default e.g. `'EUR'`) on `expenses`
   while the schema is still young — no conversion logic yet, just not retrofitting
   the column onto real rows later.
 - **`device_tokens`** — account/member → push token, needed for the push feature
@@ -61,8 +63,10 @@ forgot-password (`LoginPage`) were added — see CLAUDE.md's "Profile page"
 and "Google sign-in, password reset, and avatar backfill" sections
 (2026-08-31 / 2026-09-01–02).
 
-Not yet built: editing a settle-up `Payment` (only `Expense` editing
-exists).
+**Editing a settle-up: done 2026-09-04** — a settlement is just an Expense
+with `is_settlement` true, so it reuses `AddExpensePage`'s existing edit
+flow (category/receipt hidden for that case) rather than a separate screen.
+See CLAUDE.md's "Merge payments into expenses" remarks.
 
 ### Supporting infra
 
@@ -70,8 +74,9 @@ exists).
   scoped to group members. Client resizes + encodes to WebP before upload,
   targeting ~100KB (downscale to ~1280px long edge, step quality/dimension down
   if still over target). **Done 2026-08-31** for expenses (capture/pick, upload,
-  view via signed URL — see CLAUDE.md's "Receipt photos"); `payments` still has
-  `receipt_path` reserved but unused.
+  view via signed URL — see CLAUDE.md's "Receipt photos"; camera capture
+  specifically confirmed on a real device 2026-09-04, closing the one gap
+  left open when this first shipped).
 - **Receipt cleanup**: weekly Edge Function on `pg_cron`, **done 2026-08-31**
   (see CLAUDE.md's "Receipt cleanup" remarks), confirmed working against the
   live project. Orphaned receipts (no expense references them anymore) get
@@ -79,8 +84,7 @@ exists).
   the *photo* purged after **6 months** — the expense record itself is never
   deleted, only the image, with `receipt_path` nulled out. Both windows are
   measured off the file's own upload time (`storage.objects.created_at`),
-  not the expense's date. `payments.receipt_path` is out of scope here since
-  it's still unused (see above).
+  not the expense's date.
 - **Recurring expenses**: `recurring_expenses`/`recurring_expense_shares`
   (N-way split templates, mirroring `expenses`/`expense_shares`), the
   add/edit/view/pause/delete UI, and the `pg_cron` job that materializes
@@ -104,15 +108,15 @@ exists).
   Windows push is deferred to its own separate investigation, not attempted
   here.
   **Client-side registration and server-side send: both done 2026-09-03**
-  (`IPushRegistrationService` on the client; `expense_notification_recipients`/
-  `payment_notification_recipients` + `notify_new_expense`/`notify_new_payment`
-  triggers + the `send-push` Edge Function on the server — see CLAUDE.md's
-  "Push notifications — client-side registration" and "— server-side send"
-  for the full detail), confirmed working end to end against the live
-  project with the real `AFTER INSERT` trigger firing on its own, correctly
-  scoped to only the expense/payment's actual participants (not the whole
-  group, and not a "balance ≠ 0" heuristic — see CLAUDE.md for why that
-  would have been wrong). **Tap-to-open and a real channel: also done
+  (`IPushRegistrationService` on the client; `expense_notification_recipients`
+  + the `notify_new_expense` trigger + the `send-push` Edge Function on the
+  server — see CLAUDE.md's "Push notifications — client-side registration"
+  and "— server-side send" for the full detail), confirmed working end to
+  end against the live project with the real `AFTER INSERT` trigger firing
+  on its own, correctly scoped to only the expense's actual participants —
+  a settlement included, since it's just an expense with one share (not the
+  whole group, and not a "balance ≠ 0" heuristic — see CLAUDE.md for why
+  that would have been wrong). **Tap-to-open and a real channel: also done
   2026-09-03** — `AxisFirebaseMessagingService` builds the notification on
   an "Axis notifications" channel and routes a tap directly to the
   specific group (see CLAUDE.md's "tap-to-open, a real channel, and a
@@ -171,8 +175,8 @@ get one push per shared group's reminder if the reminder logic naively fired
 per group membership. A notification channel can't fix this — a channel only
 controls where an *already-sent* notification lands and whether it makes
 noise, it can't prevent two separate sends from happening in the first place.
-The fix is the same shape Phase 1's `expense_notification_recipients`/
-`payment_notification_recipients` already established: compute the
+The fix is the same shape Phase 1's `expense_notification_recipients`
+already established: compute the
 **distinct** recipient account set once (across every group the reminder is
 relevant to, deduplicated by `account_id`), and send exactly one push per
 account — not one per (group × account) pair. Whatever function eventually

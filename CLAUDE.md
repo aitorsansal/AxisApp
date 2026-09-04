@@ -39,8 +39,8 @@ This repo is a scaffold, not a finished app. As of this commit:
   `NotConfiguredAuthService` still exists as an unregistered fallback/example
   of the "boots without a backend" pattern.
 - Every `I*Repository` now has a concrete `Supabase*Repository`
-  implementation (`Services/Supabase{Members,Groups,Payments,Expenses,
-  Balances,Categories,RecurringPayments,Invites,DeviceTokens}Repository.cs`),
+  implementation (`Services/Supabase{Members,Groups,Expenses,
+  Balances,RecurringExpenses,Invites,DeviceTokens}Repository.cs`),
   registered as singletons in `MauiProgram.cs` alongside a single shared
   `Supabase.Client` (also registered there — `SupabaseAuthService` and every
   repository take that same instance rather than each opening its own).
@@ -50,8 +50,9 @@ This repo is a scaffold, not a finished app. As of this commit:
   `SupabaseInvitesRepository.RedeemAsync`'s use of `client.Rpc(...)`) are
   grounded against the public postgrest-csharp source, not a local build of
   this exact installed version — expect compiler errors, report them back
-  the same way.** Includes `expenses`/`expense_shares` (N-way splitting,
-  separate from the pairwise `payments` table), a `group_balances` view/
+  the same way.** Includes `expenses`/`expense_shares` (N-way splitting;
+  `payments` was retired 2026-09-04, see "Merge payments into expenses"
+  below — a settle-up is just an Expense now), a `group_balances` view/
   repository, and a `device_tokens` table/repository for the push feature —
   see `/SCOPE.md`. **The corresponding schema additions at the bottom of
   `supabase/schema.sql` haven't been run against the live project yet** —
@@ -67,8 +68,11 @@ This repo is a scaffold, not a finished app. As of this commit:
   `?expenseId=` query param switches it into edit mode (loads the existing
   expense + shares, `Save` calls `IExpensesRepository.UpdateAsync` instead
   of `AddAsync`, adds a Delete button) — reached by tapping an expense row
-  in Group Detail's recent-activity list. Editing a settle-up `Payment` is
-  not implemented, only `Expense`.
+  in Group Detail's recent-activity list. **Editing a settle-up is done too,
+  as of 2026-09-04** — a settlement is just an Expense with `IsSettlement`
+  true, so it reuses this same edit flow (category/receipt hidden for that
+  case) rather than a separate screen — see "Merge payments into expenses"
+  below.
 - **Auth + a real repository call are now confirmed working end to end**:
   fresh sign-up followed by creating a group succeeds and the group shows up
   in the creator's list. Reaching that point surfaced four real bugs, all
@@ -730,10 +734,11 @@ purge) is **not built yet**, left for later infra work.
   apparently never actually been save-tested before this session — the edit
   *screen* worked (loads existing data correctly), just never a real save.
 
-Not yet done for this feature specifically: a real device/emulator run
-(camera capture in particular — gallery-picker mirrors avatars' already-
-confirmed `PickPhotoAsync` path, but `CapturePhotoAsync` is new to this
-codebase), and the cleanup Edge Function described above.
+**Camera capture confirmed working on a real device (2026-09-04)** —
+`CapturePhotoAsync` needed no fixes beyond what shipped here. Not yet done
+for this feature specifically: the cleanup Edge Function described above
+(see "Receipt cleanup" below — that part is done as of 2026-08-31, this
+note predates it).
 
 ## Recurring expenses, and retiring recurring_payments (2026-08-31)
 
@@ -1385,6 +1390,20 @@ any of this was written.
   deployed; the temporary diagnostic logging used to find this was removed
   once confirmed.
 
+## Owner-only group rename (2026-09-03)
+
+Small addition, no new SQL: `IGroupsRepository.RenameAsync` rides the
+existing `"update own groups"` RLS policy (`created_by = auth.uid()`)
+as-is — a rename is just another `groups.name` update, the same policy
+that already gates `transfer_group_ownership()`'s target column. `⋮` on
+`GroupDetailPage` gained "Rename group" (gated to `IsGroupCreator`, same
+role check as Leave/Transfer/Dissolve), opening an inline overlay
+(`IsRenameGroupOverlayOpen`/`RenameGroupInput`) rather than
+`Shell.Current.DisplayPromptAsync` — same known WinUI crash `MembersPage`'s
+member-rename overlay and `LoginPage`'s forgot-password flow already avoid
+the same way. Confirmed working end to end against the live project on a
+physical device.
+
 ## Self-service account deletion (2026-09-04)
 
 `web/delete-account/index.html` (added the same day, before this) documented
@@ -1537,14 +1556,110 @@ without asking anyone.
   longer has the app installed — the "30 days" turnaround note now
   explicitly scopes to that email path only.
 
+## Same-day activity ordering, and the merge payments into expenses (2026-09-04)
+
+Found while testing: creating several settle-ups on the same day, they
+sometimes appeared out of creation order in Group Detail's Recent Activity
+feed — the newest one could land at the bottom instead of the top. Root
+cause: `Expense.OccurredAt` comes from a plain date picker with no time
+component (`AddExpenseViewModel.OccurredOn`), so several same-day entries
+land on an identical midnight timestamp — sorting by `OccurredAt` alone then
+has no real tiebreaker, so ties fall back to whatever arbitrary order
+Postgres/Postgrest happens to return. Fixed by sorting
+`OccurredAt desc, CreatedAt desc` instead — `CreatedAt` is server-set via
+`now()` on every insert, so it always has full timestamp precision and
+reflects real creation order even when `OccurredAt` can't (`ActivityItem`
+gained a `CreatedAt` field; `GroupDetailViewModel.LoadAsync`'s final sort
+uses both).
+
+That bug, plus about to build a dedicated `EditPaymentPage` nearly identical
+to `AddExpensePage`'s existing edit flow, prompted revisiting a question
+this project had already half-answered once before: is a separate
+`payments` table still justified? `recurring_payments` was retired
+2026-08-31 on exactly this reasoning — `Payment(payer, payee, amount)` has
+identical balance math to `Expense(paid_by=payer, shares=[{payee, amount}])`
+(confirmed again here: the sign conventions line up — the fronting/paying
+party's balance moves up, the other party's moves down, in both shapes).
+Decided to finish what that retirement started and merge the base
+`payments` table into `expenses` too, rather than build a second near-
+duplicate edit page. The project was still pre-launch with no real user
+data, so this shipped as a clean cutover (existing `payments` rows dropped,
+not migrated) rather than a backfill.
+
+- **`supabase/merge_payments_into_expenses.sql`** (run directly against the
+  live project, not part of `schema.sql`'s own linear script since it was
+  applied as a one-off against data that already existed) — `drop table
+  public.payments cascade` took `group_balances`/`my_group_balances`/
+  `pairwise_balances`/`my_pairwise_balances`/`payment_notification_
+  recipients()` down with it automatically (all had real dependency links
+  on the table — the balance views because they're plain SQL, the recipient
+  function because `language sql` functions get dependency-tracked at
+  CREATE time, unlike `plpgsql`). `notify_new_payment()` needed an explicit
+  drop — no table reference in its body, so cascade didn't catch it. Added
+  `expenses.is_settlement boolean not null default false` and recreated all
+  four balance views without the payment-side CTEs (output columns
+  unchanged, so `leave_group()`/`remove_group_member()`, which read
+  `group_balances` by name, needed no changes). `schema.sql` itself was
+  then edited directly to match this end state (table, indexes, RLS
+  policies, the `payment_net` CTE, `payment_notification_recipients`/
+  `notify_new_payment`/its trigger, the account-deletion FK relaxation —
+  all physically removed, not left as a dead create-then-drop pair), same
+  "keep it a clean fresh-install script" treatment `recurring_payments` got
+  when it was retired.
+- **`Models/Payment.cs`, `Services/IPaymentsRepository.cs`,
+  `Services/SupabasePaymentsRepository.cs`** deleted outright.
+  `Expense.cs` gained `IsSettlement` (`[Column("is_settlement")]`).
+- **`GroupDetailViewModel.Settle`** now inserts an `Expense` (`IsSettlement
+  = true`, `PaidByMemberId` = the discharging party) + one `ExpenseShare`
+  (the party being paid back, `ShareAmount` = the full amount) via
+  `IExpensesRepository.AddAsync`, instead of a `Payment`. `LoadAsync`'s
+  Recent Activity feed collapsed back to a single loop over `expenses` —
+  no more separate payments fetch/merge.
+- **Settlement editing "fell out for free"** rather than needing the
+  planned dedicated `EditPaymentPage`: tapping any activity row (settlement
+  or not) already opens `AddExpensePage` in edit mode, since every row is
+  now an `Expense`. `AddExpenseViewModel` gained `IsSettlement` (set once
+  from the loaded expense, never user-toggleable — same "fixed at creation"
+  treatment `CanToggleRecurring` already gives Recurring vs. one-off) and
+  `ShowMoneyExtras`, which hides the Category chips and receipt drop-zone
+  for that case (neither applies to a settle-up). The existing multi-select
+  split UI needed no changes at all — a settlement is simply the case where
+  exactly one participant is checked with the full amount owed, which the
+  general split logic already produces correctly. `Save()` carries
+  `IsSettlement` through on an edit the same way it already had to for
+  `CreatedBy`/`CreatedAt` (a fresh `Expense` object defaults it back to
+  `false` otherwise — same footgun class as the `Expense` edit bug
+  documented above). New `AddExpense_EditSettlementTitle` loc key (en/es)
+  for the page title in this mode. No creation path was added for a new
+  settlement via this page — only Settle produces one.
+- **`send-push/index.ts`** lost its `payment_id` branch entirely — the
+  function now always looks up an `expenses` row (selecting `is_settlement`
+  too) and branches its push copy on that instead of on which id arrived
+  (`"{payer} paid you back — {amount} {currency}"` vs. `"{payer} added
+  {description} — {amount} {currency}"`). The FCM `data` payload's `type`
+  field is now `"settlement"` or `"expense"` instead of the old
+  `"expense"`/`"payment"` split; `payment_id` dropped from the payload
+  (nothing on the client ever read it — only `group_id`/`group_name` drive
+  tap routing, see the tap-to-open section above). Needs redeploying via
+  the dashboard's "Via Editor" flow, same as every other Edge Function in
+  this project — not yet done as of this writing.
+- **Build-verified only** (`dotnet build` clean on both `net10.0-android`
+  and `net10.0-windows10.0.19041.0`) — the SQL migration was run and
+  confirmed applying cleanly, but a real create-settlement-then-edit-it
+  pass against the live project hasn't happened yet, and neither has
+  redeploying `send-push`.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
 
 Every data access interface lives in `Services/` (`IAuthService`,
-`IMembersRepository`, `IGroupsRepository`, `IPaymentsRepository`,
+`IMembersRepository`, `IGroupsRepository`,
 `IExpensesRepository`, `IBalancesRepository`, `IRecurringExpensesRepository`,
-`ICategoriesRepository`, `IInvitesRepository`, `IDeviceTokensRepository`).
+`IInvitesRepository`, `IDeviceTokensRepository`). `IPaymentsRepository` and
+`ICategoriesRepository` existed early on and were both retired once their
+tables were (payments 2026-09-04, categories 2026-08-28) — see "Merge
+payments into expenses" and the "Categories removed" schema.sql remarks.
 **ViewModels depend on these interfaces, never on the
 `Supabase.Client` type or the `supabase-csharp` package directly.** The reason:
 if this ever moves off Supabase (self-hosted Supabase on a NAS, or a fully
@@ -1644,16 +1759,16 @@ static site, so it's easy to change one side and forget the other:
 | `members` | Every ledger participant, phantom or claimed. |
 | `groups` | A shared ledger (e.g. "Relaciones", "Family"). |
 | `group_members` | Which members belong to which groups. |
-| `payments` | A single payment between two members, optionally scoped to a group. |
 | `invites` | A redeemable token to join a group, or to claim a specific phantom member. |
-| `expenses` / `expense_shares` | N-way split expenses, separate from the pairwise `payments` table. |
+| `expenses` / `expense_shares` | N-way split expenses. `is_settlement` marks a settle-up (exactly one share) — see "Merge payments into expenses" below. |
 | `recurring_expenses` / `recurring_expense_shares` | Templates for periodically auto-generated N-way split expenses. Replaces the retired `recurring_payments` (pairwise, never got UI). |
 | `device_tokens` | Per-account push tokens for the notification feature. |
 | `member_aliases` | Private, per-account nickname override for how a member is displayed. |
 
 (No `categories` table — removed 2026-08-28; see schema.sql's remarks. Categories
 are now a small fixed list of keys in `AppConstants.Categories`, localized
-client-side, not stored data.)
+client-side, not stored data. No `payments` table either — removed
+2026-09-04, see "Merge payments into expenses" below.)
 
 Also a public `avatars` Storage bucket and a private `receipts` Storage
 bucket (`storage.buckets`/`storage.objects`, not `public.*`) — see "Avatar
@@ -1664,7 +1779,7 @@ RLS as the querying user, never inserted/updated/deleted):
 
 | View | Purpose |
 |---|---|
-| `group_balances` | Each member's net balance against a group's whole shared pot (combines `payments` + `expense_shares`). |
+| `group_balances` | Each member's net balance against a group's whole shared pot, from `expenses`/`expense_shares` alone (settlements included). |
 | `my_group_balances` | The current account's own row from `group_balances`, one per group — feeds the Groups list. |
 | `pairwise_balances` | Real two-party net balance between every pair of members who've actually shared money in a group. |
 | `my_pairwise_balances` | `pairwise_balances` reoriented around the current account, sign-normalized to "positive = they owe me". |
@@ -1732,6 +1847,9 @@ dotnet build AxisApp/AxisApp.csproj -f net10.0-windows10.0.19041.0
 
 ```bash
 # Deploy the invite-link web page + assetlinks.json (see "Deep linking" above)
+# — Cloudflare's GitHub integration auto-deploys web/ on every push to main
+# (confirmed 2026-09-04), so this manual command is now only needed for
+# previewing before a push, or redeploying without a new commit.
 cd web && npx wrangler deploy
 ```
 

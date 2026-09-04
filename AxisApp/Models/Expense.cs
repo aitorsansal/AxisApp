@@ -5,8 +5,9 @@ namespace AxisApp.Models;
 
 /// <summary>
 /// A bill one member fronted, split across participants via <see cref="ExpenseShare"/> rows.
-/// Distinct from <see cref="Payment"/>, which is a direct pairwise settle-up with no splitting
-/// concept — see SCOPE.md for why these stay as two separate transaction shapes.
+/// A settle-up ("I paid you back $20") is just an Expense with <see cref="IsSettlement"/> true
+/// and exactly one share — Payment was retired 2026-09-04 once the balance math was confirmed
+/// identical (see CLAUDE.md's "Merge payments into expenses" remarks).
 /// </summary>
 [Table("expenses")]
 public class Expense : BaseModel
@@ -39,8 +40,11 @@ public class Expense : BaseModel
     public string? ReceiptPath { get; set; }
 
     [Column("created_by")]
-    public Guid CreatedBy { get; set; }
+    public Guid? CreatedBy { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
+
+    [Column("is_settlement")]
+    public bool IsSettlement { get; set; }
 }

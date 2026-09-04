@@ -34,8 +34,8 @@ public partial class MemberBalanceItem : ObservableObject
     [ObservableProperty] private string captionText = LocalizationResourceManager.Instance["Common_SettledUp"];
 }
 
-/// <summary>One row in the group's recent-activity feed — either a settle-up payment or a
-/// split expense, normalized to the same display shape.</summary>
+/// <summary>One row in the group's recent-activity feed — an Expense, either a real split
+/// (IsSettlement false) or a settle-up (true, exactly one share — see Models/Expense.cs).</summary>
 public partial class ActivityItem : ObservableObject
 {
     public string Description { get; init; } = "";
@@ -43,10 +43,18 @@ public partial class ActivityItem : ObservableObject
     public string AmountText { get; init; } = "";
     public bool IsSettlement { get; init; }
     public DateTime OccurredAt { get; init; }
+
+    /// <summary>Tiebreaker for same-day ordering — OccurredAt only carries a date (no time of
+    /// day) for expenses, since it's picked from a plain date picker, so several same-day
+    /// entries would otherwise sort in whatever arbitrary order the DB happens to return them.
+    /// CreatedAt always has full timestamp precision (server-set via now() on insert), so it
+    /// reflects actual creation order even when OccurredAt can't.</summary>
+    public DateTime CreatedAt { get; init; }
+
     public string RelativeDate { get; init; } = "";
 
-    /// <summary>Set for expense-sourced rows, null for settlement/payment rows — editing a
-    /// payment isn't part of this screen's scope, only expenses.</summary>
+    /// <summary>Always set now that every activity row is an Expense — tapping any row, settlement
+    /// or not, opens the same AddExpensePage edit flow (see OpenActivity below).</summary>
     public Guid? ExpenseId { get; init; }
 }
 
@@ -55,7 +63,6 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     private readonly IGroupsRepository groupsRepository;
     private readonly IMembersRepository membersRepository;
     private readonly IBalancesRepository balancesRepository;
-    private readonly IPaymentsRepository paymentsRepository;
     private readonly IExpensesRepository expensesRepository;
     private readonly IAliasesRepository aliasesRepository;
     private readonly IAuthService authService;
@@ -100,7 +107,6 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
         IGroupsRepository groupsRepository,
         IMembersRepository membersRepository,
         IBalancesRepository balancesRepository,
-        IPaymentsRepository paymentsRepository,
         IExpensesRepository expensesRepository,
         IAliasesRepository aliasesRepository,
         IAuthService authService)
@@ -108,7 +114,6 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
         this.groupsRepository = groupsRepository;
         this.membersRepository = membersRepository;
         this.balancesRepository = balancesRepository;
-        this.paymentsRepository = paymentsRepository;
         this.expensesRepository = expensesRepository;
         this.aliasesRepository = aliasesRepository;
         this.authService = authService;
@@ -134,10 +139,9 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
         {
             var loadGroup = groupsRepository.GetByIdAsync(groupId);
             var loadMembers = membersRepository.GetForGroupAsync(groupId);
-            var loadPayments = paymentsRepository.GetForGroupAsync(groupId);
             var loadExpenses = expensesRepository.GetForGroupAsync(groupId);
             var loadAliases = aliasesRepository.GetMyAliasesAsync();
-            await Task.WhenAll(loadGroup, loadMembers, loadPayments, loadExpenses, loadAliases);
+            await Task.WhenAll(loadGroup, loadMembers, loadExpenses, loadAliases);
 
             var members = loadMembers.Result;
             membersById = members.ToDictionary(m => m.Id);
@@ -151,41 +155,42 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
 
             var loc = LocalizationResourceManager.Instance;
             var activity = new List<ActivityItem>();
-            foreach (var payment in loadPayments.Result)
-            {
-                var payer = membersById.TryGetValue(payment.PayerMemberId, out var payerMember)
-                    ? MemberDisplay.Name(payerMember, aliases) : loc["GroupDetail_SomeoneCapitalized"];
-                var payee = membersById.TryGetValue(payment.PayeeMemberId, out var payeeMember)
-                    ? MemberDisplay.Name(payeeMember, aliases) : loc["GroupDetail_SomeoneLower"];
-                activity.Add(new ActivityItem
-                {
-                    Description = string.IsNullOrWhiteSpace(payment.Description) ? loc["GroupDetail_SettleUp"] : payment.Description,
-                    SubCaption = loc.Format("GroupDetail_Paid", payer, payee),
-                    AmountText = $"+${payment.Amount:0.00}",
-                    IsSettlement = true,
-                    OccurredAt = payment.OccurredAt,
-                    RelativeDate = FormatRelative(payment.OccurredAt)
-                });
-            }
             foreach (var expense in loadExpenses.Result)
             {
                 var payer = membersById.TryGetValue(expense.PaidByMemberId, out var expensePayer)
                     ? MemberDisplay.Name(expensePayer, aliases) : loc["GroupDetail_SomeoneCapitalized"];
                 var shares = await expensesRepository.GetSharesAsync(expense.Id);
-                var categoryLabel = string.IsNullOrEmpty(expense.Category) ? "" : loc[$"Category_{expense.Category}"];
+
+                string description, subCaption;
+                if (expense.IsSettlement)
+                {
+                    var payee = shares.Count > 0 && membersById.TryGetValue(shares[0].MemberId, out var payeeMember)
+                        ? MemberDisplay.Name(payeeMember, aliases) : loc["GroupDetail_SomeoneLower"];
+                    description = string.IsNullOrWhiteSpace(expense.Description) ? loc["GroupDetail_SettleUp"] : expense.Description;
+                    subCaption = loc.Format("GroupDetail_Paid", payer, payee);
+                }
+                else
+                {
+                    var categoryLabel = string.IsNullOrEmpty(expense.Category) ? "" : loc[$"Category_{expense.Category}"];
+                    description = string.IsNullOrWhiteSpace(expense.Description) ? categoryLabel : expense.Description;
+                    subCaption = loc.Format("GroupDetail_PaidSplit", payer, shares.Count);
+                }
+
                 activity.Add(new ActivityItem
                 {
-                    Description = string.IsNullOrWhiteSpace(expense.Description) ? categoryLabel : expense.Description,
-                    SubCaption = loc.Format("GroupDetail_PaidSplit", payer, shares.Count),
-                    AmountText = $"${expense.Amount:0.00}",
-                    IsSettlement = false,
+                    Description = description,
+                    SubCaption = subCaption,
+                    AmountText = $"€{expense.Amount:0.00}",
+                    IsSettlement = expense.IsSettlement,
                     OccurredAt = expense.OccurredAt,
+                    CreatedAt = expense.CreatedAt,
                     RelativeDate = FormatRelative(expense.OccurredAt),
                     ExpenseId = expense.Id
                 });
             }
 
-            RecentActivity = new ObservableCollection<ActivityItem>(activity.OrderByDescending(a => a.OccurredAt));
+            RecentActivity = new ObservableCollection<ActivityItem>(
+                activity.OrderByDescending(a => a.OccurredAt).ThenByDescending(a => a.CreatedAt));
         }
         finally
         {
@@ -227,14 +232,14 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             {
                 item.IsOwed = true;
                 item.IsSettled = false;
-                item.AmountText = $"+${row.Balance:0.00}";
+                item.AmountText = $"+€{row.Balance:0.00}";
                 item.CaptionText = LocalizationResourceManager.Instance["GroupDetail_OwesYou"];
             }
             else if (row.Balance < 0)
             {
                 item.IsOwing = true;
                 item.IsSettled = false;
-                item.AmountText = $"-${Math.Abs(row.Balance):0.00}";
+                item.AmountText = $"-€{Math.Abs(row.Balance):0.00}";
                 item.CaptionText = LocalizationResourceManager.Instance["GroupDetail_YouOwe"];
             }
             items.Add(item);
@@ -269,7 +274,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                     Amount = transfer.Amount,
                     IsOwing = true,
                     IsSettled = false,
-                    AmountText = $"-${transfer.Amount:0.00}",
+                    AmountText = $"-€{transfer.Amount:0.00}",
                     CaptionText = loc["GroupDetail_YouOwe"]
                 });
             }
@@ -284,7 +289,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                     Amount = transfer.Amount,
                     IsOwed = true,
                     IsSettled = false,
-                    AmountText = $"+${transfer.Amount:0.00}",
+                    AmountText = $"+€{transfer.Amount:0.00}",
                     CaptionText = loc["GroupDetail_OwesYou"]
                 });
             }
@@ -301,7 +306,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                     ToMemberId = to.Id,
                     Amount = transfer.Amount,
                     IsNeutral = true,
-                    AmountText = $"${transfer.Amount:0.00}",
+                    AmountText = $"€{transfer.Amount:0.00}",
                     CaptionText = loc.Format("GroupDetail_Pays", toName)
                 });
             }
@@ -324,8 +329,9 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     private Task AddExpense() => RunSafeAsync(() =>
         Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={groupId}"));
 
-    /// <summary>Tapping an activity row opens it for editing — but only expenses; editing a
-    /// settle-up payment isn't in scope here.</summary>
+    /// <summary>Tapping any activity row opens it for editing via AddExpensePage — a settlement is
+    /// just an Expense with IsSettlement true, so this needs no special-casing; the page itself
+    /// hides category/receipt for that case (see AddExpenseViewModel.ShowMoneyExtras).</summary>
     [RelayCommand]
     private Task OpenActivity(ActivityItem? item) => RunSafeAsync(async () =>
     {
@@ -349,12 +355,15 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             $"{AppConstants.Routes.RecurringExpenses}?groupId={groupId}&groupName={Uri.EscapeDataString(GroupName)}");
     });
 
-    /// <summary>Records a real payments row for one balance row's amount. Works the same way
-    /// regardless of display mode, since both modes ultimately produce a (payer, payee, amount)
-    /// triple on MemberBalanceItem — Pairwise's is a real counterparty debt, Simplified's is
-    /// whatever transfer the settle-up algorithm suggested for that row (see "Balances:
-    /// simplified vs. pairwise" in CLAUDE.md). A settled/neutral-with-no-ToMemberId row (shouldn't
-    /// normally reach here since the UI only offers Settle where one of these is true) is a no-op.</summary>
+    /// <summary>Records a settlement — an Expense with IsSettlement true, paid_by = the discharging
+    /// party, and one ExpenseShare for the party being paid back (see Models/Expense.cs and
+    /// CLAUDE.md's "Merge payments into expenses" remarks for why this replaced a dedicated
+    /// Payment table). Works the same way regardless of balance display mode, since both modes
+    /// ultimately produce a (payer, payee, amount) triple on MemberBalanceItem — Pairwise's is a
+    /// real counterparty debt, Simplified's is whatever transfer the settle-up algorithm suggested
+    /// for that row (see "Balances: simplified vs. pairwise" in CLAUDE.md). A settled/neutral-
+    /// with-no-ToMemberId row (shouldn't normally reach here since the UI only offers Settle where
+    /// one of these is true) is a no-op.</summary>
     [RelayCommand]
     private Task Settle(MemberBalanceItem? item) => RunSafeAsync(async () =>
     {
@@ -384,15 +393,17 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             return;
         }
 
-        await paymentsRepository.AddAsync(new Payment
+        var settlement = new Expense
         {
             GroupId = groupId,
-            PayerMemberId = payerId,
-            PayeeMemberId = payeeId,
+            PaidByMemberId = payerId,
             Amount = item.Amount,
             Description = LocalizationResourceManager.Instance["GroupDetail_SettleUp"],
-            OccurredAt = DateTime.UtcNow
-        });
+            OccurredAt = DateTime.UtcNow,
+            IsSettlement = true
+        };
+        var shares = new List<ExpenseShare> { new() { MemberId = payeeId, ShareAmount = item.Amount } };
+        await expensesRepository.AddAsync(settlement, shares);
 
         await LoadAsync();
     });

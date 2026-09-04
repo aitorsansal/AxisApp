@@ -116,14 +116,14 @@ public partial class GroupsViewModel : BaseViewModel
         {
             item.IsOwed = true;
             item.IsSettled = false;
-            item.BalanceAmountText = $"+${balance:0.00}";
+            item.BalanceAmountText = $"+€{balance:0.00}";
             item.BalanceCaptionText = LocalizationResourceManager.Instance["Groups_YoureOwed"];
         }
         else if (balance < 0)
         {
             item.IsOwing = true;
             item.IsSettled = false;
-            item.BalanceAmountText = $"-${Math.Abs(balance):0.00}";
+            item.BalanceAmountText = $"-€{Math.Abs(balance):0.00}";
             item.BalanceCaptionText = LocalizationResourceManager.Instance["Groups_YouOwe"];
         }
     }

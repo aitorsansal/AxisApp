@@ -49,7 +49,6 @@ public static class MauiProgram
         builder.Services.AddSingleton<IAuthService, SupabaseAuthService>();
         builder.Services.AddSingleton<IMembersRepository, SupabaseMembersRepository>();
         builder.Services.AddSingleton<IGroupsRepository, SupabaseGroupsRepository>();
-        builder.Services.AddSingleton<IPaymentsRepository, SupabasePaymentsRepository>();
         builder.Services.AddSingleton<IExpensesRepository, SupabaseExpensesRepository>();
         builder.Services.AddSingleton<IBalancesRepository, SupabaseBalancesRepository>();
         builder.Services.AddSingleton<IRecurringExpensesRepository, SupabaseRecurringExpensesRepository>();

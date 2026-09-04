@@ -2,14 +2,21 @@
 -- Run this once against a fresh Supabase project's SQL editor.
 --
 -- Design note: "members" vs. auth accounts.
--- A `members` row is a ledger participant. A `payments` row always references
+-- A `members` row is a ledger participant. An `expenses` row always references
 -- members, never `auth.users` directly. When `members.account_id` is null, the
 -- member is a "phantom" — added by name only, with no linked login (e.g. a
--- relative who hasn't installed the app yet). Payments against a phantom work
--- exactly like payments against anyone else. When that person eventually signs
+-- relative who hasn't installed the app yet). Expenses against a phantom work
+-- exactly like expenses against anyone else. When that person eventually signs
 -- up, redeeming an invite that targets their phantom member links their new
 -- account to that existing member row instead of starting a fresh, empty one —
--- their whole payment history is already attached to that member id.
+-- their whole expense history is already attached to that member id.
+--
+-- Design note: settlements are expenses, not a separate table.
+-- A settle-up ("I paid you back $20") is an Expense with is_settlement = true
+-- and exactly one ExpenseShare — there used to be a dedicated `payments` table
+-- for this, retired 2026-09-04 once the balance math was confirmed identical:
+-- Payment(payer, payee, amount) === Expense(paid_by=payer, shares=[{payee,
+-- amount}]). See CLAUDE.md's "Merge payments into expenses" remarks.
 
 create extension if not exists pgcrypto;
 
@@ -39,21 +46,6 @@ create table public.group_members (
   primary key (group_id, member_id)
 );
 
-create table public.payments (
-  id uuid primary key default gen_random_uuid(),
-  group_id uuid references public.groups(id) on delete set null,
-  payer_member_id uuid not null references public.members(id),
-  payee_member_id uuid not null references public.members(id),
-  amount numeric(12,2) not null check (amount > 0),
-  description text not null default '',
-  category text not null default '',
-  occurred_at timestamptz not null default now(),
-  receipt_path text,
-  created_by uuid not null references auth.users(id),
-  created_at timestamptz not null default now(),
-  check (payer_member_id <> payee_member_id)
-);
-
 -- Invites: join a group fresh, or claim a specific phantom member.
 create table public.invites (
   id uuid primary key default gen_random_uuid(),
@@ -68,9 +60,6 @@ create table public.invites (
 );
 
 create index on public.group_members (member_id);
-create index on public.payments (group_id);
-create index on public.payments (payer_member_id);
-create index on public.payments (payee_member_id);
 create index on public.invites (token);
 
 -- ============================================================
@@ -102,7 +91,6 @@ $$;
 alter table public.members enable row level security;
 alter table public.groups enable row level security;
 alter table public.group_members enable row level security;
-alter table public.payments enable row level security;
 alter table public.invites enable row level security;
 
 -- groups
@@ -164,28 +152,6 @@ create policy "group members can add members" on public.group_members
 create policy "group creator can remove members" on public.group_members
   for delete using (
     exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
-  );
-
--- payments
-create policy "select payments in your groups" on public.payments
-  for select using (
-    (group_id is null and created_by = auth.uid())
-    or (group_id is not null and is_group_member(group_id))
-  );
-create policy "insert payments in your groups" on public.payments
-  for insert with check (
-    (group_id is null and created_by = auth.uid())
-    or (group_id is not null and is_group_member(group_id))
-  );
-create policy "update payments in your groups" on public.payments
-  for update using (
-    (group_id is null and created_by = auth.uid())
-    or (group_id is not null and is_group_member(group_id))
-  );
-create policy "delete payments in your groups" on public.payments
-  for delete using (
-    (group_id is null and created_by = auth.uid())
-    or (group_id is not null and is_group_member(group_id))
   );
 
 -- invites: only existing group members can create/view them; redemption is via
@@ -271,13 +237,12 @@ $$;
 
 -- Reserve a currency column on the money tables while the schema is still
 -- young, even with no conversion logic yet — see SCOPE.md's "multi-currency"
--- note. New tables below get the column baked in from the start.
-alter table public.payments add column currency char(3) not null default 'EUR';
+-- note. expenses gets the column baked in from the start below.
 
 -- expenses: a bill one member fronted, split across participants via
--- expense_shares. Distinct from `payments`, which is a direct pairwise
--- settle-up ("I paid you back $20") with no splitting concept — that stays
--- exactly as it was above.
+-- expense_shares. is_settlement marks a settle-up ("I paid you back $20") —
+-- always exactly one share when true, no splitting concept — see the "Design
+-- note: settlements are expenses, not a separate table" header comment.
 create table public.expenses (
   id uuid primary key default gen_random_uuid(),
   group_id uuid references public.groups(id) on delete set null,
@@ -289,7 +254,8 @@ create table public.expenses (
   occurred_at timestamptz not null default now(),
   receipt_path text,
   created_by uuid not null references auth.users(id),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  is_settlement boolean not null default false
 );
 
 create table public.expense_shares (
@@ -306,7 +272,7 @@ create index on public.expense_shares (member_id);
 alter table public.expenses enable row level security;
 alter table public.expense_shares enable row level security;
 
--- expenses: same visibility/mutation shape as payments
+-- expenses: visible/writable by any current group member
 create policy "select expenses in your groups" on public.expenses
   for select using (
     (group_id is null and created_by = auth.uid())
@@ -495,29 +461,24 @@ create policy "update shares of your recurring expenses" on public.recurring_exp
     )
   );
 
--- group_balances: net balance per member per group, combining direct
--- payments and N-way expense shares, so the client queries one view instead
--- of aggregating both tables itself. security_invoker so it enforces RLS as
--- the querying user, not the view owner (Postgres 15+, which Supabase runs).
+-- group_balances: net balance per member per group. A settlement is just an
+-- expense with is_settlement true and one share, so expense_payer_net +
+-- expense_share_net alone cover it — no separate payment_net CTE needed
+-- (there used to be one; see the "Design note: settlements are expenses"
+-- header comment for why it was retired 2026-09-04). security_invoker so
+-- this enforces RLS as the querying user, not the view owner (Postgres 15+,
+-- which Supabase runs).
+--
+-- Sign convention, still worth stating explicitly since it bit this exact
+-- view once already (found inverted 2026-08-25, which would have doubled
+-- every debt instead of clearing it the first time a settle-up ran): the
+-- fronting party (paid_by_member_id) moves toward being owed (balance up),
+-- every share-holder moves toward owing (balance down) — a settlement's
+-- paid_by is the discharging party and its one share-holder is who was
+-- owed, so this same rule correctly nets a settlement toward zero too.
 create view public.group_balances
 with (security_invoker = true) as
--- payment_net: a Payment is a settle-up ("I paid you back $20" — see SCOPE.md), so
--- payer_member_id is the one discharging a debt (their balance should move toward zero,
--- i.e. increase) and payee_member_id is the one being paid back (their balance should also
--- move toward zero, i.e. decrease). Found inverted 2026-08-25 during design discussion for
--- the not-yet-built "Settle up" feature — no create-payment UI existed yet to have caught it
--- by testing, so it went live with payer/payee's deltas backwards, which would have doubled
--- every debt instead of clearing it the first time anyone used it.
-with payment_net as (
-  select group_id, payer_member_id as member_id, amount as delta
-  from payments
-  where group_id is not null
-  union all
-  select group_id, payee_member_id as member_id, -amount as delta
-  from payments
-  where group_id is not null
-),
-expense_payer_net as (
+with expense_payer_net as (
   select group_id, paid_by_member_id as member_id, amount as delta
   from expenses
   where group_id is not null
@@ -530,8 +491,6 @@ expense_share_net as (
 )
 select group_id, member_id, sum(delta) as balance
 from (
-  select * from payment_net
-  union all
   select * from expense_payer_net
   union all
   select * from expense_share_net
@@ -568,29 +527,26 @@ join members m on m.id = gb.member_id
 where m.account_id = auth.uid();
 
 -- ============================================================
--- Pairwise balances — added 2026-08-25 alongside the group_balances/payment_net
--- fix above. group_balances collapses each member down to one net number
+-- Pairwise balances — added 2026-08-25 alongside the group_balances sign fix
+-- above. group_balances collapses each member down to one net number
 -- against the group's shared pot, which the app was (wrongly) displaying as
 -- if it were a personal debt to whoever was looking at the screen — showing a
 -- third member's uninvolved balance as "owes you" to someone who wasn't even
 -- part of that expense. These views instead track genuine two-party debts,
--- derived from the same expense_shares/expenses/payments rows group_balances
--- already reads, just aggregated per counterparty instead of collapsed to one
--- total. See the app-side design discussion the same day for the "simplified
--- vs pairwise" balance display split this feeds.
+-- derived from the same expense_shares/expenses rows group_balances already
+-- reads, just aggregated per counterparty instead of collapsed to one total.
+-- See the app-side design discussion the same day for the "simplified vs
+-- pairwise" balance display split this feeds.
 -- ============================================================
 
 -- pairwise_balances: net balance between every two members who've actually
 -- shared money in a group, one row per unordered pair. Convention: balance is
 -- how much member_b (the row's higher member id) owes member_a (the lower
 -- id) — negative means member_a owes member_b instead. Every expense
--- contributes one edge per non-payer share-holder (they owe the payer their
--- share — the same "payer is owed, share-holders owe" convention as
--- expense_payer_net/expense_share_net above); every payment contributes the
--- reverse edge (payee "owes" payer in this bookkeeping sense, since a
--- payment is the payer discharging a debt to the payee — same
--- direction fix as payment_net above, just kept as a directed edge instead
--- of being netted into a single member's total immediately).
+-- (settlement or real split — see group_balances' remarks) contributes one
+-- edge per non-payer share-holder: they owe the payer their share, same
+-- "payer is owed, share-holders owe" convention as expense_payer_net/
+-- expense_share_net above.
 create view public.pairwise_balances
 with (security_invoker = true) as
 with edges as (
@@ -598,10 +554,6 @@ with edges as (
   from expense_shares es
   join expenses e on e.id = es.expense_id
   where e.group_id is not null and es.member_id <> e.paid_by_member_id
-  union all
-  select p.group_id, p.payee_member_id as debtor_id, p.payer_member_id as creditor_id, p.amount
-  from payments p
-  where p.group_id is not null
 )
 select
   group_id,
@@ -714,14 +666,14 @@ $$;
 -- command are OR'd together in Postgres, so this doesn't touch or replace
 -- the existing one).
 --
--- Separately: payments/expenses/recurring_expenses already go to
--- `group_id is null` (not deleted) when their group is dissolved, by design
--- (ON DELETE SET NULL on group_id) — the ledger survives. But their SELECT
--- policies only granted the `group_id is null` branch to `created_by`,
--- meaning once a group dissolves, only whoever *recorded* each transaction
--- keeps access to it — the actual payer/payee/expense-share participants
--- (who may not be the same account) permanently lose visibility into their
--- own financial history. New additive SELECT policies below extend that
+-- Separately: expenses/recurring_expenses already go to `group_id is null`
+-- (not deleted) when their group is dissolved, by design (ON DELETE SET
+-- NULL on group_id) — the ledger survives. But their SELECT policies only
+-- granted the `group_id is null` branch to `created_by`, meaning once a
+-- group dissolves, only whoever *recorded* each transaction keeps access to
+-- it — the actual payer/share-holder participants (who may not be the same
+-- account) permanently lose visibility into their own financial history.
+-- New additive SELECT policies below extend that
 -- branch to any account that's an actual party to the row, not just its
 -- recorder. Unscoped rows stay update/delete-restricted to created_by only
 -- (unchanged) — deliberately read-only for everyone else once unscoped, so
@@ -755,17 +707,6 @@ $$;
 -- group_members: let a member remove their own row (leaving a group).
 create policy "members can remove themselves" on public.group_members
   for delete using (is_own_member_row(member_id));
-
--- payments: unscoped rows are also visible to the actual payer/payee.
-create policy "select unscoped payments you're a party to" on public.payments
-  for select using (
-    group_id is null
-    and exists (
-      select 1 from members m
-      where m.id in (payer_member_id, payee_member_id)
-        and m.account_id = auth.uid()
-    )
-  );
 
 -- is_unscoped_expense_party: whether the current account is the payer or a
 -- share-holder on a specific unscoped (dissolved-group) expense. Has to be
@@ -893,9 +834,9 @@ $$;
 -- Dissolve itself needs no new function: `groups`' existing "delete own
 -- groups" policy (created_by = auth.uid()) already permits it, and the FK
 -- cascade shape already does the right thing — group_members/invites are
--- ON DELETE CASCADE (membership and pending invites vanish), payments/
--- expenses/recurring_expenses are ON DELETE SET NULL (history survives,
--- newly readable by the visibility-widening policies above). A plain
+-- ON DELETE CASCADE (membership and pending invites vanish), expenses/
+-- recurring_expenses are ON DELETE SET NULL (history survives, newly
+-- readable by the visibility-widening policies above). A plain
 -- `delete from groups where id = ...` is the whole operation; any
 -- outstanding-balance warning before calling it is a client-side confirm,
 -- not a DB guard, since forcing an entire group to fully settle before its
@@ -1265,23 +1206,23 @@ alter table public.members add column birth_date date;
 -- Push notifications — server-side trigger (2026-09-03), the follow-up to
 -- the client-side registration work (device_tokens + IPushRegistrationService,
 -- see CLAUDE.md). Scoped to the actual parties to each transaction, not the
--- whole group: for an expense, that's paid_by_member_id plus every
--- expense_shares row on it; for a payment, the two members on it. A
--- "balance <> 0" check would have been wrong here — that's the group's
--- overall net position, unrelated to who's actually in *this* expense.
--- Excludes whoever recorded the row (created_by) — no one needs to be
--- notified about their own action — and naturally excludes phantom members,
--- since they have no account_id to match a device_tokens row against.
+-- whole group: paid_by_member_id plus every expense_shares row on it — for a
+-- settlement (is_settlement true) that's just the two parties, since it's
+-- always exactly one share. A "balance <> 0" check would have been wrong
+-- here — that's the group's overall net position, unrelated to who's
+-- actually in *this* expense. Excludes whoever recorded the row
+-- (created_by) — no one needs to be notified about their own action — and
+-- naturally excludes phantom members, since they have no account_id to
+-- match a device_tokens row against.
 --
--- Both recipient functions are plain SQL (not security definer — see
--- materialize_recurring_expenses' remarks on why: called only by the
--- send-push Edge Function using the service-role key, which already
--- bypasses RLS, so there's no permission gap to bridge, only the usual
--- revoke-from-anon/authenticated so they're never reachable via PostgREST's
--- /rpc/ by an ordinary user). Test each directly in the SQL editor with a
--- real expense/payment id before trusting the trigger to have wired them up
--- correctly, same as materialize_recurring_expenses/find_expired_receipts
--- were before their own cron jobs went live.
+-- Plain SQL (not security definer — see materialize_recurring_expenses'
+-- remarks on why: called only by the send-push Edge Function using the
+-- service-role key, which already bypasses RLS, so there's no permission
+-- gap to bridge, only the usual revoke-from-anon/authenticated so it's
+-- never reachable via PostgREST's /rpc/ by an ordinary user). Test directly
+-- in the SQL editor with a real expense id before trusting the trigger to
+-- have wired it up correctly, same as materialize_recurring_expenses/
+-- find_expired_receipts were before their own cron jobs went live.
 -- ============================================================
 
 create or replace function public.expense_notification_recipients(p_expense_id uuid)
@@ -1310,36 +1251,11 @@ $$;
 
 revoke execute on function public.expense_notification_recipients(uuid) from public, anon, authenticated;
 
-create or replace function public.payment_notification_recipients(p_payment_id uuid)
-returns table (account_id uuid, push_token text, platform text)
-language sql
-stable
-set search_path = public
-as $$
-  with involved as (
-    select p.payer_member_id as member_id, p.created_by
-    from payments p
-    where p.id = p_payment_id
-    union
-    select p.payee_member_id, p.created_by
-    from payments p
-    where p.id = p_payment_id
-  )
-  select distinct dt.account_id, dt.push_token, dt.platform
-  from involved i
-  join members m on m.id = i.member_id
-  join device_tokens dt on dt.account_id = m.account_id
-  where m.account_id is not null
-    and m.account_id <> i.created_by;
-$$;
-
-revoke execute on function public.payment_notification_recipients(uuid) from public, anon, authenticated;
-
--- AFTER INSERT triggers, firing the send-push Edge Function via pg_net —
--- same net.http_post + Vault service_role_key pattern the cleanup-receipts
--- cron job already uses, just fired by a row event instead of a schedule.
+-- AFTER INSERT trigger, firing the send-push Edge Function via pg_net — same
+-- net.http_post + Vault service_role_key pattern the cleanup-receipts cron
+-- job already uses, just fired by a row event instead of a schedule.
 -- pg_net queues the HTTP call asynchronously and returns immediately, so
--- this never blocks or slows down the actual expense/payment insert, and a
+-- this never blocks or slows down the actual expense insert, and a
 -- send-push failure can never roll back or fail the transaction that
 -- triggered it. materialize_recurring_expenses inserting into expenses
 -- server-side means a materialized recurring expense fires this too, same
@@ -1380,29 +1296,6 @@ create trigger expenses_notify_after_insert
   after insert on public.expenses
   for each row execute function public.notify_new_expense();
 
-create or replace function public.notify_new_payment()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  perform net.http_post(
-    url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/send-push',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
-    ),
-    body := jsonb_build_object('payment_id', new.id)
-  );
-  return new;
-end;
-$$;
-
-create trigger payments_notify_after_insert
-  after insert on public.payments
-  for each row execute function public.notify_new_payment();
-
 -- ============================================================
 -- Account deletion (2026-09-04)
 -- ============================================================
@@ -1410,7 +1303,7 @@ create trigger payments_notify_after_insert
 -- every `created_by` column below, so deleting an auth user would fail with a
 -- foreign-key violation the moment they'd ever created anything. Relaxed to
 -- ON DELETE SET NULL — same "row survives, its reference nulls out" treatment
--- already used for payments/expenses/recurring_expenses.group_id when a group
+-- already used for expenses/recurring_expenses.group_id when a group
 -- dissolves. groups.created_by deliberately keeps its original RESTRICT
 -- behavior — delete_account() below explicitly deletes every group the
 -- account still owns before the account row itself goes, so no groups row
@@ -1418,11 +1311,6 @@ create trigger payments_notify_after_insert
 alter table public.members alter column created_by drop not null;
 alter table public.members drop constraint members_created_by_fkey;
 alter table public.members add constraint members_created_by_fkey
-  foreign key (created_by) references auth.users(id) on delete set null;
-
-alter table public.payments alter column created_by drop not null;
-alter table public.payments drop constraint payments_created_by_fkey;
-alter table public.payments add constraint payments_created_by_fkey
   foreign key (created_by) references auth.users(id) on delete set null;
 
 alter table public.invites alter column created_by drop not null;

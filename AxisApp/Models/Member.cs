@@ -23,7 +23,7 @@ public class Member : BaseModel
     public string DisplayName { get; set; } = "";
 
     [Column("created_by")]
-    public Guid CreatedBy { get; set; }
+    public Guid? CreatedBy { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }

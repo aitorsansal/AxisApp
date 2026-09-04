@@ -98,10 +98,11 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 
     private Guid groupId;
     private Guid? editingExpenseId;
-    private Guid editingCreatedBy;
+    private Guid? editingCreatedBy;
     private DateTime editingCreatedAt;
+    private bool editingIsSettlement;
     private Guid? editingRecurringExpenseId;
-    private Guid editingRecurringCreatedBy;
+    private Guid? editingRecurringCreatedBy;
     private DateTime editingRecurringCreatedAt;
     private DateTime? editingLastProcessedDate;
     private bool editingRecurringIsActive = true;
@@ -124,6 +125,13 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private bool isEditMode;
     [ObservableProperty] private string pageTitle = LocalizationResourceManager.Instance["AddExpense_Title"];
+
+    /// <summary>Set once, from the loaded Expense, when editing a settle-up — never toggled by the
+    /// user (there's no path to convert a settlement into a regular expense or vice versa, same
+    /// "fixed at creation" treatment CanToggleRecurring already gives Recurring vs. one-off).
+    /// Category and receipt don't apply to a settlement, so ShowMoneyExtras hides both.</summary>
+    [ObservableProperty] private bool isSettlement;
+    [ObservableProperty] private bool showMoneyExtras = true;
     [ObservableProperty] private string? receiptPath;
     [ObservableProperty] private string? receiptPreviewUrl;
     [ObservableProperty] private bool isReceiptBusy;
@@ -189,6 +197,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             : forExpenseId is not null ? "AddExpense_EditTitle"
             : startAsRecurring ? "AddExpense_RecurringTitle"
             : "AddExpense_Title"];
+        IsSettlement = false;
 
         IsBusy = true;
         try
@@ -274,6 +283,10 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         IsManualSplit = true;
         editingCreatedBy = expense.CreatedBy;
         editingCreatedAt = expense.CreatedAt;
+        editingIsSettlement = expense.IsSettlement;
+        IsSettlement = expense.IsSettlement;
+        if (expense.IsSettlement)
+            PageTitle = LocalizationResourceManager.Instance["AddExpense_EditSettlementTitle"];
 
         redistributing = true;
         try
@@ -393,6 +406,9 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         StartDateDisplay = value.Date == DateTime.Today
             ? LocalizationResourceManager.Instance["Common_Today"]
             : value.ToString("MMM d, yyyy");
+
+    partial void OnIsRecurringModeChanged(bool value) => ShowMoneyExtras = !value && !IsSettlement;
+    partial void OnIsSettlementChanged(bool value) => ShowMoneyExtras = !IsRecurringMode && !value;
 
     /// <summary>Only meaningful in pure-add mode — see CanToggleRecurring. Editing an existing
     /// one-off Expense or an existing RecurringExpense template can't convert one into the other
@@ -568,6 +584,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                     expense.Id = id;
                     expense.CreatedBy = editingCreatedBy;
                     expense.CreatedAt = editingCreatedAt;
+                    expense.IsSettlement = editingIsSettlement;
                     await expensesRepository.UpdateAsync(expense, shares);
                 }
                 else

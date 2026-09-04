@@ -47,7 +47,7 @@ public class RecurringExpense : BaseModel
     public bool IsActive { get; set; } = true;
 
     [Column("created_by")]
-    public Guid CreatedBy { get; set; }
+    public Guid? CreatedBy { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }

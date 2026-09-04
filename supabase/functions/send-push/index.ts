@@ -1,16 +1,19 @@
-// send-push — fires on a new expense or payment (see schema.sql's notify_new_expense/
-// notify_new_payment triggers, called via pg_net the same way cleanup-receipts' cron job is).
+// send-push — fires on a new expense (see schema.sql's notify_new_expense trigger, called via
+// pg_net the same way cleanup-receipts' cron job is). A settlement is just an expense with
+// is_settlement = true (Payment/notify_new_payment/payment_notification_recipients were retired
+// 2026-09-04 — see CLAUDE.md's "Merge payments into expenses" remarks), so there's only ever one
+// branch here now.
 // Deployed via the Supabase dashboard's browser editor, not the CLI — this file is the
 // version-controlled source of truth; keep it in sync if the deployed function is ever edited
 // directly in the dashboard.
 //
-// Recipient scoping happens in Postgres (expense_notification_recipients/
-// payment_notification_recipients in schema.sql), not here — this function only turns that list
-// into real FCM sends. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically into
-// every Edge Function's environment; FIREBASE_SERVICE_ACCOUNT_KEY is NOT — it must be set by hand
-// under this function's own Secrets (the whole service-account JSON, as one string), separate from
-// the database Vault (Vault secrets are for SQL-side callers like the trigger's own Authorization
-// header; this one is only ever read here, in the function's own runtime).
+// Recipient scoping happens in Postgres (expense_notification_recipients in schema.sql), not
+// here — this function only turns that list into real FCM sends. SUPABASE_URL and
+// SUPABASE_SERVICE_ROLE_KEY are injected automatically into every Edge Function's environment;
+// FIREBASE_SERVICE_ACCOUNT_KEY is NOT — it must be set by hand under this function's own Secrets
+// (the whole service-account JSON, as one string), separate from the database Vault (Vault
+// secrets are for SQL-side callers like the trigger's own Authorization header; this one is only
+// ever read here, in the function's own runtime).
 //
 // Android-only, per CLAUDE.md's push-notifications remarks — a recipient row with
 // platform = 'windows' is silently skipped (IPushRegistrationService's Windows implementation is a
@@ -98,9 +101,9 @@ Deno.serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const { expense_id, payment_id } = await req.json();
-  if (!expense_id && !payment_id) {
-    return new Response(JSON.stringify({ error: "expense_id or payment_id required" }), {
+  const { expense_id } = await req.json();
+  if (!expense_id) {
+    return new Response(JSON.stringify({ error: "expense_id required" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
@@ -111,57 +114,36 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  let recipients: Recipient[] = [];
+  const { data: recipientRows, error: recError } = await supabase
+    .rpc("expense_notification_recipients", { p_expense_id: expense_id })
+    .returns<Recipient[]>();
+  if (recError) {
+    return new Response(JSON.stringify({ error: recError.message }), { status: 500 });
+  }
+  const recipients: Recipient[] = recipientRows ?? [];
+
   let title = "Axis";
   let body = "";
   let groupId = "";
+  let isSettlement = false;
 
-  if (expense_id) {
-    const { data: recipientRows, error: recError } = await supabase
-      .rpc("expense_notification_recipients", { p_expense_id: expense_id })
-      .returns<Recipient[]>();
-    if (recError) {
-      return new Response(JSON.stringify({ error: recError.message }), { status: 500 });
-    }
-    recipients = recipientRows ?? [];
+  const { data: expense } = await supabase
+    .from("expenses")
+    .select("group_id, description, amount, currency, is_settlement, groups(name), members!expenses_paid_by_member_id_fkey(display_name)")
+    .eq("id", expense_id)
+    .single();
 
-    const { data: expense } = await supabase
-      .from("expenses")
-      .select("group_id, description, amount, currency, groups(name), members!expenses_paid_by_member_id_fkey(display_name)")
-      .eq("id", expense_id)
-      .single();
-
-    if (expense) {
-      // deno-lint-ignore no-explicit-any
-      const e = expense as any;
-      const groupName = e.groups?.name ?? "your group";
-      const payerName = e.members?.display_name ?? "Someone";
-      title = groupName;
-      body = `${payerName} added ${e.description || "an expense"} — ${e.amount} ${e.currency}`;
-      groupId = e.group_id ?? "";
-    }
-  } else {
-    const { data: recipientRows, error: recError } = await supabase
-      .rpc("payment_notification_recipients", { p_payment_id: payment_id })
-      .returns<Recipient[]>();
-    if (recError) {
-      return new Response(JSON.stringify({ error: recError.message }), { status: 500 });
-    }
-    recipients = recipientRows ?? [];
-
-    const { data: payment } = await supabase
-      .from("payments")
-      .select("group_id, amount, currency, groups(name)")
-      .eq("id", payment_id)
-      .single();
-
-    if (payment) {
-      // deno-lint-ignore no-explicit-any
-      const p = payment as any;
-      title = p.groups?.name ?? "Axis";
-      body = `A payment of ${p.amount} ${p.currency} was recorded`;
-      groupId = p.group_id ?? "";
-    }
+  if (expense) {
+    // deno-lint-ignore no-explicit-any
+    const e = expense as any;
+    const groupName = e.groups?.name ?? "your group";
+    const payerName = e.members?.display_name ?? "Someone";
+    isSettlement = e.is_settlement === true;
+    title = groupName;
+    body = isSettlement
+      ? `${payerName} paid you back — ${e.amount} ${e.currency}`
+      : `${payerName} added ${e.description || "an expense"} — ${e.amount} ${e.currency}`;
+    groupId = e.group_id ?? "";
   }
 
   const androidRecipients = recipients.filter((r) => r.platform === "android");
@@ -207,9 +189,8 @@ Deno.serve(async (req) => {
           // push-notifications remarks. All values must be strings; FCM data payloads don't
           // support other JSON types.
           data: {
-            type: expense_id ? "expense" : "payment",
+            type: isSettlement ? "settlement" : "expense",
             expense_id: expense_id ?? "",
-            payment_id: payment_id ?? "",
             group_id: groupId,
             group_name: title,
             title,

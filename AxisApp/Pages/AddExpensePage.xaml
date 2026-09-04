@@ -54,7 +54,7 @@
                 <VerticalStackLayout Spacing="{StaticResource SpacingXS}" HorizontalOptions="Center">
                     <HorizontalStackLayout HorizontalOptions="Center" Spacing="{StaticResource SpacingXS}">
                         <Label
-                            Text="$"
+                            Text="€"
                             FontSize="{StaticResource TypeAmountPrefix}"
                             FontAttributes="Bold"
                             TextColor="{DynamicResource TextTertiary}"
@@ -206,8 +206,9 @@
                         IsVisible="{Binding IsManualSplit}" />
                 </VerticalStackLayout>
 
-                <!-- Category -->
-                <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                <!-- Category: doesn't apply to a settle-up, hidden alongside the receipt zone below
+                     via ShowMoneyExtras (also false in recurring mode). -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding ShowMoneyExtras}">
                     <Label Text="{loc:Translate AddExpense_Category}" Style="{StaticResource SectionHeaderTertiary}" />
                     <CollectionView ItemsSource="{Binding CategoryChips}" HeightRequest="40">
                         <CollectionView.ItemsLayout>
@@ -298,9 +299,10 @@
                 <!-- Receipt photo: tapping opens Take photo / Choose from gallery / Remove photo.
                      Grows taller once a photo is attached — a receipt is a tall document shot, and
                      the empty-state's compact 88px strip would otherwise crop it down to a sliver.
-                     Hidden entirely in recurring mode — a receipt belongs to one materialized
-                     instance, not an indefinitely-repeating template. -->
-                <Border Style="{StaticResource ReceiptDropZone}" IsVisible="{Binding IsRecurringMode, Converter={StaticResource InverseBoolConverter}}">
+                     Hidden in recurring mode (a receipt belongs to one materialized instance, not
+                     an indefinitely-repeating template) and in settlement mode (a settle-up has no
+                     receipt concept) — both folded into ShowMoneyExtras. -->
+                <Border Style="{StaticResource ReceiptDropZone}" IsVisible="{Binding ShowMoneyExtras}">
                     <Border.Triggers>
                         <DataTrigger TargetType="Border" Binding="{Binding ReceiptPreviewUrl, Converter={StaticResource StringNotEmptyConverter}}" Value="True">
                             <Setter Property="HeightRequest" Value="220" />
