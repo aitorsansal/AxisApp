@@ -33,9 +33,13 @@ public class SupabaseGroupsRepository : IGroupsRepository
     /// the one Rpc response shape already confirmed against a real build in this codebase),
     /// followed by a normal typed fetch through the already-proven .Filter(...).Single() path
     /// every other repository uses.</summary>
-    public async Task<Group> CreateAsync(string name)
+    public async Task<Group> CreateAsync(string name, string currency)
     {
-        var response = await client.Rpc("create_group", new Dictionary<string, object> { { "p_name", name } });
+        var response = await client.Rpc("create_group", new Dictionary<string, object>
+        {
+            { "p_name", name },
+            { "p_currency", currency },
+        });
         var raw = response.Content?.Trim('"')
             ?? throw new InvalidOperationException("create_group returned no group id.");
         var groupId = Guid.Parse(raw);

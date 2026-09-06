@@ -89,7 +89,7 @@ public partial class GroupsViewModel : BaseViewModel
                     MemberSummary = loc.Format(
                         members.Count == 1 ? "Groups_MemberSingular" : "Groups_MemberPlural", members.Count)
                 };
-                ApplyBalance(item, balance);
+                ApplyBalance(item, balance, AppConstants.Currencies.SymbolFor(group.Currency));
                 items.Add(item);
             }
 
@@ -110,20 +110,20 @@ public partial class GroupsViewModel : BaseViewModel
         }
     });
 
-    private static void ApplyBalance(GroupListItem item, decimal balance)
+    private static void ApplyBalance(GroupListItem item, decimal balance, string groupSymbol)
     {
         if (balance > 0)
         {
             item.IsOwed = true;
             item.IsSettled = false;
-            item.BalanceAmountText = $"+€{balance:0.00}";
+            item.BalanceAmountText = $"+{groupSymbol}{balance:0.00}";
             item.BalanceCaptionText = LocalizationResourceManager.Instance["Groups_YoureOwed"];
         }
         else if (balance < 0)
         {
             item.IsOwing = true;
             item.IsSettled = false;
-            item.BalanceAmountText = $"-€{Math.Abs(balance):0.00}";
+            item.BalanceAmountText = $"-{groupSymbol}{Math.Abs(balance):0.00}";
             item.BalanceCaptionText = LocalizationResourceManager.Instance["Groups_YouOwe"];
         }
     }

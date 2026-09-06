@@ -169,6 +169,23 @@
 
                     <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
 
+                    <!-- Amount display: per-device, not per-group — see
+                         AppConstants.Preferences.AmountDisplayConverted. Only affects individual
+                         expense line items (Group Detail's Recent Activity); balance/Settle totals
+                         are always shown in the group's currency regardless. -->
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <Label Text="{loc:Translate Profile_AmountDisplay}" Style="{StaticResource SectionHeaderTertiary}" />
+                        <Border Style="{StaticResource InputBorderStyle}">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Grid.Column="0" Text="{loc:Translate Profile_AmountDisplayConverted}" VerticalOptions="Center" />
+                                <Switch Grid.Column="1" IsToggled="{Binding AmountDisplayConverted}" VerticalOptions="Center" />
+                            </Grid>
+                        </Border>
+                        <Label Text="{loc:Translate Profile_AmountDisplayHint}" Style="{StaticResource LabelTertiary}" />
+                    </VerticalStackLayout>
+
+                    <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
+
                     <!-- Account: email + password -->
                     <VerticalStackLayout Spacing="{StaticResource SpacingS}">
                         <Label Text="{loc:Translate Profile_Email}" Style="{StaticResource SectionHeaderTertiary}" />

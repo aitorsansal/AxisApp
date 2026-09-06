@@ -65,6 +65,10 @@ public static class AppStrings
         ["NewGroup_GroupName"] = "Group name",
         ["NewGroup_NamePlaceholder"] = "e.g. Roommates",
         ["NewGroup_EnterName"] = "Enter a group name.",
+        ["NewGroup_Currency"] = "Currency",
+        ["NewGroup_CurrencyPlaceholder"] = "Select a currency",
+        ["NewGroup_CurrencyHint"] = "This can't be changed later.",
+        ["NewGroup_SelectCurrency"] = "Select a currency.",
 
         // Group detail
         ["GroupDetail_InvitePeople"] = "+ Invite people",
@@ -185,6 +189,9 @@ public static class AppStrings
         ["Profile_LanguageEnglish"] = "English",
         ["Profile_LanguageSpanish"] = "Español",
         ["Profile_AccentColor"] = "Accent color",
+        ["Profile_AmountDisplay"] = "Amount display",
+        ["Profile_AmountDisplayConverted"] = "Show converted to group currency",
+        ["Profile_AmountDisplayHint"] = "Applies to individual expenses only — balances and Settle amounts always show in the group's currency.",
         ["Profile_Email"] = "Email",
         ["Profile_NewEmailPlaceholder"] = "New email",
         ["Profile_ChangeEmail"] = "Change email",
@@ -249,6 +256,10 @@ public static class AppStrings
         ["NewGroup_GroupName"] = "Nombre del grupo",
         ["NewGroup_NamePlaceholder"] = "p. ej. Compañeros de piso",
         ["NewGroup_EnterName"] = "Introduce un nombre de grupo.",
+        ["NewGroup_Currency"] = "Moneda",
+        ["NewGroup_CurrencyPlaceholder"] = "Selecciona una moneda",
+        ["NewGroup_CurrencyHint"] = "No se puede cambiar más adelante.",
+        ["NewGroup_SelectCurrency"] = "Selecciona una moneda.",
 
         // Group detail
         ["GroupDetail_InvitePeople"] = "+ Invitar personas",
@@ -369,6 +380,9 @@ public static class AppStrings
         ["Profile_LanguageEnglish"] = "English",
         ["Profile_LanguageSpanish"] = "Español",
         ["Profile_AccentColor"] = "Color de acento",
+        ["Profile_AmountDisplay"] = "Visualización de importes",
+        ["Profile_AmountDisplayConverted"] = "Mostrar convertido a la moneda del grupo",
+        ["Profile_AmountDisplayHint"] = "Solo afecta a los gastos individuales — los saldos y los importes de Liquidar siempre se muestran en la moneda del grupo.",
         ["Profile_Email"] = "Correo electrónico",
         ["Profile_NewEmailPlaceholder"] = "Nuevo correo electrónico",
         ["Profile_ChangeEmail"] = "Cambiar correo",

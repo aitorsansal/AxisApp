@@ -27,6 +27,17 @@
                 </Border>
             </VerticalStackLayout>
 
+            <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                <Label Text="{loc:Translate NewGroup_Currency}" Style="{StaticResource SectionHeaderTertiary}" />
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Picker
+                        ItemsSource="{Binding CurrencyOptions}"
+                        SelectedIndex="{Binding SelectedCurrencyIndex}"
+                        Title="{loc:Translate NewGroup_CurrencyPlaceholder}" />
+                </Border>
+                <Label Text="{loc:Translate NewGroup_CurrencyHint}" Style="{StaticResource LabelTertiary}" />
+            </VerticalStackLayout>
+
             <Button
                 Text="{loc:Translate Common_Create}"
                 Command="{Binding CreateCommand}"

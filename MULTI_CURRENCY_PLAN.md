@@ -13,11 +13,11 @@ one not marked done.
 | # | Milestone | Status |
 |---|---|---|
 | 1 | Schema — currency columns, triggers, balance views | **done & verified 2026-09-04** — live migration + smoke test, all 5 checks passed |
-| 2 | Edge Function — daily rate refresh (pg_cron + Frankfurter) | not started |
-| 3 | App — group currency (`NewGroupPage`, `Group`/`IGroupsRepository`) | not started |
-| 4 | App — per-expense currency (`AddExpensePage`, `Expense`/`RecurringExpense` models) | not started |
-| 5 | App — display preference (`ProfilePage` toggle + render logic) | not started |
-| 6 | `send-push` copy decision (optional, low priority) | not started |
+| 2 | Edge Function — daily rate refresh (pg_cron + Frankfurter) | **done & verified 2026-09-05** — deployed, cron job live, manual invoke confirmed a real row |
+| 3 | App — group currency (`NewGroupPage`, `Group`/`IGroupsRepository`) | code done & DB migration verified 2026-09-05, **not yet manually tested end to end in the running app** |
+| 4 | App — per-expense currency (`AddExpensePage`, `Expense`/`RecurringExpense` models) | **done 2026-09-06** — manually verified, plus a UI feedback pass (inline currency picker, correct symbols) |
+| 5 | App — display preference (`ProfilePage` toggle + render logic) | **done & verified 2026-09-06** |
+| 6 | `send-push` copy decision (optional, low priority) | **done 2026-09-06** — decided: leave as-is |
 
 **When you finish a milestone, update its Status cell in the table above** (e.g.
 `done 2026-09-06`, or `done — see commit abc123`) before ending the session, so
@@ -208,92 +208,211 @@ What's actually in it:
 
 ## Milestone 2 — Daily rate refresh
 
-**Status: not started.** Depends on Milestone 1's `exchange_rates` table existing.
-Functionally non-blocking for Milestones 3/4 to be *coded* (the trigger's
-stale-rate fallback means the app doesn't hard-depend on this running yet), but
-needed before real conversion testing has any rates to work with.
+**Status: done and verified, 2026-09-05.** Deployed via the dashboard's "Via
+Editor" flow (driven through the Claude in Chrome browser extension —
+navigated to the Edge Functions page, set the Monaco editor's contents
+directly via a `window.monaco` JS call rather than typing, since typing raw
+code with braces/quotes into Monaco risks autoclose-bracket corruption; same
+approach used for the SQL editor). `multi_currency_milestone2.sql` was then
+run against the live project (`cron.schedule` returned job id 4), and a
+manual invoke of the deployed function (the exact `net.http_post` call from
+that file's trailing comment) returned `200` with
+`{"as_of":"2026-09-04","currencies_cached":29}` — confirmed a real row landed
+in `exchange_rates` (`id=true`, `as_of=2026-09-04`, real currency keys like
+AUD/BRL/CAD/CHF/CNY). 29 cached currencies (not 30) is correct — the fixed
+list includes EUR, which Frankfurter's own response never returns a key for
+(see "Decisions locked" above).
 
-- [ ] New `supabase/functions/fetch-exchange-rates/index.ts` — calls Frankfurter's
-      latest-rates endpoint (base EUR, all symbols), writes the singleton
-      `exchange_rates` row via delete-then-insert (not upsert — matches
+- [x] `supabase/functions/fetch-exchange-rates/index.ts` — calls Frankfurter's
+      `/v1/latest?base=EUR` endpoint (all symbols, no API key needed), writes the
+      singleton `exchange_rates` row via delete-then-insert (not upsert — matches
       `SupabaseDeviceTokensRepository.RegisterAsync`'s existing idiom for
-      enforcing uniqueness without trusting an `ON CONFLICT` target). No API key
-      needed.
-- [ ] `pg_cron` job, similar shape to `materialize-recurring-expenses`'s daily
-      8am UTC job — pick a time (doesn't need to be early; nothing in the app
-      blocks on today's rate being ready the instant the day starts, thanks to the
-      stale-rate fallback in the trigger).
-- [ ] Deploy via the dashboard's "Via Editor" flow, same as every other Edge
-      Function in this project (`send-push`, `cleanup-receipts`,
-      `delete-account`) — no Supabase CLI project link exists in this repo.
-- [ ] Manually invoke once after creating the cron job (same verification style
-      `materialize_recurring_expenses`/`cleanup-receipts` got) to confirm a real
-      row lands in `exchange_rates` before relying on it.
+      enforcing uniqueness without trusting an `ON CONFLICT` target). Same
+      response shape assumed by `snapshot_expense_currency_conversion()`: EUR-
+      pivoted, no `"EUR"` key in `rates`.
+- [x] `pg_cron` job (`fetch-exchange-rates`, `schema.sql`) — daily **6am UTC**,
+      deliberately before `materialize-recurring-expenses`'s 8am run so a
+      same-morning recurring materialization in a foreign currency has a
+      same-day rate rather than falling back to yesterday's cache. Same
+      `net.http_post` + Vault `service_role_key` pattern `cleanup-receipts`
+      already uses — added directly into `schema.sql` (fresh-install source of
+      truth) plus a standalone one-off `supabase/multi_currency_milestone2.sql`
+      to run against the already-live project (mirrors
+      `multi_currency_milestone1.sql`'s "one-off script + schema.sql both
+      updated" shape).
+- [x] Deployed `fetch-exchange-rates` via the dashboard's "Via Editor" flow
+      (same as `send-push`/`cleanup-receipts`/`delete-account`).
+- [x] Ran `multi_currency_milestone2.sql` against the live project — cron job
+      `fetch-exchange-rates` created (job id 4, `0 6 * * *`).
+- [x] Manually invoked once — `200`,
+      `{"as_of":"2026-09-04","currencies_cached":29}`, confirmed a real row in
+      `exchange_rates`.
 
 ## Milestone 3 — Group currency (app side)
 
-**Status: not started.** Depends on Milestone 1 (needs `groups.currency` to exist
-and the insert-time trigger to be in place before this is testable end to end).
+**Status: code done and DB migration verified live, 2026-09-05 — not yet
+manually tested end to end in the running app** (this project has no
+automated UI test suite; verification is always manual, see CLAUDE.md).
+Depends on Milestone 1 (needs `groups.currency` to exist and the insert-time
+trigger to be in place), which is already live.
 
-- [ ] `AppConstants.Currencies` — the fixed 30-entry list (from the verified
-      Frankfurter set, see "Decisions locked" above), each with a display
-      label/symbol, shared by this milestone and Milestone 4's per-expense
-      picker. Must match the DB check constraints exactly.
-- [ ] `Models/Group.cs` gains `Currency`.
-- [ ] `IGroupsRepository.CreateAsync` gains a currency parameter.
-- [ ] `NewGroupPage`/`NewGroupViewModel`: required currency selector, no default
-      pre-selection that could be mistaken for "just click through" — requiring a
-      deliberate pick reinforces the "explicit, not accidental" design goal from
-      the locked decisions above.
-- [ ] Confirm end to end: create a group with a non-EUR currency, confirm
-      `groups.currency` is set correctly and no UI path exists to change it after.
+- [x] `AppConstants.Currencies.All` — the fixed 30-entry `(Code, Symbol)`
+      list (from the verified Frankfurter set, see "Decisions locked" above),
+      shared by this milestone and Milestone 4's per-expense picker. Symbol
+      is a plain display convenience, deliberately not localized per-language
+      (a currency code is already an international standard).
+- [x] `Models/Group.cs` gains `Currency` (`[Column("currency")]`, default
+      `"EUR"` client-side only — the DB has no default once explicitly
+      required via `create_group`).
+- [x] `IGroupsRepository.CreateAsync(string name, string currency)` /
+      `SupabaseGroupsRepository` — passes `p_currency` to the `create_group`
+      RPC.
+- [x] **Schema addition beyond Milestone 1's original scope**: `create_group()`
+      only ever took `p_name` — needed a `p_currency char(3)` parameter added
+      (required, no default) to actually write a chosen currency atomically
+      with the group/member/group_members inserts. Since Postgres treats a
+      changed parameter list as a new overload rather than replacing the old
+      one, the old 1-arg `create_group(text)` had to be dropped explicitly —
+      done via `supabase/multi_currency_milestone3.sql`, run against the live
+      project and confirmed via `pg_get_function_arguments`: exactly one
+      `create_group` overload now exists, `(p_name text, p_currency
+      character)`. `schema.sql` updated in place to match.
+- [x] `NewGroupPage`/`NewGroupViewModel`: a `Picker` (not the chip-row pattern
+      `AddExpensePage` uses for category/frequency/payer — 30 items would be
+      unusable as horizontal chips) bound to `CurrencyOptions`
+      (`"USD ($)"`-style display strings) / `SelectedCurrencyIndex`, which
+      starts at `-1` (Picker's own default) so nothing is pre-selected —
+      `Create` blocks with `NewGroup_SelectCurrency` if no pick was made,
+      same shape as the existing empty-name guard. New loc keys
+      (`NewGroup_Currency`/`NewGroup_CurrencyPlaceholder`/
+      `NewGroup_CurrencyHint`/`NewGroup_SelectCurrency`, en/es).
+- [x] Build-verified clean on both `net10.0-windows10.0.19041.0` and
+      `net10.0-android` (0 errors, only pre-existing warnings).
+- [ ] **Not done yet**: manually create a group with a non-EUR currency in the
+      running app, confirm `groups.currency` lands correctly and no UI path
+      exists to change it after.
 
 ## Milestone 4 — Per-expense currency (app side)
 
-**Status: not started.** Depends on Milestone 1. Independent of Milestone 3 except
-for sharing `AppConstants.Currencies` — could be built in either order relative to
-Milestone 3, but Milestone 3 is listed first since a group needs a currency before
-a "does this expense's currency differ from the group's" picker means anything.
+**Status: code done 2026-09-06, builds clean on both `net10.0-windows10.0.19041.0`
+and `net10.0-android` (0 errors) — not yet manually tested end to end in the
+running app.** Depends on Milestone 1 (already live). Both `Expense`/
+`RecurringExpense.Currency` and `groups.currency` already existed before this
+milestone (Milestone 1/3), so this was purely app-side wiring, no new SQL.
 
-- [ ] `Models/Expense.cs` / `Models/RecurringExpense.cs`: add
-      `AmountInGroupCurrency`/`ExchangeRate` as read-only-from-the-app fields
-      (populated by the trigger, never sent on insert/update — same
-      `[JsonIgnore]`-on-computed-property treatment `Member.IsPhantom` already
-      needed, or simply omit them from the insert payload's column list the way
-      `CreatedBy`/`CreatedAt` already are for a fresh insert).
-- [ ] `AddExpensePage`/`AddExpenseViewModel`: per-expense currency picker,
-      defaulting to the group's currency, only meaningfully different when the
-      user actively changes it.
-- [ ] Confirm end to end: add an expense in a currency different from its group's,
-      confirm `amount_in_group_currency`/`exchange_rate` land correctly, and that
-      editing that expense's amount later re-snapshots the rate.
+- [x] **Scope correction found while implementing**: only `Expense` actually has
+      `amount_in_group_currency`/`exchange_rate` columns — `recurring_expenses`
+      has neither (conversion only happens once a template *materializes* into a
+      real `expenses` row via `materialize_recurring_expenses()`, which is a
+      plain insert that fires the same trigger like any other caller). The
+      original milestone text calling for these fields on `RecurringExpense` too
+      was wrong; only `Models/Expense.cs` gained them.
+- [x] `Models/Expense.cs` gained `AmountInGroupCurrency`/`ExchangeRate` — plain
+      `[Column]` properties, not `[JsonIgnore]`-hidden, since
+      `snapshot_expense_currency_conversion()` (schema.sql) overwrites both
+      unconditionally in every branch (own-currency fast path, unscoped-group
+      fallback, and the real conversion path) before the row's `not null`
+      constraints are even checked — whatever value the app sends is ignored
+      server-side, so there was no need to strip them from the insert payload
+      the way `CreatedBy`/`CreatedAt` need explicit carry-through on edit.
+- [x] `AddExpenseViewModel` gained `CurrencyOptions`/`SelectedCurrencyIndex`/
+      `CurrencySymbol`, same `"USD ($)"`-display-string shape as
+      `NewGroupViewModel`'s picker. `SetCurrencyByCode(code)` selects the
+      matching index — called with the group's own currency (fetched via
+      `IGroupsRepository.GetByIdAsync`, added to `LoadAsync`'s existing
+      `Task.WhenAll` batch) on a fresh add, or with the loaded
+      `Expense.Currency`/`RecurringExpense.Currency` when editing either. `Save()`
+      reads the selected code back onto `Expense.Currency`/
+      `RecurringExpense.Currency` (falls back to `"EUR"` if somehow nothing's
+      selected, mirroring the picker's own unselected-state default).
+- [x] `AddExpensePage.xaml`: the amount hero's hardcoded `"€"` prefix `Label` now
+      binds to `CurrencySymbol` instead, and a new "Currency" `Picker` section
+      (same bordered shape as `NewGroupPage`'s) sits right after the Description
+      field — shown unconditionally (unlike Category/receipt, currency applies to
+      settlements and recurring templates too, both of which have a real
+      `currency` column). New `AddExpense_Currency` loc key (en/es).
+- [x] **UI feedback from the first manual test, fixed same session (2026-09-06)**:
+      the picker worked and saved correctly, but two real display bugs surfaced —
+      - **Recent Activity showed `€180` for a real ¥180 expense.** Root cause:
+        every amount-rendering ViewModel (`GroupDetailViewModel`'s activity feed
+        *and* both balance modes, `GroupsViewModel`'s group-list balance,
+        `RecurringExpensesViewModel`'s template list) hardcoded a literal `"€"`
+        prefix — harmless while every group was EUR, a real bug the moment
+        Milestone 3 let a group pick anything else. Fixed by adding
+        `AppConstants.Currencies.SymbolFor(code)` and using it everywhere instead
+        of the literal, plus switching `ActivityItem.AmountText` to read
+        `expense.AmountInGroupCurrency` (the converted amount) rather than the
+        raw `expense.Amount` (the original-currency amount) — this alone is
+        Milestone 5's "On" default behavior (group-currency amount as primary),
+        implemented now rather than waiting, since the bug made it clearly
+        needed. Also added `ActivityItem.SecondaryAmountText` — the expense's own
+        original amount+currency in parens (e.g. `(¥180.00)`), shown smaller
+        under the primary amount only when `expense.Currency != groups.currency`.
+        **The ProfilePage on/off toggle itself is still Milestone 5's own scope,
+        not built here** — this fix hardcodes the "On" behavior with no way to
+        switch to "Off" yet.
+      - **UI feedback: move the currency picker inline next to the amount entry**
+        instead of a separate full-width row — the standalone "Currency" section
+        (added in the first Milestone 4 pass) felt disconnected from the amount
+        it describes. Fixed: the amount hero's `Picker` now sits where a static
+        `"€"` prefix label used to be, bound to a plain currency-code list
+        (`CurrencyOptions` narrowed from `"USD ($)"` to just `"USD"` — short
+        enough to fit inline). The standalone Currency row and its now-unused
+        `AddExpense_Currency` loc keys were removed.
+      - **Further UI feedback (still 2026-09-06)**: the inline picker only
+        showed the bare code ("USD"); user asked for the symbol too. Changed
+        `CurrencyOptions` to `"{Code} {Symbol}"` (e.g. "USD $", "JPY ¥") —
+        still short enough to sit inline, unlike NewGroupViewModel's parenthesized
+        "USD ($)" form.
+- [x] **Manually confirmed end to end in the running app** — added a real
+      non-EUR (yen) expense, the row saved and displayed correctly, and the
+      currency picker/symbol UI feedback above was addressed in the same pass.
 
 ## Milestone 5 — Display preference (app side)
 
-**Status: not started.** Depends on Milestone 4 (needs `AmountInGroupCurrency` on
-the `Expense` model to have something to branch on).
+**Status: done & verified 2026-09-06.** The "On" (default) rendering behavior was already
+implemented as part of Milestone 4's bugfix pass, since a real display bug
+(Recent Activity showing the wrong currency symbol) forced the question early;
+this milestone added the actual toggle plus the "Off" branch that was still
+missing.
 
-- [ ] `ProfilePage`/`ProfileViewModel`: new toggle row, backed by
+- [x] `ProfilePage`/`ProfileViewModel`: new "Amount display" section (a
+      `Switch` row, "Show converted to group currency", plus a hint label
+      clarifying the balance/Settle scope limit below), backed by
       `AppConstants.Preferences.AmountDisplayConverted` (bool, default true).
-- [ ] Wherever an expense amount is currently rendered (Group Detail's recent
-      activity, expense detail/edit read state, anywhere else `AmountText`-style
-      formatting happens) — branch on the new preference to decide which of
-      original vs. group-currency is primary vs. secondary. Balance/Settle display
-      code paths are explicitly **not** touched by this — they already render
-      `group_balances`/`pairwise_balances` output, which is always in group
-      currency.
-- [ ] Confirm end to end: toggle on/off on a group with a mixed-currency expense,
-      confirm the primary/secondary amounts swap correctly, and confirm balance/
-      Settle screens are unaffected by the toggle either way.
+      Persisted immediately on toggle via a `partial void
+      OnAmountDisplayConvertedChanged` — no explicit Save button, same
+      "device setting, not part of the profile form" treatment
+      `BalanceDisplayModePrefix`/`LanguageOverride`/`AccentPreset` already get.
+      New `Profile_AmountDisplay`/`Profile_AmountDisplayConverted`/
+      `Profile_AmountDisplayHint` loc keys (en/es).
+- [x] `GroupDetailViewModel.LoadAsync` reads the preference once per load and
+      passes it into a new `FormatExpenseAmount(expense, groupSymbol,
+      groupCurrency, showConverted)` helper that replaced the inline
+      always-"On" logic from Milestone 4's bugfix pass. Same-currency expenses
+      short-circuit to a plain group-currency amount with no secondary line
+      either way (nothing extra to show when both amounts are identical).
+      Different-currency expenses: **On** shows the converted amount primary
+      + `(¥1600.00)`-style original secondary (unchanged from the bugfix
+      pass); **Off** flips it — original amount primary, `(≈€10.00)`-style
+      converted secondary (the `≈` distinguishes "this is computed" from the
+      literal amount actually paid). Balance/Settle code paths
+      (`BuildPairwiseItemsAsync`/`BuildSimplifiedItems`/`GroupsViewModel
+      .ApplyBalance`) are untouched by this milestone, per the plan's original
+      scope limit — they already always render in the group's own currency
+      symbol (fixed in Milestone 4's bugfix pass) regardless of this toggle.
+- [x] Manually confirmed end to end — the toggle and both display modes work
+      correctly in the running app.
 
 ## Milestone 6 — `send-push` copy (optional)
 
-**Status: not started, low priority.**
-
-- [ ] `send-push/index.ts` currently reads `expenses.amount`/`currency` for
-      notification copy; decide whether to leave as-is (shows the expense's own
-      currency, arguably always correct for "what did they spend") or also surface
-      the group-currency equivalent. Not blocking anything else in this plan.
+**Status: done 2026-09-06 — decided, no code change.** `send-push/index.ts`
+keeps showing the expense's own entered amount/currency (e.g. "¥1600"), not a
+group-currency conversion. Reasoning: a push notification is describing "what
+did they spend" — the original currency is the more meaningful number there,
+and cramming a second converted amount into the body would make it noisier
+for the common (same-currency) case without adding much; anyone who wants the
+converted total can open the app.
 
 ---
 

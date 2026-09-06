@@ -7,7 +7,10 @@ public interface IGroupsRepository
     /// <summary>Groups the current account is a member of.</summary>
     Task<List<Group>> GetMyGroupsAsync();
     Task<Group> GetByIdAsync(Guid groupId);
-    Task<Group> CreateAsync(string name);
+    /// <summary>Creates a group with a required, one-time settlement currency (never editable
+    /// afterward — see /MULTI_CURRENCY_PLAN.md's "Decisions locked" section). currency must be one
+    /// of AppConstants.Currencies.All's codes, the same list the DB check constraint enforces.</summary>
+    Task<Group> CreateAsync(string name, string currency);
 
     /// <summary>Renames a group. Owner-only — enforced by the existing "update own groups" RLS
     /// policy (created_by = auth.uid()), the same policy transfer_group_ownership() routes around

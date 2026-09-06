@@ -20,6 +20,14 @@ public static class AppConstants
         /// Local only, same "personal viewing preference, not group state" reasoning as
         /// BalanceDisplayModePrefix.</summary>
         public const string AccentPreset = "accent_preset";
+
+        /// <summary>Per-device (not per-group — see MULTI_CURRENCY_PLAN.md's Milestone 5) toggle for
+        /// whether an expense line item's group-currency-converted amount is shown as primary (true,
+        /// the default) or its own original-currency amount is (false). Only affects individual
+        /// expense rows (Group Detail's Recent Activity) — balance/Settle totals are always shown in
+        /// the group's currency regardless, since a pairwise/group net can span several original
+        /// currencies with no single coherent "native" amount to fall back to.</summary>
+        public const string AmountDisplayConverted = "amount_display_converted";
     }
 
     /// <summary>Fixed, developer-maintained expense categories — not a database table. Each key
@@ -32,6 +40,33 @@ public static class AppConstants
     {
         public static readonly IReadOnlyList<string> Keys =
             ["food", "transport", "rent", "utilities", "entertainment", "other"];
+    }
+
+    /// <summary>The fixed 30-currency list this app supports — tied 1:1 to the DB check
+    /// constraints on groups.currency/expenses.currency/recurring_expenses.currency (see
+    /// /MULTI_CURRENCY_PLAN.md), which in turn mirror what Frankfurter (frankfurter.dev, ECB
+    /// reference rates) actually returns from its live /v1/currencies endpoint — never hand-roll a
+    /// separate "curated" subset. Symbol is a plain display convenience (not stored anywhere),
+    /// deliberately not localized per-language the way Categories' labels are — a currency code is
+    /// already an international standard, and "USD ($)" reads the same regardless of UI
+    /// language.</summary>
+    public static class Currencies
+    {
+        public static readonly IReadOnlyList<(string Code, string Symbol)> All =
+        [
+            ("AUD", "A$"), ("BRL", "R$"), ("CAD", "C$"), ("CHF", "CHF"), ("CNY", "¥"),
+            ("CZK", "Kč"), ("DKK", "kr"), ("EUR", "€"), ("GBP", "£"), ("HKD", "HK$"),
+            ("HUF", "Ft"), ("IDR", "Rp"), ("ILS", "₪"), ("INR", "₹"), ("ISK", "kr"),
+            ("JPY", "¥"), ("KRW", "₩"), ("MXN", "$"), ("MYR", "RM"), ("NOK", "kr"),
+            ("NZD", "NZ$"), ("PHP", "₱"), ("PLN", "zł"), ("RON", "lei"), ("SEK", "kr"),
+            ("SGD", "S$"), ("THB", "฿"), ("TRY", "₺"), ("USD", "$"), ("ZAR", "R"),
+        ];
+
+        /// <summary>Looks up a currency's display symbol by its 3-letter code, falling back to the
+        /// code itself if it's somehow not in the fixed list (should never happen given the DB check
+        /// constraint, but a stray/legacy value shouldn't crash a render).</summary>
+        public static string SymbolFor(string code) =>
+            All.FirstOrDefault(c => c.Code == code) is { Symbol: not null } match ? match.Symbol : code;
     }
 
     /// <summary>Glyphs from Resources/Fonts/lucide.ttf (lucide-static npm package, ISC license) —

@@ -94,6 +94,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     private readonly IRecurringExpensesRepository recurringExpensesRepository;
     private readonly IAliasesRepository aliasesRepository;
     private readonly IReceiptsRepository receiptsRepository;
+    private readonly IGroupsRepository groupsRepository;
     private readonly IAuthService authService;
 
     private Guid groupId;
@@ -143,12 +144,25 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private DateTime startDate = DateTime.Today;
     [ObservableProperty] private string startDateDisplay = LocalizationResourceManager.Instance["Common_Today"];
 
+    /// <summary>"USD $"-style display strings (code + symbol, no parens — NewGroupViewModel's
+    /// "USD ($)" form reads slightly too wide for this Picker's inline spot next to the amount
+    /// entry) for the compact Picker sitting in the amount hero — CurrencyOptions[i] corresponds to
+    /// AppConstants.Currencies.All[i]. Defaults to the group's own currency on a fresh add (see
+    /// LoadAsync); editing an existing Expense/RecurringExpense overlays its saved currency
+    /// instead. Purely a selector — the app never computes the conversion itself, see
+    /// Expense.AmountInGroupCurrency's remarks.</summary>
+    public IReadOnlyList<string> CurrencyOptions { get; } =
+        AppConstants.Currencies.All.Select(c => $"{c.Code} {c.Symbol}").ToList();
+
+    [ObservableProperty] private int selectedCurrencyIndex = -1;
+
     public AddExpenseViewModel(
         IMembersRepository membersRepository,
         IExpensesRepository expensesRepository,
         IRecurringExpensesRepository recurringExpensesRepository,
         IAliasesRepository aliasesRepository,
         IReceiptsRepository receiptsRepository,
+        IGroupsRepository groupsRepository,
         IAuthService authService)
     {
         this.membersRepository = membersRepository;
@@ -156,6 +170,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         this.recurringExpensesRepository = recurringExpensesRepository;
         this.aliasesRepository = aliasesRepository;
         this.receiptsRepository = receiptsRepository;
+        this.groupsRepository = groupsRepository;
         this.authService = authService;
     }
 
@@ -208,7 +223,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             var loadRecurring = forRecurringExpenseId is { } rid ? recurringExpensesRepository.GetByIdAsync(rid) : Task.FromResult<RecurringExpense?>(null);
             var loadRecurringShares = forRecurringExpenseId is { } rsid ? recurringExpensesRepository.GetSharesAsync(rsid) : Task.FromResult(new List<RecurringExpenseShare>());
             var loadAliases = aliasesRepository.GetMyAliasesAsync();
-            await Task.WhenAll(loadMembers, loadExpense, loadShares, loadRecurring, loadRecurringShares, loadAliases);
+            var loadGroup = groupsRepository.GetByIdAsync(groupId);
+            await Task.WhenAll(loadMembers, loadExpense, loadShares, loadRecurring, loadRecurringShares, loadAliases, loadGroup);
 
             var aliases = loadAliases.Result;
 
@@ -266,6 +282,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                 if (myPayerOption is not null)
                     SelectPayer(myPayerOption);
 
+                SetCurrencyByCode(loadGroup.Result.Currency);
                 RedistributeEqually();
             }
         }
@@ -315,6 +332,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         OccurredOn = expense.OccurredAt;
         AmountText = expense.Amount.ToString("0.00", CultureInfo.InvariantCulture);
         ReceiptPath = expense.ReceiptPath;
+        SetCurrencyByCode(expense.Currency);
 
         SelectedCategory = expense.Category;
         var matchingChip = CategoryChips.FirstOrDefault(c => c.Key == expense.Category);
@@ -366,6 +384,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         Description = template.Description;
         StartDate = template.StartDate;
         AmountText = template.Amount.ToString("0.00", CultureInfo.InvariantCulture);
+        SetCurrencyByCode(template.Currency);
 
         SelectedCategory = template.Category;
         var matchingChip = CategoryChips.FirstOrDefault(c => c.Key == template.Category);
@@ -384,6 +403,20 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             SelectPayer(payerOption);
 
         RecalcRemaining();
+    }
+
+    /// <summary>Selects the picker entry matching a currency code (an existing expense/template's
+    /// saved currency, or a group's default) — falls back to leaving nothing selected if the code
+    /// somehow isn't in the fixed list, rather than throwing.</summary>
+    private void SetCurrencyByCode(string code)
+    {
+        var currencies = AppConstants.Currencies.All;
+        for (var i = 0; i < currencies.Count; i++)
+        {
+            if (currencies[i].Code != code) continue;
+            SelectedCurrencyIndex = i;
+            return;
+        }
     }
 
     partial void OnAmountTextChanged(string value) =>
@@ -526,6 +559,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     {
         if (!CanSave || SelectedPayer is null) return;
 
+        var currency = SelectedCurrencyIndex >= 0 ? AppConstants.Currencies.All[SelectedCurrencyIndex].Code : "EUR";
+
         IsBusy = true;
         try
         {
@@ -536,6 +571,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                     GroupId = groupId,
                     PaidByMemberId = SelectedPayer.Id,
                     Amount = Amount,
+                    Currency = currency,
                     Description = Description,
                     Category = SelectedCategory,
                     Frequency = SelectedFrequency.ToString().ToLowerInvariant(),
@@ -568,6 +604,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                     GroupId = groupId,
                     PaidByMemberId = SelectedPayer.Id,
                     Amount = Amount,
+                    Currency = currency,
                     Description = Description,
                     Category = SelectedCategory,
                     OccurredAt = OccurredOn.ToUniversalTime(),

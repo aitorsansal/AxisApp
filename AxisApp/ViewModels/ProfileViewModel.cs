@@ -41,6 +41,7 @@ public partial class ProfileViewModel : BaseViewModel
     [ObservableProperty] private string birthdayDisplay = "";
     [ObservableProperty] private string selectedLanguageOverride;
     public ObservableCollection<AccentSwatch> AccentSwatches { get; }
+    [ObservableProperty] private bool amountDisplayConverted;
     [ObservableProperty] private string newEmail = "";
     [ObservableProperty] private string newPassword = "";
     [ObservableProperty] private string statusMessage = "";
@@ -53,6 +54,7 @@ public partial class ProfileViewModel : BaseViewModel
 
         UserEmail = authService.CurrentEmail ?? "";
         selectedLanguageOverride = LocalizationResourceManager.Instance.CurrentOverride;
+        amountDisplayConverted = Microsoft.Maui.Storage.Preferences.Default.Get(AppConstants.Preferences.AmountDisplayConverted, true);
 
         var currentAccent = ThemeService.Instance.Current;
         AccentSwatches = new ObservableCollection<AccentSwatch>(Enum.GetValues<AccentPreset>().Select(preset =>
@@ -118,6 +120,12 @@ public partial class ProfileViewModel : BaseViewModel
             : LocalizationResourceManager.Instance["Profile_BirthdayNotSet"];
 
     partial void OnBirthdayChanged(DateTime value) => RefreshBirthdayDisplay();
+
+    /// <summary>Persisted immediately on toggle, same "no explicit Save button" treatment
+    /// BalanceDisplayModePrefix/LanguageOverride/AccentPreset already get — this is a device
+    /// setting, not part of the Save Profile form above.</summary>
+    partial void OnAmountDisplayConvertedChanged(bool value) =>
+        Microsoft.Maui.Storage.Preferences.Default.Set(AppConstants.Preferences.AmountDisplayConverted, value);
 
     [RelayCommand]
     private void SetBirthday()

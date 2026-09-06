@@ -41,6 +41,12 @@ public partial class ActivityItem : ObservableObject
     public string Description { get; init; } = "";
     public string SubCaption { get; init; } = "";
     public string AmountText { get; init; } = "";
+
+    /// <summary>The expense's own original amount+currency (e.g. "¥180.00"), shown smaller under
+    /// AmountText only when it differs from the group's settlement currency — empty otherwise, so
+    /// the common same-currency case shows nothing extra. See MULTI_CURRENCY_PLAN.md's Milestone 5
+    /// "On" default (the only mode built so far — no ProfilePage toggle to turn it off yet).</summary>
+    public string SecondaryAmountText { get; init; } = "";
     public bool IsSettlement { get; init; }
     public DateTime OccurredAt { get; init; }
 
@@ -153,6 +159,8 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
 
             await RefreshBalancesAsync();
 
+            var groupSymbol = AppConstants.Currencies.SymbolFor(currentGroup.Currency);
+            var showConverted = Microsoft.Maui.Storage.Preferences.Default.Get(AppConstants.Preferences.AmountDisplayConverted, true);
             var loc = LocalizationResourceManager.Instance;
             var activity = new List<ActivityItem>();
             foreach (var expense in loadExpenses.Result)
@@ -176,11 +184,14 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                     subCaption = loc.Format("GroupDetail_PaidSplit", payer, shares.Count);
                 }
 
+                var (amountText, secondaryAmountText) = FormatExpenseAmount(expense, groupSymbol, currentGroup.Currency, showConverted);
+
                 activity.Add(new ActivityItem
                 {
                     Description = description,
                     SubCaption = subCaption,
-                    AmountText = $"€{expense.Amount:0.00}",
+                    AmountText = amountText,
+                    SecondaryAmountText = secondaryAmountText,
                     IsSettlement = expense.IsSettlement,
                     OccurredAt = expense.OccurredAt,
                     CreatedAt = expense.CreatedAt,
@@ -202,9 +213,10 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     /// refetching members/activity — used both by LoadAsync and by the mode toggle.</summary>
     private async Task RefreshBalancesAsync()
     {
+        var groupSymbol = AppConstants.Currencies.SymbolFor(currentGroup!.Currency);
         var items = IsPairwiseMode
-            ? await BuildPairwiseItemsAsync()
-            : BuildSimplifiedItems(await balancesRepository.GetForGroupAsync(groupId), membersById, myMemberId, aliases);
+            ? await BuildPairwiseItemsAsync(groupSymbol)
+            : BuildSimplifiedItems(await balancesRepository.GetForGroupAsync(groupId), membersById, myMemberId, aliases, groupSymbol);
 
         Balances = new ObservableCollection<MemberBalanceItem>(items);
     }
@@ -213,7 +225,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     /// the viewer's own perspective (positive = they owe me), so no member exclusion or sign
     /// juggling is needed — unlike the old (buggy) group_balances-based display this replaced,
     /// "owes you"/"you owe" is always a literally true statement here.</summary>
-    private async Task<List<MemberBalanceItem>> BuildPairwiseItemsAsync()
+    private async Task<List<MemberBalanceItem>> BuildPairwiseItemsAsync(string groupSymbol)
     {
         var pairwise = await balancesRepository.GetMyPairwiseForGroupAsync(groupId);
         var items = new List<MemberBalanceItem>();
@@ -232,14 +244,14 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             {
                 item.IsOwed = true;
                 item.IsSettled = false;
-                item.AmountText = $"+€{row.Balance:0.00}";
+                item.AmountText = $"+{groupSymbol}{row.Balance:0.00}";
                 item.CaptionText = LocalizationResourceManager.Instance["GroupDetail_OwesYou"];
             }
             else if (row.Balance < 0)
             {
                 item.IsOwing = true;
                 item.IsSettled = false;
-                item.AmountText = $"-€{Math.Abs(row.Balance):0.00}";
+                item.AmountText = $"-{groupSymbol}{Math.Abs(row.Balance):0.00}";
                 item.CaptionText = LocalizationResourceManager.Instance["GroupDetail_YouOwe"];
             }
             items.Add(item);
@@ -254,7 +266,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     /// "X pays Y", since it's not a statement about the viewer at all.</summary>
     private static List<MemberBalanceItem> BuildSimplifiedItems(
         IEnumerable<GroupBalance> balances, IReadOnlyDictionary<Guid, Member> membersById, Guid? myMemberId,
-        IReadOnlyDictionary<Guid, string> aliases)
+        IReadOnlyDictionary<Guid, string> aliases, string groupSymbol)
     {
         var items = new List<MemberBalanceItem>();
         foreach (var transfer in DebtSimplifier.Simplify(balances.Select(b => (b.MemberId, b.Balance))))
@@ -274,7 +286,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                     Amount = transfer.Amount,
                     IsOwing = true,
                     IsSettled = false,
-                    AmountText = $"-€{transfer.Amount:0.00}",
+                    AmountText = $"-{groupSymbol}{transfer.Amount:0.00}",
                     CaptionText = loc["GroupDetail_YouOwe"]
                 });
             }
@@ -289,7 +301,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                     Amount = transfer.Amount,
                     IsOwed = true,
                     IsSettled = false,
-                    AmountText = $"+€{transfer.Amount:0.00}",
+                    AmountText = $"+{groupSymbol}{transfer.Amount:0.00}",
                     CaptionText = loc["GroupDetail_OwesYou"]
                 });
             }
@@ -306,12 +318,28 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
                     ToMemberId = to.Id,
                     Amount = transfer.Amount,
                     IsNeutral = true,
-                    AmountText = $"€{transfer.Amount:0.00}",
+                    AmountText = $"{groupSymbol}{transfer.Amount:0.00}",
                     CaptionText = loc.Format("GroupDetail_Pays", toName)
                 });
             }
         }
         return items;
+    }
+
+    /// <summary>Per-expense primary/secondary amount text, per
+    /// AppConstants.Preferences.AmountDisplayConverted — see MULTI_CURRENCY_PLAN.md's Milestone 5
+    /// "On"/"Off" behavior. Both fields are empty-secondary when the expense's own currency matches
+    /// the group's (the common case), since there's nothing extra worth showing.</summary>
+    private static (string AmountText, string SecondaryAmountText) FormatExpenseAmount(
+        Expense expense, string groupSymbol, string groupCurrency, bool showConverted)
+    {
+        if (expense.Currency == groupCurrency)
+            return ($"{groupSymbol}{expense.AmountInGroupCurrency:0.00}", "");
+
+        var originalSymbol = AppConstants.Currencies.SymbolFor(expense.Currency);
+        return showConverted
+            ? ($"{groupSymbol}{expense.AmountInGroupCurrency:0.00}", $"({originalSymbol}{expense.Amount:0.00})")
+            : ($"{originalSymbol}{expense.Amount:0.00}", $"(≈{groupSymbol}{expense.AmountInGroupCurrency:0.00})");
     }
 
     private static string FormatRelative(DateTime occurredAtUtc)

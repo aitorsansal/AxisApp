@@ -27,6 +27,16 @@ public class Expense : BaseModel
     [Column("currency")]
     public string Currency { get; set; } = "EUR";
 
+    /// <summary>Snapshotted by snapshot_expense_currency_conversion() (schema.sql) at write time —
+    /// the trigger overwrites both fields unconditionally on every insert/update, so whatever the
+    /// app sends here is ignored server-side, same "app stays ignorant of currency math" treatment
+    /// MULTI_CURRENCY_PLAN.md's Milestone 4 describes.</summary>
+    [Column("amount_in_group_currency")]
+    public decimal AmountInGroupCurrency { get; set; }
+
+    [Column("exchange_rate")]
+    public decimal ExchangeRate { get; set; } = 1;
+
     [Column("description")]
     public string Description { get; set; } = "";
 

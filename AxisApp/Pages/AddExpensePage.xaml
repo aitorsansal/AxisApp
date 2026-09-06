@@ -50,15 +50,24 @@
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
 
-                <!-- Amount hero -->
+                <!-- Amount hero: the currency Picker sits inline where a plain "€" prefix used to be
+                     (see MULTI_CURRENCY_PLAN.md's Milestone 4 UI feedback — a separate full-width
+                     "Currency" row was tried first and felt disconnected from the amount it actually
+                     describes). CurrencyOptions is a plain code list ("USD"), short enough to sit
+                     comfortably next to the amount without a border of its own, styled to match the
+                     old static label. Defaults to the group's own currency — see
+                     AddExpenseViewModel.LoadAsync. -->
                 <VerticalStackLayout Spacing="{StaticResource SpacingXS}" HorizontalOptions="Center">
                     <HorizontalStackLayout HorizontalOptions="Center" Spacing="{StaticResource SpacingXS}">
-                        <Label
-                            Text="€"
+                        <Picker
+                            ItemsSource="{Binding CurrencyOptions}"
+                            SelectedIndex="{Binding SelectedCurrencyIndex}"
                             FontSize="{StaticResource TypeAmountPrefix}"
                             FontAttributes="Bold"
                             TextColor="{DynamicResource TextTertiary}"
-                            VerticalOptions="Center" />
+                            BackgroundColor="Transparent"
+                            VerticalOptions="Center"
+                            HorizontalOptions="Start" />
                         <Entry
                             Text="{Binding AmountText}"
                             Keyboard="Numeric"

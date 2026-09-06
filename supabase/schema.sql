@@ -486,6 +486,36 @@ create policy "update shares of your expenses" on public.expense_shares
   );
 
 -- ============================================================
+-- fetch-exchange-rates cron (Milestone 2, /MULTI_CURRENCY_PLAN.md) — daily
+-- refresh of the exchange_rates singleton above. Same net.http_post + Vault
+-- service_role_key pattern the cleanup-receipts cron uses (see that job's
+-- own remarks further down this file): pg_net can't reach Supabase Storage
+-- or run arbitrary client-library code directly, so the actual Frankfurter
+-- fetch + delete-then-insert happens in the paired Edge Function
+-- (supabase/functions/fetch-exchange-rates/index.ts), this just invokes it.
+-- Daily at 6am UTC — before materialize-recurring-expenses' 8am run, so a
+-- recurring expense materializing in a foreign currency that same morning
+-- has a same-day rate available rather than falling back to yesterday's
+-- stale cache; still off-peak, same reasoning as every other cron job here.
+-- Unlike the rest of this file, the URL below is this specific project's —
+-- a fresh project would need its own project ref substituted in.
+-- ============================================================
+select cron.schedule(
+  'fetch-exchange-rates',
+  '0 6 * * *',
+  $$
+  select net.http_post(
+    url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/fetch-exchange-rates',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+    ),
+    body := '{}'::jsonb
+  ) as request_id;
+  $$
+);
+
+-- ============================================================
 -- recurring_expenses / recurring_expense_shares — added 2026-08-31, a
 -- template for a periodically auto-generated Expense, split N ways via
 -- recurring_expense_shares. Mirrors expenses/expense_shares exactly, plus
@@ -773,9 +803,16 @@ drop table if exists public.categories cascade;
 -- auth.users directly to `authenticated` would.
 -- Run this against the live project the same way every other block in this
 -- file has needed to be — it isn't applied automatically.
+--
+-- p_currency added 2026-09-05 (/MULTI_CURRENCY_PLAN.md Milestone 3) —
+-- required, no default, so picking it is always a deliberate choice at
+-- creation time rather than something that could fall out of a default (see
+-- the plan doc's "Decisions locked" section). groups.currency's own DB check
+-- constraint is what actually enforces "must be one of the supported
+-- codes" — this function just passes the value through.
 -- ============================================================
 
-create or replace function public.create_group(p_name text)
+create or replace function public.create_group(p_name text, p_currency char(3))
 returns uuid
 language plpgsql
 security definer
@@ -785,8 +822,8 @@ declare
   v_group_id uuid;
   v_member_id uuid;
 begin
-  insert into public.groups (name, created_by)
-  values (p_name, auth.uid())
+  insert into public.groups (name, currency, created_by)
+  values (p_name, p_currency, auth.uid())
   returning id into v_group_id;
 
   insert into public.members (account_id, display_name, created_by)
