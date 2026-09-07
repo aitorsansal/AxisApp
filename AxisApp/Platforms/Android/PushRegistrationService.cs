@@ -3,6 +3,7 @@ using Firebase.Messaging;
 using Microsoft.Maui.ApplicationModel;
 using JavaException = Java.Lang.Exception;
 using Object = Java.Lang.Object;
+using Log = Android.Util.Log;
 
 namespace AxisApp;
 
@@ -14,12 +15,19 @@ namespace AxisApp;
 /// shape GoogleAuthService's Callback/ICredentialManagerCallback wrapping already uses for the
 /// identical "Java callback API, not an awaitable one" problem.
 ///
-/// Not yet build-verified against a real device — compiles, but GetToken() actually succeeding
-/// (Firebase auto-initializing from google-services.json with no explicit FirebaseApp.InitializeApp
-/// call) hasn't been confirmed the way GoogleAuthService's Android flow was confirmed against a
-/// real MIUI device. Report back whatever the real first-run behavior is.</summary>
+/// Confirmed working end to end against a real Play Store install (2026-09-07) — a device_tokens
+/// row was created correctly after signing in and visiting Groups. Getting there surfaced a real
+/// production-only failure mode: the Android API key embedded in google-services.json can be
+/// API-restricted in Google Cloud Console, and if the Firebase Installations API isn't in its
+/// allowed list, GetToken() fails at the FIS-auth-token step with a 403 (API_KEY_SERVICE_BLOCKED)
+/// before it ever reaches real FCM registration — invisible from the app's own logs (see the catch
+/// below), only found via a live adb logcat capture. Unrelated to Play App Signing/SHA fingerprints
+/// despite looking similar on the surface — check the API key's restrictions first if this silently
+/// stops working again.</summary>
 public class PushRegistrationService : IPushRegistrationService
 {
+    private const string LogTag = "AxisPushRegistration";
+
     private readonly IDeviceTokensRepository deviceTokensRepository;
 
     public PushRegistrationService(IDeviceTokensRepository deviceTokensRepository)
@@ -64,9 +72,12 @@ public class PushRegistrationService : IPushRegistrationService
 
             await deviceTokensRepository.RegisterAsync(token, "android");
         }
-        catch
+        catch (Exception ex)
         {
-            // Best-effort — see IPushRegistrationService's remarks.
+            // Best-effort — see IPushRegistrationService's remarks. Logged (not surfaced to the
+            // user) since this failed silently and invisibly in production once already — see this
+            // class's remarks.
+            Log.Warn(LogTag, $"RegisterAsync failed: {ex}");
         }
     }
 
@@ -84,9 +95,10 @@ public class PushRegistrationService : IPushRegistrationService
             // rather than silently reusing one already deleted server-side.
             await AwaitTask(FirebaseMessaging.Instance!.DeleteToken());
         }
-        catch
+        catch (Exception ex)
         {
             // Best-effort.
+            Log.Warn(LogTag, $"UnregisterAsync failed: {ex}");
         }
     }
 }

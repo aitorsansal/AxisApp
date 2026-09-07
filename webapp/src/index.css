@@ -1,0 +1,149 @@
+:root {
+  --primary: #3D6BFF;
+  --primary-hover: #5C82FF;
+  --primary-pressed: #2E56D9;
+  --secondary: #F2A93C;
+
+  --bg-primary: #0B1220;
+  --bg-deep: #070B12;
+  --surface: #101826;
+  --surface-elevated: #16202F;
+  --surface-emphasis: #1C2838;
+
+  --text-primary: #F2F5FA;
+  --text-secondary: #C3CCDA;
+  --text-tertiary: #8D97A8;
+  --text-on-accent: #08101F;
+
+  --border: #232E42;
+  --border-subtle: #1B2434;
+  --divider: #1C2838;
+
+  --success: #38D998;
+  --warning: #F2C94C;
+  --danger: #FF5C6C;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+input, select, button, textarea {
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--primary);
+}
+
+.page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+  min-height: 100%;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.field label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.field input,
+.field select {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 10px 12px;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.btn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-weight: 600;
+  width: 100%;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-primary:disabled {
+  background: var(--surface-emphasis);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.btn-danger {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.9rem;
+  margin: 4px 0 12px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--text-tertiary);
+}

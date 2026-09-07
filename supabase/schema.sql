@@ -1742,3 +1742,59 @@ $$;
 create trigger on_auth_user_created_provision_member
   after insert on auth.users
   for each row execute function public.handle_new_user_member();
+
+-- ============================================================
+-- Signup allow-list (2026-09-07) — added once a web build existed at a real
+-- public URL (app.axisapp.aitorsansal.com), making "someone stumbles onto
+-- the link and signs in with Google" a real risk for the first time (the
+-- MAUI app was never discoverable the same way). This is not the app's
+-- long-term intended shape (SCOPE.md still assumes open signup eventually),
+-- just a stopgap while it's really only meant for a couple of named people.
+--
+-- BEFORE INSERT, not AFTER like handle_new_user_member() above — raising an
+-- exception here aborts the whole insert (and therefore the account
+-- creation itself), rather than letting the account get created and only
+-- then failing to provision a members row for it. Fires for every signup
+-- path uniformly (email/password and both Google flows), same reasoning
+-- handle_new_user_member()'s own remarks give for using a trigger here
+-- instead of an app-side check in SupabaseAuthService.
+--
+-- Deliberately a real table, not a hardcoded list in the function body —
+-- adding a friend later is `insert into allowed_signup_emails values
+-- ('...')`, no redeploy of anything. RLS enabled with no policies at all:
+-- nothing needs to read this except the security definer function below
+-- (same "postgres bypasses RLS" reasoning as every other security definer
+-- function in this file), so no authenticated/anon policy is needed or
+-- wanted — this list should never be readable from the app itself.
+-- ============================================================
+
+create table public.allowed_signup_emails (
+  email text primary key
+);
+
+alter table public.allowed_signup_emails enable row level security;
+
+insert into public.allowed_signup_emails (email) values
+  ('aitorsansal@gmail.com');
+  -- add each additional person here, e.g.:
+  -- ('yourfriend@gmail.com');
+
+create or replace function public.restrict_signup_to_allowlist()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from allowed_signup_emails where email = lower(new.email)
+  ) then
+    raise exception 'Signups are invite-only right now — ask the app owner to add your email.';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created_restrict_signup
+  before insert on auth.users
+  for each row execute function public.restrict_signup_to_allowlist();

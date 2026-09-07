@@ -1742,6 +1742,81 @@ preference for database-enforced invariants over scattered app-side calls.
   against the live project or tested against a real signup** — report back
   the exact error if a fresh sign-up doesn't produce a `members` row.
 
+## Web app (webapp/) — a lightweight browser client (2026-09-07)
+
+Built so an iPhone-only friend can use Axis without a Mac to build for iOS or
+the $100/year Apple Developer fee — a separate React + TypeScript + Vite SPA
+in `webapp/`, talking to the same Supabase project directly via
+`@supabase/supabase-js`. No backend changes were needed to support it; the
+schema/RLS/RPCs the MAUI app already uses work identically from any client.
+Deliberately **plain CSS per component, not Tailwind** (the user's own call,
+having tried Tailwind before and preferring to read normal `.css` files over
+class-name soup) and **React over Vue/Angular** — React was picked
+specifically because it's what Claude Code itself produces most reliably,
+which matters more here than Vue's closer conceptual fit to this codebase's
+XAML+MVVM background, given the app would be built mostly through Claude Code
+rather than by hand.
+
+Deployed as its own Cloudflare Worker (`webapp/wrangler.jsonc`, `assets.
+directory: ./dist`, `not_found_handling: "single-page-application"` — needed
+because this is client-routed via `react-router-dom`, unlike `/web`'s plain
+static pages), separate from the existing `axisapp` Worker in `/web`, live at
+`app.axisapp.aitorsansal.com`. `npm run deploy` (build + `npx wrangler
+deploy`) from `webapp/`, matching `/web`'s own `npx wrangler deploy`
+convention — no `wrangler` devDependency, same as `/web`.
+
+**Scope, deliberately lighter than the MAUI app**: email/password + Google
+sign-in, groups list (`my_group_balances`), new group, join by code/link,
+group detail (`my_pairwise_balances` + recent activity), settle up, add
+expense (equal-split only, no custom per-person amounts). No push
+notifications (there's no web equivalent of the FCM work), no receipts, no
+avatars, no recurring expenses, no editing/deleting an existing expense, and
+creating a fresh invite still has to happen from the MAUI app — the web app
+can only redeem one. Equal-split rounds each share to 2 decimals and doesn't
+correct for the remainder, so shares can be a cent off the total on some
+amounts — a simplification the MAUI app's split logic doesn't have to make.
+
+**Google OAuth redirect setup, easy to re-break**: `signInWithOAuth`'s
+`redirectTo` has to be in Supabase's Authentication → URL Configuration →
+Redirect URLs allow-list, or GoTrue silently falls back to the project's
+Site URL instead of erroring — which happened live here (fell back to
+`https://axisapp.aitorsansal.com/auth`, a path that doesn't exist on that
+Worker, producing a 404 with the access token sitting in the URL fragment).
+Fixed by adding `http://localhost:5173/**` (dev) and
+`https://app.axisapp.aitorsansal.com/**` (prod) to that allow-list — nothing
+on the code side needed changing, since `supabase-js`'s `detectSessionInUrl`
+already picks the token up automatically once the redirect actually lands
+back on the app's own origin.
+
+**Signup allow-list (2026-09-07)** — added once the web app existed at a
+real public URL, which made "a stranger or a bot finds the link and signs up
+with Google" a real risk for the first time (the MAUI app was never
+discoverable the same way; nobody stumbles onto an APK). Removing the
+sign-up UI/button alone doesn't close this — the Supabase project URL and
+publishable key are necessarily public in the bundled JS, so anyone can call
+the auth endpoints directly regardless of what the React app's UI exposes.
+The actual fix is `restrict_signup_to_allowlist()`, a `BEFORE INSERT ON
+auth.users` trigger (`on_auth_user_created_restrict_signup`) that raises an
+exception — aborting the whole insert, not just skipping provisioning —
+unless `lower(new.email)` exists in a new `allowed_signup_emails` table.
+Deliberately a real table rather than a hardcoded list in the function body,
+so adding a friend later is one `insert` statement, no redeploy of anything.
+`security definer` for the same reason `handle_new_user_member()` already
+needs it: this fires from GoTrue's internal insert, with no JWT/`auth.uid()`
+in scope. **Chosen over Supabase's blunt "disable all signups" toggle**
+specifically because that toggle would also block adding the *next* friend
+without manually creating their account in the dashboard each time — the
+allow-list keeps normal self-serve Google/email sign-in for anyone already
+on the list, while blocking everyone else, uniformly across every signup
+path (email/password and both Google flows funnel through the same
+`auth.users` insert). Paste-ready as `supabase/
+restrict_signups_to_allowlist.sql`, seeded with just `aitorsansal@gmail.com`
+— **not yet run against the live project**, and add each friend's email to
+`allowed_signup_emails` before they try signing in. The user's own
+already-existing account was unaffected by testing this (Google sign-in for
+an account that already exists is an identity-link, not a fresh `auth.users`
+insert, so this trigger never fires for it).
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule

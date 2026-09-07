@@ -1,0 +1,62 @@
+.groups-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.groups-actions .btn {
+  width: auto;
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  color: var(--text-tertiary);
+  text-align: center;
+  margin-top: 40px;
+}
+
+.group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.group-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.group-name {
+  font-weight: 600;
+}
+
+.group-currency {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+.balance-tag {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.balance-positive {
+  color: var(--success);
+}
+
+.balance-negative {
+  color: var(--danger);
+}
+
+.balance-settled {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}

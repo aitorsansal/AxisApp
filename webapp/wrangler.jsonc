@@ -1,0 +1,16 @@
+{
+  // Serves the Vite build output (dist/) as a Cloudflare Worker/Pages project,
+  // separate from the axisapp Worker in /web (that one serves fixed static
+  // pages — /invite, /privacy, /.well-known — this one is a client-routed SPA).
+  //
+  // Run "npm run build" first (or "npm run deploy" which does both), then
+  // "npx wrangler dev" to preview locally, or "npx wrangler deploy" to publish.
+  "name": "axisapp-webapp",
+  "compatibility_date": "2026-09-07",
+  "assets": {
+    "directory": "./dist",
+    // Client-side routes (e.g. /groups/abc) aren't real files — fall back to
+    // index.html and let react-router take over, instead of a 404.
+    "not_found_handling": "single-page-application"
+  }
+}

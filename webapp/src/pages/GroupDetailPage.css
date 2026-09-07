@@ -1,0 +1,58 @@
+.add-expense-btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 0 0 10px;
+}
+
+section {
+  margin-bottom: 28px;
+}
+
+.empty-state.small {
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+.balance-list,
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.balance-row,
+.activity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.balance-name,
+.activity-desc {
+  font-weight: 600;
+}
+
+.activity-meta {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.activity-amount {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.settle-btn {
+  width: auto;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+}

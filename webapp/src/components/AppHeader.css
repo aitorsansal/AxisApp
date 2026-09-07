@@ -1,0 +1,32 @@
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.app-header h1 {
+  font-size: 1.25rem;
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.header-back,
+.header-logout {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.header-back {
+  font-size: 1.4rem;
+  padding: 0 4px;
+}
+
+.header-spacer {
+  width: 24px;
+}
