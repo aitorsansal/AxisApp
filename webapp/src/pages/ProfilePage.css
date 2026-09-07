@@ -1,0 +1,85 @@
+.profile-section {
+  margin-bottom: 20px;
+}
+
+.profile-section .section-title {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 0 0 12px;
+}
+
+.profile-section:last-child {
+  margin-bottom: 0;
+}
+
+.notice-text {
+  color: var(--success);
+  font-size: 0.9rem;
+  margin: 4px 0 12px;
+}
+
+.field-hint {
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  margin: 0 0 12px;
+}
+
+.avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar-preview {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-fallback {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.avatar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.avatar-upload-btn {
+  text-align: center;
+  cursor: pointer;
+}
+
+.language-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.language-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.danger-zone {
+  border-color: var(--danger);
+}

@@ -2,10 +2,12 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { CURRENCIES } from '../lib/types'
+import { useLocale } from '../context/LocaleContext'
 import { AppHeader } from '../components/AppHeader'
 
 export function NewGroupPage() {
   const navigate = useNavigate()
+  const { t } = useLocale()
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('EUR')
   const [error, setError] = useState<string | null>(null)
@@ -29,15 +31,15 @@ export function NewGroupPage() {
 
   return (
     <div className="page">
-      <AppHeader title="New group" back />
+      <AppHeader title={t('NewGroup_Title')} back />
 
       <form onSubmit={handleSubmit}>
         <div className="field">
-          <label htmlFor="name">Name</label>
+          <label htmlFor="name">{t('NewGroup_GroupName')}</label>
           <input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="field">
-          <label htmlFor="currency">Currency</label>
+          <label htmlFor="currency">{t('NewGroup_Currency')}</label>
           <select id="currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>
@@ -50,7 +52,7 @@ export function NewGroupPage() {
         {error && <p className="error-text">{error}</p>}
 
         <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? 'Creating…' : 'Create group'}
+          {busy ? t('Common_Creating') : t('NewGroup_CreateButton')}
         </button>
       </form>
     </div>

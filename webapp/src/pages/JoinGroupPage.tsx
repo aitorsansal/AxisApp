@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { useLocale } from '../context/LocaleContext'
 import { AppHeader } from '../components/AppHeader'
 
 function extractCode(input: string): string {
@@ -17,6 +18,7 @@ function extractCode(input: string): string {
 
 export function JoinGroupPage() {
   const navigate = useNavigate()
+  const { t } = useLocale()
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -38,24 +40,24 @@ export function JoinGroupPage() {
 
   return (
     <div className="page">
-      <AppHeader title="Join a group" back />
+      <AppHeader title={t('JoinGroup_JoinTitle')} back />
 
       <form onSubmit={handleSubmit}>
         <div className="field">
-          <label htmlFor="code">Invite code or link</label>
+          <label htmlFor="code">{t('JoinGroup_CodeOrLinkLabel')}</label>
           <input
             id="code"
             required
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Paste the code or the full invite link"
+            placeholder={t('JoinGroup_CodePlaceholder')}
           />
         </div>
 
         {error && <p className="error-text">{error}</p>}
 
         <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? 'Joining…' : 'Join group'}
+          {busy ? t('JoinGroup_Joining') : t('JoinGroup_JoinButton')}
         </button>
       </form>
     </div>

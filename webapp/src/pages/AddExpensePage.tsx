@@ -2,20 +2,22 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
-import { CATEGORIES, type Group, type MemberRow } from '../lib/types'
+import { useLocale } from '../context/LocaleContext'
+import { CATEGORY_KEYS, type Group, type MemberRow } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
 import './AddExpensePage.css'
 
 export function AddExpensePage() {
   const { groupId } = useParams<{ groupId: string }>()
   const { session } = useAuth()
+  const { t } = useLocale()
   const navigate = useNavigate()
 
   const [group, setGroup] = useState<Group | null>(null)
   const [members, setMembers] = useState<MemberRow[]>([])
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
-  const [category, setCategory] = useState('general')
+  const [category, setCategory] = useState<(typeof CATEGORY_KEYS)[number]>('food')
   const [occurredOn, setOccurredOn] = useState(() => new Date().toISOString().slice(0, 10))
   const [paidBy, setPaidBy] = useState('')
   const [participants, setParticipants] = useState<Set<string>>(new Set())
@@ -62,15 +64,15 @@ export function AddExpensePage() {
 
     const total = Number(amount)
     if (!total || total <= 0) {
-      setError('Enter a valid amount')
+      setError(t('AddExpense_InvalidAmount'))
       return
     }
     if (participants.size === 0) {
-      setError('Pick at least one participant')
+      setError(t('AddExpense_PickParticipant'))
       return
     }
     if (!paidBy) {
-      setError('Pick who paid')
+      setError(t('AddExpense_PickPayer'))
       return
     }
 
@@ -116,29 +118,29 @@ export function AddExpensePage() {
   if (!group) {
     return (
       <div className="page">
-        <AppHeader title="Add expense" back />
-        {error ? <p className="error-text">{error}</p> : <div className="spinner">Loading…</div>}
+        <AppHeader title={t('AddExpense_Title')} back />
+        {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
       </div>
     )
   }
 
   return (
     <div className="page">
-      <AppHeader title="Add expense" back />
+      <AppHeader title={t('AddExpense_Title')} back />
 
       <form onSubmit={handleSubmit}>
         <div className="field">
-          <label htmlFor="description">Description</label>
+          <label htmlFor="description">{t('AddExpense_DescriptionLabel')}</label>
           <input
             id="description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Dinner, groceries…"
+            placeholder={t('AddExpense_DescriptionPlaceholder')}
           />
         </div>
 
         <div className="field">
-          <label htmlFor="amount">Amount ({group.currency})</label>
+          <label htmlFor="amount">{t('AddExpense_AmountLabel', group.currency)}</label>
           <input
             id="amount"
             type="number"
@@ -151,18 +153,22 @@ export function AddExpensePage() {
         </div>
 
         <div className="field">
-          <label htmlFor="category">Category</label>
-          <select id="category" value={category} onChange={(e) => setCategory(e.target.value)}>
-            {CATEGORIES.map((c) => (
-              <option key={c.key} value={c.key}>
-                {c.label}
+          <label htmlFor="category">{t('AddExpense_Category')}</label>
+          <select
+            id="category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as (typeof CATEGORY_KEYS)[number])}
+          >
+            {CATEGORY_KEYS.map((key) => (
+              <option key={key} value={key}>
+                {t(`Category_${key}`)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="field">
-          <label htmlFor="occurred">Date</label>
+          <label htmlFor="occurred">{t('AddExpense_DateLabel')}</label>
           <input
             id="occurred"
             type="date"
@@ -173,7 +179,7 @@ export function AddExpensePage() {
         </div>
 
         <div className="field">
-          <label htmlFor="paidBy">Paid by</label>
+          <label htmlFor="paidBy">{t('AddExpense_PaidBy')}</label>
           <select id="paidBy" value={paidBy} onChange={(e) => setPaidBy(e.target.value)}>
             {members.map((m) => (
               <option key={m.member_id} value={m.member_id}>
@@ -184,7 +190,7 @@ export function AddExpensePage() {
         </div>
 
         <div className="field">
-          <label>Split equally between</label>
+          <label>{t('AddExpense_SplitEquallyBetween')}</label>
           <div className="participant-list">
             {members.map((m) => (
               <label key={m.member_id} className="participant-item">
@@ -202,7 +208,7 @@ export function AddExpensePage() {
         {error && <p className="error-text">{error}</p>}
 
         <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? 'Saving…' : 'Save expense'}
+          {busy ? t('Common_Saving') : t('AddExpense_SaveExpense')}
         </button>
       </form>
     </div>

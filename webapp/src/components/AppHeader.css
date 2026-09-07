@@ -14,17 +14,25 @@
 }
 
 .header-back,
-.header-logout {
+.header-logout,
+.header-profile {
   background: none;
   border: none;
   color: var(--text-secondary);
   font-size: 1rem;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .header-back {
   font-size: 1.4rem;
   padding: 0 4px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .header-spacer {

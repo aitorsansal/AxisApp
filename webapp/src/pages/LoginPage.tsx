@@ -2,10 +2,12 @@ import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
+import { useLocale } from '../context/LocaleContext'
 import './LoginPage.css'
 
 export function LoginPage() {
   const { session } = useAuth()
+  const { t } = useLocale()
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -25,7 +27,7 @@ export function LoginPage() {
           : await supabase.auth.signUp({ email, password })
       if (error) throw error
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setError(err instanceof Error ? err.message : t('Common_Error'))
     } finally {
       setBusy(false)
     }
@@ -44,21 +46,21 @@ export function LoginPage() {
     <div className="page login-page">
       <h1 className="login-title">Axis</h1>
       <p className="login-subtitle">
-        {mode === 'signin' ? 'Sign in to your account' : 'Create an account'}
+        {mode === 'signin' ? t('Login_SigninSubtitle') : t('Login_SignupSubtitle')}
       </p>
 
       <button type="button" className="btn google-btn" onClick={handleGoogle}>
         <GoogleIcon />
-        Continue with Google
+        {t('Login_ContinueWithGoogle')}
       </button>
 
       <div className="divider">
-        <span>or</span>
+        <span>{t('Login_Or')}</span>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div className="field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{t('Login_Email')}</label>
           <input
             id="email"
             type="email"
@@ -69,7 +71,7 @@ export function LoginPage() {
           />
         </div>
         <div className="field">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">{t('Login_Password')}</label>
           <input
             id="password"
             type="password"
@@ -84,7 +86,7 @@ export function LoginPage() {
         {error && <p className="error-text">{error}</p>}
 
         <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Sign up'}
+          {busy ? t('Common_PleaseWait') : mode === 'signin' ? t('Login_SignIn') : t('Login_SignUp')}
         </button>
       </form>
 
@@ -93,7 +95,7 @@ export function LoginPage() {
         className="mode-toggle"
         onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
       >
-        {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+        {mode === 'signin' ? t('Login_ToggleToSignup') : t('Login_ToggleToSignin')}
       </button>
     </div>
   )

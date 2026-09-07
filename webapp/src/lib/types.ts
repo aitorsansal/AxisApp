@@ -38,14 +38,20 @@ export interface ExpenseWithPayer {
   payer: { display_name: string } | null
 }
 
-export const CATEGORIES = [
-  { key: 'general', label: 'General' },
-  { key: 'food', label: 'Food & drink' },
-  { key: 'transport', label: 'Transport' },
-  { key: 'housing', label: 'Housing' },
-  { key: 'entertainment', label: 'Entertainment' },
-  { key: 'other', label: 'Other' },
-]
+// Keys must stay in sync with AxisApp/AppConstants.cs's Categories.Keys —
+// these are stored as plain text in expenses.category with no DB check
+// constraint, so a mismatched key here silently fails to resolve a label in
+// the MAUI app. Labels are resolved per-viewer via Category_<key> in the i18n
+// dictionary (lib/i18n/strings.ts), never stored as text — same reasoning
+// AppConstants.Categories' own doc comment gives.
+export const CATEGORY_KEYS = ['food', 'transport', 'rent', 'utilities', 'entertainment', 'other'] as const
+
+export interface MyMember {
+  id: string
+  display_name: string
+  birth_date: string | null
+  avatar_path: string | null
+}
 
 export const CURRENCIES = [
   'EUR', 'USD', 'GBP', 'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'CZK', 'DKK',
