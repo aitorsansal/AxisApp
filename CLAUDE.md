@@ -1770,11 +1770,16 @@ sign-in, groups list (`my_group_balances`), new group, join by code/link,
 group detail (`my_pairwise_balances` + recent activity), settle up, add
 expense (equal-split only, no custom per-person amounts). No push
 notifications (there's no web equivalent of the FCM work), no receipts, no
-avatars, no recurring expenses, no editing/deleting an existing expense, and
-creating a fresh invite still has to happen from the MAUI app — the web app
-can only redeem one. Equal-split rounds each share to 2 decimals and doesn't
-correct for the remainder, so shares can be a cent off the total on some
-amounts — a simplification the MAUI app's split logic doesn't have to make.
+recurring expenses, no editing/deleting an existing expense, and creating a
+fresh invite still has to happen from the MAUI app — the web app can only
+redeem one. Equal-split rounds each share to 2 decimals and doesn't correct
+for the remainder, so shares can be a cent off the total on some amounts — a
+simplification the MAUI app's split logic doesn't have to make. **Update
+(2026-09-07, see below): a Profile page (avatars included) and a working
+en/es language switch have since closed two of these gaps** — "no avatars"
+above is now stale; receipts/recurring/push are the ones still genuinely
+missing, along with a members roster/add-by-name flow (also missing,
+flagged the same session, not yet built).
 
 **Google OAuth redirect setup, easy to re-break**: `signInWithOAuth`'s
 `redirectTo` has to be in Supabase's Authentication → URL Configuration →
@@ -1816,6 +1821,80 @@ restrict_signups_to_allowlist.sql`, seeded with just `aitorsansal@gmail.com`
 already-existing account was unaffected by testing this (Google sign-in for
 an account that already exists is an identity-link, not a fresh `auth.users`
 insert, so this trigger never fires for it).
+
+**Category-key fix, i18n, and the Profile page (2026-09-07)** —
+cross-referencing the web app against the MAUI app's own feature set
+surfaced one real bug and closed a chunk of scope gap, both the same
+session:
+
+- **Category key mismatch — a real cross-client bug, not a scope gap.**
+  Web's old `CATEGORIES` list (`general, food, transport, housing,
+  entertainment, other`) didn't match `AppConstants.Categories.Keys`
+  (`food, transport, rent, utilities, entertainment, other`) at all. No DB
+  check constraint on `expenses.category` (free text) means nothing failed
+  outright, but an expense categorized "General" or "Housing" on the web
+  silently showed as an unresolved raw key in the MAUI app (no
+  `Category_general`/`Category_housing` entry in `AppStrings.cs`), and the
+  same in reverse for "Rent"/"Utilities" created in MAUI. Fixed by reducing
+  web's list to the same six keys (`CATEGORY_KEYS` in `lib/types.ts`),
+  resolved through the new i18n dictionary below instead of a static label
+  string.
+- **i18n — hand-rolled, not `react-i18next`.** Same reasoning
+  `AppStrings.cs`'s own doc comment already gives for avoiding ResX: no
+  build-time codegen dependency, nothing to trust beyond a plain object
+  literal. `webapp/src/lib/i18n/strings.ts` holds flat en/es
+  `Record<string, string>` dictionaries; `webapp/src/context/
+  LocaleContext.tsx` (`useLocale()` → `{ language, override, setOverride,
+  t }`) is the web equivalent of `LocalizationResourceManager` — `override`
+  persisted via `localStorage` (`axis_language_override`) rather than
+  `Preferences`, `""` meaning "follow the browser" (`navigator.language`)
+  the same way MAUI's null override means "follow the device". Key names
+  mirror `AppStrings.cs` 1:1 wherever the same concept exists in both
+  clients (`Common_*`, `Category_*`, `Profile_*`, `GroupDetail_*`, …) so the
+  two dictionaries stay easy to diff against each other; every existing
+  page's hardcoded strings were migrated to `t('Key')` calls in the same
+  pass — a language picker that only relabels one new page would have been
+  pointless.
+- **Profile page** (`/profile`, linked from `AppHeader`'s non-back variant):
+  display name + birthday (same `members` row/RLS the MAUI `ProfilePage`
+  already uses, including the same `account_id = auth.uid() order by
+  created_at limit 1` lookup pattern `GetMyMemberAsync` uses, for the same
+  possible-duplicate-row edge case documented above), avatar change/remove,
+  email change, password change, language picker, delete account.
+  **Deliberately excludes the accent-color/theme picker** — the user's own
+  call, and web has no dark-only/per-preset accent system to plug it into
+  anyway.
+  - **Avatar resize**: `webapp/src/lib/imageResize.ts` uses the browser's
+    native `createImageBitmap` + `<canvas>.toBlob('image/webp', quality)`
+    instead of a SkiaSharp-equivalent npm package — same 256px/WebP target
+    `ImageResizer.cs` already settled on, for the same reason (44px
+    `AvatarSizeL` is the largest an avatar ever renders). Same
+    `{member_id}/{guid}.webp` path convention into the existing public
+    `avatars` bucket, same best-effort old-file cleanup on replace.
+  - **Delete account**: calls the existing `delete-account` Edge Function
+    via `supabase.functions.invoke(...)` — genuinely simpler than the MAUI
+    side needed, since `supabase-js`'s Functions client attaches the
+    session's bearer token automatically (no manual `HttpClient`/header
+    plumbing like `SupabaseAuthService.DeleteAccountAsync` needed). Its
+    blocked-guard message is surfaced by parsing `FunctionsHttpError
+    .context` (a `Response`) for the `{error: "..."}` body —
+    `FunctionsHttpError.message` alone is just the generic "non-2xx status"
+    text, not the actual `raise exception` message from `delete_account()`.
+- **Confirmed working end to end against the live project**: real
+  signed-in browser session, real display name/birthday/avatar loaded
+  correctly, language switch re-rendered every open page instantly and
+  persisted across navigation (checked Groups, Group Detail, Add Expense),
+  no console errors. **Not yet live-tested**: the email-change confirmation
+  redirect (didn't want to send a real confirmation email mid-session) —
+  same allow-list caveat the Google OAuth redirect already needed once,
+  worth checking before relying on it.
+- **Deployed via `pnpm run deploy` this session**, not `npm run deploy` as
+  documented above — pnpm ran the same `package.json` script fine (it just
+  shells out to `npm run build && npx wrangler deploy` either way), but
+  generated a stray `pnpm-lock.yaml` alongside the existing
+  `package-lock.json`. Left untracked, not added to `.gitignore` — worth
+  deciding whether to standardize on one package manager before this causes
+  real lockfile drift, rather than letting it linger.
 
 ## Architecture
 
