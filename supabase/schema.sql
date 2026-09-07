@@ -1798,3 +1798,397 @@ $$;
 create trigger on_auth_user_created_restrict_signup
   before insert on auth.users
   for each row execute function public.restrict_signup_to_allowlist();
+
+-- ============================================================
+-- events / event_attendees — Phase 2, Milestone 1 (2026-09-07, see
+-- /EVENTS_PLAN.md). Same additive-table shape as recurring_expenses: one
+-- row per group event, one row per (event, member) RSVP.
+--
+-- needs_transport is editable after creation, unlike groups.currency's
+-- deliberate lock — an organizer may not know transport will be an issue
+-- until people start RSVPing. reminder_sent_at is a mark-processed column
+-- for Milestone 5's reminder cron, same idea as recurring_expenses
+-- .last_processed_date.
+--
+-- event_attendees.response is a 3-state (going/maybe/not_going), not a
+-- plain yes/no — it drives both the transport headcount and the reminder
+-- recipient list. car_status is one tri-state field (none/offering/
+-- needs_ride) rather than two booleans, so "offering a ride" and "needs a
+-- ride" can never both be true at once. RSVP and car status are coupled at
+-- the app layer, not the DB: whenever a write sets response to
+-- 'not_going', that same write must also reset car_status/
+-- car_offered_seats to 'none'/null, or a declined attendee would keep
+-- corrupting the transport shortfall math (see Milestone 3a's repository
+-- notes in the plan doc) — there is deliberately no DB trigger for this,
+-- since it's a single call site (the RSVP save path), matching this
+-- project's general preference for app-level logic over a trigger when
+-- there's exactly one writer to coordinate.
+--
+-- members.car_extra_seats is a per-profile default seat count, named to
+-- mean "extra seats beyond the driver" everywhere (DB and UI both) — the
+-- original idea's phrasing ("car places = 6" meaning "me + 6") was an
+-- off-by-one footgun waiting to happen otherwise.
+--
+-- created_by on events is nullable with `on delete set null` from the
+-- start, unlike members/invites/expenses/recurring_expenses above (which
+-- all began `not null` and had to be relaxed later, once account deletion
+-- was built — see delete_account()'s remarks) — events didn't exist yet at
+-- that point, so there's no reason to reintroduce the same bug just to
+-- "match" the older tables.
+-- ============================================================
+
+create table public.events (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references public.groups(id) on delete cascade,
+  title text not null,
+  description text,
+  location text,
+  starts_at timestamptz not null,
+  ends_at timestamptz,
+  needs_transport boolean not null default false,
+  reminder_sent_at timestamptz,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create table public.event_attendees (
+  event_id uuid not null references public.events(id) on delete cascade,
+  member_id uuid not null references public.members(id) on delete cascade,
+  response text not null default 'going'
+    check (response in ('going', 'maybe', 'not_going')),
+  car_status text not null default 'none'
+    check (car_status in ('none', 'offering', 'needs_ride')),
+  car_offered_seats int,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (event_id, member_id)
+);
+
+alter table public.members add column car_extra_seats int;
+
+-- events(group_id, starts_at): the grouped-by-date list (Milestone 3b) and
+-- the reminder cron scan (Milestone 5) both filter/sort on this.
+create index on public.events (group_id, starts_at);
+-- event_attendees(event_id): attendee lookups per event, including the
+-- transport aggregate (Milestone 4) and the notification recipient
+-- functions (Milestone 5).
+create index on public.event_attendees (event_id);
+
+alter table public.events enable row level security;
+alter table public.event_attendees enable row level security;
+
+-- events: any current group member can select/insert/update — same shape
+-- as expenses/recurring_expenses. Delete is creator-only, a deliberate
+-- divergence: an event is more ownership-flavored than an expense (having
+-- one you organized deleted out from under you by another member is a
+-- worse surprise, compounded by attendees possibly having arranged
+-- carpooling around it already) — see the plan doc's "Decisions locked".
+create policy "select events in your groups" on public.events
+  for select using (is_group_member(group_id));
+create policy "insert events in your groups" on public.events
+  for insert with check (is_group_member(group_id));
+create policy "update events in your groups" on public.events
+  for update using (is_group_member(group_id));
+create policy "delete own events" on public.events
+  for delete using (created_by = auth.uid());
+
+-- event_attendees: select follows the parent event's visibility. Writes are
+-- restricted to your own row AND require you to actually be a member of
+-- that event's group — the "own row" check alone isn't enough on its own,
+-- since one account's member_id is shared across every group it belongs to
+-- (see the one-account-one-member invariant elsewhere in this file); without
+-- the group-membership check too, an account could RSVP to an event in a
+-- group it was never invited into, just by referencing its own member_id.
+create policy "select attendees of visible events" on public.event_attendees
+  for select using (
+    exists (
+      select 1 from events e
+      where e.id = event_attendees.event_id
+        and is_group_member(e.group_id)
+    )
+  );
+create policy "insert your own rsvp" on public.event_attendees
+  for insert with check (
+    exists (
+      select 1 from events e
+      where e.id = event_attendees.event_id
+        and is_group_member(e.group_id)
+    )
+    and exists (
+      select 1 from members m
+      where m.id = event_attendees.member_id
+        and m.account_id = auth.uid()
+    )
+  );
+create policy "update your own rsvp" on public.event_attendees
+  for update using (
+    exists (
+      select 1 from members m
+      where m.id = event_attendees.member_id
+        and m.account_id = auth.uid()
+    )
+  );
+create policy "delete your own rsvp" on public.event_attendees
+  for delete using (
+    exists (
+      select 1 from members m
+      where m.id = event_attendees.member_id
+        and m.account_id = auth.uid()
+    )
+  );
+
+-- ============================================================
+-- Event notifications — Phase 2, Milestone 5 (2026-09-07, see
+-- /EVENTS_PLAN.md). Creation/change/cancellation are immediate triggers;
+-- the reminder is a daily pg_cron scan. Reuses the existing send-push Edge
+-- Function and AxisFirebaseMessagingService client-side unchanged — the
+-- client never branches on the payload's `type` field, only reads
+-- title/body/group_id/group_name.
+--
+-- The cancellation trigger is BEFORE DELETE, not AFTER — a deliberate
+-- correction from an earlier draft of this plan, which assumed AFTER
+-- DELETE with OLD would be enough. That's fine for OLD's own columns, but
+-- not for the recipient list: event_attendees cascade-deletes with its
+-- parent events row, and Postgres's internal FK-cascade ordering relative
+-- to a user AFTER DELETE trigger on the same table isn't worth depending
+-- on. BEFORE DELETE is unambiguous — nothing has cascaded yet. And since
+-- pg_net's HTTP delivery is asynchronous regardless of trigger timing (the
+-- row will be long gone by the time send-push actually processes the
+-- request either way), the recipient list AND the message content are
+-- both computed synchronously inside the trigger and embedded directly in
+-- the JSON payload — no RPC lookup for the cancelled case, unlike
+-- created/changed/reminder which all still have a live row to query when
+-- their own (also async) push fires.
+-- ============================================================
+
+-- event_notification_recipients: creation push — every current group
+-- member minus the creator (mirrors expense_notification_recipients's
+-- shape exactly).
+create or replace function public.event_notification_recipients(p_event_id uuid)
+returns table (account_id uuid, push_token text, platform text)
+language sql
+stable
+set search_path = public
+as $$
+  select distinct dt.account_id, dt.push_token, dt.platform
+  from events e
+  join group_members gm on gm.group_id = e.group_id
+  join members m on m.id = gm.member_id
+  join device_tokens dt on dt.account_id = m.account_id
+  where e.id = p_event_id
+    and m.account_id is not null
+    and m.account_id <> e.created_by;
+$$;
+
+revoke execute on function public.event_notification_recipients(uuid) from public, anon, authenticated;
+
+-- event_attendee_notification_recipients: change push — every current
+-- attendee (any event_attendees row, any response) minus whoever made the
+-- edit. Deliberately narrower than the creation set: someone who never
+-- RSVP'd at all doesn't need to hear that an event they're not tracking
+-- got moved, only people who've actually engaged with it.
+create or replace function public.event_attendee_notification_recipients(p_event_id uuid, p_actor_account_id uuid)
+returns table (account_id uuid, push_token text, platform text)
+language sql
+stable
+set search_path = public
+as $$
+  select distinct dt.account_id, dt.push_token, dt.platform
+  from event_attendees ea
+  join members m on m.id = ea.member_id
+  join device_tokens dt on dt.account_id = m.account_id
+  where ea.event_id = p_event_id
+    and m.account_id is not null
+    and (p_actor_account_id is null or m.account_id <> p_actor_account_id);
+$$;
+
+revoke execute on function public.event_attendee_notification_recipients(uuid, uuid) from public, anon, authenticated;
+
+-- event_reminder_recipients: the daily advance-reminder cron's recipient
+-- set — going/maybe attendees only (not_going gets no nudge), INCLUDING
+-- the creator this time (unlike creation, they need reminding too — they
+-- already know they made the event, they don't already know it's tomorrow).
+create or replace function public.event_reminder_recipients(p_event_id uuid)
+returns table (account_id uuid, push_token text, platform text)
+language sql
+stable
+set search_path = public
+as $$
+  select distinct dt.account_id, dt.push_token, dt.platform
+  from event_attendees ea
+  join members m on m.id = ea.member_id
+  join device_tokens dt on dt.account_id = m.account_id
+  where ea.event_id = p_event_id
+    and ea.response in ('going', 'maybe')
+    and m.account_id is not null;
+$$;
+
+revoke execute on function public.event_reminder_recipients(uuid) from public, anon, authenticated;
+
+-- notify_new_event: AFTER INSERT on events. Same Vault-service-role-key
+-- pattern and SECURITY DEFINER reasoning as notify_new_expense — this
+-- fires from a plain app-level INSERT by an ordinary signed-in user via
+-- Postgrest (role `authenticated`, no grant on the vault schema), so
+-- without SECURITY DEFINER it fails with `permission denied for schema
+-- vault` (42501) the same way notify_new_expense did before that fix.
+create or replace function public.notify_new_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform net.http_post(
+    url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/send-push',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+    ),
+    body := jsonb_build_object('event_id', new.id, 'event_type', 'created')
+  );
+  return new;
+end;
+$$;
+
+create trigger events_notify_after_insert
+  after insert on public.events
+  for each row execute function public.notify_new_event();
+
+-- notify_event_changed: AFTER UPDATE on events, firing only when
+-- starts_at/ends_at/location actually changed — a description or
+-- needs_transport edit stays silent, per /EVENTS_PLAN.md's "Decisions
+-- locked" (only the fields that would actually strand or confuse someone
+-- who already made plans). auth.uid() here reflects the real caller's JWT
+-- regardless of SECURITY DEFINER — that only elevates SQL execution
+-- privileges, not what auth.uid() reports.
+create or replace function public.notify_event_changed()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.starts_at is distinct from old.starts_at
+    or new.ends_at is distinct from old.ends_at
+    or new.location is distinct from old.location
+  then
+    perform net.http_post(
+      url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/send-push',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+      ),
+      body := jsonb_build_object('event_id', new.id, 'event_type', 'changed', 'actor_account_id', auth.uid())
+    );
+  end if;
+  return new;
+end;
+$$;
+
+create trigger events_notify_after_update
+  after update on public.events
+  for each row execute function public.notify_event_changed();
+
+-- notify_event_cancelled: BEFORE DELETE on events (see this section's
+-- header comment for why BEFORE, not AFTER, and why recipients/content
+-- are both embedded directly rather than looked up via RPC). Must return
+-- old — a BEFORE DELETE trigger that returns null would cancel the delete.
+create or replace function public.notify_event_cancelled()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_group_name text;
+  v_recipients jsonb;
+begin
+  select g.name into v_group_name from groups g where g.id = old.group_id;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'account_id', dt.account_id,
+    'push_token', dt.push_token,
+    'platform', dt.platform
+  )), '[]'::jsonb)
+  into v_recipients
+  from event_attendees ea
+  join members m on m.id = ea.member_id
+  join device_tokens dt on dt.account_id = m.account_id
+  where ea.event_id = old.id
+    and m.account_id is not null
+    and (auth.uid() is null or m.account_id <> auth.uid());
+
+  perform net.http_post(
+    url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/send-push',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+    ),
+    body := jsonb_build_object(
+      'event_type', 'cancelled',
+      'title', old.title,
+      'group_id', old.group_id,
+      'group_name', coalesce(v_group_name, 'your group'),
+      'recipients', v_recipients
+    )
+  );
+  return old;
+end;
+$$;
+
+create trigger events_notify_before_delete
+  before delete on public.events
+  for each row execute function public.notify_event_cancelled();
+
+-- send_event_reminders: the daily advance-reminder cron job. Window and
+-- run time decided 2026-09-07 (see /EVENTS_PLAN.md's Milestone 5 remarks):
+-- daily at 9am UTC (distinct from fetch-exchange-rates' 6am and
+-- materialize-recurring-expenses' 8am, still a normal-morning time),
+-- scanning events starting in the next 24-30 hours that haven't been
+-- reminded yet — since this only runs once a day, an exact "24h before"
+-- isn't achievable anyway; this gives every event its one reminder
+-- somewhere in that 24-30h range, whichever daily run first catches it.
+-- reminder_sent_at is stamped immediately after a successful queue so a
+-- given event is never reminded twice, same "mark-processed" idea as
+-- recurring_expenses.last_processed_date.
+--
+-- Never SECURITY DEFINER — same reasoning as materialize_recurring_expenses/
+-- find_expired_receipts: this only ever runs via pg_cron, as whichever role
+-- called cron.schedule() (postgres, which already has Vault access), so
+-- there's no permission gap to bridge here the way the trigger-based
+-- functions above need one.
+create or replace function public.send_event_reminders()
+returns void
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_event record;
+begin
+  for v_event in
+    select id from events
+    where starts_at >= now()
+      and starts_at < now() + interval '30 hours'
+      and reminder_sent_at is null
+  loop
+    perform net.http_post(
+      url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/send-push',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+      ),
+      body := jsonb_build_object('event_id', v_event.id, 'event_type', 'reminder')
+    );
+
+    update events set reminder_sent_at = now() where id = v_event.id;
+  end loop;
+end;
+$$;
+
+revoke execute on function public.send_event_reminders() from public, anon, authenticated;
+
+select cron.schedule(
+  'send-event-reminders',
+  '0 9 * * *',
+  $$ select public.send_event_reminders(); $$
+);

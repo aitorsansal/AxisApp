@@ -81,6 +81,20 @@
                             IsVisible="{Binding HasBirthday, Converter={StaticResource InverseBoolConverter}}" />
                     </VerticalStackLayout>
 
+                    <!-- Car seats available: a per-profile default for the transport/carpooling
+                         feature (Events tab, /EVENTS_PLAN.md Milestone 4) — always "extra seats
+                         beyond yourself", editable per event too. -->
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <Label Text="{loc:Translate Profile_CarSeats}" Style="{StaticResource SectionHeaderTertiary}" />
+                        <Border Style="{StaticResource InputBorderStyle}">
+                            <Entry
+                                Text="{Binding CarExtraSeatsText}"
+                                Keyboard="Numeric"
+                                Placeholder="{loc:Translate Profile_CarSeatsPlaceholder}" />
+                        </Border>
+                        <Label Text="{loc:Translate Profile_CarSeatsHint}" Style="{StaticResource LabelTertiary}" />
+                    </VerticalStackLayout>
+
                     <Button
                         Text="{loc:Translate Common_Save}"
                         Command="{Binding SaveProfileCommand}"

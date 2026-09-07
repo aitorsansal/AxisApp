@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
+    x:Class="AxisApp.Pages.AddEventPage"
+    x:DataType="vm:AddEventViewModel"
+    Shell.NavBarIsVisible="False"
+    Title="{Binding PageTitle}">
+
+    <Grid RowDefinitions="60,*,Auto">
+
+        <!-- Top bar: Cancel / title / Save — same shape as AddExpensePage. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+            <Grid.Padding>
+                <Thickness Left="{StaticResource SpacingM}" Top="0" Right="{StaticResource SpacingM}" Bottom="0" />
+            </Grid.Padding>
+            <Button
+                Grid.Column="0"
+                Text="{loc:Translate Common_Cancel}"
+                Command="{Binding CancelCommand}"
+                Style="{StaticResource BtnTextStyle}"
+                TextColor="{DynamicResource TextSecondary}"
+                MinimumWidthRequest="76"
+                MinimumHeightRequest="44"
+                VerticalOptions="Center" />
+
+            <Label
+                Grid.Column="1"
+                Text="{Binding PageTitle}"
+                Style="{StaticResource SectionHeader}"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                Margin="0" />
+
+            <Button
+                Grid.Column="2"
+                Text="{loc:Translate Common_Save}"
+                Command="{Binding SaveCommand}"
+                IsEnabled="{Binding CanSave}"
+                Style="{StaticResource BtnTextStyle}"
+                TextColor="{DynamicResource Primary}"
+                MinimumWidthRequest="76"
+                MinimumHeightRequest="44"
+                VerticalOptions="Center" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
+
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Entry Text="{Binding Title}" Placeholder="{loc:Translate AddEvent_TitlePlaceholder}" />
+                </Border>
+
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Entry Text="{Binding Description}" Placeholder="{loc:Translate AddEvent_DescriptionPlaceholder}" />
+                </Border>
+
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Entry Text="{Binding Location}" Placeholder="{loc:Translate AddEvent_LocationPlaceholder}" />
+                </Border>
+
+                <!-- Start date + time: decorative row with an invisible full-size picker on top,
+                same trick AddExpensePage's date rows already use — the whole row is the tap
+                target, not just the icon. -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                    <Label Text="{loc:Translate AddEvent_Starts}" Style="{StaticResource SectionHeaderTertiary}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource SpacingS}">
+                        <Border Grid.Column="0" Style="{StaticResource InputBorderStyle}">
+                            <Grid>
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
+                                    <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Text="{Binding StartDateDisplay}" VerticalOptions="Center" LineBreakMode="TailTruncation" />
+                                </Grid>
+                                <DatePicker Date="{Binding StartDate}" Opacity="0" />
+                            </Grid>
+                        </Border>
+                        <Border Grid.Column="1" Style="{StaticResource InputBorderStyle}">
+                            <Grid>
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
+                                    <Label Grid.Column="0" Text="&#128336;" VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Text="{Binding StartTimeDisplay}" VerticalOptions="Center" />
+                                </Grid>
+                                <TimePicker Time="{Binding StartTime}" Opacity="0" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </VerticalStackLayout>
+
+                <!-- End date + time: optional, toggled on with the switch below. -->
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="{loc:Translate AddEvent_HasEndTime}" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="{Binding HasEndTime}" VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource SpacingS}" IsVisible="{Binding HasEndTime}">
+                    <Border Grid.Column="0" Style="{StaticResource InputBorderStyle}">
+                        <Grid>
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
+                                <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
+                                <Label Grid.Column="1" Text="{Binding EndDateDisplay}" VerticalOptions="Center" LineBreakMode="TailTruncation" />
+                            </Grid>
+                            <DatePicker Date="{Binding EndDate}" Opacity="0" />
+                        </Grid>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource InputBorderStyle}">
+                        <Grid>
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
+                                <Label Grid.Column="0" Text="&#128336;" VerticalOptions="Center" />
+                                <Label Grid.Column="1" Text="{Binding EndTimeDisplay}" VerticalOptions="Center" />
+                            </Grid>
+                            <TimePicker Time="{Binding EndTime}" Opacity="0" />
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Needs transport: editable after creation too (this same page doubles as edit),
+                unlike Group.Currency's deliberate lock — see /EVENTS_PLAN.md's "Decisions locked". -->
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0" Text="{loc:Translate AddEvent_NeedsTransport}" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="{Binding NeedsTransport}" VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <VerticalStackLayout Grid.Row="2" Spacing="{StaticResource SpacingS}" Margin="{StaticResource SpacingM}">
+            <Button
+                Text="{loc:Translate AddEvent_SaveEvent}"
+                Command="{Binding SaveCommand}"
+                IsEnabled="{Binding CanSave}"
+                Style="{StaticResource BtnPrimaryStyle}" />
+            <Button
+                Text="{loc:Translate AddEvent_DeleteEvent}"
+                Command="{Binding DeleteCommand}"
+                Style="{StaticResource BtnOutlineDanger}"
+                IsVisible="{Binding CanDelete}" />
+        </VerticalStackLayout>
+
+        <ActivityIndicator
+            Grid.Row="0" Grid.RowSpan="3"
+            IsRunning="{Binding IsBusy}"
+            IsVisible="{Binding IsBusy}"
+            Color="{DynamicResource Primary}"
+            HorizontalOptions="Center"
+            VerticalOptions="Center" />
+
+        <controls:ErrorPopup Grid.Row="0" Grid.RowSpan="3" Message="{Binding ErrorMessage}" />
+
+    </Grid>
+</ContentPage>

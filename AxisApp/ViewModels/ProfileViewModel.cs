@@ -39,6 +39,7 @@ public partial class ProfileViewModel : BaseViewModel
     [ObservableProperty] private bool hasBirthday;
     [ObservableProperty] private DateTime birthday = DateTime.Today.AddYears(-25);
     [ObservableProperty] private string birthdayDisplay = "";
+    [ObservableProperty] private string carExtraSeatsText = "";
     [ObservableProperty] private string selectedLanguageOverride;
     public ObservableCollection<AccentSwatch> AccentSwatches { get; }
     [ObservableProperty] private bool amountDisplayConverted;
@@ -112,6 +113,8 @@ public partial class ProfileViewModel : BaseViewModel
         HasBirthday = myMember.BirthDate is not null;
         Birthday = myMember.BirthDate ?? Birthday;
         RefreshBirthdayDisplay();
+
+        CarExtraSeatsText = myMember.CarExtraSeats?.ToString() ?? "";
     }
 
     private void RefreshBirthdayDisplay() =>
@@ -155,6 +158,9 @@ public partial class ProfileViewModel : BaseViewModel
         {
             myMember.DisplayName = DisplayName.Trim();
             myMember.BirthDate = HasBirthday ? Birthday.Date : null;
+            myMember.CarExtraSeats = int.TryParse(CarExtraSeatsText.Trim(), out var seats) && seats >= 0
+                ? seats
+                : null;
             myMember = await membersRepository.UpdateAsync(myMember);
             ApplyMemberToFields();
             StatusMessage = LocalizationResourceManager.Instance["Profile_ProfileSaved"];

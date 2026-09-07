@@ -97,6 +97,7 @@ public static class AppConstants
         public const string JoinGroup = "JoinGroup";
         public const string AddExpense = "AddExpense";
         public const string RecurringExpenses = "RecurringExpenses";
+        public const string AddEvent = "AddEvent";
         public const string NewGroup = "NewGroup";
         public const string Profile = "Profile";
     }

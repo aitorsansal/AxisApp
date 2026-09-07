@@ -202,7 +202,14 @@ expense pings) is a real but much narrower need than category-level
 muting — not planned now, but nothing about the flat-channel design blocks
 adding it later if it turns out to matter.
 
-Not started until Phase 1 is fully working and has proven the backend pattern.
+Not started until Phase 1 is fully working and has proven the backend pattern
+— Phase 1 is now considered done (see `CLAUDE.md`'s "Current state"). See
+**`/EVENTS_PLAN.md`** for the full design and milestone status, written from
+a 2026-09-07 planning session: the Expenses/Events tab restructure inside
+`GroupDetailPage`, RSVP model, and a carpooling/transport feature (per-event
+"needs transport", per-attendee "offering a ride"/"needs a ride", a
+per-profile default seat count) added on top of this section's original
+sketch.
 
 ## Phase 2.5 — Google Calendar sync
 

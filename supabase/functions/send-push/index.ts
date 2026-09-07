@@ -1,23 +1,34 @@
 // send-push — fires on a new expense (see schema.sql's notify_new_expense trigger, called via
-// pg_net the same way cleanup-receipts' cron job is). A settlement is just an expense with
-// is_settlement = true (Payment/notify_new_payment/payment_notification_recipients were retired
-// 2026-09-04 — see CLAUDE.md's "Merge payments into expenses" remarks), so there's only ever one
-// branch here now.
-// Deployed via the Supabase dashboard's browser editor, not the CLI — this file is the
-// version-controlled source of truth; keep it in sync if the deployed function is ever edited
-// directly in the dashboard.
+// pg_net the same way cleanup-receipts' cron job is) or an event create/change/cancel/reminder
+// (see schema.sql's notify_new_event/notify_event_changed/notify_event_cancelled triggers and the
+// send_event_reminders cron job — /EVENTS_PLAN.md Milestone 5). A settlement is just an expense
+// with is_settlement = true (Payment/notify_new_payment/payment_notification_recipients were
+// retired 2026-09-04 — see CLAUDE.md's "Merge payments into expenses" remarks), so there's only
+// ever one expense branch. Deployed via the Supabase dashboard's browser editor, not the CLI —
+// this file is the version-controlled source of truth; keep it in sync if the deployed function
+// is ever edited directly in the dashboard.
 //
-// Recipient scoping happens in Postgres (expense_notification_recipients in schema.sql), not
-// here — this function only turns that list into real FCM sends. SUPABASE_URL and
-// SUPABASE_SERVICE_ROLE_KEY are injected automatically into every Edge Function's environment;
-// FIREBASE_SERVICE_ACCOUNT_KEY is NOT — it must be set by hand under this function's own Secrets
-// (the whole service-account JSON, as one string), separate from the database Vault (Vault
-// secrets are for SQL-side callers like the trigger's own Authorization header; this one is only
-// ever read here, in the function's own runtime).
+// Recipient scoping happens in Postgres (expense_notification_recipients/
+// event_notification_recipients/event_attendee_notification_recipients/event_reminder_recipients
+// in schema.sql), not here — this function only turns that list into real FCM sends. The one
+// exception is a cancelled event: its events row (and event_attendees) are already gone by the
+// time this function's request actually arrives (pg_net delivery is asynchronous, and the row's
+// own DELETE has already completed), so the cancellation trigger embeds the recipient list and
+// message content directly in the request body instead of naming an id to look up — see this
+// function's `event_type === "cancelled"` branch below and schema.sql's notify_event_cancelled
+// remarks for why. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically into
+// every Edge Function's environment; FIREBASE_SERVICE_ACCOUNT_KEY is NOT — it must be set by hand
+// under this function's own Secrets (the whole service-account JSON, as one string), separate
+// from the database Vault (Vault secrets are for SQL-side callers like the triggers' own
+// Authorization header; this one is only ever read here, in the function's own runtime).
 //
 // Android-only, per CLAUDE.md's push-notifications remarks — a recipient row with
 // platform = 'windows' is silently skipped (IPushRegistrationService's Windows implementation is a
 // deliberate no-op, so none should exist yet, but the filter is here regardless).
+//
+// Event push copy shows times in UTC, not converted to each recipient's own timezone — a known
+// simplification (an Edge Function has no reliable way to know a given device's timezone), not
+// something worth solving for a first pass.
 //
 // Not build-verified — no Deno runtime was available to type-check this against a real deploy the
 // way every other piece of this feature was. Deploy it, trigger a real insert, and report back
@@ -96,14 +107,25 @@ async function getFcmAccessToken(serviceAccountJson: string): Promise<string> {
   return access_token as string;
 }
 
+// UTC, deliberately — see this file's header comment on why per-recipient timezone conversion
+// isn't attempted here.
+function formatEventTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString("en-US", {
+    weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    timeZone: "UTC",
+  }) + " UTC";
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const { expense_id } = await req.json();
-  if (!expense_id) {
-    return new Response(JSON.stringify({ error: "expense_id required" }), {
+  const payload = await req.json();
+  const { expense_id, event_id, event_type, actor_account_id } = payload;
+  if (!expense_id && !event_id && event_type !== "cancelled") {
+    return new Response(JSON.stringify({ error: "expense_id or event_id required" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
@@ -114,36 +136,92 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const { data: recipientRows, error: recError } = await supabase
-    .rpc("expense_notification_recipients", { p_expense_id: expense_id })
-    .returns<Recipient[]>();
-  if (recError) {
-    return new Response(JSON.stringify({ error: recError.message }), { status: 500 });
-  }
-  const recipients: Recipient[] = recipientRows ?? [];
-
+  let recipients: Recipient[] = [];
   let title = "Axis";
   let body = "";
   let groupId = "";
   let isSettlement = false;
+  let pushType = "expense";
 
-  const { data: expense } = await supabase
-    .from("expenses")
-    .select("group_id, description, amount, currency, is_settlement, groups(name), members!expenses_paid_by_member_id_fkey(display_name)")
-    .eq("id", expense_id)
-    .single();
+  if (expense_id) {
+    const { data: recipientRows, error: recError } = await supabase
+      .rpc("expense_notification_recipients", { p_expense_id: expense_id })
+      .returns<Recipient[]>();
+    if (recError) {
+      return new Response(JSON.stringify({ error: recError.message }), { status: 500 });
+    }
+    recipients = recipientRows ?? [];
 
-  if (expense) {
+    const { data: expense } = await supabase
+      .from("expenses")
+      .select("group_id, description, amount, currency, is_settlement, groups(name), members!expenses_paid_by_member_id_fkey(display_name)")
+      .eq("id", expense_id)
+      .single();
+
+    if (expense) {
+      // deno-lint-ignore no-explicit-any
+      const e = expense as any;
+      const groupName = e.groups?.name ?? "your group";
+      const payerName = e.members?.display_name ?? "Someone";
+      isSettlement = e.is_settlement === true;
+      title = groupName;
+      body = isSettlement
+        ? `${payerName} paid you back — ${e.amount} ${e.currency}`
+        : `${payerName} added ${e.description || "an expense"} — ${e.amount} ${e.currency}`;
+      groupId = e.group_id ?? "";
+    }
+    pushType = isSettlement ? "settlement" : "expense";
+  } else if (event_type === "cancelled") {
+    // No live events/event_attendees row to query — the notify_event_cancelled trigger (BEFORE
+    // DELETE) already embedded everything needed directly in the request body, since by the time
+    // this async request actually arrives the row is long gone regardless of trigger timing. See
+    // schema.sql's notify_event_cancelled remarks.
+    const embedded = (payload.recipients ?? []) as Recipient[];
+    recipients = embedded;
+    title = payload.group_name ?? "your group";
+    groupId = payload.group_id ?? "";
+    body = `${payload.title ?? "An event"} was cancelled`;
+    pushType = "event_cancelled";
+  } else {
+    const { data: eventRow } = await supabase
+      .from("events")
+      .select("group_id, title, starts_at, groups(name)")
+      .eq("id", event_id)
+      .single();
+
     // deno-lint-ignore no-explicit-any
-    const e = expense as any;
-    const groupName = e.groups?.name ?? "your group";
-    const payerName = e.members?.display_name ?? "Someone";
-    isSettlement = e.is_settlement === true;
+    const ev = eventRow as any;
+    const groupName = ev?.groups?.name ?? "your group";
+    const eventTitle = ev?.title ?? "an event";
+    const whenText = ev?.starts_at ? formatEventTime(ev.starts_at) : "";
     title = groupName;
-    body = isSettlement
-      ? `${payerName} paid you back — ${e.amount} ${e.currency}`
-      : `${payerName} added ${e.description || "an expense"} — ${e.amount} ${e.currency}`;
-    groupId = e.group_id ?? "";
+    groupId = ev?.group_id ?? "";
+
+    if (event_type === "changed") {
+      body = `${eventTitle} was updated — new time or location`;
+      pushType = "event_changed";
+      const { data: recipientRows } = await supabase
+        .rpc("event_attendee_notification_recipients", {
+          p_event_id: event_id,
+          p_actor_account_id: actor_account_id ?? null,
+        })
+        .returns<Recipient[]>();
+      recipients = recipientRows ?? [];
+    } else if (event_type === "reminder") {
+      body = `Starting soon: ${eventTitle} — ${whenText}`;
+      pushType = "event_reminder";
+      const { data: recipientRows } = await supabase
+        .rpc("event_reminder_recipients", { p_event_id: event_id })
+        .returns<Recipient[]>();
+      recipients = recipientRows ?? [];
+    } else {
+      body = `New event: ${eventTitle} — ${whenText}`;
+      pushType = "event_created";
+      const { data: recipientRows } = await supabase
+        .rpc("event_notification_recipients", { p_event_id: event_id })
+        .returns<Recipient[]>();
+      recipients = recipientRows ?? [];
+    }
   }
 
   const androidRecipients = recipients.filter((r) => r.platform === "android");
@@ -189,8 +267,9 @@ Deno.serve(async (req) => {
           // push-notifications remarks. All values must be strings; FCM data payloads don't
           // support other JSON types.
           data: {
-            type: isSettlement ? "settlement" : "expense",
+            type: pushType,
             expense_id: expense_id ?? "",
+            event_id: event_id ?? "",
             group_id: groupId,
             group_name: title,
             title,

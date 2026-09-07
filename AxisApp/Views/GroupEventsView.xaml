@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentView
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
+    x:Class="AxisApp.Views.GroupEventsView"
+    x:DataType="vm:GroupEventsViewModel">
+
+    <!-- Events tab (see /EVENTS_PLAN.md Milestone 3b) — grouped-by-month list, Upcoming/Past
+    toggle, and an inline 3-way RSVP pill per row. The FAB ("+ Add event") lives at the
+    GroupDetailPage level, not here — see GroupDetailPage.xaml. -->
+    <Grid>
+    <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+        <ScrollView>
+            <VerticalStackLayout Spacing="{StaticResource SpacingL}">
+                <!-- Bottom padding reserves clearance under the floating "+ Add event" button,
+                same as GroupExpensesView. -->
+                <VerticalStackLayout.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingM}" Right="{StaticResource SpacingM}" Bottom="88" />
+                </VerticalStackLayout.Padding>
+
+                <Border Style="{StaticResource SegmentPillContainer}" HorizontalOptions="Center">
+                    <HorizontalStackLayout Spacing="{StaticResource SpacingXS}">
+                        <Button
+                            Text="{loc:Translate GroupEvents_Upcoming}"
+                            Command="{Binding ShowUpcomingCommand}"
+                            Style="{StaticResource SegmentButtonUnselected}">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button" Binding="{Binding IsPastSelected}" Value="False">
+                                    <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                </DataTrigger>
+                            </Button.Triggers>
+                        </Button>
+                        <Button
+                            Text="{loc:Translate GroupEvents_Past}"
+                            Command="{Binding ShowPastCommand}"
+                            Style="{StaticResource SegmentButtonUnselected}">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button" Binding="{Binding IsPastSelected}" Value="True">
+                                    <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                </DataTrigger>
+                            </Button.Triggers>
+                        </Button>
+                    </HorizontalStackLayout>
+                </Border>
+
+                <Label
+                    Text="{loc:Translate GroupEvents_Empty}"
+                    Style="{StaticResource LabelTertiary}"
+                    HorizontalTextAlignment="Center"
+                    IsVisible="{Binding HasEvents, Converter={StaticResource InverseBoolConverter}}" />
+
+                <VerticalStackLayout BindableLayout.ItemsSource="{Binding GroupedEvents}" Spacing="{StaticResource SpacingM}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="vm:EventMonthGroup">
+                            <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                                <Label Text="{Binding Header}" Style="{StaticResource SectionHeaderTertiary}" />
+
+                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding Events}" Spacing="{StaticResource SpacingS}">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:EventListItem">
+                                            <Border Style="{StaticResource ListItemCard}">
+                                                <VerticalStackLayout Spacing="{StaticResource SpacingXS}">
+
+                                                    <Grid ColumnDefinitions="*,Auto,Auto">
+                                                        <Label Grid.Column="0" Text="{Binding Title}" FontAttributes="Bold" LineBreakMode="TailTruncation">
+                                                            <Label.GestureRecognizers>
+                                                                <TapGestureRecognizer
+                                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=OpenEventCommand}"
+                                                                    CommandParameter="{Binding .}" />
+                                                            </Label.GestureRecognizers>
+                                                        </Label>
+                                                        <Label
+                                                            Grid.Column="1"
+                                                            Text="&#128663;"
+                                                            IsVisible="{Binding NeedsTransport}"
+                                                            VerticalOptions="Center">
+                                                            <Label.Margin>
+                                                                <Thickness Left="{StaticResource SpacingXS}" Top="0" Right="{StaticResource SpacingXS}" Bottom="0" />
+                                                            </Label.Margin>
+                                                        </Label>
+                                                        <Label Grid.Column="2" Text="&#8250;" TextColor="{DynamicResource TextTertiary}" VerticalOptions="Center">
+                                                            <Label.GestureRecognizers>
+                                                                <TapGestureRecognizer
+                                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=OpenEventCommand}"
+                                                                    CommandParameter="{Binding .}" />
+                                                            </Label.GestureRecognizers>
+                                                        </Label>
+                                                    </Grid>
+
+                                                    <Label Text="{Binding SubCaption}" Style="{StaticResource LabelTertiary}" LineBreakMode="TailTruncation" />
+
+                                                    <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                                                        <HorizontalStackLayout Grid.Column="0" BindableLayout.ItemsSource="{Binding GoingAvatars}" VerticalOptions="Center">
+                                                            <BindableLayout.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:EventAttendeeAvatar">
+                                                                    <controls:ProfileCircle
+                                                                        ImageUrl="{Binding AvatarUrl}"
+                                                                        Initials="{Binding Initials}"
+                                                                        Diameter="{StaticResource AvatarSizeS}"
+                                                                        Margin="0,0,-8,0" />
+                                                                </DataTemplate>
+                                                            </BindableLayout.ItemTemplate>
+                                                        </HorizontalStackLayout>
+
+                                                        <Border Grid.Column="1" Style="{StaticResource SegmentPillContainer}" Padding="2" HorizontalOptions="End">
+                                                            <HorizontalStackLayout Spacing="2">
+                                                                <Button
+                                                                    Text="{loc:Translate GroupEvents_Going}"
+                                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=SetRsvpGoingCommand}"
+                                                                    CommandParameter="{Binding .}"
+                                                                    Style="{StaticResource SegmentButtonUnselected}"
+                                                                    FontSize="{StaticResource TypeCaption}"
+                                                                    Padding="6,4"
+                                                                    MinimumHeightRequest="30">
+                                                                    <Button.Triggers>
+                                                                        <DataTrigger TargetType="Button" Binding="{Binding MyResponse}" Value="going">
+                                                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                                                        </DataTrigger>
+                                                                    </Button.Triggers>
+                                                                </Button>
+                                                                <Button
+                                                                    Text="{loc:Translate GroupEvents_Maybe}"
+                                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=SetRsvpMaybeCommand}"
+                                                                    CommandParameter="{Binding .}"
+                                                                    Style="{StaticResource SegmentButtonUnselected}"
+                                                                    FontSize="{StaticResource TypeCaption}"
+                                                                    Padding="6,4"
+                                                                    MinimumHeightRequest="30">
+                                                                    <Button.Triggers>
+                                                                        <DataTrigger TargetType="Button" Binding="{Binding MyResponse}" Value="maybe">
+                                                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                                                        </DataTrigger>
+                                                                    </Button.Triggers>
+                                                                </Button>
+                                                                <Button
+                                                                    Text="{loc:Translate GroupEvents_NotGoing}"
+                                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=SetRsvpNotGoingCommand}"
+                                                                    CommandParameter="{Binding .}"
+                                                                    Style="{StaticResource SegmentButtonUnselected}"
+                                                                    FontSize="{StaticResource TypeCaption}"
+                                                                    Padding="6,4"
+                                                                    MinimumHeightRequest="30">
+                                                                    <Button.Triggers>
+                                                                        <DataTrigger TargetType="Button" Binding="{Binding MyResponse}" Value="not_going">
+                                                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                                                        </DataTrigger>
+                                                                    </Button.Triggers>
+                                                                </Button>
+                                                            </HorizontalStackLayout>
+                                                        </Border>
+                                                    </Grid>
+
+                                                    <!-- Transport/carpooling (see /EVENTS_PLAN.md Milestone 4) — the aggregate
+                                                    summary shows for everyone whenever the event needs transport; the
+                                                    interactive offer/need-a-ride controls only for someone actually
+                                                    attending (ShowTransportControls). -->
+                                                    <VerticalStackLayout Spacing="{StaticResource SpacingXS}" IsVisible="{Binding NeedsTransport}">
+                                                        <Label Text="{Binding TransportSummaryText}" Style="{StaticResource LabelTertiary}">
+                                                            <Label.Triggers>
+                                                                <DataTrigger TargetType="Label" Binding="{Binding HasShortfall}" Value="True">
+                                                                    <Setter Property="TextColor" Value="{DynamicResource Danger}" />
+                                                                </DataTrigger>
+                                                            </Label.Triggers>
+                                                        </Label>
+
+                                                        <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="{StaticResource SpacingS}" IsVisible="{Binding ShowTransportControls}">
+                                                            <Button
+                                                                Grid.Column="0"
+                                                                Text="{loc:Translate GroupEvents_HaveCar}"
+                                                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=ToggleCarOfferingCommand}"
+                                                                CommandParameter="{Binding .}"
+                                                                Style="{StaticResource SegmentButtonUnselected}"
+                                                                FontSize="{StaticResource TypeCaption}"
+                                                                Padding="6,4"
+                                                                MinimumHeightRequest="30"
+                                                                IsVisible="{Binding CanOfferCar}">
+                                                                <Button.Triggers>
+                                                                    <DataTrigger TargetType="Button" Binding="{Binding CarStatus}" Value="offering">
+                                                                        <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                                                    </DataTrigger>
+                                                                </Button.Triggers>
+                                                            </Button>
+                                                            <Button
+                                                                Grid.Column="1"
+                                                                Text="{loc:Translate GroupEvents_NeedRide}"
+                                                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=ToggleCarNeedsRideCommand}"
+                                                                CommandParameter="{Binding .}"
+                                                                Style="{StaticResource SegmentButtonUnselected}"
+                                                                FontSize="{StaticResource TypeCaption}"
+                                                                Padding="6,4"
+                                                                MinimumHeightRequest="30">
+                                                                <Button.Triggers>
+                                                                    <DataTrigger TargetType="Button" Binding="{Binding CarStatus}" Value="needs_ride">
+                                                                        <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                                                    </DataTrigger>
+                                                                </Button.Triggers>
+                                                            </Button>
+
+                                                            <!-- Seat stepper: only shown while offering — base IsVisible="False",
+                                                            flipped on by the DataTrigger, same pattern as the segment buttons above. -->
+                                                            <HorizontalStackLayout Grid.Column="2" Spacing="{StaticResource SpacingXS}" HorizontalOptions="End" VerticalOptions="Center" IsVisible="False">
+                                                                <HorizontalStackLayout.Triggers>
+                                                                    <DataTrigger TargetType="HorizontalStackLayout" Binding="{Binding CarStatus}" Value="offering">
+                                                                        <Setter Property="IsVisible" Value="True" />
+                                                                    </DataTrigger>
+                                                                </HorizontalStackLayout.Triggers>
+                                                                <Label Text="&#8722;" FontAttributes="Bold" WidthRequest="28" HorizontalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}">
+                                                                    <Label.GestureRecognizers>
+                                                                        <TapGestureRecognizer
+                                                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=DecrementCarSeatsCommand}"
+                                                                            CommandParameter="{Binding .}" />
+                                                                    </Label.GestureRecognizers>
+                                                                </Label>
+                                                                <Label Text="{Binding CarOfferedSeats}" FontAttributes="Bold" WidthRequest="20" HorizontalTextAlignment="Center" VerticalOptions="Center" />
+                                                                <Label Text="+" FontAttributes="Bold" WidthRequest="28" HorizontalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}">
+                                                                    <Label.GestureRecognizers>
+                                                                        <TapGestureRecognizer
+                                                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=IncrementCarSeatsCommand}"
+                                                                            CommandParameter="{Binding .}" />
+                                                                    </Label.GestureRecognizers>
+                                                                </Label>
+                                                            </HorizontalStackLayout>
+                                                        </Grid>
+                                                    </VerticalStackLayout>
+
+                                                </VerticalStackLayout>
+                                            </Border>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </VerticalStackLayout>
+                            </VerticalStackLayout>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </RefreshView>
+
+    <controls:ErrorPopup Message="{Binding ErrorMessage}" />
+    </Grid>
+</ContentView>

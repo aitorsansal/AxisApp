@@ -39,6 +39,14 @@ public class Member : BaseModel
     [Column("birth_date")]
     public DateTime? BirthDate { get; set; }
 
+    /// <summary>Per-profile default seat count for the transport/carpooling feature — always
+    /// means "extra seats beyond the driver", never a total including the driver (see
+    /// /EVENTS_PLAN.md's "Decisions locked" on the naming footgun the original idea's phrasing
+    /// had). A per-event offer (EventAttendee.CarOfferedSeats) defaults from this but can be
+    /// edited independently for a specific event.</summary>
+    [Column("car_extra_seats")]
+    public int? CarExtraSeats { get; set; }
+
     [JsonIgnore]
     public bool IsPhantom => AccountId is null;
 }

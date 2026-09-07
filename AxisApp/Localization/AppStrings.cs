@@ -72,6 +72,9 @@ public static class AppStrings
 
         // Group detail
         ["GroupDetail_InvitePeople"] = "+ Invite people",
+        ["GroupDetail_ExpensesTab"] = "Expenses",
+        ["GroupDetail_EventsTab"] = "Events",
+        ["GroupDetail_EventsComingSoon"] = "Events are coming soon.",
         ["GroupDetail_Balances"] = "Balances",
         ["GroupDetail_Detailed"] = "Detailed",
         ["GroupDetail_Settle"] = "Settle",
@@ -142,6 +145,29 @@ public static class AppStrings
         ["RecurringExpenses_DeleteConfirmTitle"] = "Delete repeating expense?",
         ["RecurringExpenses_DeleteConfirmMessage"] = "This stops future occurrences. Expenses already created from it are not affected.",
 
+        // Events tab (see /EVENTS_PLAN.md Milestone 3b)
+        ["GroupEvents_Upcoming"] = "Upcoming",
+        ["GroupEvents_Past"] = "Past",
+        ["GroupEvents_Empty"] = "No events here yet.",
+        ["GroupEvents_Going"] = "Going",
+        ["GroupEvents_Maybe"] = "Maybe",
+        ["GroupEvents_NotGoing"] = "Not going",
+        ["GroupEvents_HaveCar"] = "I have a car",
+        ["GroupEvents_NeedRide"] = "I need a ride",
+        ["GroupEvents_TransportSummary"] = "{0} seats offered · {1} need a ride",
+
+        // Add/edit event
+        ["AddEvent_Title"] = "Add event",
+        ["AddEvent_EditTitle"] = "Edit event",
+        ["AddEvent_TitlePlaceholder"] = "Event title",
+        ["AddEvent_DescriptionPlaceholder"] = "Description (optional)",
+        ["AddEvent_LocationPlaceholder"] = "Location (optional)",
+        ["AddEvent_Starts"] = "Starts",
+        ["AddEvent_HasEndTime"] = "Set an end time",
+        ["AddEvent_NeedsTransport"] = "Needs transport/cars to reach",
+        ["AddEvent_SaveEvent"] = "Save event",
+        ["AddEvent_DeleteEvent"] = "Delete event",
+
         // Categories (fixed, key-based — see AppConstants.Categories)
         ["Category_food"] = "Food",
         ["Category_transport"] = "Transport",
@@ -164,7 +190,7 @@ public static class AppStrings
         ["JoinGroup_LinkCopied"] = "Invite link copied",
         ["JoinGroup_NewLinkCopied"] = "New invite link for {0} copied",
         ["JoinGroup_Joined"] = "Joined group",
-        ["JoinGroup_ShareText"] = "Join my Axis group \"{0}\": {1}",
+        ["JoinGroup_ShareText"] = "Join my group \"{0}\": {1}",
         ["JoinGroup_ShareTitle"] = "Invite to Axis",
 
         // Members
@@ -182,6 +208,9 @@ public static class AppStrings
         ["Profile_BirthdayNotSet"] = "Not set",
         ["Profile_SetBirthday"] = "Set birthday",
         ["Profile_ClearBirthday"] = "Clear",
+        ["Profile_CarSeats"] = "Car seats available",
+        ["Profile_CarSeatsPlaceholder"] = "e.g. 3",
+        ["Profile_CarSeatsHint"] = "Extra seats beyond yourself — how many other people your car can fit. Used for event carpooling.",
         ["Profile_ChangePhoto"] = "Change photo",
         ["Profile_RemovePhoto"] = "Remove photo",
         ["Profile_Language"] = "Language",
@@ -263,6 +292,9 @@ public static class AppStrings
 
         // Group detail
         ["GroupDetail_InvitePeople"] = "+ Invitar personas",
+        ["GroupDetail_ExpensesTab"] = "Gastos",
+        ["GroupDetail_EventsTab"] = "Eventos",
+        ["GroupDetail_EventsComingSoon"] = "Los eventos llegarán pronto.",
         ["GroupDetail_Balances"] = "Saldos",
         ["GroupDetail_Detailed"] = "Detallado",
         ["GroupDetail_Settle"] = "Saldar",
@@ -333,6 +365,29 @@ public static class AppStrings
         ["RecurringExpenses_DeleteConfirmTitle"] = "¿Eliminar el gasto recurrente?",
         ["RecurringExpenses_DeleteConfirmMessage"] = "Esto detiene futuras repeticiones. Los gastos ya creados a partir de él no se ven afectados.",
 
+        // Events tab
+        ["GroupEvents_Upcoming"] = "Próximos",
+        ["GroupEvents_Past"] = "Pasados",
+        ["GroupEvents_Empty"] = "Todavía no hay eventos.",
+        ["GroupEvents_Going"] = "Voy",
+        ["GroupEvents_Maybe"] = "Quizás",
+        ["GroupEvents_NotGoing"] = "No voy",
+        ["GroupEvents_HaveCar"] = "Tengo coche",
+        ["GroupEvents_NeedRide"] = "Necesito coche",
+        ["GroupEvents_TransportSummary"] = "{0} plazas ofrecidas · {1} necesitan coche",
+
+        // Add/edit event
+        ["AddEvent_Title"] = "Añadir evento",
+        ["AddEvent_EditTitle"] = "Editar evento",
+        ["AddEvent_TitlePlaceholder"] = "Título del evento",
+        ["AddEvent_DescriptionPlaceholder"] = "Descripción (opcional)",
+        ["AddEvent_LocationPlaceholder"] = "Lugar (opcional)",
+        ["AddEvent_Starts"] = "Empieza",
+        ["AddEvent_HasEndTime"] = "Establecer hora de fin",
+        ["AddEvent_NeedsTransport"] = "Necesita transporte/coches para llegar",
+        ["AddEvent_SaveEvent"] = "Guardar evento",
+        ["AddEvent_DeleteEvent"] = "Eliminar evento",
+
         // Categories
         ["Category_food"] = "Comida",
         ["Category_transport"] = "Transporte",
@@ -355,7 +410,7 @@ public static class AppStrings
         ["JoinGroup_LinkCopied"] = "Enlace de invitación copiado",
         ["JoinGroup_NewLinkCopied"] = "Nuevo enlace de invitación para {0} copiado",
         ["JoinGroup_Joined"] = "Te has unido al grupo",
-        ["JoinGroup_ShareText"] = "Únete a mi grupo de Axis \"{0}\": {1}",
+        ["JoinGroup_ShareText"] = "Únete a mi grupo \"{0}\": {1}",
         ["JoinGroup_ShareTitle"] = "Invitación a Axis",
 
         // Members
@@ -373,6 +428,9 @@ public static class AppStrings
         ["Profile_BirthdayNotSet"] = "Sin definir",
         ["Profile_SetBirthday"] = "Añadir fecha de nacimiento",
         ["Profile_ClearBirthday"] = "Quitar",
+        ["Profile_CarSeats"] = "Plazas de coche disponibles",
+        ["Profile_CarSeatsPlaceholder"] = "ej. 3",
+        ["Profile_CarSeatsHint"] = "Plazas extra además de ti — cuántas personas más caben en tu coche. Se usa para compartir coche en eventos.",
         ["Profile_ChangePhoto"] = "Cambiar foto",
         ["Profile_RemovePhoto"] = "Eliminar foto",
         ["Profile_Language"] = "Idioma",
