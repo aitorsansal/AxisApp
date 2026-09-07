@@ -47,7 +47,21 @@
                 VerticalOptions="Center" />
         </Grid>
 
-        <ScrollView Grid.Row="1">
+        <!-- Skeleton: shown only while LoadAsync (loading an existing event's fields) is in
+             flight — see AddExpensePage's matching block / IsInitialLoading remarks. -->
+        <VerticalStackLayout
+            Grid.Row="1"
+            Padding="{StaticResource SpacingM}"
+            Spacing="{StaticResource SpacingL}"
+            IsVisible="{Binding IsInitialLoading}">
+            <controls:SkeletonBox HeightRequest="44" />
+            <controls:SkeletonBox HeightRequest="44" />
+            <controls:SkeletonBox HeightRequest="44" />
+            <controls:SkeletonBox HeightRequest="60" />
+            <controls:SkeletonBox HeightRequest="44" />
+        </VerticalStackLayout>
+
+        <ScrollView Grid.Row="1" IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
             <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
 
                 <Border Style="{StaticResource InputBorderStyle}">
@@ -149,7 +163,13 @@
             IsVisible="{Binding IsBusy}"
             Color="{DynamicResource Primary}"
             HorizontalOptions="Center"
-            VerticalOptions="Center" />
+            VerticalOptions="Center">
+            <ActivityIndicator.Triggers>
+                <DataTrigger TargetType="ActivityIndicator" Binding="{Binding IsInitialLoading}" Value="True">
+                    <Setter Property="IsVisible" Value="False" />
+                </DataTrigger>
+            </ActivityIndicator.Triggers>
+        </ActivityIndicator>
 
         <controls:ErrorPopup Grid.Row="0" Grid.RowSpan="3" Message="{Binding ErrorMessage}" />
 

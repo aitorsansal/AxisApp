@@ -55,32 +55,43 @@
             <!-- Expenses/Events tab selector — an in-page flip (SelectExpensesTab/
             SelectEventsTabCommand), never a Shell navigation, so the back button always leaves
             the group rather than un-flipping the tab first. See /EVENTS_PLAN.md Milestone 2. -->
-            <Border Grid.Row="0" Style="{StaticResource SegmentPillContainer}" HorizontalOptions="Center">
+            <Border Grid.Row="0" Style="{StaticResource SegmentPillContainer}" HorizontalOptions="Center" WidthRequest="220">
                 <Border.Margin>
                     <Thickness Left="0" Top="{StaticResource SpacingS}" Right="0" Bottom="{StaticResource SpacingS}" />
                 </Border.Margin>
-                <HorizontalStackLayout Spacing="{StaticResource SpacingXS}">
+                <Grid ColumnDefinitions="*,*">
+                    <Border
+                        Grid.Column="0"
+                        Background="{DynamicResource Primary}"
+                        StrokeThickness="0"
+                        controls:Juice.SlideRight="{Binding IsEventsTabSelected}">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="{StaticResource ShapePill}" />
+                        </Border.StrokeShape>
+                    </Border>
                     <Button
+                        Grid.Column="0"
                         Text="{loc:Translate GroupDetail_ExpensesTab}"
                         Command="{Binding SelectExpensesTabCommand}"
                         Style="{StaticResource SegmentButtonUnselected}">
                         <Button.Triggers>
                             <DataTrigger TargetType="Button" Binding="{Binding IsEventsTabSelected}" Value="False">
-                                <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
                             </DataTrigger>
                         </Button.Triggers>
                     </Button>
                     <Button
+                        Grid.Column="1"
                         Text="{loc:Translate GroupDetail_EventsTab}"
                         Command="{Binding SelectEventsTabCommand}"
                         Style="{StaticResource SegmentButtonUnselected}">
                         <Button.Triggers>
                             <DataTrigger TargetType="Button" Binding="{Binding IsEventsTabSelected}" Value="True">
-                                <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
                             </DataTrigger>
                         </Button.Triggers>
                     </Button>
-                </HorizontalStackLayout>
+                </Grid>
             </Border>
 
             <Grid Grid.Row="1">
@@ -103,12 +114,14 @@
                     Text="+"
                     Command="{Binding ExpensesVm.AddExpenseCommand}"
                     Style="{StaticResource FabButtonStyle}"
-                    IsVisible="{Binding IsEventsTabSelected, Converter={StaticResource InverseBoolConverter}}" />
+                    IsVisible="{Binding IsEventsTabSelected, Converter={StaticResource InverseBoolConverter}}"
+                    controls:Juice.PressScale="0.88" />
                 <Button
                     Text="+"
                     Command="{Binding EventsVm.AddEventCommand}"
                     Style="{StaticResource FabButtonStyle}"
-                    IsVisible="{Binding IsEventsTabSelected}" />
+                    IsVisible="{Binding IsEventsTabSelected}"
+                    controls:Juice.PressScale="0.88" />
             </Grid>
         </Grid>
     </Grid>

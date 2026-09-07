@@ -21,38 +21,64 @@
                     <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingM}" Right="{StaticResource SpacingM}" Bottom="88" />
                 </VerticalStackLayout.Padding>
 
-                <Border Style="{StaticResource SegmentPillContainer}" HorizontalOptions="Center">
-                    <HorizontalStackLayout Spacing="{StaticResource SpacingXS}">
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsBusy}">
+                    <controls:SkeletonBox WidthRequest="70" HeightRequest="12" HorizontalOptions="Start" />
+                    <controls:SkeletonBox HeightRequest="96" />
+                    <controls:SkeletonBox HeightRequest="96" />
+                </VerticalStackLayout>
+
+                <Border Style="{StaticResource SegmentPillContainer}" HorizontalOptions="Center" WidthRequest="180" IsVisible="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}">
+                    <Grid ColumnDefinitions="*,*">
+                        <Border
+                            Grid.Column="0"
+                            Background="{DynamicResource Primary}"
+                            StrokeThickness="0"
+                            controls:Juice.SlideRight="{Binding IsPastSelected}">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="{StaticResource ShapePill}" />
+                            </Border.StrokeShape>
+                        </Border>
                         <Button
+                            Grid.Column="0"
                             Text="{loc:Translate GroupEvents_Upcoming}"
                             Command="{Binding ShowUpcomingCommand}"
                             Style="{StaticResource SegmentButtonUnselected}">
                             <Button.Triggers>
                                 <DataTrigger TargetType="Button" Binding="{Binding IsPastSelected}" Value="False">
-                                    <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                    <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
                                 </DataTrigger>
                             </Button.Triggers>
                         </Button>
                         <Button
+                            Grid.Column="1"
                             Text="{loc:Translate GroupEvents_Past}"
                             Command="{Binding ShowPastCommand}"
                             Style="{StaticResource SegmentButtonUnselected}">
                             <Button.Triggers>
                                 <DataTrigger TargetType="Button" Binding="{Binding IsPastSelected}" Value="True">
-                                    <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                    <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
                                 </DataTrigger>
                             </Button.Triggers>
                         </Button>
-                    </HorizontalStackLayout>
+                    </Grid>
                 </Border>
 
                 <Label
                     Text="{loc:Translate GroupEvents_Empty}"
                     Style="{StaticResource LabelTertiary}"
                     HorizontalTextAlignment="Center"
-                    IsVisible="{Binding HasEvents, Converter={StaticResource InverseBoolConverter}}" />
+                    IsVisible="{Binding HasEvents, Converter={StaticResource InverseBoolConverter}}">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsBusy}" Value="True">
+                            <Setter Property="IsVisible" Value="False" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
 
-                <VerticalStackLayout BindableLayout.ItemsSource="{Binding GroupedEvents}" Spacing="{StaticResource SpacingM}">
+                <VerticalStackLayout
+                    BindableLayout.ItemsSource="{Binding GroupedEvents}"
+                    Spacing="{StaticResource SpacingM}"
+                    IsVisible="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}">
                     <BindableLayout.ItemTemplate>
                         <DataTemplate x:DataType="vm:EventMonthGroup">
                             <VerticalStackLayout Spacing="{StaticResource SpacingS}">
@@ -61,6 +87,11 @@
                                 <VerticalStackLayout BindableLayout.ItemsSource="{Binding Events}" Spacing="{StaticResource SpacingS}">
                                     <BindableLayout.ItemTemplate>
                                         <DataTemplate x:DataType="vm:EventListItem">
+                                            <!-- No Juice.PressScale here, unlike other row cards — this
+                                                 one isn't a single tap target (title/chevron navigate,
+                                                 but RSVP/car are separately-tappable nested Buttons), and
+                                                 a TouchBehavior on the whole card was absorbing touches
+                                                 meant for those children instead of letting them through. -->
                                             <Border Style="{StaticResource ListItemCard}">
                                                 <VerticalStackLayout Spacing="{StaticResource SpacingXS}">
 

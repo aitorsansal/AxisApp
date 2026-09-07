@@ -65,44 +65,47 @@ public partial class GroupsViewModel : BaseViewModel
         IsBusy = true;
         try
         {
-            var loadGroups = groupsRepository.GetMyGroupsAsync();
-            var loadBalances = balancesRepository.GetMyBalancesAsync();
-            var loadMyMember = membersRepository.GetMyMemberAsync();
-            await Task.WhenAll(loadGroups, loadBalances, loadMyMember);
-
-            var myMember = loadMyMember.Result;
-            MyAvatarUrl = myMember is null ? null : MemberDisplay.AvatarUrl(myMember);
-
-            var balancesByGroup = loadBalances.Result.ToDictionary(b => b.GroupId, b => b.Balance);
-
-            var items = new List<GroupListItem>();
-            foreach (var group in loadGroups.Result)
+            await WithMinimumDurationAsync(TimeSpan.FromMilliseconds(400), async () =>
             {
-                var members = await membersRepository.GetForGroupAsync(group.Id);
-                var balance = balancesByGroup.GetValueOrDefault(group.Id, 0m);
+                var loadGroups = groupsRepository.GetMyGroupsAsync();
+                var loadBalances = balancesRepository.GetMyBalancesAsync();
+                var loadMyMember = membersRepository.GetMyMemberAsync();
+                await Task.WhenAll(loadGroups, loadBalances, loadMyMember);
 
-                var loc = LocalizationResourceManager.Instance;
-                var item = new GroupListItem
+                var myMember = loadMyMember.Result;
+                MyAvatarUrl = myMember is null ? null : MemberDisplay.AvatarUrl(myMember);
+
+                var balancesByGroup = loadBalances.Result.ToDictionary(b => b.GroupId, b => b.Balance);
+
+                var items = new List<GroupListItem>();
+                foreach (var group in loadGroups.Result)
                 {
-                    Group = group,
-                    AvatarInitials = members.Take(4).Select(m => Initials(m.DisplayName)).ToList(),
-                    MemberSummary = loc.Format(
-                        members.Count == 1 ? "Groups_MemberSingular" : "Groups_MemberPlural", members.Count)
-                };
-                ApplyBalance(item, balance, AppConstants.Currencies.SymbolFor(group.Currency));
-                items.Add(item);
-            }
+                    var members = await membersRepository.GetForGroupAsync(group.Id);
+                    var balance = balancesByGroup.GetValueOrDefault(group.Id, 0m);
 
-            Groups = new ObservableCollection<GroupListItem>(items);
-            IsEmpty = Groups.Count == 0;
+                    var loc = LocalizationResourceManager.Instance;
+                    var item = new GroupListItem
+                    {
+                        Group = group,
+                        AvatarInitials = members.Take(4).Select(m => Initials(m.DisplayName)).ToList(),
+                        MemberSummary = loc.Format(
+                            members.Count == 1 ? "Groups_MemberSingular" : "Groups_MemberPlural", members.Count)
+                    };
+                    ApplyBalance(item, balance, AppConstants.Currencies.SymbolFor(group.Currency));
+                    items.Add(item);
+                }
 
-            // Fire-and-forget, deliberately not awaited: it may show a permission prompt, and
-            // this screen's own IsBusy spinner shouldn't sit up waiting on the user answering it.
-            // IPushRegistrationService.RegisterAsync never throws (see its remarks), and this runs
-            // on every Groups load — sign-in, sign-up, Google sign-in, and a restored session on
-            // relaunch all land here, so this is the one choke point that covers every path
-            // without duplicating the call across LoginViewModel/SplashPage.
-            _ = pushRegistrationService.RegisterAsync();
+                Groups = new ObservableCollection<GroupListItem>(items);
+                IsEmpty = Groups.Count == 0;
+
+                // Fire-and-forget, deliberately not awaited: it may show a permission prompt, and
+                // this screen's own IsBusy spinner shouldn't sit up waiting on the user answering it.
+                // IPushRegistrationService.RegisterAsync never throws (see its remarks), and this runs
+                // on every Groups load — sign-in, sign-up, Google sign-in, and a restored session on
+                // relaunch all land here, so this is the one choke point that covers every path
+                // without duplicating the call across LoginViewModel/SplashPage.
+                _ = pushRegistrationService.RegisterAsync();
+            });
         }
         finally
         {

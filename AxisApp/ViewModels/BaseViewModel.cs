@@ -55,4 +55,17 @@ public abstract partial class BaseViewModel : ObservableObject
 
     private static bool IsClockSkewRejection(Exception ex) =>
         ex.Message.Contains("JWT issued at future") || ex.Message.Contains("PGRST303");
+
+    /// <summary>Runs action, then pads out the remaining time up to minimum before returning —
+    /// so a skeleton loading placeholder always gets at least this long on screen instead of
+    /// flashing and vanishing on a fast/warm connection, which reads as "no skeleton at all"
+    /// rather than a load indicator (found live: Group Detail's balances/activity skeleton).</summary>
+    protected static async Task WithMinimumDurationAsync(TimeSpan minimum, Func<Task> action)
+    {
+        var start = DateTime.UtcNow;
+        await action();
+        var remaining = minimum - (DateTime.UtcNow - start);
+        if (remaining > TimeSpan.Zero)
+            await Task.Delay(remaining);
+    }
 }

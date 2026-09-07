@@ -39,6 +39,10 @@ public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private bool needsTransport;
     [ObservableProperty] private bool canSave;
     [ObservableProperty] private bool isBusy;
+    /// <summary>True only while the initial LoadAsync is in flight — kept separate from IsBusy
+    /// (which Save/Delete also set) so the skeleton doesn't flash back over an already-loaded
+    /// form on every save tap. See AddExpenseViewModel.IsInitialLoading for the same reasoning.</summary>
+    [ObservableProperty] private bool isInitialLoading;
     [ObservableProperty] private bool isEditMode;
 
     private bool isEventCreator;
@@ -92,8 +96,11 @@ public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
         PageTitle = LocalizationResourceManager.Instance[IsEditMode ? "AddEvent_EditTitle" : "AddEvent_Title"];
 
         IsBusy = true;
+        IsInitialLoading = true;
         try
         {
+            await WithMinimumDurationAsync(TimeSpan.FromMilliseconds(400), async () =>
+            {
             if (forEventId is { } id)
             {
                 var ev = await eventsRepository.GetByIdAsync(id);
@@ -141,10 +148,12 @@ public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
 
             CanSave = !string.IsNullOrWhiteSpace(Title);
             CanDelete = IsEditMode && isEventCreator;
+            });
         }
         finally
         {
             IsBusy = false;
+            IsInitialLoading = false;
         }
     });
 

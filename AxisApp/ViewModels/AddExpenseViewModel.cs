@@ -124,6 +124,10 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private string occurredOnDisplay = LocalizationResourceManager.Instance["Common_Today"];
     [ObservableProperty] private bool isManualSplit;
     [ObservableProperty] private bool isBusy;
+    /// <summary>True only while the initial LoadAsync (participants/payer options) is in flight —
+    /// separate from IsBusy, which Save/Delete also set, so the skeleton placeholder doesn't
+    /// flash back over an already-loaded form on every save tap.</summary>
+    [ObservableProperty] private bool isInitialLoading;
     [ObservableProperty] private bool isEditMode;
     [ObservableProperty] private string pageTitle = LocalizationResourceManager.Instance["AddExpense_Title"];
 
@@ -215,8 +219,11 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         IsSettlement = false;
 
         IsBusy = true;
+        IsInitialLoading = true;
         try
         {
+            await WithMinimumDurationAsync(TimeSpan.FromMilliseconds(400), async () =>
+            {
             var loadMembers = membersRepository.GetForGroupAsync(groupId);
             var loadExpense = forExpenseId is { } id ? expensesRepository.GetByIdAsync(id) : Task.FromResult<Expense?>(null);
             var loadShares = forExpenseId is { } sharesId ? expensesRepository.GetSharesAsync(sharesId) : Task.FromResult(new List<ExpenseShare>());
@@ -285,10 +292,12 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                 SetCurrencyByCode(loadGroup.Result.Currency);
                 RedistributeEqually();
             }
+            });
         }
         finally
         {
             IsBusy = false;
+            IsInitialLoading = false;
         }
     });
 

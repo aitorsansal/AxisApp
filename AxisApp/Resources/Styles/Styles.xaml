@@ -665,6 +665,34 @@
                 <Shadow Brush="Black" Opacity="0.35" Radius="14" Offset="0,6" />
             </Setter.Value>
         </Setter>
+        <!-- Own VisualStateManager, without BtnPrimaryStyle's inherited Pressed Scale setter —
+             the FAB's press feedback comes from an animated Juice.PressScale (TouchBehavior)
+             instead, so the two don't fight over the same Scale property. -->
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BtnPrimaryHover}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BtnPrimaryPressed}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BtnPrimaryDisabledBg}" />
+                            <Setter Property="TextColor" Value="{DynamicResource BtnPrimaryDisabledText}" />
+                            <Setter Property="BorderWidth" Value="1" />
+                            <Setter Property="BorderColor" Value="{DynamicResource BtnPrimaryDisabledBorder}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
     </Style>
 
     <!-- =======================
@@ -702,6 +730,14 @@
     <Style x:Key="SegmentButtonUnselected" TargetType="Button" BasedOn="{StaticResource SegmentButtonBase}">
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="TextColor" Value="{DynamicResource TextTertiary}" />
+    </Style>
+
+    <!-- For the sliding-highlight segmented pills (Juice.SlideRight): both options always keep a
+         transparent background — the highlight Border underneath is what shows the selected
+         color, sliding between them, instead of either button swapping its own Style. -->
+    <Style x:Key="SegmentButtonSelectedTextOnly" TargetType="Button" BasedOn="{StaticResource SegmentButtonBase}">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
     </Style>
 
     <!-- =======================

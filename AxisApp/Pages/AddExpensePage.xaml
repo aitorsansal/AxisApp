@@ -47,7 +47,27 @@
                 VerticalOptions="Center" />
         </Grid>
 
-        <ScrollView Grid.Row="1">
+        <!-- Skeleton: shown only while LoadAsync's participants/payer-options fetch is in flight —
+             the slow part of opening this page (see CLAUDE.md's juice-pass notes). Roughly mirrors
+             the amount hero, payer row, and split rows below it. -->
+        <VerticalStackLayout
+            Grid.Row="1"
+            Padding="{StaticResource SpacingM}"
+            Spacing="{StaticResource SpacingL}"
+            IsVisible="{Binding IsInitialLoading}">
+            <controls:SkeletonBox WidthRequest="160" HeightRequest="48" HorizontalOptions="Center" />
+            <controls:SkeletonBox HeightRequest="44" />
+            <HorizontalStackLayout Spacing="{StaticResource SpacingM}">
+                <controls:SkeletonBox WidthRequest="48" HeightRequest="48" CornerRadius="24" />
+                <controls:SkeletonBox WidthRequest="48" HeightRequest="48" CornerRadius="24" />
+                <controls:SkeletonBox WidthRequest="48" HeightRequest="48" CornerRadius="24" />
+            </HorizontalStackLayout>
+            <controls:SkeletonBox HeightRequest="40" />
+            <controls:SkeletonBox HeightRequest="40" />
+            <controls:SkeletonBox HeightRequest="40" />
+        </VerticalStackLayout>
+
+        <ScrollView Grid.Row="1" IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
             <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
 
                 <!-- Amount hero: the currency Picker sits inline where a plain "€" prefix used to be
@@ -95,7 +115,7 @@
                         </CollectionView.ItemsLayout>
                         <CollectionView.ItemTemplate>
                             <DataTemplate x:DataType="vm:PayerOption">
-                                <VerticalStackLayout Spacing="{StaticResource SpacingXS}" WidthRequest="60">
+                                <VerticalStackLayout Spacing="{StaticResource SpacingXS}" WidthRequest="60" controls:Juice.PressScale="0.94" controls:Juice.BounceScale="1.05" controls:Juice.Selected="{Binding IsSelected}">
                                     <VerticalStackLayout.GestureRecognizers>
                                         <TapGestureRecognizer
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:AddExpenseViewModel}}, Path=SelectPayerCommand}"
@@ -129,29 +149,42 @@
                 <VerticalStackLayout Spacing="{StaticResource SpacingS}">
                     <Grid ColumnDefinitions="*,Auto">
                         <Label Grid.Column="0" Text="{loc:Translate AddExpense_Split}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
-                        <Border Grid.Column="1" Style="{StaticResource SegmentPillContainer}">
-                            <HorizontalStackLayout Spacing="{StaticResource SpacingXS}">
+                        <Border Grid.Column="1" Style="{StaticResource SegmentPillContainer}" WidthRequest="200">
+                            <!-- Sliding pill: the highlight Border underneath (Column 0's width)
+                                 translates to Column 1 instead of either button swapping Style. -->
+                            <Grid ColumnDefinitions="*,*">
+                                <Border
+                                    Grid.Column="0"
+                                    Background="{DynamicResource Primary}"
+                                    StrokeThickness="0"
+                                    controls:Juice.SlideRight="{Binding IsManualSplit}">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="{StaticResource ShapePill}" />
+                                    </Border.StrokeShape>
+                                </Border>
                                 <Button
+                                    Grid.Column="0"
                                     Text="{loc:Translate AddExpense_Equally}"
                                     Command="{Binding SplitEquallyCommand}"
                                     Style="{StaticResource SegmentButtonUnselected}">
                                     <Button.Triggers>
                                         <DataTrigger TargetType="Button" Binding="{Binding IsManualSplit}" Value="False">
-                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
                                         </DataTrigger>
                                     </Button.Triggers>
                                 </Button>
                                 <Button
+                                    Grid.Column="1"
                                     Text="{loc:Translate AddExpense_Manually}"
                                     Command="{Binding SplitManuallyCommand}"
                                     Style="{StaticResource SegmentButtonUnselected}">
                                     <Button.Triggers>
                                         <DataTrigger TargetType="Button" Binding="{Binding IsManualSplit}" Value="True">
-                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
                                         </DataTrigger>
                                     </Button.Triggers>
                                 </Button>
-                            </HorizontalStackLayout>
+                            </Grid>
                         </Border>
                     </Grid>
 
@@ -168,7 +201,9 @@
                                         StrokeThickness="0"
                                         WidthRequest="44" HeightRequest="44"
                                         Padding="0"
-                                        VerticalOptions="Center">
+                                        VerticalOptions="Center"
+                                        controls:Juice.PressScale="0.9"
+                                        controls:Juice.Selected="{Binding IsIncluded}">
                                         <Border.GestureRecognizers>
                                             <TapGestureRecognizer Command="{Binding ToggleIncludedCommand}" />
                                         </Border.GestureRecognizers>
@@ -225,7 +260,11 @@
                         </CollectionView.ItemsLayout>
                         <CollectionView.ItemTemplate>
                             <DataTemplate x:DataType="vm:CategoryChip">
-                                <Border Style="{StaticResource ChipBorderStyle}" VerticalOptions="Fill">
+                                <Border
+                                    Style="{StaticResource ChipBorderStyle}"
+                                    VerticalOptions="Fill"
+                                    controls:Juice.PressScale="0.94"
+                                    controls:Juice.Selected="{Binding IsSelected}">
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:AddExpenseViewModel}}, Path=SelectCategoryCommand}"
@@ -286,7 +325,11 @@
                         </CollectionView.ItemsLayout>
                         <CollectionView.ItemTemplate>
                             <DataTemplate x:DataType="vm:RecurringFrequencyOption">
-                                <Border Style="{StaticResource ChipBorderStyle}" VerticalOptions="Fill">
+                                <Border
+                                    Style="{StaticResource ChipBorderStyle}"
+                                    VerticalOptions="Fill"
+                                    controls:Juice.PressScale="0.94"
+                                    controls:Juice.Selected="{Binding IsSelected}">
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:AddExpenseViewModel}}, Path=SelectFrequencyCommand}"
@@ -357,13 +400,21 @@
                 IsVisible="{Binding IsEditMode}" />
         </VerticalStackLayout>
 
+        <!-- Only for Save/Delete's busy spinner — the initial load uses the skeleton below
+             instead, via IsInitialLoading rather than IsBusy (which Save/Delete also set). -->
         <ActivityIndicator
             Grid.Row="0" Grid.RowSpan="3"
             IsRunning="{Binding IsBusy}"
             IsVisible="{Binding IsBusy}"
             Color="{DynamicResource Primary}"
             HorizontalOptions="Center"
-            VerticalOptions="Center" />
+            VerticalOptions="Center">
+            <ActivityIndicator.Triggers>
+                <DataTrigger TargetType="ActivityIndicator" Binding="{Binding IsInitialLoading}" Value="True">
+                    <Setter Property="IsVisible" Value="False" />
+                </DataTrigger>
+            </ActivityIndicator.Triggers>
+        </ActivityIndicator>
 
         <!-- Receipt preview overlay: bigger view of the already-attached photo, with Change/Remove
              actions, instead of jumping straight to the source-picker action sheet on every tap. -->

@@ -129,20 +129,23 @@ public partial class GroupExpensesViewModel : BaseViewModel
         IsBusy = true;
         try
         {
-            var loadGroup = groupsRepository.GetByIdAsync(groupId);
-            var loadMembers = membersRepository.GetForGroupAsync(groupId);
-            var loadExpenses = expensesRepository.GetForGroupAsync(groupId);
-            var loadAliases = aliasesRepository.GetMyAliasesAsync();
-            await Task.WhenAll(loadGroup, loadMembers, loadExpenses, loadAliases);
+            await WithMinimumDurationAsync(TimeSpan.FromMilliseconds(400), async () =>
+            {
+                var loadGroup = groupsRepository.GetByIdAsync(groupId);
+                var loadMembers = membersRepository.GetForGroupAsync(groupId);
+                var loadExpenses = expensesRepository.GetForGroupAsync(groupId);
+                var loadAliases = aliasesRepository.GetMyAliasesAsync();
+                await Task.WhenAll(loadGroup, loadMembers, loadExpenses, loadAliases);
 
-            var members = loadMembers.Result;
-            membersById = members.ToDictionary(m => m.Id);
-            aliases = loadAliases.Result;
-            myMemberId = members.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)?.Id;
-            currentGroup = loadGroup.Result;
+                var members = loadMembers.Result;
+                membersById = members.ToDictionary(m => m.Id);
+                aliases = loadAliases.Result;
+                myMemberId = members.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)?.Id;
+                currentGroup = loadGroup.Result;
 
-            await RefreshBalancesAsync();
-            await RefreshActivityAsync(loadExpenses.Result);
+                await RefreshBalancesAsync();
+                await RefreshActivityAsync(loadExpenses.Result);
+            });
         }
         finally
         {
