@@ -1649,6 +1649,99 @@ not migrated) rather than a backfill.
   pass against the live project hasn't happened yet, and neither has
   redeploying `send-push`.
 
+## One-account-one-member invariant fix (2026-09-07)
+
+Reported by real friends using the app for the first time: display name and
+birthday edits on `ProfilePage` weren't sticking for members of more than one
+group, and each new group seemed to reset them. Root cause was two separate
+bugs, both letting a single account end up with more than one `members` row
+(violating "members vs. accounts"'s stated invariant, never actually
+enforced in code until now) — `ProfilePage` only ever edits the oldest one
+(`GetMyMemberAsync`'s `ORDER BY created_at`), so any edit made while a newer,
+row-less group was active silently landed on the wrong row.
+
+- **`create_group()`** used to unconditionally `insert into members` on every
+  call — creating a second/third/etc. group always minted a brand-new row
+  with `display_name` defaulted to the account's email and `birth_date`/
+  `avatar_path` null. Fixed to look up `select id from members where
+  account_id = auth.uid()` first and reuse it if found.
+- **`redeem_invite()`**'s fresh-join branch had a real lookup, but scoped to
+  `gm.group_id = v_invite.group_id` — so it only reused a row when the
+  account happened to already be a member of *that specific* group, which
+  is never true the first time you join it. Every ordinary "join a new
+  group with an invite code" flow fell through to a fresh row. Fixed by
+  dropping the group scoping — one account, one row, full stop.
+- **`redeem_invite()`**'s claim branch (`target_member_id is not null`) had
+  the same disease in a nastier form: it never checked whether the claiming
+  account already had a `members` row from elsewhere, so claiming a phantom
+  in a second group created a *second claimed row* for the same account
+  instead of merging. Fixed with a real merge, discussed with the user
+  before writing it (their call, not assumed): when the account already has
+  a row, every `expenses.paid_by_member_id`/`expense_shares.member_id`/
+  `recurring_expenses.paid_by_member_id`/`recurring_expense_shares
+  .member_id` reference to the phantom gets repointed at the existing row
+  (summing `share_amount`/`share_amount_in_group_currency` on the one real
+  edge case where both already hold a share on the same expense/template —
+  the user's explicit choice over dropping one side or aborting the claim,
+  to avoid violating the `(expense_id, member_id)`/`(recurring_expense_id,
+  member_id)` composite PKs and to keep balances correct either way), and
+  the phantom's `group_members` rows are carried over to the existing row
+  **for every group it was in, not just the invite's own group** — caught
+  before shipping: a phantom can already belong to multiple groups pre-claim
+  via `JoinGroupPage`'s "Link existing member" flow (see "Cross-group
+  phantom duplication" above), so migrating only the invite's group would
+  have silently dropped the other memberships when the phantom row cascades
+  away. The now-empty phantom row is then deleted, which cascades its own
+  `group_members`/`invites`/`member_aliases` rows away too — fine, those
+  were all about the phantom identity that no longer exists.
+- **Deliberately out of scope for this pass, by the user's explicit choice**:
+  a one-off cleanup migration to merge the duplicate `members` rows real
+  accounts have already accumulated in production from this bug. This fix
+  only stops *new* duplicates; existing ones need a separate follow-up
+  migration (same treatment as `merge_payments_into_expenses.sql` — the
+  user asked to review it line by line before it runs against live data)
+  before `ProfilePage` edits are reliable for anyone who already hit this.
+- **Applied to the live project 2026-09-07** (`supabase/
+  one_account_one_member_fix.sql`, the same two function bodies as above).
+  The dreaded cleanup migration turned out to be unnecessary — only 2 stray
+  duplicate `members` rows existed in production, each with a single
+  expense, and the user resolved those two by hand through the app UI
+  rather than running an automated merge. The merge-on-claim code path
+  itself is therefore still **not exercised against real data** — nobody's
+  actually claimed a phantom while already holding a separate `members` row
+  since this shipped — worth a real test if that scenario comes up again.
+
+**Follow-up, same day: provisioning at signup, not lazily.** The fix above
+only stops *duplicate* `members` rows — a brand-new account with zero
+groups still had no `members` row at all until its first `create_group()`/
+`redeem_invite()` call, so `ProfilePage`'s display name/birthday genuinely
+couldn't be edited before then. User asked directly whether that lazy
+creation was intentional and whether it should instead be checked on every
+app launch; recommended against a per-launch check (a wasted round trip on
+every single launch for the account's whole lifetime, for something that
+only needs to happen once) in favor of a trigger on `auth.users` — catches
+every signup path uniformly (email/password *and* both Google sign-in
+flows) with no client-side call site to miss, matching this file's existing
+preference for database-enforced invariants over scattered app-side calls.
+
+- **`handle_new_user_member()`** (`schema.sql`, trigger
+  `on_auth_user_created_provision_member`, `after insert on auth.users`) —
+  `security definer`, inserting `(account_id, display_name, created_by) =
+  (new.id, coalesce(new.email, 'New member'), new.id)`. Deliberately uses
+  `new.id` directly rather than `auth.uid()` — this fires from GoTrue's own
+  internal insert into `auth.users`, not through a PostgREST request, so
+  there's no JWT in scope and `auth.uid()` would just read null; the
+  "insert members" RLS policy's `created_by = auth.uid()` check can only
+  ever pass here because the function runs as `postgres` (which bypasses
+  RLS in this project, same as every other `security definer` function
+  already relies on), not because of anything the inserted values satisfy.
+  `display_name` defaults to email, same fallback `create_group()`/
+  `redeem_invite()` already use — `ProfilePage`'s own save is expected to be
+  the first real edit for most people.
+- Paste-ready as `supabase/provision_member_on_signup.sql`. **Not yet run
+  against the live project or tested against a real signup** — report back
+  the exact error if a fresh sign-up doesn't produce a `members` row.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
