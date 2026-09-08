@@ -111,6 +111,7 @@
             VerticalOptions="Center" />
 
         <controls:ErrorPopup Message="{Binding ErrorMessage}" />
+        <controls:UpdateBanner />
 
     </Grid>
 </ContentPage>

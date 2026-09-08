@@ -28,6 +28,12 @@ public static class AppConstants
         /// the group's currency regardless, since a pairwise/group net can span several original
         /// currencies with no single coherent "native" amount to fall back to.</summary>
         public const string AmountDisplayConverted = "amount_display_converted";
+
+        /// <summary>Per-device date (yyyy-MM-dd, invariant) the update-available banner was last
+        /// dismissed — see AppUpdateService. Closing the banner hides it until tomorrow, not
+        /// permanently, so it comes back as a daily nudge for as long as an update is genuinely
+        /// available.</summary>
+        public const string UpdateBannerDismissedDate = "update_banner_dismissed_date";
     }
 
     /// <summary>Fixed, developer-maintained expense categories — not a database table. Each key
@@ -118,6 +124,13 @@ public static class AppConstants
         /// Link/deep-link target like BuildInviteUrl: Windows has no deep-link support at all, so
         /// this has to work as a plain browser page regardless of platform.</summary>
         public const string PasswordResetUrl = $"https://{InviteHost}/reset";
+
+        /// <summary>Served by the same Cloudflare Worker as everything else under web/ (see
+        /// AppUpdateService) — a plain static file, not an API endpoint, so it's just another path
+        /// under InviteHost.</summary>
+        public const string VersionCheckUrl = $"https://{InviteHost}/version.json";
+
+        public const string PlayStoreUrl = "https://play.google.com/store/apps/details?id=com.aitorsansal.axisapp";
 
         public static string BuildInviteUrl(string code) =>
             $"https://{InviteHost}/invite?code={Uri.EscapeDataString(code)}";

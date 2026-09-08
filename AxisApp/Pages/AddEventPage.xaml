@@ -172,6 +172,7 @@
         </ActivityIndicator>
 
         <controls:ErrorPopup Grid.Row="0" Grid.RowSpan="3" Message="{Binding ErrorMessage}" />
+        <controls:UpdateBanner Grid.Row="0" Grid.RowSpan="3" />
 
     </Grid>
 </ContentPage>

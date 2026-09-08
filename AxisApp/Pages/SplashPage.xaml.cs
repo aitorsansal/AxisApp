@@ -58,5 +58,7 @@ public partial class SplashPage : ContentPage
         // ever runs).
         App.MarkReadyToNavigate();
         await App.ReplayPendingDeepLinkAsync();
+
+        _ = AppUpdateService.Instance.CheckForUpdateAsync();
     }
 }

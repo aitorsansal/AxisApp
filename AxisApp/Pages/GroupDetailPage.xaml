@@ -284,5 +284,6 @@
     </Border>
 
     <controls:ErrorPopup Message="{Binding ErrorMessage}" />
+    <controls:UpdateBanner />
     </Grid>
 </ContentPage>

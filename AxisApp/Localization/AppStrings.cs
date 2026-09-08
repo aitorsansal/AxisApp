@@ -235,6 +235,10 @@ public static class AppStrings
         ["Profile_DeleteAccountButton"] = "Delete account",
         ["Profile_DeleteAccountTitle"] = "Delete your account?",
         ["Profile_DeleteAccountConfirm"] = "This permanently deletes your account and can't be undone. Shared history stays with the groups you're in.",
+
+        // Update banner
+        ["Update_Message"] = "A new version of Axis is available.",
+        ["Update_Action"] = "Update",
     };
 
     private static readonly Dictionary<string, string> Es = new()
@@ -455,6 +459,10 @@ public static class AppStrings
         ["Profile_DeleteAccountButton"] = "Eliminar cuenta",
         ["Profile_DeleteAccountTitle"] = "¿Eliminar tu cuenta?",
         ["Profile_DeleteAccountConfirm"] = "Esto elimina tu cuenta de forma permanente y no se puede deshacer. El historial compartido permanece en los grupos en los que participas.",
+
+        // Update banner
+        ["Update_Message"] = "Hay una nueva versión de Axis disponible.",
+        ["Update_Action"] = "Actualizar",
     };
 
     private static readonly Dictionary<string, Dictionary<string, string>> Tables = new()
