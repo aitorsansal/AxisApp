@@ -2038,6 +2038,14 @@ security definer
 set search_path = public
 as $$
 begin
+  -- Birthday events (see the "Birthday events" section near the end of this file) are
+  -- materialized well ahead of the actual date by a daily cron job — without this guard,
+  -- every group would get pushed the moment that job first creates the row, which could be
+  -- months early. send_birthday_notifications() is the one that actually pushes, on the day.
+  if new.is_birthday then
+    return new;
+  end if;
+
   perform net.http_post(
     url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/send-push',
     headers := jsonb_build_object(
@@ -2170,6 +2178,7 @@ begin
     where starts_at >= now()
       and starts_at < now() + interval '30 hours'
       and reminder_sent_at is null
+      and not is_birthday
   loop
     perform net.http_post(
       url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/send-push',
@@ -2191,4 +2200,213 @@ select cron.schedule(
   'send-event-reminders',
   '0 9 * * *',
   $$ select public.send_event_reminders(); $$
+);
+
+-- ============================================================
+-- Birthday events (2026-09-08) — members.birth_date (added 2026-08-31, see this file's own
+-- "Profile page" remarks) was explicitly reserved for this. Rather than a separate Birthdays
+-- surface, a member's birthday shows up as a real row in the same `events` table everyone
+-- already sees in the Upcoming/Past list — no RSVP, no transport, both meaningless for a
+-- birthday (there's no "place to go").
+--
+-- is_birthday distinguishes these from a normal user-created event (same shape as
+-- expenses.is_settlement); member_id is whose birthday it is. created_by is deliberately left
+-- null on every birthday event, not set to that member's own account — see the discussion that
+-- led here: setting it would hand that one person a working "delete own event" button via the
+-- existing generic policy, except the next day's materialize_birthday_events() run would just
+-- recreate it (birth_date unchanged), making delete look like it silently failed. Leaving
+-- created_by null means the existing "delete own events" policy (created_by = auth.uid())
+-- already blocks everyone from deleting it, for free, with no new RLS. The looser
+-- "update events in your groups" policy (any group member, not creator-gated) is NOT locked
+-- down at the DB layer for this — the app simply never exposes an edit entry point for a
+-- birthday row (see GroupEventsViewModel.OpenEvent's guard), which is enough for a friends app
+-- but is a soft protection, not a hard one; flagging it rather than pretending otherwise.
+--
+-- Two separate daily cron jobs, deliberately not one, because they answer different questions:
+--   - materialize_birthday_events(): "does the next occurrence of this birthday exist as a row
+--     yet, with the right date?" Runs first (7am UTC), creates it well ahead of the actual date
+--     (the same day this feature ships, every existing birth_date gets its next occurrence
+--     materialized immediately) so it's visible in Upcoming long before it happens, same as any
+--     other future event. Also detects a birth_date edit (the existing next-occurrence row's date
+--     no longer matches) and a birth_date/membership removal, deleting the stale row.
+--   - send_birthday_notifications(): "did today become someone's birthday?" Runs second
+--     (7:30am UTC), scans for is_birthday events whose date is today and pushes then — kept
+--     entirely separate from the "day-before" reminder job below for a concrete reason: that job
+--     (send_event_reminders) scans ALL events with no is_birthday filter and unconditionally
+--     stamps reminder_sent_at + fires a push the moment a birthday event enters its 24-30h
+--     window, regardless of whether it has real attendees (it never checks). Reusing
+--     reminder_sent_at as this feature's own "already notified" marker would have let that job
+--     silently consume the flag with a useless empty-recipient push the day before, and this
+--     job would then see it already set and skip sending the real one on the actual day — hence
+--     both the `and not is_birthday` filter added to send_event_reminders above AND a dedicated
+--     birthday_notified_at column here, not a shared one.
+--
+-- notify_new_event (above) is guarded to skip birthday-event inserts — the AFTER INSERT trigger
+-- fires unconditionally on ANY insert into events regardless of who/what issued it, including
+-- this cron's own inserts, so without that guard the whole group would get pushed the moment
+-- materialize_birthday_events() first creates the row (possibly months early), not on the day.
+--
+-- Deliberately out of scope for this pass (by explicit user choice): phantom members never get
+-- a birthday event — only a claimed member can set their own birth_date (ProfilePage), and
+-- nobody edits a phantom's profile on their behalf. A phantom's birth_date simply stays null
+-- forever unless/until it's ever claimed.
+-- ============================================================
+
+alter table public.events add column is_birthday boolean not null default false;
+alter table public.events add column member_id uuid references public.members(id) on delete cascade;
+alter table public.events add column birthday_notified_at timestamptz;
+
+-- event_birthday_notification_recipients: every current group member with a device token,
+-- minus the member whose birthday it is (via events.member_id) — they don't need telling about
+-- their own day. Mirrors event_notification_recipients's shape, just excluding by member_id
+-- instead of created_by (which is always null on a birthday event — see above).
+create or replace function public.event_birthday_notification_recipients(p_event_id uuid)
+returns table (account_id uuid, push_token text, platform text)
+language sql
+stable
+set search_path = public
+as $$
+  select distinct dt.account_id, dt.push_token, dt.platform
+  from events e
+  join group_members gm on gm.group_id = e.group_id
+  join members m on m.id = gm.member_id
+  join device_tokens dt on dt.account_id = m.account_id
+  where e.id = p_event_id
+    and m.account_id is not null
+    and m.id is distinct from e.member_id;
+$$;
+
+revoke execute on function public.event_birthday_notification_recipients(uuid) from public, anon, authenticated;
+
+-- materialize_birthday_events: for every (member, group) pair where the member has a
+-- birth_date, ensures the next occurrence is a real events row with the correct date — inserting
+-- if missing, or replacing it if an existing future one's date no longer matches (a birth_date
+-- edit on Profile). The day-of-month is clamped to the target year/month's actual last day (a
+-- plain make_date() call would throw outright for a Feb 29 birthday in a non-leap year, unlike
+-- recurring_expenses' month-end drift elsewhere in this file, which is a display nuance, not a
+-- crash — this has to be handled, not just accepted).
+--
+-- Never SECURITY DEFINER — same reasoning as send_event_reminders/materialize_recurring_expenses:
+-- this only ever runs via pg_cron as postgres, which already bypasses RLS, so there's no
+-- permission gap to bridge.
+create or replace function public.materialize_birthday_events()
+returns void
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_row record;
+  v_year int;
+  v_month int;
+  v_day int;
+  v_last_day_of_month int;
+  v_target_date date;
+  v_existing record;
+begin
+  for v_row in
+    select m.id as member_id, m.display_name, m.birth_date, gm.group_id
+    from members m
+    join group_members gm on gm.member_id = m.id
+    where m.birth_date is not null
+  loop
+    v_month := extract(month from v_row.birth_date)::int;
+    v_day := extract(day from v_row.birth_date)::int;
+    v_year := extract(year from current_date)::int;
+
+    v_last_day_of_month := extract(day from (
+      date_trunc('month', make_date(v_year, v_month, 1)) + interval '1 month - 1 day'
+    ))::int;
+    v_target_date := make_date(v_year, v_month, least(v_day, v_last_day_of_month));
+
+    if v_target_date < current_date then
+      v_year := v_year + 1;
+      v_last_day_of_month := extract(day from (
+        date_trunc('month', make_date(v_year, v_month, 1)) + interval '1 month - 1 day'
+      ))::int;
+      v_target_date := make_date(v_year, v_month, least(v_day, v_last_day_of_month));
+    end if;
+
+    select id, starts_at into v_existing
+    from events
+    where is_birthday and member_id = v_row.member_id and group_id = v_row.group_id
+      and starts_at >= now()
+    order by starts_at
+    limit 1;
+
+    if v_existing.id is null or v_existing.starts_at::date <> v_target_date then
+      if v_existing.id is not null then
+        delete from events where id = v_existing.id;
+      end if;
+
+      insert into events (group_id, title, starts_at, is_birthday, member_id, needs_transport, created_by)
+      values (
+        v_row.group_id,
+        '🎂 ' || v_row.display_name || '''s Birthday',
+        v_target_date + time '12:00',
+        true,
+        v_row.member_id,
+        false,
+        null
+      );
+    end if;
+  end loop;
+
+  -- Cleanup: a future birthday event whose member no longer has a birth_date (cleared) or is no
+  -- longer in that group.
+  delete from events e
+  where e.is_birthday
+    and e.starts_at >= now()
+    and not exists (
+      select 1 from members m
+      join group_members gm on gm.member_id = m.id
+      where m.id = e.member_id and gm.group_id = e.group_id and m.birth_date is not null
+    );
+end;
+$$;
+
+revoke execute on function public.materialize_birthday_events() from public, anon, authenticated;
+
+select cron.schedule(
+  'materialize-birthday-events',
+  '0 7 * * *',
+  $$ select public.materialize_birthday_events(); $$
+);
+
+-- send_birthday_notifications: the day-of push — see this section's header comment for why this
+-- is separate from send_event_reminders and uses its own birthday_notified_at column rather than
+-- reminder_sent_at.
+create or replace function public.send_birthday_notifications()
+returns void
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_event record;
+begin
+  for v_event in
+    select id from events
+    where is_birthday
+      and starts_at::date = current_date
+      and birthday_notified_at is null
+  loop
+    perform net.http_post(
+      url := 'https://foepkovwmwyygulbdahv.supabase.co/functions/v1/send-push',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+      ),
+      body := jsonb_build_object('event_id', v_event.id, 'event_type', 'birthday')
+    );
+
+    update events set birthday_notified_at = now() where id = v_event.id;
+  end loop;
+end;
+$$;
+
+revoke execute on function public.send_birthday_notifications() from public, anon, authenticated;
+
+select cron.schedule(
+  'send-birthday-notifications',
+  '30 7 * * *',
+  $$ select public.send_birthday_notifications(); $$
 );

@@ -41,6 +41,15 @@ public class Event : BaseModel
     [Column("reminder_sent_at")]
     public DateTime? ReminderSentAt { get; set; }
 
+    /// <summary>True for an auto-generated birthday event (see schema.sql's "Birthday events"
+    /// section) — no RSVP, no transport, not user-editable. MemberId is whose birthday it is;
+    /// null for every ordinary event.</summary>
+    [Column("is_birthday")]
+    public bool IsBirthday { get; set; }
+
+    [Column("member_id")]
+    public Guid? MemberId { get; set; }
+
     [Column("created_by")]
     public Guid? CreatedBy { get; set; }
 

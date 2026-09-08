@@ -112,7 +112,12 @@
                                                                 <Thickness Left="{StaticResource SpacingXS}" Top="0" Right="{StaticResource SpacingXS}" Bottom="0" />
                                                             </Label.Margin>
                                                         </Label>
-                                                        <Label Grid.Column="2" Text="&#8250;" TextColor="{DynamicResource TextTertiary}" VerticalOptions="Center">
+                                                        <Label
+                                                            Grid.Column="2"
+                                                            Text="&#8250;"
+                                                            TextColor="{DynamicResource TextTertiary}"
+                                                            VerticalOptions="Center"
+                                                            IsVisible="{Binding IsBirthday, Converter={StaticResource InverseBoolConverter}}">
                                                             <Label.GestureRecognizers>
                                                                 <TapGestureRecognizer
                                                                     Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=OpenEventCommand}"
@@ -123,7 +128,10 @@
 
                                                     <Label Text="{Binding SubCaption}" Style="{StaticResource LabelTertiary}" LineBreakMode="TailTruncation" />
 
-                                                    <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                                                    <!-- No RSVP pill for a birthday event — see EventListItem.IsBirthday. Its
+                                                    transport section stays untouched below since NeedsTransport is always
+                                                    false for these, which already hides it via its own IsVisible binding. -->
+                                                    <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center" IsVisible="{Binding IsBirthday, Converter={StaticResource InverseBoolConverter}}">
                                                         <HorizontalStackLayout Grid.Column="0" BindableLayout.ItemsSource="{Binding GoingAvatars}" VerticalOptions="Center">
                                                             <BindableLayout.ItemTemplate>
                                                                 <DataTemplate x:DataType="vm:EventAttendeeAvatar">

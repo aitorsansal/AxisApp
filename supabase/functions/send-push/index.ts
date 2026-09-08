@@ -1,7 +1,10 @@
 // send-push — fires on a new expense (see schema.sql's notify_new_expense trigger, called via
-// pg_net the same way cleanup-receipts' cron job is) or an event create/change/cancel/reminder
+// pg_net the same way cleanup-receipts' cron job is), an event create/change/cancel/reminder
 // (see schema.sql's notify_new_event/notify_event_changed/notify_event_cancelled triggers and the
-// send_event_reminders cron job — /EVENTS_PLAN.md Milestone 5). A settlement is just an expense
+// send_event_reminders cron job — /EVENTS_PLAN.md Milestone 5), or a birthday event's day-of push
+// (send_birthday_notifications cron job — see schema.sql's "Birthday events" section; deliberately
+// NOT notify_new_event, which is guarded to skip is_birthday rows since that fires on creation,
+// months before the actual date). A settlement is just an expense
 // with is_settlement = true (Payment/notify_new_payment/payment_notification_recipients were
 // retired 2026-09-04 — see CLAUDE.md's "Merge payments into expenses" remarks), so there's only
 // ever one expense branch. Deployed via the Supabase dashboard's browser editor, not the CLI —
@@ -197,7 +200,17 @@ Deno.serve(async (req) => {
     title = groupName;
     groupId = ev?.group_id ?? "";
 
-    if (event_type === "changed") {
+    if (event_type === "birthday") {
+      // eventTitle is already "🎂 {name}'s Birthday" (see materialize_birthday_events in
+      // schema.sql) — used directly as the body, no "New event:"/whenText prefix, since this
+      // isn't a generic event notification.
+      body = eventTitle;
+      pushType = "event_birthday";
+      const { data: recipientRows } = await supabase
+        .rpc("event_birthday_notification_recipients", { p_event_id: event_id })
+        .returns<Recipient[]>();
+      recipients = recipientRows ?? [];
+    } else if (event_type === "changed") {
       body = `${eventTitle} was updated — new time or location`;
       pushType = "event_changed";
       const { data: recipientRows } = await supabase

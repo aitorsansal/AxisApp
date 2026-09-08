@@ -42,6 +42,12 @@ public partial class EventListItem : ObservableObject
     /// <summary>Whether the transport section applies to this event at all.</summary>
     public bool NeedsTransport { get; init; }
 
+    /// <summary>Auto-generated birthday event (see schema.sql's "Birthday events" section) — no
+    /// RSVP, no transport (NeedsTransport is always false for these anyway), and not tappable
+    /// (see OpenEvent's guard below): there's nothing to edit, it's derived from the member's
+    /// birth_date on their Profile.</summary>
+    public bool IsBirthday { get; init; }
+
     /// <summary>The interactive "I need a ride" control makes sense for anyone actually
     /// attending, including a "maybe" — asking for a ride costs nothing if they don't end up
     /// coming. Can't offer or need a ride for an event you're not going to at all, and Milestone
@@ -214,6 +220,7 @@ public partial class GroupEventsViewModel : BaseViewModel
             Title = ev.Title,
             SubCaption = string.Join(" · ", subParts),
             NeedsTransport = ev.NeedsTransport,
+            IsBirthday = ev.IsBirthday,
             StartsAt = ev.StartsAt,
             GoingAvatars = new ObservableCollection<EventAttendeeAvatar>(goingAvatars),
             MyResponse = myResponse,
@@ -239,7 +246,7 @@ public partial class GroupEventsViewModel : BaseViewModel
 
     [RelayCommand]
     private Task OpenEvent(EventListItem? item) => RunSafeAsync(() =>
-        item is null
+        item is null || item.IsBirthday
             ? Task.CompletedTask
             : Shell.Current.GoToAsync($"{AppConstants.Routes.AddEvent}?groupId={groupId}&eventId={item.EventId}"));
 
