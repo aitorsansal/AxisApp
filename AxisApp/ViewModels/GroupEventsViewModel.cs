@@ -93,6 +93,11 @@ public partial class GroupEventsViewModel : BaseViewModel
     [ObservableProperty] private ObservableCollection<EventMonthGroup> groupedEvents = [];
     [ObservableProperty] private bool hasEvents;
     [ObservableProperty] private bool isBusy;
+    /// <summary>True only while the very first LoadAsync (for this tab instance) is in flight —
+    /// kept separate from IsBusy, which also gets set on every later Refresh (RSVP/transport/save),
+    /// so the skeleton and its minimum-visible-duration padding only apply to the cold load.</summary>
+    [ObservableProperty] private bool isInitialLoading;
+    private bool hasLoadedOnce;
 
     /// <summary>false = Upcoming (default), true = Past.</summary>
     [ObservableProperty] private bool isPastSelected;
@@ -115,9 +120,11 @@ public partial class GroupEventsViewModel : BaseViewModel
     {
         this.groupId = groupId;
         IsBusy = true;
+        var isFirstLoad = !hasLoadedOnce;
+        IsInitialLoading = isFirstLoad;
         try
         {
-            await WithMinimumDurationAsync(TimeSpan.FromMilliseconds(400), async () =>
+            async Task DoLoad()
             {
                 var loadEvents = eventsRepository.GetForGroupAsync(groupId);
                 var loadMembers = membersRepository.GetForGroupAsync(groupId);
@@ -138,11 +145,18 @@ public partial class GroupEventsViewModel : BaseViewModel
                 attendeesByEvent = attendees;
 
                 Rebuild();
-            });
+            }
+
+            if (isFirstLoad)
+                await WithMinimumDurationAsync(TimeSpan.FromMilliseconds(400), DoLoad);
+            else
+                await DoLoad();
         }
         finally
         {
             IsBusy = false;
+            IsInitialLoading = false;
+            hasLoadedOnce = true;
         }
     });
 

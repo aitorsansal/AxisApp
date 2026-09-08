@@ -65,7 +65,7 @@
 
                         <!-- Skeleton: three fake group-card rows shown only during the initial load,
                              matching the real card's shape (title+amount line, avatars+caption line). -->
-                        <VerticalStackLayout IsVisible="{Binding IsBusy}" Spacing="{StaticResource SpacingS}">
+                        <VerticalStackLayout IsVisible="{Binding IsInitialLoading}" Spacing="{StaticResource SpacingS}">
                             <Border Style="{StaticResource ListItemCard}">
                                 <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource SpacingS}">
                                     <controls:SkeletonBox Grid.Row="0" Grid.Column="0" WidthRequest="120" HeightRequest="18" HorizontalOptions="Start" />
@@ -95,7 +95,7 @@
                         <VerticalStackLayout
                             BindableLayout.ItemsSource="{Binding Groups}"
                             Spacing="{StaticResource SpacingS}"
-                            IsVisible="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}">
+                            IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="vm:GroupListItem">
                                     <Border Style="{StaticResource ListItemCard}" controls:Juice.PressScale="0.97">

@@ -32,6 +32,11 @@ public partial class GroupsViewModel : BaseViewModel
 
     [ObservableProperty] private ObservableCollection<GroupListItem> groups = [];
     [ObservableProperty] private bool isBusy;
+    /// <summary>True only while the very first LoadAsync is in flight — kept separate from
+    /// IsBusy (which also drives the pull-to-refresh spinner on every later call, e.g. returning
+    /// from a child page) so the skeleton and its minimum-visible-duration padding only apply to
+    /// the cold load, not every refresh.</summary>
+    [ObservableProperty] private bool isInitialLoading;
     [ObservableProperty] private bool isEmpty;
     [ObservableProperty] private string userInitials = "";
     [ObservableProperty] private string userEmail = "";
@@ -60,12 +65,16 @@ public partial class GroupsViewModel : BaseViewModel
     /// GroupsPage.OnAppearing, and either path hitting an unhandled exception (e.g. the
     /// transient Supabase "JWT issued at future" clock-skew rejection seen repeatedly during
     /// testing) needs to degrade to an error message, not take the app down.</summary>
+    private bool hasLoadedOnce;
+
     public Task LoadAsync() => RunSafeAsync(async () =>
     {
         IsBusy = true;
+        var isFirstLoad = !hasLoadedOnce;
+        IsInitialLoading = isFirstLoad;
         try
         {
-            await WithMinimumDurationAsync(TimeSpan.FromMilliseconds(400), async () =>
+            async Task DoLoad()
             {
                 var loadGroups = groupsRepository.GetMyGroupsAsync();
                 var loadBalances = balancesRepository.GetMyBalancesAsync();
@@ -105,11 +114,18 @@ public partial class GroupsViewModel : BaseViewModel
                 // relaunch all land here, so this is the one choke point that covers every path
                 // without duplicating the call across LoginViewModel/SplashPage.
                 _ = pushRegistrationService.RegisterAsync();
-            });
+            }
+
+            if (isFirstLoad)
+                await WithMinimumDurationAsync(TimeSpan.FromMilliseconds(400), DoLoad);
+            else
+                await DoLoad();
         }
         finally
         {
             IsBusy = false;
+            IsInitialLoading = false;
+            hasLoadedOnce = true;
         }
     });
 

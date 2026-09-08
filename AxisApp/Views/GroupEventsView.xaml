@@ -21,13 +21,13 @@
                     <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingM}" Right="{StaticResource SpacingM}" Bottom="88" />
                 </VerticalStackLayout.Padding>
 
-                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsBusy}">
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsInitialLoading}">
                     <controls:SkeletonBox WidthRequest="70" HeightRequest="12" HorizontalOptions="Start" />
                     <controls:SkeletonBox HeightRequest="96" />
                     <controls:SkeletonBox HeightRequest="96" />
                 </VerticalStackLayout>
 
-                <Border Style="{StaticResource SegmentPillContainer}" HorizontalOptions="Center" WidthRequest="180" IsVisible="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}">
+                <Border Style="{StaticResource SegmentPillContainer}" HorizontalOptions="Center" WidthRequest="180" IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
                     <Grid ColumnDefinitions="*,*">
                         <Border
                             Grid.Column="0"
@@ -69,7 +69,7 @@
                     HorizontalTextAlignment="Center"
                     IsVisible="{Binding HasEvents, Converter={StaticResource InverseBoolConverter}}">
                     <Label.Triggers>
-                        <DataTrigger TargetType="Label" Binding="{Binding IsBusy}" Value="True">
+                        <DataTrigger TargetType="Label" Binding="{Binding IsInitialLoading}" Value="True">
                             <Setter Property="IsVisible" Value="False" />
                         </DataTrigger>
                     </Label.Triggers>
@@ -78,7 +78,7 @@
                 <VerticalStackLayout
                     BindableLayout.ItemsSource="{Binding GroupedEvents}"
                     Spacing="{StaticResource SpacingM}"
-                    IsVisible="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}">
+                    IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
                     <BindableLayout.ItemTemplate>
                         <DataTemplate x:DataType="vm:EventMonthGroup">
                             <VerticalStackLayout Spacing="{StaticResource SpacingS}">

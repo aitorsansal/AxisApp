@@ -28,7 +28,7 @@
                      a few activity rows) rather than a generic block, and LoadAsync pads itself
                      out to a minimum visible duration (WithMinimumDurationAsync) so this never
                      just flashes and disappears on a fast connection. -->
-                <VerticalStackLayout Spacing="{StaticResource SpacingL}" IsVisible="{Binding IsBusy}">
+                <VerticalStackLayout Spacing="{StaticResource SpacingL}" IsVisible="{Binding IsInitialLoading}">
                     <VerticalStackLayout Spacing="{StaticResource SpacingS}">
                         <controls:SkeletonBox WidthRequest="80" HeightRequest="12" HorizontalOptions="Start" />
                         <controls:SkeletonBox HeightRequest="64" />
@@ -42,7 +42,7 @@
                     </VerticalStackLayout>
                 </VerticalStackLayout>
 
-                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}">
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
                     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}">
                         <Label Grid.Column="0" Text="{loc:Translate GroupDetail_Balances}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" Margin="0" />
                         <Label
@@ -121,7 +121,7 @@
                     </VerticalStackLayout>
                 </VerticalStackLayout>
 
-                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}">
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
                     <Label Text="{loc:Translate GroupDetail_RecentActivity}" Style="{StaticResource SectionHeaderTertiary}" />
 
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding RecentActivity}">
