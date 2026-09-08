@@ -90,6 +90,11 @@ public partial class GroupExpensesViewModel : BaseViewModel
     [ObservableProperty] private ObservableCollection<MemberBalanceItem> balances = [];
     [ObservableProperty] private ObservableCollection<ActivityItem> recentActivity = [];
     [ObservableProperty] private bool isBusy;
+    /// <summary>True only while the very first LoadAsync (for this tab instance) is in flight —
+    /// kept separate from IsBusy, which also gets set on every later Refresh (after a save/settle),
+    /// so the skeleton and its minimum-visible-duration padding only apply to the cold load.</summary>
+    [ObservableProperty] private bool isInitialLoading;
+    private bool hasLoadedOnce;
 
     /// <summary>Per-device display preference, not group state — see
     /// AppConstants.Preferences.BalanceDisplayModePrefix. Set directly from the stored value in
@@ -127,26 +132,38 @@ public partial class GroupExpensesViewModel : BaseViewModel
         this.groupId = groupId;
         isPairwiseMode = Microsoft.Maui.Storage.Preferences.Default.Get(PreferenceKey, false);
         IsBusy = true;
+        var isFirstLoad = !hasLoadedOnce;
+        IsInitialLoading = isFirstLoad;
         try
         {
-            var loadGroup = groupsRepository.GetByIdAsync(groupId);
-            var loadMembers = membersRepository.GetForGroupAsync(groupId);
-            var loadExpenses = expensesRepository.GetForGroupAsync(groupId);
-            var loadAliases = aliasesRepository.GetMyAliasesAsync();
-            await Task.WhenAll(loadGroup, loadMembers, loadExpenses, loadAliases);
+            async Task DoLoad()
+            {
+                var loadGroup = groupsRepository.GetByIdAsync(groupId);
+                var loadMembers = membersRepository.GetForGroupAsync(groupId);
+                var loadExpenses = expensesRepository.GetForGroupAsync(groupId);
+                var loadAliases = aliasesRepository.GetMyAliasesAsync();
+                await Task.WhenAll(loadGroup, loadMembers, loadExpenses, loadAliases);
 
-            var members = loadMembers.Result;
-            membersById = members.ToDictionary(m => m.Id);
-            aliases = loadAliases.Result;
-            myMemberId = members.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)?.Id;
-            currentGroup = loadGroup.Result;
+                var members = loadMembers.Result;
+                membersById = members.ToDictionary(m => m.Id);
+                aliases = loadAliases.Result;
+                myMemberId = members.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)?.Id;
+                currentGroup = loadGroup.Result;
 
-            await RefreshBalancesAsync();
-            await RefreshActivityAsync(loadExpenses.Result);
+                await RefreshBalancesAsync();
+                await RefreshActivityAsync(loadExpenses.Result);
+            }
+
+            if (isFirstLoad)
+                await WithMinimumDurationAsync(TimeSpan.FromMilliseconds(400), DoLoad);
+            else
+                await DoLoad();
         }
         finally
         {
             IsBusy = false;
+            IsInitialLoading = false;
+            hasLoadedOnce = true;
         }
     });
 

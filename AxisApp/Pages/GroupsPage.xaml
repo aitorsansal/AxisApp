@@ -63,10 +63,42 @@
                             </Border>
                         </Grid>
 
-                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Groups}" Spacing="{StaticResource SpacingS}">
+                        <!-- Skeleton: three fake group-card rows shown only during the initial load,
+                             matching the real card's shape (title+amount line, avatars+caption line). -->
+                        <VerticalStackLayout IsVisible="{Binding IsInitialLoading}" Spacing="{StaticResource SpacingS}">
+                            <Border Style="{StaticResource ListItemCard}">
+                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource SpacingS}">
+                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="0" WidthRequest="120" HeightRequest="18" HorizontalOptions="Start" />
+                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="1" WidthRequest="60" HeightRequest="18" HorizontalOptions="End" />
+                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="0" WidthRequest="80" HeightRequest="12" HorizontalOptions="Start" />
+                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="1" WidthRequest="50" HeightRequest="12" HorizontalOptions="End" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource ListItemCard}">
+                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource SpacingS}">
+                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="0" WidthRequest="150" HeightRequest="18" HorizontalOptions="Start" />
+                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="1" WidthRequest="60" HeightRequest="18" HorizontalOptions="End" />
+                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="0" WidthRequest="100" HeightRequest="12" HorizontalOptions="Start" />
+                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="1" WidthRequest="50" HeightRequest="12" HorizontalOptions="End" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource ListItemCard}">
+                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource SpacingS}">
+                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="0" WidthRequest="100" HeightRequest="18" HorizontalOptions="Start" />
+                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="1" WidthRequest="60" HeightRequest="18" HorizontalOptions="End" />
+                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="0" WidthRequest="90" HeightRequest="12" HorizontalOptions="Start" />
+                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="1" WidthRequest="50" HeightRequest="12" HorizontalOptions="End" />
+                                </Grid>
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout
+                            BindableLayout.ItemsSource="{Binding Groups}"
+                            Spacing="{StaticResource SpacingS}"
+                            IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="vm:GroupListItem">
-                                    <Border Style="{StaticResource ListItemCard}">
+                                    <Border Style="{StaticResource ListItemCard}" controls:Juice.PressScale="0.97">
                                         <Border.GestureRecognizers>
                                             <TapGestureRecognizer
                                                 Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupsViewModel}}, Path=OpenGroupCommand}"
@@ -81,7 +113,7 @@
                                                 LineBreakMode="TailTruncation"
                                                 MaxLines="1" />
 
-                                            <Label
+                                            <controls:AnimatedValueLabel
                                                 Grid.Row="0" Grid.Column="1"
                                                 Text="{Binding BalanceAmountText}"
                                                 FontSize="{StaticResource TypeBody}"
@@ -97,7 +129,7 @@
                                                         <Setter Property="TextColor" Value="{DynamicResource TextTertiary}" />
                                                     </DataTrigger>
                                                 </Label.Triggers>
-                                            </Label>
+                                            </controls:AnimatedValueLabel>
 
                                             <HorizontalStackLayout
                                                 Grid.Row="1" Grid.Column="0"
@@ -150,7 +182,8 @@
             <Button
                 Text="+"
                 Command="{Binding NewGroupCommand}"
-                Style="{StaticResource FabButtonStyle}" />
+                Style="{StaticResource FabButtonStyle}"
+                controls:Juice.PressScale="0.88" />
         </Grid>
     </Grid>
 

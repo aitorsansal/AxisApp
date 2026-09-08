@@ -13,6 +13,7 @@
                 <ResourceDictionary>
                     <conv:StringNotEmptyConverter x:Key="StringNotEmptyConverter"/>
                     <conv:InverseBoolConverter x:Key="InverseBoolConverter"/>
+                    <conv:StringEqualsConverter x:Key="StringEqualsConverter"/>
                 </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

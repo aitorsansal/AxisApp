@@ -23,7 +23,26 @@
                     <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingM}" Right="{StaticResource SpacingM}" Bottom="88" />
                 </VerticalStackLayout.Padding>
 
-                <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                <!-- Skeleton: shown only while the initial load (balances + activity) is in
+                     flight — mirrors the two real sections below it (a couple of balance tiles,
+                     a few activity rows) rather than a generic block, and LoadAsync pads itself
+                     out to a minimum visible duration (WithMinimumDurationAsync) so this never
+                     just flashes and disappears on a fast connection. -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingL}" IsVisible="{Binding IsInitialLoading}">
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <controls:SkeletonBox WidthRequest="80" HeightRequest="12" HorizontalOptions="Start" />
+                        <controls:SkeletonBox HeightRequest="64" />
+                        <controls:SkeletonBox HeightRequest="64" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <controls:SkeletonBox WidthRequest="110" HeightRequest="12" HorizontalOptions="Start" />
+                        <controls:SkeletonBox HeightRequest="64" />
+                        <controls:SkeletonBox HeightRequest="64" />
+                        <controls:SkeletonBox HeightRequest="64" />
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
                     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}">
                         <Label Grid.Column="0" Text="{loc:Translate GroupDetail_Balances}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" Margin="0" />
                         <Label
@@ -64,7 +83,7 @@
                                             </Label.Triggers>
                                         </Label>
                                         <VerticalStackLayout Grid.Column="2" HorizontalOptions="End">
-                                            <Label Text="{Binding AmountText}" FontSize="{StaticResource TypeTitle}" FontAttributes="Bold" HorizontalTextAlignment="End">
+                                            <controls:AnimatedValueLabel Text="{Binding AmountText}" FontSize="{StaticResource TypeTitle}" FontAttributes="Bold" HorizontalTextAlignment="End">
                                                 <Label.Triggers>
                                                     <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
                                                         <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
@@ -73,7 +92,7 @@
                                                         <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
                                                     </DataTrigger>
                                                 </Label.Triggers>
-                                            </Label>
+                                            </controls:AnimatedValueLabel>
                                             <Label Text="{Binding CaptionText}" FontSize="{StaticResource TypeCaption}" HorizontalTextAlignment="End">
                                                 <Label.Triggers>
                                                     <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
@@ -102,13 +121,13 @@
                     </VerticalStackLayout>
                 </VerticalStackLayout>
 
-                <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
                     <Label Text="{loc:Translate GroupDetail_RecentActivity}" Style="{StaticResource SectionHeaderTertiary}" />
 
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding RecentActivity}">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:ActivityItem">
-                                <Border Style="{StaticResource ListItemCard}">
+                                <Border Style="{StaticResource ListItemCard}" controls:Juice.PressScale="0.97">
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupExpensesViewModel}}, Path=OpenActivityCommand}"
@@ -134,7 +153,7 @@
                                             <Label Text="{Binding SubCaption}" Style="{StaticResource LabelTertiary}" LineBreakMode="TailTruncation" />
                                         </VerticalStackLayout>
                                         <VerticalStackLayout Grid.Column="2" HorizontalOptions="End">
-                                            <Label
+                                            <controls:AnimatedValueLabel
                                                 Text="{Binding AmountText}"
                                                 FontAttributes="Bold"
                                                 HorizontalTextAlignment="End" />

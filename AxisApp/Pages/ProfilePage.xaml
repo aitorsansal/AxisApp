@@ -78,7 +78,8 @@
                             Text="{loc:Translate Profile_SetBirthday}"
                             Command="{Binding SetBirthdayCommand}"
                             Style="{StaticResource BtnOutlinePrimary}"
-                            IsVisible="{Binding HasBirthday, Converter={StaticResource InverseBoolConverter}}" />
+                            IsVisible="{Binding HasBirthday, Converter={StaticResource InverseBoolConverter}}"
+                            controls:Juice.PressScale="0.96" />
                     </VerticalStackLayout>
 
                     <!-- Car seats available: a per-profile default for the transport/carpooling
@@ -98,7 +99,8 @@
                     <Button
                         Text="{loc:Translate Common_Save}"
                         Command="{Binding SaveProfileCommand}"
-                        Style="{StaticResource BtnPrimaryStyle}" />
+                        Style="{StaticResource BtnPrimaryStyle}"
+                        controls:Juice.PressScale="0.96" />
 
                     <Label
                         Text="{Binding StatusMessage}"
@@ -169,7 +171,11 @@
                             </CollectionView.ItemsLayout>
                             <CollectionView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:AccentSwatch">
-                                    <Border Style="{StaticResource AccentSwatchBorder}" BackgroundColor="{Binding Color}">
+                                    <Border
+                                        Style="{StaticResource AccentSwatchBorder}"
+                                        BackgroundColor="{Binding Color}"
+                                        controls:Juice.PressScale="0.85"
+                                        controls:Juice.Selected="{Binding IsSelected}">
                                         <Border.GestureRecognizers>
                                             <TapGestureRecognizer
                                                 Command="{Binding Source={RelativeSource AncestorType={x:Type vm:ProfileViewModel}}, Path=ChangeAccentColorCommand}"
@@ -210,7 +216,8 @@
                         <Button
                             Text="{loc:Translate Profile_ChangeEmail}"
                             Command="{Binding ChangeEmailCommand}"
-                            Style="{StaticResource BtnOutlinePrimary}" />
+                            Style="{StaticResource BtnOutlinePrimary}"
+                            controls:Juice.PressScale="0.96" />
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="{StaticResource SpacingS}">
@@ -221,7 +228,8 @@
                         <Button
                             Text="{loc:Translate Profile_ChangePassword}"
                             Command="{Binding ChangePasswordCommand}"
-                            Style="{StaticResource BtnOutlinePrimary}" />
+                            Style="{StaticResource BtnOutlinePrimary}"
+                            controls:Juice.PressScale="0.96" />
                     </VerticalStackLayout>
 
                     <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
@@ -233,7 +241,8 @@
                         <Button
                             Text="{loc:Translate Profile_DeleteAccountButton}"
                             Command="{Binding DeleteAccountCommand}"
-                            Style="{StaticResource BtnOutlineDanger}" />
+                            Style="{StaticResource BtnOutlineDanger}"
+                            controls:Juice.PressScale="0.96" />
                     </VerticalStackLayout>
 
                 </VerticalStackLayout>

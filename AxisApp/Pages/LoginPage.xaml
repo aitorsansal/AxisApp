@@ -51,13 +51,15 @@
                     Text="{loc:Translate Login_SignIn}"
                     Command="{Binding SignInCommand}"
                     Style="{StaticResource BtnPrimaryStyle}"
-                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
+                    controls:Juice.PressScale="0.96" />
 
                 <Button
                     Text="{loc:Translate Login_CreateAccount}"
                     Command="{Binding SignUpCommand}"
                     Style="{StaticResource BtnOutlinePrimary}"
-                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
+                    controls:Juice.PressScale="0.96" />
 
                 <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
                     <BoxView Grid.Column="0" HeightRequest="1" Color="{DynamicResource TextDisabled}" VerticalOptions="Center" />
@@ -71,7 +73,8 @@
 
                 <Border
                     Style="{StaticResource BtnGoogleStyle}"
-                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}">
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
+                    controls:Juice.PressScale="0.96">
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Command="{Binding LoginWithGoogleCommand}" />
                     </Border.GestureRecognizers>

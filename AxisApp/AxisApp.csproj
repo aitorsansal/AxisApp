@@ -25,8 +25,8 @@
 		<ApplicationId>com.aitorsansal.axisapp</ApplicationId>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>0.5</ApplicationDisplayVersion>
-		<ApplicationVersion>2</ApplicationVersion>
+		<ApplicationDisplayVersion>0.6</ApplicationDisplayVersion>
+		<ApplicationVersion>3</ApplicationVersion>
 
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>
@@ -36,9 +36,13 @@
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 	</PropertyGroup>
 
-	<!--Keystore for always building with the same SHA1-->
+	<!--Keystore for always building with the same SHA1 — applied to Debug too (not just
+	Release), so a Debug deploy signs with the same cert Google's OAuth client has registered.
+	Without this, alternating Debug/Release deploys makes Android treat each as a different app
+	(different signing cert) and demand an uninstall-confirm on every switch, and Google Sign-In
+	fails outright on a Debug build since its signature was never registered anywhere. -->
 	<Import Project="keystore.local.props" Condition="Exists('keystore.local.props')" />
-	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0-android|AnyCPU'">
+	<PropertyGroup Condition="'$(TargetFramework)|$(Platform)'=='net10.0-android|AnyCPU'">
 		<AndroidPackageFormat>apk</AndroidPackageFormat>
 		<AndroidKeyStore>True</AndroidKeyStore>
 	</PropertyGroup>
