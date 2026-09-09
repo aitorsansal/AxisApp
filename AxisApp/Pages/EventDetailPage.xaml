@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:local="clr-namespace:AxisApp"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
+    x:Class="AxisApp.Pages.EventDetailPage"
+    x:DataType="vm:EventDetailViewModel"
+    Shell.NavBarIsVisible="False"
+    Title="{Binding Title}">
+
+    <Grid>
+    <Grid RowDefinitions="Auto,*">
+
+        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="{Binding Title}" />
+
+        <!-- Edit trigger, same custom-corner pattern GroupDetailPage uses instead of
+        PageHeaderBar's built-in ShowOverflow (that one sits under Windows' native window caption
+        buttons in windowed mode). Opens AddEventPage — title/date/location/needsTransport editing
+        and delete both stay there, unchanged. -->
+        <Border
+            Grid.Row="0"
+            BackgroundColor="Transparent"
+            StrokeThickness="0"
+            WidthRequest="44" HeightRequest="44"
+            Padding="0"
+            HorizontalOptions="End"
+            VerticalOptions="Start">
+            <Border.Margin>
+                <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="{StaticResource SpacingM}" Bottom="0" />
+            </Border.Margin>
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding EditEventCommand}" />
+            </Border.GestureRecognizers>
+            <Label
+                Text="&#9998;"
+                FontSize="{StaticResource TypeTitle}"
+                TextColor="{DynamicResource TextPrimary}"
+                HorizontalOptions="Center"
+                VerticalOptions="Center" />
+        </Border>
+
+        <RefreshView Grid.Row="1" IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+            <ScrollView>
+                <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
+
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsInitialLoading}">
+                        <controls:SkeletonBox HeightRequest="16" WidthRequest="180" HorizontalOptions="Start" />
+                        <controls:SkeletonBox HeightRequest="60" />
+                        <controls:SkeletonBox HeightRequest="60" />
+                        <controls:SkeletonBox HeightRequest="90" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="{StaticResource SpacingL}" IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
+
+                        <!-- Date/location + description -->
+                        <VerticalStackLayout Spacing="{StaticResource SpacingXS}">
+                            <Label Text="{Binding SubCaption}" Style="{StaticResource LabelTertiary}" />
+                            <VerticalStackLayout Spacing="{StaticResource SpacingXS}" IsVisible="{Binding HasDescription}">
+                                <Label Text="{loc:Translate EventDetail_Description}" Style="{StaticResource SectionHeaderTertiary}" Margin="0,4,0,0" />
+                                <Label Text="{Binding Description}" />
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+
+                        <!-- RSVP: same 3-way pill as GroupEventsView's inline row, mirrored here per
+                        the "keep RSVP available both places" design call. -->
+                        <Border Style="{StaticResource SegmentPillContainer}" Padding="2" HorizontalOptions="Start">
+                            <HorizontalStackLayout Spacing="2">
+                                <Button
+                                    Text="{loc:Translate GroupEvents_Going}"
+                                    Command="{Binding SetRsvpGoingCommand}"
+                                    Style="{StaticResource SegmentButtonUnselected}"
+                                    FontSize="{StaticResource TypeCaption}"
+                                    Padding="8,4"
+                                    MinimumHeightRequest="32">
+                                    <Button.Triggers>
+                                        <DataTrigger TargetType="Button" Binding="{Binding MyResponse}" Value="going">
+                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                        </DataTrigger>
+                                    </Button.Triggers>
+                                </Button>
+                                <Button
+                                    Text="{loc:Translate GroupEvents_Maybe}"
+                                    Command="{Binding SetRsvpMaybeCommand}"
+                                    Style="{StaticResource SegmentButtonUnselected}"
+                                    FontSize="{StaticResource TypeCaption}"
+                                    Padding="8,4"
+                                    MinimumHeightRequest="32">
+                                    <Button.Triggers>
+                                        <DataTrigger TargetType="Button" Binding="{Binding MyResponse}" Value="maybe">
+                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                        </DataTrigger>
+                                    </Button.Triggers>
+                                </Button>
+                                <Button
+                                    Text="{loc:Translate GroupEvents_NotGoing}"
+                                    Command="{Binding SetRsvpNotGoingCommand}"
+                                    Style="{StaticResource SegmentButtonUnselected}"
+                                    FontSize="{StaticResource TypeCaption}"
+                                    Padding="8,4"
+                                    MinimumHeightRequest="32">
+                                    <Button.Triggers>
+                                        <DataTrigger TargetType="Button" Binding="{Binding MyResponse}" Value="not_going">
+                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                        </DataTrigger>
+                                    </Button.Triggers>
+                                </Button>
+                            </HorizontalStackLayout>
+                        </Border>
+
+                        <!-- Transport: same mirrored treatment as RSVP above. -->
+                        <VerticalStackLayout Spacing="{StaticResource SpacingXS}" IsVisible="{Binding NeedsTransport}">
+                            <Label Text="{Binding TransportSummaryText}" Style="{StaticResource LabelTertiary}">
+                                <Label.Triggers>
+                                    <DataTrigger TargetType="Label" Binding="{Binding HasShortfall}" Value="True">
+                                        <Setter Property="TextColor" Value="{DynamicResource Danger}" />
+                                    </DataTrigger>
+                                </Label.Triggers>
+                            </Label>
+
+                            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="{StaticResource SpacingS}" IsVisible="{Binding ShowTransportControls}">
+                                <Button
+                                    Grid.Column="0"
+                                    Text="{loc:Translate GroupEvents_HaveCar}"
+                                    Command="{Binding ToggleCarOfferingCommand}"
+                                    Style="{StaticResource SegmentButtonUnselected}"
+                                    FontSize="{StaticResource TypeCaption}"
+                                    Padding="8,4"
+                                    MinimumHeightRequest="32"
+                                    IsVisible="{Binding CanOfferCar}">
+                                    <Button.Triggers>
+                                        <DataTrigger TargetType="Button" Binding="{Binding CarStatus}" Value="offering">
+                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                        </DataTrigger>
+                                    </Button.Triggers>
+                                </Button>
+                                <Button
+                                    Grid.Column="1"
+                                    Text="{loc:Translate GroupEvents_NeedRide}"
+                                    Command="{Binding ToggleCarNeedsRideCommand}"
+                                    Style="{StaticResource SegmentButtonUnselected}"
+                                    FontSize="{StaticResource TypeCaption}"
+                                    Padding="8,4"
+                                    MinimumHeightRequest="32">
+                                    <Button.Triggers>
+                                        <DataTrigger TargetType="Button" Binding="{Binding CarStatus}" Value="needs_ride">
+                                            <Setter Property="Style" Value="{StaticResource SegmentButtonSelected}" />
+                                        </DataTrigger>
+                                    </Button.Triggers>
+                                </Button>
+
+                                <HorizontalStackLayout Grid.Column="2" Spacing="{StaticResource SpacingXS}" HorizontalOptions="End" VerticalOptions="Center" IsVisible="False">
+                                    <HorizontalStackLayout.Triggers>
+                                        <DataTrigger TargetType="HorizontalStackLayout" Binding="{Binding CarStatus}" Value="offering">
+                                            <Setter Property="IsVisible" Value="True" />
+                                        </DataTrigger>
+                                    </HorizontalStackLayout.Triggers>
+                                    <Label Text="&#8722;" FontAttributes="Bold" WidthRequest="28" HorizontalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}">
+                                        <Label.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding DecrementCarSeatsCommand}" />
+                                        </Label.GestureRecognizers>
+                                    </Label>
+                                    <Label Text="{Binding CarOfferedSeats}" FontAttributes="Bold" WidthRequest="20" HorizontalTextAlignment="Center" VerticalOptions="Center" />
+                                    <Label Text="+" FontAttributes="Bold" WidthRequest="28" HorizontalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}">
+                                        <Label.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding IncrementCarSeatsCommand}" />
+                                        </Label.GestureRecognizers>
+                                    </Label>
+                                </HorizontalStackLayout>
+                            </Grid>
+                        </VerticalStackLayout>
+
+                        <!-- Attendee roster: real names grouped by response, unlike the collapsed
+                        row's avatar-only stack — see CLAUDE.md's design discussion. -->
+                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Label Text="{loc:Translate EventDetail_Going}" Style="{StaticResource SectionHeaderTertiary}" />
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding GoingAttendees}" Spacing="{StaticResource SpacingXS}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:EventAttendeeRowItem">
+                                        <Grid ColumnDefinitions="36,*" ColumnSpacing="{StaticResource SpacingS}">
+                                            <controls:ProfileCircle
+                                                Grid.Column="0"
+                                                ImageUrl="{Binding AvatarUrl}"
+                                                Initials="{Binding Initials}"
+                                                Diameter="{StaticResource AvatarSizeM}">
+                                                <controls:ProfileCircle.Triggers>
+                                                    <DataTrigger TargetType="controls:ProfileCircle" Binding="{Binding IsYou}" Value="True">
+                                                        <Setter Property="Kind" Value="Primary" />
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="controls:ProfileCircle" Binding="{Binding IsPhantom}" Value="True">
+                                                        <Setter Property="Kind" Value="Phantom" />
+                                                    </DataTrigger>
+                                                </controls:ProfileCircle.Triggers>
+                                            </controls:ProfileCircle>
+                                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                                <Label Text="{Binding Name}" LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding CarCaption}" Style="{StaticResource LabelTertiary}" IsVisible="{Binding CarCaption, Converter={StaticResource StringNotEmptyConverter}}" />
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+
+                            <Label Text="{loc:Translate EventDetail_Maybe}" Style="{StaticResource SectionHeaderTertiary}" IsVisible="{Binding HasMaybeAttendees}" Margin="0,8,0,0" />
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding MaybeAttendees}" Spacing="{StaticResource SpacingXS}" IsVisible="{Binding HasMaybeAttendees}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:EventAttendeeRowItem">
+                                        <Grid ColumnDefinitions="36,*" ColumnSpacing="{StaticResource SpacingS}">
+                                            <controls:ProfileCircle Grid.Column="0" ImageUrl="{Binding AvatarUrl}" Initials="{Binding Initials}" Diameter="{StaticResource AvatarSizeM}" Opacity="0.75" />
+                                            <Label Grid.Column="1" Text="{Binding Name}" VerticalOptions="Center" LineBreakMode="TailTruncation" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+
+                            <Label Text="{loc:Translate EventDetail_NotGoing}" Style="{StaticResource SectionHeaderTertiary}" IsVisible="{Binding HasNotGoingAttendees}" Margin="0,8,0,0" />
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding NotGoingAttendees}" Spacing="{StaticResource SpacingXS}" IsVisible="{Binding HasNotGoingAttendees}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:EventAttendeeRowItem">
+                                        <Grid ColumnDefinitions="36,*" ColumnSpacing="{StaticResource SpacingS}">
+                                            <controls:ProfileCircle Grid.Column="0" ImageUrl="{Binding AvatarUrl}" Initials="{Binding Initials}" Diameter="{StaticResource AvatarSizeM}" Opacity="0.5" />
+                                            <Label Grid.Column="1" Text="{Binding Name}" VerticalOptions="Center" LineBreakMode="TailTruncation" TextColor="{DynamicResource TextTertiary}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+
+                        <!-- Linked expenses — same row template as GroupExpensesView's Recent
+                        Activity list. -->
+                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                                <Label Grid.Column="0" Text="{loc:Translate EventDetail_Expenses}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" Margin="0" />
+                                <Button
+                                    Grid.Column="1"
+                                    Text="{loc:Translate EventDetail_AddExpense}"
+                                    Command="{Binding AddExpenseCommand}"
+                                    Style="{StaticResource BtnOutlinePrimary}"
+                                    FontSize="{StaticResource TypeCaption}"
+                                    Padding="{StaticResource SpacingS}"
+                                    MinimumHeightRequest="36"
+                                    VerticalOptions="Center" />
+                            </Grid>
+
+                            <Label
+                                Text="{loc:Translate EventDetail_NoExpenses}"
+                                Style="{StaticResource LabelTertiary}"
+                                IsVisible="{Binding HasExpenses, Converter={StaticResource InverseBoolConverter}}" />
+
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Expenses}" Spacing="{StaticResource SpacingS}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ActivityItem">
+                                        <Border Style="{StaticResource ListItemCard}" controls:Juice.PressScale="0.97">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:EventDetailViewModel}}, Path=OpenExpenseCommand}"
+                                                    CommandParameter="{Binding .}" />
+                                            </Border.GestureRecognizers>
+                                            <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                                                <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="{StaticResource AvatarSizeM}" HeightRequest="{StaticResource AvatarSizeM}">
+                                                    <Label
+                                                        Text="{x:Static local:AppConstants+Icons.ShoppingCart}"
+                                                        FontFamily="Lucide"
+                                                        FontSize="{StaticResource TypeBody}"
+                                                        HorizontalOptions="Center"
+                                                        VerticalOptions="Center">
+                                                        <Label.Triggers>
+                                                            <DataTrigger TargetType="Label" Binding="{Binding IsSettlement}" Value="True">
+                                                                <Setter Property="Text" Value="{x:Static local:AppConstants+Icons.ArrowRight}" />
+                                                            </DataTrigger>
+                                                        </Label.Triggers>
+                                                    </Label>
+                                                </Border>
+                                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                                    <Label Text="{Binding Description}" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                                                    <Label Text="{Binding SubCaption}" Style="{StaticResource LabelTertiary}" LineBreakMode="TailTruncation" />
+                                                </VerticalStackLayout>
+                                                <VerticalStackLayout Grid.Column="2" HorizontalOptions="End">
+                                                    <controls:AnimatedValueLabel Text="{Binding AmountText}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                                                    <Label
+                                                        Text="{Binding SecondaryAmountText}"
+                                                        Style="{StaticResource LabelTertiary}"
+                                                        FontSize="{StaticResource TypeCaption}"
+                                                        HorizontalTextAlignment="End"
+                                                        IsVisible="{Binding SecondaryAmountText, Converter={StaticResource StringNotEmptyConverter}}" />
+                                                    <Label Text="{Binding RelativeDate}" Style="{StaticResource LabelTertiary}" HorizontalTextAlignment="End" />
+                                                </VerticalStackLayout>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </ScrollView>
+        </RefreshView>
+    </Grid>
+
+    <controls:ErrorPopup Message="{Binding ErrorMessage}" />
+    <controls:UpdateBanner />
+    </Grid>
+</ContentPage>

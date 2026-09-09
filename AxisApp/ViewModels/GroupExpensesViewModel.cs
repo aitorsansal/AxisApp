@@ -334,8 +334,10 @@ public partial class GroupExpensesViewModel : BaseViewModel
     /// <summary>Per-expense primary/secondary amount text, per
     /// AppConstants.Preferences.AmountDisplayConverted — see MULTI_CURRENCY_PLAN.md's Milestone 5
     /// "On"/"Off" behavior. Both fields are empty-secondary when the expense's own currency matches
-    /// the group's (the common case), since there's nothing extra worth showing.</summary>
-    private static (string AmountText, string SecondaryAmountText) FormatExpenseAmount(
+    /// the group's (the common case), since there's nothing extra worth showing. Internal rather
+    /// than private so EventDetailViewModel can reuse it for the same row shape instead of
+    /// duplicating the currency-formatting logic.</summary>
+    internal static (string AmountText, string SecondaryAmountText) FormatExpenseAmount(
         Expense expense, string groupSymbol, string groupCurrency, bool showConverted)
     {
         if (expense.Currency == groupCurrency)
@@ -347,7 +349,9 @@ public partial class GroupExpensesViewModel : BaseViewModel
             : ($"{originalSymbol}{expense.Amount:0.00}", $"(≈{groupSymbol}{expense.AmountInGroupCurrency:0.00})");
     }
 
-    private static string FormatRelative(DateTime occurredAtUtc)
+    /// <summary>Internal rather than private so EventDetailViewModel can reuse it — same reasoning
+    /// as FormatExpenseAmount above.</summary>
+    internal static string FormatRelative(DateTime occurredAtUtc)
     {
         var loc = LocalizationResourceManager.Instance;
         var elapsed = DateTime.UtcNow - occurredAtUtc;

@@ -92,6 +92,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     private readonly IMembersRepository membersRepository;
     private readonly IExpensesRepository expensesRepository;
     private readonly IRecurringExpensesRepository recurringExpensesRepository;
+    private readonly IEventsRepository eventsRepository;
     private readonly IAliasesRepository aliasesRepository;
     private readonly IReceiptsRepository receiptsRepository;
     private readonly IGroupsRepository groupsRepository;
@@ -102,6 +103,12 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     private Guid? editingCreatedBy;
     private DateTime editingCreatedAt;
     private bool editingIsSettlement;
+
+    /// <summary>The Event this expense is linked to, if any — set from the `eventId` query param on
+    /// a fresh add (see ApplyQueryAttributes), or from the loaded Expense's own EventId on edit (see
+    /// LoadExistingExpense). Carried through unchanged on Save, same "fresh object silently drops a
+    /// field" footgun class as editingCreatedBy/editingIsSettlement above.</summary>
+    private Guid? editingEventId;
     private Guid? editingRecurringExpenseId;
     private Guid? editingRecurringCreatedBy;
     private DateTime editingRecurringCreatedAt;
@@ -164,6 +171,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         IMembersRepository membersRepository,
         IExpensesRepository expensesRepository,
         IRecurringExpensesRepository recurringExpensesRepository,
+        IEventsRepository eventsRepository,
         IAliasesRepository aliasesRepository,
         IReceiptsRepository receiptsRepository,
         IGroupsRepository groupsRepository,
@@ -172,6 +180,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         this.membersRepository = membersRepository;
         this.expensesRepository = expensesRepository;
         this.recurringExpensesRepository = recurringExpensesRepository;
+        this.eventsRepository = eventsRepository;
         this.aliasesRepository = aliasesRepository;
         this.receiptsRepository = receiptsRepository;
         this.groupsRepository = groupsRepository;
@@ -193,8 +202,13 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         bool startAsRecurring = query.TryGetValue("recurring", out var recurringFlag)
             && recurringFlag?.ToString() == "true";
 
+        Guid? eventId = query.TryGetValue("eventId", out var eventValue)
+            && Guid.TryParse(eventValue?.ToString(), out var parsedEventId)
+                ? parsedEventId
+                : null;
+
         if (query.TryGetValue("groupId", out var groupValue) && Guid.TryParse(groupValue?.ToString(), out var groupIdValue))
-            _ = LoadAsync(groupIdValue, expenseId, recurringExpenseId, startAsRecurring);
+            _ = LoadAsync(groupIdValue, expenseId, recurringExpenseId, startAsRecurring, eventId);
     }
 
     /// <summary>Loads the group's members as the participant set and its category list. In plain
@@ -202,12 +216,16 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     /// existing one-off Expense or an existing RecurringExpense template overlays its saved data
     /// on top, overriding the equal-split defaults built for the member list. startAsRecurring
     /// starts a fresh add already in recurring mode (the "Repeat" toggle can also flip this on
-    /// manually — see CanToggleRecurring).</summary>
-    public Task LoadAsync(Guid forGroupId, Guid? forExpenseId = null, Guid? forRecurringExpenseId = null, bool startAsRecurring = false) => RunSafeAsync(async () =>
+    /// manually — see CanToggleRecurring). forEventId (fresh add only, from EventDetailPage's "+
+    /// Add expense") restricts both Participants and PayerOptions to that event's current "going"
+    /// attendees — a one-time snapshot at this load, never re-derived live afterward (see
+    /// event_expenses.sql's design comment and CLAUDE.md's event-expenses discussion).</summary>
+    public Task LoadAsync(Guid forGroupId, Guid? forExpenseId = null, Guid? forRecurringExpenseId = null, bool startAsRecurring = false, Guid? forEventId = null) => RunSafeAsync(async () =>
     {
         groupId = forGroupId;
         editingExpenseId = forExpenseId;
         editingRecurringExpenseId = forRecurringExpenseId;
+        editingEventId = forExpenseId is null ? forEventId : null;
         IsEditMode = forExpenseId is not null || forRecurringExpenseId is not null;
         IsRecurringMode = forRecurringExpenseId is not null || startAsRecurring;
         CanToggleRecurring = forExpenseId is null && forRecurringExpenseId is null;
@@ -231,9 +249,17 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             var loadRecurringShares = forRecurringExpenseId is { } rsid ? recurringExpensesRepository.GetSharesAsync(rsid) : Task.FromResult(new List<RecurringExpenseShare>());
             var loadAliases = aliasesRepository.GetMyAliasesAsync();
             var loadGroup = groupsRepository.GetByIdAsync(groupId);
-            await Task.WhenAll(loadMembers, loadExpense, loadShares, loadRecurring, loadRecurringShares, loadAliases, loadGroup);
+            var loadEventAttendees = editingEventId is { } forEvId ? eventsRepository.GetAttendeesAsync(forEvId) : Task.FromResult(new List<EventAttendee>());
+            await Task.WhenAll(loadMembers, loadExpense, loadShares, loadRecurring, loadRecurringShares, loadAliases, loadGroup, loadEventAttendees);
 
             var aliases = loadAliases.Result;
+
+            // Only meaningful on a fresh add from EventDetailPage (editingEventId is null again by
+            // the time this runs in edit mode — see its assignment above) — a one-time snapshot of
+            // who's currently "going", not re-checked on every load.
+            var goingMemberIds = editingEventId is not null
+                ? loadEventAttendees.Result.Where(a => a.Response == "going").Select(a => a.MemberId).ToHashSet()
+                : (HashSet<Guid>?)null;
 
             foreach (var participant in Participants)
                 participant.PropertyChanged -= ParticipantChanged;
@@ -243,6 +269,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 
             foreach (var member in loadMembers.Result)
             {
+                if (goingMemberIds is not null && !goingMemberIds.Contains(member.Id)) continue;
+
                 var name = MemberDisplay.Name(member, aliases);
                 var initials = MemberDisplay.Initials(member, aliases);
                 var avatarUrl = MemberDisplay.AvatarUrl(member);
@@ -310,6 +338,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         editingCreatedBy = expense.CreatedBy;
         editingCreatedAt = expense.CreatedAt;
         editingIsSettlement = expense.IsSettlement;
+        editingEventId = expense.EventId;
         IsSettlement = expense.IsSettlement;
         if (expense.IsSettlement)
             PageTitle = LocalizationResourceManager.Instance["AddExpense_EditSettlementTitle"];
@@ -617,7 +646,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                     Description = Description,
                     Category = SelectedCategory,
                     OccurredAt = OccurredOn.ToUniversalTime(),
-                    ReceiptPath = ReceiptPath
+                    ReceiptPath = ReceiptPath,
+                    EventId = editingEventId
                 };
 
                 var shares = Participants

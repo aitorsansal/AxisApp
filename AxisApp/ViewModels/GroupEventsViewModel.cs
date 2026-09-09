@@ -248,7 +248,7 @@ public partial class GroupEventsViewModel : BaseViewModel
     private Task OpenEvent(EventListItem? item) => RunSafeAsync(() =>
         item is null || item.IsBirthday
             ? Task.CompletedTask
-            : Shell.Current.GoToAsync($"{AppConstants.Routes.AddEvent}?groupId={groupId}&eventId={item.EventId}"));
+            : Shell.Current.GoToAsync($"{AppConstants.Routes.EventDetail}?groupId={groupId}&eventId={item.EventId}"));
 
     [RelayCommand]
     private Task SetRsvpGoing(EventListItem? item) => SetRsvpAsync(item, "going");
@@ -259,9 +259,12 @@ public partial class GroupEventsViewModel : BaseViewModel
     [RelayCommand]
     private Task SetRsvpNotGoing(EventListItem? item) => SetRsvpAsync(item, "not_going");
 
-    /// <summary>Writes then reloads the whole tab, same "write then reload" pattern
-    /// GroupExpensesViewModel.Settle already uses rather than patching local state — simpler and
-    /// keeps the going-avatars stack and every other row's derived state consistent for free.
+    /// <summary>Writes, then patches just the changed (event, member) row into local state via
+    /// ApplyAttendeeUpdate rather than a full LoadAsync — a write here only ever affects one
+    /// attendee row, so re-fetching every event's full attendee list plus the group's members/
+    /// aliases on every single RSVP/car tap was needless round-trip latency, especially noticeable
+    /// doing several quick edits in a row (RSVP, then car offer, then a couple of seat-count taps —
+    /// each used to trigger its own full-tab reload).
     ///
     /// Carries the item's existing CarStatus/CarOfferedSeats through on a going/maybe transition
     /// — a real bug caught in review before it shipped: this method is shared by all three RSVP
@@ -285,8 +288,8 @@ public partial class GroupEventsViewModel : BaseViewModel
             _ => item.CarStatus
         };
         var carSeats = carStatus == "offering" ? item.CarOfferedSeats : (int?)null;
-        await eventsRepository.UpsertRsvpAsync(item.EventId, me, response, carStatus, carSeats);
-        await LoadAsync(groupId);
+        var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, response, carStatus, carSeats);
+        ApplyAttendeeUpdate(item.EventId, updated);
     });
 
     /// <summary>Tapping the already-active state toggles it back off ("none") — the same
@@ -300,8 +303,8 @@ public partial class GroupEventsViewModel : BaseViewModel
         if (item is null || myMemberId is not { } me || item.MyResponse != "going") return;
         var newStatus = item.CarStatus == "offering" ? "none" : "offering";
         var seats = newStatus == "offering" ? myCarExtraSeats ?? 0 : (int?)null;
-        await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, newStatus, seats);
-        await LoadAsync(groupId);
+        var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, newStatus, seats);
+        ApplyAttendeeUpdate(item.EventId, updated);
     });
 
     [RelayCommand]
@@ -309,8 +312,8 @@ public partial class GroupEventsViewModel : BaseViewModel
     {
         if (item is null || myMemberId is not { } me || item.MyResponse is not ("going" or "maybe")) return;
         var newStatus = item.CarStatus == "needs_ride" ? "none" : "needs_ride";
-        await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, newStatus);
-        await LoadAsync(groupId);
+        var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, newStatus);
+        ApplyAttendeeUpdate(item.EventId, updated);
     });
 
     [RelayCommand]
@@ -323,9 +326,28 @@ public partial class GroupEventsViewModel : BaseViewModel
     {
         if (item is null || myMemberId is not { } me || item.CarStatus != "offering") return;
         var newSeats = Math.Max(0, item.CarOfferedSeats + delta);
-        await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, "offering", newSeats);
-        await LoadAsync(groupId);
+        var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, "offering", newSeats);
+        ApplyAttendeeUpdate(item.EventId, updated);
     });
+
+    /// <summary>Replaces (or inserts) the single (event, member) row UpsertRsvpAsync just returned
+    /// in the local attendeesByEvent cache, then re-derives the visible list from it (Rebuild is
+    /// purely local/synchronous — no network) — see SetRsvpAsync's remarks on why this replaced a
+    /// full LoadAsync per tap.</summary>
+    private void ApplyAttendeeUpdate(Guid eventId, EventAttendee updated)
+    {
+        if (!attendeesByEvent.TryGetValue(eventId, out var list))
+        {
+            list = [];
+            attendeesByEvent[eventId] = list;
+        }
+
+        var index = list.FindIndex(a => a.MemberId == updated.MemberId);
+        if (index >= 0) list[index] = updated;
+        else list.Add(updated);
+
+        Rebuild();
+    }
 
     [RelayCommand]
     private Task Refresh() => LoadAsync(groupId);

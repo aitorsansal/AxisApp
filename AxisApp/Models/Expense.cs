@@ -57,4 +57,10 @@ public class Expense : BaseModel
 
     [Column("is_settlement")]
     public bool IsSettlement { get; set; }
+
+    /// <summary>Optional link back to the Event this expense was booked from — see
+    /// event_expenses.sql. The participant set is snapshotted at add/edit time from that event's
+    /// "going" attendees, not re-derived from this on every read.</summary>
+    [Column("event_id")]
+    public Guid? EventId { get; set; }
 }

@@ -7,12 +7,18 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AxisApp.ViewModels;
 
+public class GroupMemberAvatar 
+{
+    public string Initials { get; init; } = "";
+    public string? AvatarUrl { get; init; }
+}
+
 /// <summary>One row on the Groups list: a group plus its members (for the avatar stack) and the
 /// current account's own net balance in it (for the "you're owed/you owe/Settled up" summary).</summary>
 public partial class GroupListItem : ObservableObject
 {
     public Group Group { get; init; } = null!;
-    public List<string> AvatarInitials { get; init; } = [];
+    public List<GroupMemberAvatar> MemberAvatars { get; init; } = [];
     public string MemberSummary { get; init; } = "";
 
     [ObservableProperty] private bool isOwed;
@@ -96,7 +102,11 @@ public partial class GroupsViewModel : BaseViewModel
                     var item = new GroupListItem
                     {
                         Group = group,
-                        AvatarInitials = members.Take(4).Select(m => Initials(m.DisplayName)).ToList(),
+                        MemberAvatars = members.Take(4).Select(m => new GroupMemberAvatar()
+                        {
+                          Initials  = Initials(m.DisplayName),
+                          AvatarUrl = MemberDisplay.AvatarUrl(m)
+                        }).ToList(),
                         MemberSummary = loc.Format(
                             members.Count == 1 ? "Groups_MemberSingular" : "Groups_MemberPlural", members.Count)
                     };

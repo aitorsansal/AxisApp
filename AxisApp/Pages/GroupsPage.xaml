@@ -134,16 +134,14 @@
                                             <HorizontalStackLayout
                                                 Grid.Row="1" Grid.Column="0"
                                                 Spacing="-6"
-                                                BindableLayout.ItemsSource="{Binding AvatarInitials}">
+                                                BindableLayout.ItemsSource="{Binding MemberAvatars}">
                                                 <BindableLayout.ItemTemplate>
-                                                    <DataTemplate x:DataType="x:String">
-                                                        <Border
-                                                            Style="{StaticResource AvatarCircle}"
-                                                            WidthRequest="{StaticResource AvatarSizeXS}" HeightRequest="{StaticResource AvatarSizeXS}"
-                                                            Stroke="{DynamicResource BgPrimary}"
-                                                            StrokeThickness="2">
-                                                            <Label Text="{Binding .}" Style="{StaticResource AvatarInitialsLabel}" FontSize="{StaticResource TypeLabel}" />
-                                                        </Border>
+                                                    <DataTemplate x:DataType="vm:GroupMemberAvatar">
+                                                        <controls:ProfileCircle
+                                                            ImageUrl="{Binding AvatarUrl}"
+                                                            Initials="{Binding Initials}"
+                                                            Diameter="{StaticResource AvatarSizeS}"
+                                                            Margin="0,0,-4,0" />
                                                     </DataTemplate>
                                                 </BindableLayout.ItemTemplate>
                                             </HorizontalStackLayout>

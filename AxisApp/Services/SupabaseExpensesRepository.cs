@@ -24,6 +24,16 @@ public class SupabaseExpensesRepository : IExpensesRepository
         return result.Models;
     }
 
+    public async Task<List<Expense>> GetForEventAsync(Guid eventId)
+    {
+        var result = await client.From<Expense>()
+            .Filter("event_id", Constants.Operator.Equals, eventId.ToString())
+            .Order("occurred_at", Constants.Ordering.Descending)
+            .Get();
+
+        return result.Models;
+    }
+
     public async Task<Expense?> GetByIdAsync(Guid expenseId) =>
         await client.From<Expense>()
             .Filter("id", Constants.Operator.Equals, expenseId.ToString())

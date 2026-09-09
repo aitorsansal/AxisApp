@@ -381,6 +381,11 @@ create table public.expenses (
   created_by uuid not null references auth.users(id),
   created_at timestamptz not null default now(),
   is_settlement boolean not null default false
+  -- event_id (link to the event an expense was booked from) is added via
+  -- `alter table` further down, right after the events table itself is
+  -- created — this create table runs long before events exists in a linear
+  -- fresh-install run of this script, so a forward FK reference here would
+  -- fail. See that alter statement's own comment for the design rationale.
 );
 
 create table public.expense_shares (
@@ -1865,6 +1870,17 @@ create table public.event_attendees (
 );
 
 alter table public.members add column car_extra_seats int;
+
+-- expenses.event_id — optional link to the event an expense was booked from
+-- (see event_expenses.sql, added after events already existed live). On
+-- delete set null, same "the expense survives, only its reference nulls
+-- out" treatment expenses.group_id already gets when a group dissolves. The
+-- participant set for an event-linked expense is a snapshot taken by
+-- AddExpenseViewModel at add/edit time from that event's current "going"
+-- attendees, not re-derived live from event_id on every read — see
+-- CLAUDE.md's event-expenses design discussion.
+alter table public.expenses add column event_id uuid references public.events(id) on delete set null;
+create index on public.expenses (event_id);
 
 -- events(group_id, starts_at): the grouped-by-date list (Milestone 3b) and
 -- the reminder cron scan (Milestone 5) both filter/sort on this.

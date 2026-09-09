@@ -87,22 +87,30 @@
                                 <VerticalStackLayout BindableLayout.ItemsSource="{Binding Events}" Spacing="{StaticResource SpacingS}">
                                     <BindableLayout.ItemTemplate>
                                         <DataTemplate x:DataType="vm:EventListItem">
-                                            <!-- No Juice.PressScale here, unlike other row cards — this
-                                                 one isn't a single tap target (title/chevron navigate,
-                                                 but RSVP/car are separately-tappable nested Buttons), and
-                                                 a TouchBehavior on the whole card was absorbing touches
-                                                 meant for those children instead of letting them through. -->
+                                            <!-- Whole card opens the event, not just the title/chevron —
+                                                 a plain TapGestureRecognizer on the Border itself, not
+                                                 Juice/TouchBehavior. RSVP and car controls below are real
+                                                 Buttons, which consume their own taps before a parent
+                                                 TapGestureRecognizer ever sees them, so this doesn't
+                                                 re-trigger the earlier bug (a TouchBehavior on the whole
+                                                 card DID absorb touches meant for those nested Buttons —
+                                                 that's a different, lower-level hook than a plain
+                                                 GestureRecognizer and isn't used here). No Juice.PressScale
+                                                 either, for the same reason it was avoided before — this
+                                                 stays the plain recognizer, not the animated one.
+                                                 A birthday row (see IsBirthday) still renders — only its
+                                                 chevron/RSVP disappear, as before — the tap itself is a
+                                                 no-op for those, per OpenEventCommand's own guard. -->
                                             <Border Style="{StaticResource ListItemCard}">
+                                                <Border.GestureRecognizers>
+                                                    <TapGestureRecognizer
+                                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=OpenEventCommand}"
+                                                        CommandParameter="{Binding .}" />
+                                                </Border.GestureRecognizers>
                                                 <VerticalStackLayout Spacing="{StaticResource SpacingXS}">
 
                                                     <Grid ColumnDefinitions="*,Auto,Auto">
-                                                        <Label Grid.Column="0" Text="{Binding Title}" FontAttributes="Bold" LineBreakMode="TailTruncation">
-                                                            <Label.GestureRecognizers>
-                                                                <TapGestureRecognizer
-                                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=OpenEventCommand}"
-                                                                    CommandParameter="{Binding .}" />
-                                                            </Label.GestureRecognizers>
-                                                        </Label>
+                                                        <Label Grid.Column="0" Text="{Binding Title}" FontAttributes="Bold" LineBreakMode="TailTruncation" />
                                                         <Label
                                                             Grid.Column="1"
                                                             Text="&#128663;"
@@ -117,13 +125,7 @@
                                                             Text="&#8250;"
                                                             TextColor="{DynamicResource TextTertiary}"
                                                             VerticalOptions="Center"
-                                                            IsVisible="{Binding IsBirthday, Converter={StaticResource InverseBoolConverter}}">
-                                                            <Label.GestureRecognizers>
-                                                                <TapGestureRecognizer
-                                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=OpenEventCommand}"
-                                                                    CommandParameter="{Binding .}" />
-                                                            </Label.GestureRecognizers>
-                                                        </Label>
+                                                            IsVisible="{Binding IsBirthday, Converter={StaticResource InverseBoolConverter}}" />
                                                     </Grid>
 
                                                     <Label Text="{Binding SubCaption}" Style="{StaticResource LabelTertiary}" LineBreakMode="TailTruncation" />

@@ -82,6 +82,8 @@ public static class MauiProgram
         builder.Services.AddTransient<RecurringExpensesPage>();
         builder.Services.AddTransient<AddEventViewModel>();
         builder.Services.AddTransient<AddEventPage>();
+        builder.Services.AddTransient<EventDetailViewModel>();
+        builder.Services.AddTransient<EventDetailPage>();
         builder.Services.AddTransient<JoinGroupViewModel>();
         builder.Services.AddTransient<JoinGroupPage>();
         builder.Services.AddTransient<NewGroupViewModel>();

@@ -6,6 +6,7 @@ namespace AxisApp.Services;
 public interface IExpensesRepository
 {
     Task<List<Expense>> GetForGroupAsync(Guid groupId);
+    Task<List<Expense>> GetForEventAsync(Guid eventId);
     Task<Expense?> GetByIdAsync(Guid expenseId);
     Task<List<ExpenseShare>> GetSharesAsync(Guid expenseId);
 

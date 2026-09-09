@@ -168,6 +168,16 @@ public static class AppStrings
         ["AddEvent_SaveEvent"] = "Save event",
         ["AddEvent_DeleteEvent"] = "Delete event",
 
+        // Event detail
+        ["EventDetail_Description"] = "Description",
+        ["EventDetail_Going"] = "Going",
+        ["EventDetail_Maybe"] = "Maybe",
+        ["EventDetail_NotGoing"] = "Not going",
+        ["EventDetail_HasCarSeats"] = "Has a car ({0} free seats)",
+        ["EventDetail_Expenses"] = "Expenses",
+        ["EventDetail_AddExpense"] = "+ Add expense",
+        ["EventDetail_NoExpenses"] = "No expenses linked to this event yet.",
+
         // Categories (fixed, key-based — see AppConstants.Categories)
         ["Category_food"] = "Food",
         ["Category_transport"] = "Transport",
@@ -391,6 +401,16 @@ public static class AppStrings
         ["AddEvent_NeedsTransport"] = "Necesita transporte/coches para llegar",
         ["AddEvent_SaveEvent"] = "Guardar evento",
         ["AddEvent_DeleteEvent"] = "Eliminar evento",
+
+        // Event detail
+        ["EventDetail_Description"] = "Descripción",
+        ["EventDetail_Going"] = "Van",
+        ["EventDetail_Maybe"] = "Quizás",
+        ["EventDetail_NotGoing"] = "No van",
+        ["EventDetail_HasCarSeats"] = "Tiene coche ({0} plazas libres)",
+        ["EventDetail_Expenses"] = "Gastos",
+        ["EventDetail_AddExpense"] = "+ Añadir gasto",
+        ["EventDetail_NoExpenses"] = "Todavía no hay gastos vinculados a este evento.",
 
         // Categories
         ["Category_food"] = "Comida",
