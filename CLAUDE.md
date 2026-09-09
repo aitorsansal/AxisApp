@@ -121,26 +121,33 @@ This repo is a scaffold, not a finished app. As of this commit:
   work** — see `/SCOPE.md`'s Theming section for the technical read on
   feasibility if it comes up again.
 
-Next real milestones, in order: (1) ~~run the new blocks at the bottom of
-`supabase/schema.sql` against the live project~~ **done** — expenses/
-expense_shares/balances views/device_tokens, the expense_shares update
-policy, and everything from the 2026-08-25 sessions (widened RLS policies,
-`payment_net` fix, `pairwise_balances`/`my_pairwise_balances`) are all live;
-(2) ~~get everything actually compiling and confirm auth + a repository call
-work end to end~~ **done** — sign-up, create-group, adding/linking phantoms,
-and full invite redemption (claim + fresh-join) are all confirmed working
-against the live project; (3) build the actual "Settle up" UI — the
-`payments` write path and both balance-display modes are ready for it (see
-"Balances: simplified vs. pairwise" above), just no button calls
-`IPaymentsRepository`'s create path yet; (4) the Supabase-side infra
-`/SCOPE.md` describes but that has no code yet — receipt storage/upload, the
-cleanup Edge Function, recurring payment materialization, push.
+**Phase 1 (debt tracker) and Phase 2 (Events & Calendar) are both now built
+and confirmed working end to end** — see "Multi-currency support",
+"Events & Calendar — Phase 2", and "Auto-generated birthday events" below
+for what shipped after this section was last accurate. `payments` no longer
+exists as a concept anywhere in this codebase (merged into `expenses` on
+2026-09-04) or in this paragraph's own history — `IPaymentsRepository` is
+gone, not just unwired.
 
-See **`SCOPE.md`** for the full product scope and phased roadmap (the
-debt-tracker vertical currently being built, plus the events/calendar and
-Google Calendar sync phases planned after it) — it's the source of truth for
-what's in/out of scope and why, so check it before assuming a feature is or
-isn't planned.
+What's actually left, in rough order: (1) **Phase 2.5 — Google Calendar
+sync** (`SCOPE.md`), not started at all — per-user Google OAuth separate
+from Supabase Auth, encrypted token storage/refresh, a sync strategy, and
+reconciling Axis's recurrence model against Google's RRULE; (2) iOS/
+MacCatalyst, currently not in the active `TargetFrameworks` (no Mac to
+build/test against); (3) a handful of small known gaps flagged inline where
+they were found — a live RLS-enforcement pass on the `events`/
+`event_attendees` policies (structurally verified, not yet exercised under a
+real adversarial session), the stray `pnpm-lock.yaml` in `webapp/` next to
+`package-lock.json`, and `SCOPE.md`'s dangling references to
+`/EVENTS_PLAN.md`/`/MULTI_CURRENCY_PLAN.md` now that both files have been
+deleted from the repo (their content is fully absorbed into this file, but
+`SCOPE.md`'s own cross-references were never updated to point here instead).
+
+See **`SCOPE.md`** for the full product scope and phased roadmap — it's the
+source of truth for what's in/out of scope and why, so check it before
+assuming a feature is or isn't planned. Treat its Phase 2 section and its
+`/EVENTS_PLAN.md`/`/MULTI_CURRENCY_PLAN.md` pointers as stale now that both
+plan docs are gone and this file is the up-to-date record.
 
 ## The core design decision: members vs. accounts
 
@@ -1649,6 +1656,74 @@ not migrated) rather than a backfill.
   pass against the live project hasn't happened yet, and neither has
   redeploying `send-push`.
 
+## Multi-currency support (2026-09-04 – 09-06)
+
+Six milestones, shipped over three sessions once the settle-up work above
+made it obvious this project was pre-launch enough to still take a schema
+change this size. Superseded `MULTI_CURRENCY_PLAN.md` (deleted from the repo
+once shipped — this section is now the authoritative record, same treatment
+`EVENTS_PLAN.md` got below).
+
+- **Milestone 1 — schema (2026-09-04)**: `groups.currency` (`char(3)`,
+  picked once at creation via `create_group(p_name, p_currency)`, never
+  editable afterward — no UI or RPC path to change it once set), a matching
+  `expenses.currency` (what the expense was actually entered in — may differ
+  from its group's, e.g. a foreign-currency purchase in an otherwise-EUR
+  group), and a singleton `exchange_rates` table (`id boolean primary key
+  default true` — the same "exactly one row, enforced by a boolean PK"
+  pattern this codebase hadn't used before, `constraint
+  exchange_rates_single_row check (id)`) holding a `jsonb` rates blob keyed
+  by currency code against EUR. `snapshot_expense_currency_conversion()`
+  (`BEFORE INSERT OR UPDATE OF amount, currency ON expenses`) computes and
+  freezes `amount_in_group_currency`/`exchange_rate` **once, at write time**
+  — later exchange-rate drift never retroactively changes a past expense's
+  converted amount, only new writes see the new rate.
+  `snapshot_expense_share_currency_conversion()` mirrors this onto
+  `expense_shares.share_amount_in_group_currency`, reading the already-set
+  `exchange_rate` off the parent `expenses` row rather than re-deriving
+  currency codes itself. `group_balances`/`pairwise_balances` (and their
+  `my_*` variants) sum the `*_in_group_currency` columns instead of the raw
+  `amount`/`share_amount` ones, so balances stay correct across mixed-
+  currency expenses in the same group. Verified live against the Supabase
+  project with a throwaway smoke test (`multi_currency_milestone1_
+  smoketest.sql`, 5 checks) before committing.
+- **Milestone 2 — rate refresh (2026-09-06)**: `supabase/functions/fetch-
+  exchange-rates/index.ts`, a new Edge Function pulling live rates from
+  Frankfurter (a free, no-key ECB-rate API), refreshed daily via `pg_cron`
+  into the `exchange_rates` singleton — same "cron calls a deployed Edge
+  Function via `pg_net`" shape `cleanup-receipts`/`send-push` already
+  established, no new architecture.
+- **Milestone 3 — group currency picker (2026-09-06)**: `NewGroupPage`
+  gained a required currency picker; `create_group()`'s signature grew
+  `p_currency` to match. `groups.currency`'s own `check` constraint enforces
+  the supported set — the same list is duplicated in `AppConstants
+  .Currencies` for the picker UI, 30 currencies confirmed against
+  Frankfurter's own live `/v1/currencies` list rather than guessed.
+- **Milestone 4 — per-expense currency (2026-09-06)**: an inline currency
+  picker in `AddExpensePage`'s amount hero; `Expense` gained
+  `AmountInGroupCurrency`/`ExchangeRate` (read-only from the client's
+  perspective — the DB triggers above are the only writer). Every hardcoded
+  `€`/EUR-symbol assumption across `GroupDetailPage`/`GroupsPage`/
+  `RecurringExpensesPage` had to be fixed at the same time, now that a
+  group's currency is no longer always EUR.
+- **Milestone 5 — display toggle (2026-09-06)**: a `ProfilePage` switch for
+  whether expense rows show the original entered currency or the
+  group-converted amount — a per-device viewing preference, same
+  `Preferences`-backed treatment as `BalanceDisplayModePrefix`/
+  `AccentPreset`/`LanguageOverride`, not group state.
+- **Milestone 6 — decided, not built (2026-09-06)**: `send-push`'s
+  notification copy deliberately keeps showing the expense's original
+  currency, not the converted one — a conscious call, not an oversight, so
+  don't "fix" this without revisiting that decision first.
+- Also same-day (2026-09-06): app version bumped to 0.5, and a data-wipe SQL
+  script was added under `supabase/` for resetting test data between manual
+  passes — a dev utility, not part of the feature itself.
+- **Build-verified and live-smoke-tested for Milestone 1 only.** Milestones
+  2-6 are confirmed building clean but their own end-to-end manual pass
+  (a real foreign-currency expense, a real rate refresh, the display toggle
+  actually flipping a rendered row) isn't separately documented anywhere —
+  treat as likely-working, not proven, if this area misbehaves.
+
 ## One-account-one-member invariant fix (2026-09-07)
 
 Reported by real friends using the app for the first time: display name and
@@ -1896,6 +1971,148 @@ session:
   deciding whether to standardize on one package manager before this causes
   real lockfile drift, rather than letting it linger.
 
+## Events & Calendar — Phase 2 (2026-09-07)
+
+`SCOPE.md`'s Phase 2 (previously just a sketch: `events`/`event_attendees`,
+reuse Phase 1's push/`pg_cron` primitives) is now built and confirmed
+working end to end. Design work happened in a same-day planning session,
+written up as `EVENTS_PLAN.md` (deleted from the repo once every milestone
+shipped — this section is now the authoritative record, same "plan doc
+retired once absorbed into CLAUDE.md" treatment `MULTI_CURRENCY_PLAN.md`
+got above). All 5 milestones below were confirmed **done and verified
+2026-09-07** against the running app / a real device, except where noted.
+
+- **`GroupDetailPage` restructured into Expenses/Events tabs**, and
+  `GroupDetailViewModel` split rather than bolted onto — it was already
+  sizable (balances, recent activity, Settle, the whole leave/transfer/
+  dissolve/rename overflow menu) before this feature existed. Now:
+  `GroupDetailPage`/`GroupDetailViewModel` is a thin shell (group header,
+  the segmented-pill tab selector — reusing `AddExpensePage`'s existing
+  Equally/Manually pill styles, not a Shell `TabBar`/`Tab`, since this is
+  one page's body switching content in place, not top-level navigation —
+  and the ⋮ overflow items that apply regardless of tab);
+  `GroupExpensesView`/`GroupExpensesViewModel` holds today's balance +
+  recent-activity content, moved down a level unchanged;
+  `GroupEventsView`/`GroupEventsViewModel` is new. The FAB context-switches
+  per tab ("+ Add expense" vs. "+ Add event"); "Repeating expenses" in the
+  ⋮ menu only shows on the Expenses tab. Switching tabs never leaves the
+  `//GroupDetails` route, so the hardware/gesture back button always exits
+  the group rather than un-flipping the tab first.
+- **`events`/`event_attendees` schema** (`supabase/schema.sql`,
+  `events_milestone1.sql`) — same table-shape pattern as
+  `expenses`/`expense_shares`: `events` (group_id, title, description,
+  starts_at, ends_at, location, needs_transport, created_by) and
+  `event_attendees` (event_id, member_id, response — 3-state `going`/
+  `maybe`/`not_going`, deliberately not a plain yes/no, since it drives
+  both transport headcount math and reminder-recipient lists), RLS via the
+  existing `is_group_member()` shape. `members.car_extra_seats` added as a
+  per-profile default — named specifically to avoid an off-by-one ("extra
+  seats beyond the driver", not "total seats including the driver") in both
+  the DB and every place it renders. Structurally verified live (migration
+  ran clean); real adversarial RLS enforcement under a live session is not
+  yet separately exercised.
+- **`AddEventPage`/`AddEventViewModel`**: a dedicated new page, not an
+  extension of `AddExpensePage` — the opposite call from recurring expenses
+  (which *did* extend `AddExpensePage`, since ~90% of that form was
+  genuinely shared). An event shares almost nothing with an expense
+  (title/date/location vs. amount/split/category), so sharing a page here
+  would have been architecture for its own sake.
+- **Transport/carpooling — aggregate counts only, no seat assignment.**
+  Per-event "I have a car available" (seat count defaults from
+  `members.car_extra_seats`, overridable per event) and "I need a ride"
+  toggles, summarized as an aggregate shortfall banner (e.g. "8 seats
+  offered / 5 need a ride ✓"). Deliberately **not** "rider picks a specific
+  driver's car" — that's a real matching/allocation problem, the same shape
+  of complexity `SCOPE.md` already deferred once for debt-simplification
+  counterparty exclusion. People coordinate who rides with whom by talking
+  to each other; Axis only surfaces whether there's a shortfall.
+- **Event notifications** reuse the existing `send-push` pipeline rather
+  than new infra: creation/change/cancellation triggers plus a daily
+  advance-reminder `pg_cron` job (scanning upcoming events the way
+  `materialize_recurring_expenses` scans due templates). Confirmed by a
+  real device receiving real pushes. Recipient computation follows the same
+  "distinct account set, not one send per (group × account) pair" shape
+  `expense_notification_recipients` already established — see `SCOPE.md`'s
+  Phase 2 notification-design notes (decided 2026-09-03, ahead of the
+  feature itself) for why that dedup has to be server-side and why
+  notification channels are flat/shared-across-groups (Expenses, Events,
+  Anniversaries/birthdays) rather than per-group.
+- `IEventsRepository`/`SupabaseEventsRepository` added, registered the same
+  singleton way as every other repository — see the updated interface list
+  under "Backend abstraction" below.
+
+## Auto-generated birthday events (2026-09-08)
+
+Birthdays live on the same Events calendar rather than as a separate
+feature, per `SCOPE.md`'s original Phase 2 sketch — but deliberately with
+**no RSVP and no transport**, unlike a normal event.
+
+- `events.is_birthday`/`member_id`/`birthday_notified_at` added.
+  **`materialize_birthday_events()`** (a new daily `pg_cron` job) ensures
+  the *next* occurrence of every member's birthday is a real `events` row —
+  correcting or removing it if `birth_date` changes or the member leaves the
+  group, rather than leaving a stale row behind. A separate day-of cron,
+  **`send_birthday_notifications()`**, pushes to the rest of the group only
+  once the date actually arrives. `notify_new_event()` is guarded to skip
+  birthday inserts entirely (they're created well ahead of the actual date,
+  so notifying on insert would be premature), and `send_event_reminders()`
+  excludes them too, so the advance-reminder job can't consume the
+  notification flag before the day-of job needs it.
+- `GroupEventsViewModel`/`GroupEventsView` hide the RSVP pill and chevron
+  for birthday rows entirely (not tappable, `OpenEvent` no-ops for them) —
+  a birthday isn't something you RSVP to or need a ride for.
+- **Phantom members are explicitly out of scope**: only a claimed member's
+  own `birth_date` (set via `ProfilePage`) generates a birthday event — a
+  phantom has no way to set or correct its own birthday, same reasoning
+  that already excluded phantoms from avatar photos.
+
+## UI polish, skeleton loading, and a Debug/Release signing fix (2026-09-07 – 09-08)
+
+- **`Controls/Juice.cs`** (`TouchBehavior`-backed press-scale + selection
+  bounce + sliding segment highlight), **`AnimatedValueLabel`** (a ticking
+  numeric text control, for balance/amount figures), and **`SkeletonBox`**
+  (a pulsing loading placeholder) — applied across Groups, Group Detail,
+  Add Expense, Add Event, Login, and Profile. Skeleton states are gated by
+  a new `IsInitialLoading` flag plus `BaseViewModel
+  .WithMinimumDurationAsync`, so a fast load never flash-shows-then-hides
+  the skeleton. **Fixed the next day (2026-09-08)**: the first pass gated
+  skeletons on the general `IsBusy` flag, which also fires on every
+  `Refresh`/`OnAppearing` (returning from a child page, an RSVP/transport
+  update, a saved expense) — not just the true cold load — so routine
+  navigation was paying a forced ~400ms stall and a full skeleton swap
+  every time. `IsInitialLoading` (the same pattern `AddExpenseViewModel`/
+  `AddEventViewModel` already used) scopes the padding/skeleton to strictly
+  the first load per tab/page; refreshes now update in place instantly.
+- **Debug/Release signing mismatch, fixed.** `AxisApp.csproj`'s
+  `AndroidKeyStore`/`keystore.local.props` import used to apply to Release
+  builds only. Without it, alternating Debug/Release deploys signed with
+  different certs, which made Android treat each as a different app
+  (forcing an uninstall-confirm on every switch) and made Google Sign-In
+  fail outright on a Debug build, since only the Release cert's SHA-1 was
+  ever registered with the Google OAuth client. Fixed by dropping the
+  `Release`-only condition so the same keystore signs both configurations.
+- Also fixed: a stray `TouchBehavior` on the Group Events row card was
+  swallowing touches meant for its own nested RSVP/transport buttons.
+- App version bumped to 0.6 / build 3 as part of this same commit.
+
+## In-app update-available banner (2026-09-09)
+
+`web/version.json` (`{"latestVersion": "..."}`, deployed via the existing
+`web/` Cloudflare Worker — see "Deep linking" below for that Worker's other
+job) is checked against the running app's own `AppInfo` version on every
+launch, fire-and-forget from `SplashPage`, via a new `AppUpdateService`
+singleton. When the deployed version is newer, a bottom-anchored
+`UpdateBanner` control (added to the same 10 pages `ErrorPopup` already
+touches) prompts to update and links to the Play Store listing. Dismissing
+it hides it until the next calendar day (a per-device `Preferences` date
+stamp), independent of which page it was closed from — closing it on
+Groups doesn't leave it showing again if you immediately navigate to
+Profile. `web/version.json` was temporarily bumped to verify the banner
+end-to-end on both Android (emulator) and Windows, then reverted back to
+`0.6` (matching the real current release) once confirmed working on both
+platforms — if this value is ever found bumped ahead of the actual shipped
+build again, that's leftover test state, not intentional.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
@@ -1903,7 +2120,8 @@ session:
 Every data access interface lives in `Services/` (`IAuthService`,
 `IMembersRepository`, `IGroupsRepository`,
 `IExpensesRepository`, `IBalancesRepository`, `IRecurringExpensesRepository`,
-`IInvitesRepository`, `IDeviceTokensRepository`). `IPaymentsRepository` and
+`IInvitesRepository`, `IDeviceTokensRepository`, `IEventsRepository`).
+`IPaymentsRepository` and
 `ICategoriesRepository` existed early on and were both retired once their
 tables were (payments 2026-09-04, categories 2026-08-28) — see "Merge
 payments into expenses" and the "Categories removed" schema.sql remarks.
@@ -1937,8 +2155,12 @@ now: interface → concrete Supabase-backed implementation, singleton.
 
 Uses **MAUI Shell**, routes declared as constants in `AppConstants.Routes`
 (`Splash`, `Login`, `Groups`, `GroupDetails`, `Members`, `JoinGroup`,
-`AddExpense`, `NewGroup`) rather than hardcoded strings — follow that pattern
-for any new screen. `Splash` is the first `ShellContent` in `AppShell.xaml`
+`AddExpense`, `NewGroup`, `AddEvent`) rather than hardcoded strings — follow
+that pattern for any new screen. Notably, the Events list itself has **no**
+separate route — per the Events & Calendar section above, it lives embedded
+in `GroupDetailPage`'s Events tab (`GroupEventsView`), not as its own
+navigated page; only `AddEventPage` needed a real route, same shape as
+`AddExpensePage`. `Splash` is the first `ShellContent` in `AppShell.xaml`
 (see "Splash screen" above); it decides between `//Login` and `//Groups`
 before anything else renders.
 
@@ -2007,8 +2229,10 @@ static site, so it's easy to change one side and forget the other:
 | `groups` | A shared ledger (e.g. "Relaciones", "Family"). |
 | `group_members` | Which members belong to which groups. |
 | `invites` | A redeemable token to join a group, or to claim a specific phantom member. |
-| `expenses` / `expense_shares` | N-way split expenses. `is_settlement` marks a settle-up (exactly one share) — see "Merge payments into expenses" below. |
+| `expenses` / `expense_shares` | N-way split expenses. `is_settlement` marks a settle-up (exactly one share) — see "Merge payments into expenses" below. `currency`/`amount_in_group_currency`/`exchange_rate` (and the share-level equivalent) support multi-currency groups — see "Multi-currency support" below. |
 | `recurring_expenses` / `recurring_expense_shares` | Templates for periodically auto-generated N-way split expenses. Replaces the retired `recurring_payments` (pairwise, never got UI). |
+| `exchange_rates` | Singleton (`id boolean primary key default true`) cache of currency conversion rates, refreshed daily from Frankfurter. |
+| `events` / `event_attendees` | Group events with 3-state RSVP (`going`/`maybe`/`not_going`) and transport/carpooling fields. `is_birthday` rows are auto-generated, non-RSVPable member birthdays — see "Events & Calendar — Phase 2" / "Auto-generated birthday events" below. |
 | `device_tokens` | Per-account push tokens for the notification feature. |
 | `member_aliases` | Private, per-account nickname override for how a member is displayed. |
 

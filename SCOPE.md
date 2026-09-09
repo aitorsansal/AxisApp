@@ -38,8 +38,10 @@ all for money-tracking. This is what "done" looks like before Phase 2 starts.
   editable) plus a per-expense `currency`, converted to the group's currency
   and snapshotted at write time (`expenses.amount_in_group_currency`/
   `exchange_rate`, `expense_shares.share_amount_in_group_currency`) via a
-  daily Frankfurter rate cache (`exchange_rates`, a singleton table) — see
-  `/MULTI_CURRENCY_PLAN.md` for the full design and milestone status.
+  daily Frankfurter rate cache (`exchange_rates`, a singleton table).
+  **Shipped 2026-09-04 – 09-06, all 6 milestones done** — see `CLAUDE.md`'s
+  "Multi-currency support" section for the full design and status;
+  `MULTI_CURRENCY_PLAN.md` was deleted once absorbed there.
 - **`device_tokens`** — account/member → push token, needed for the push feature
   below.
 
@@ -202,14 +204,15 @@ expense pings) is a real but much narrower need than category-level
 muting — not planned now, but nothing about the flat-channel design blocks
 adding it later if it turns out to matter.
 
-Not started until Phase 1 is fully working and has proven the backend pattern
-— Phase 1 is now considered done (see `CLAUDE.md`'s "Current state"). See
-**`/EVENTS_PLAN.md`** for the full design and milestone status, written from
-a 2026-09-07 planning session: the Expenses/Events tab restructure inside
-`GroupDetailPage`, RSVP model, and a carpooling/transport feature (per-event
-"needs transport", per-attendee "offering a ride"/"needs a ride", a
-per-profile default seat count) added on top of this section's original
-sketch.
+**Shipped 2026-09-07, all 5 milestones done and verified** (birthday
+auto-generation followed 2026-09-08) — see `CLAUDE.md`'s "Events & Calendar
+— Phase 2" and "Auto-generated birthday events" sections for the full
+design and status: the Expenses/Events tab restructure inside
+`GroupDetailPage`, the RSVP model, and a carpooling/transport feature
+(per-event "needs transport", per-attendee "offering a ride"/"needs a
+ride", a per-profile default seat count) added on top of this section's
+original sketch. `EVENTS_PLAN.md`, written from the 2026-09-07 planning
+session, was deleted once its content was absorbed into `CLAUDE.md`.
 
 ## Phase 2.5 — Google Calendar sync
 
