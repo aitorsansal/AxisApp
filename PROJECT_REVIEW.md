@@ -363,3 +363,374 @@ well-engineered solo/small-team project, above the bar of most side projects at 
    deliberate soft protection in `schema.sql`, not a surprise.
 
 ---
+
+# Part 2 — The Council
+
+Everything above is one reviewer's read of the codebase. To pressure-test "what should Axis build
+next" from more than one angle, the question went to a 5-advisor LLM council (adapted from Andrej
+Karpathy's LLM Council method): five independent advisors, each answering from a deliberately
+different thinking style, then peer-reviewing each other's anonymized answers, then a chairman
+synthesizing everything into one verdict.
+
+**A methodology note worth being upfront about**: several advisors and reviewers had tool access and
+used it — some read `CLAUDE.md`, `schema.sql`, `EVENTS_PLAN.md`, `SCOPE.md`, and git history directly
+rather than relying solely on the briefing they were given, and the chairman went further still,
+cross-checking claims against the independent review in Part 1 of this same document (which had
+already been committed to the repo by the time the chairman ran). That wasn't instructed, but it made
+the output substantially stronger — several claims below are verified against the live schema, not
+just argued. Where a response leans on that verification, it's because the claim held up, not because
+it was assumed.
+
+## 2.1 The question posed to the council
+
+> Axis is a .NET MAUI shared-ledger app (Android + Windows, Supabase/Postgres backend) for a small,
+> invite-only group of friends/family — pre-launch, no public signups yet. [Current feature set as
+> described in §1 above: split expenses, settle-up, recurring templates, receipts, multi-currency,
+> two balance display modes; events with RSVP, tri-state carpooling, auto-generated birthday events;
+> push notifications (Android only), aliases, avatars, accent colors, en/es localization, phantom
+> members; a narrower React web client for one browser-only friend.]
+>
+> **Given everything already built, what should be built next?** Features that would make someone
+> using this app go "oh, I want this" — not bug fixes or polish, but genuine product additions that
+> would meaningfully increase value for a small group of friends/family actively managing shared
+> money and shared plans together. Consider what's plausible for a solo/small-team hobby project to
+> actually build and maintain, not what a big company would do.
+
+## 2.2 The five advisors — independent responses
+
+### Diane — The Contrarian
+*Looks for what's wrong, what's missing, what will fail.*
+
+> CLAUDE.md itself confirms the gap I'd flag first: it explicitly frames "events/calendar" as a
+> **future phase**, not-yet-started ("the debt-tracker vertical currently being built, plus the
+> events/calendar... phases planned after it"). No RSVP, no carpooling, no birthday events anywhere in
+> it. Currency shows up exactly once as a field marked "reserved but unused." Yet the prompt says
+> Events shipped with full RSVP/carpooling/birthdays, and expenses now have live exchange-rate
+> conversion. Two entire verticals are live with zero trace in the one file this whole workflow
+> depends on to avoid re-litigating already-fixed bugs. That's not a paperwork gap — it's the
+> project's memory silently falling behind its own shipped surface area.
+>
+> That's the real constraint on "what's next," not idea supply. This log shows roughly one severe,
+> data-touching bug per shipped feature, caught only after real friends hit it live: balance math
+> running backwards (would've doubled every debt), invites silently dead for the entire pre-launch
+> life of the app, two separate RLS infinite-recursion bugs, a headless-process race that told an
+> actual group member "Group not found." Whatever ships next inherits that tax, on top of a base
+> that's now under-documented.
+>
+> So the filter matters more than the pick: nothing that widens blast radius on money-correctness or
+> adds an unverifiable integration. Concretely — do not build bank/Plaid sync, the single most
+> tempting "obvious next step" for an expense app and the one that turns a hobby ledger into a
+> liability. Skip in-app chat too; the group already has one. Anything you add should sit beside the
+> ledger, not inside its math.
+
+### Marcus — The First Principles Thinker
+*Strips away the surface question and rebuilds it from the ground up.*
+
+> You're both asking "what's the next vertical" and answering it by extrapolation — expenses got
+> built, then events got built, so what's #3? Shopping lists, chores, photos? That's the wrong axis
+> entirely. Look at what actually generates friction for a friend group sharing rent, trips, and
+> plans: money and time-together aren't separate resources, they're the same occasion viewed from two
+> angles. A trip is an event AND a pile of expenses. Right now, by your own description, Vertical 1
+> and Vertical 2 are parallel data models with no edge between them — an event doesn't know about its
+> expenses, an expense doesn't know which event it belongs to, and the RSVP list (who's actually
+> going) isn't the same list you split the bill against three weeks later when nobody remembers who
+> came.
+>
+> So: don't build vertical 3. Build the join. Let an event optionally own a scoped ledger — expenses
+> attached to it, default split participants pulled straight from "going" RSVPs, a running total shown
+> on the event page, settle-up prompted once the event's date passes. This isn't new infrastructure —
+> it reuses your split engine, your settle-up-as-expense model, your RSVP data, your push triggers.
+> It's a foreign key and some UI, not a subsystem.
+>
+> And it kills the exact annoying moment this group actually hits: reconciling "who was on this trip"
+> against "who paid for what" as two separate memories instead of one screen. That's more value than
+> any standalone feature either vertical could grow next, and it's cheaper to build than either of
+> them was the first time.
+
+### Alexandra — The Expansionist
+*Looks for the upside everyone else is missing.*
+
+> The vision doc already says it: the goal is "one unified channel per group" instead of juggling a
+> separate splitting app and a separate calendar app. Nobody's built the fusion yet. Events and
+> Expenses are still two silos that happen to share a members table. The single biggest swing
+> available is Trip Mode — let an Event become a container for expenses. RSVP to the cabin weekend,
+> and every expense tagged to it rolls into a running trip total, split only among whoever's actually
+> going, visible live during the event instead of reconstructed afterward from a date range. That's
+> the real Splitwise-for-trips use case, and this app is uniquely positioned to nail it because it
+> already has both halves built separately — nobody else has to build RSVP and splitting from scratch
+> to get there.
+>
+> Second bet, nearly free given what already exists: a Recap. After a trip, month, or year,
+> auto-generate a shareable summary — total spent, cost per person per day, who fronted the most,
+> photos if the receipts-storage pipeline gets reused for an event album. Zero new infrastructure,
+> pure aggregation over data already captured, and it's exactly the kind of thing that gets
+> screenshotted into the group chat unprompted.
+>
+> Third, and criminally underused: birthdays already auto-generate as events, and splitting already
+> exists, but nobody's wired group gift pooling off a birthday event — prompt "chip in for Dave's
+> gift" the moment it fires, keep that one expense off Dave's own feed.
+>
+> Stop treating these as two apps that share a login.
+
+### Sam — The Outsider
+*Zero context, reacts purely to what's in front of them.*
+
+> Zero context here, so I'm reacting only to the two vertical descriptions — and the split itself is
+> the tell. "Vertical 1" and "Vertical 2" is an engineering frame, not how a friend group experiences
+> a trip. Nobody planning "Lake Trip" thinks "let me open the events product, then separately open the
+> money product." From what's described, an event has no expenses hanging off it and an expense has no
+> event hanging off it. That disconnect is invisible from inside the codebase — two clean feature
+> areas, built and shipped sequentially — but it's the first thing a real user would trip over. The
+> obvious next build: let an expense optionally attach to an event, so opening "Lake Trip" shows who's
+> coming, who's driving, and a running per-person cost, in one place. Multi-currency conversion is
+> already solved, so a live "$340 spent, ~$85/head" total on the event screen is nearly free to add
+> and is exactly the number people actually check mid-trip.
+>
+> Second, smaller but just as obvious from outside: you already solved photo upload/resize/storage for
+> receipts. Point that same plumbing at events and give each trip a shared photo album. Of everything
+> on this list, "pictures from the trip" is the most viscerally wanted thing by an actual friend group
+> — more than any ledger feature.
+>
+> Third: confirm carpool and RSVP changes actually push a notification, not just event-level ones.
+> Carpooling only works socially if the person offering a seat finds out the moment someone claims it
+> — a silent seats-remaining counter nobody checks defeats the point of building it at all.
+
+### Rosa — The Executor
+*Only cares whether it can actually be done, and the fastest path there.*
+
+> Two features ship this week because you already built 90% of their plumbing. Everything else on a
+> wishlist can wait.
+>
+> **1. Recurring-expense due reminders.** You have `materialize_recurring_expenses` running daily at
+> 8am UTC and a working `send-push` pipeline (recipient-lookup SQL function → pg_net → Edge Function →
+> FCM, already proven end-to-end). Monday morning: write `upcoming_recurring_reminders()` mirroring
+> `expense_notification_recipients`'s exact shape, querying `recurring_expenses` where the next
+> occurrence is within 3 days, call it from the same cron job right after materialization runs. No new
+> table, no new client screen, no new push plumbing — just one more SQL function and one more
+> `net.http_post`. This is the single most "oh I want this" feature for the actual use case here: rent
+> day.
+>
+> **2. Google Calendar sync, but as a read-only ICS subscription feed, not OAuth two-way sync.** You
+> already have battle scars from Google OAuth on Windows — the PKCE `bad_oauth_state` mess that forced
+> a hand-rolled implicit-flow loopback listener just for login. Do not reopen that fight for the
+> Calendar API. Instead: one Edge Function, `GET /functions/v1/group-ics?group_id=X&token=Y`, emits a
+> static `.ics` text feed of events the token's member can see. Every calendar app subscribes to a URL
+> natively — zero OAuth, one "copy link" button. Half a day, and it's literally the next line in
+> SCOPE.md's own roadmap.
+>
+> Skip anything needing a new UI paradigm (polls, chat threads, budgets) until these two are actually
+> deployed — both are "extend a cron job," not "build a feature."
+
+## 2.3 Peer review — what the advisors caught in each other's answers
+
+All five responses were anonymized and cross-reviewed. The pattern was unusually consistent:
+
+- **Strongest response**: split between Marcus ("build the join," 3 of 5 reviewers) and Alexandra
+  (Trip Mode + Recap + gift-pooling, 2 of 5) — never a real contest, since both are the same core idea
+  argued from different angles. One reviewer verified the load-bearing claim directly against
+  `schema.sql`: **`expenses` genuinely has no `event_id` column**, so the "two silos" diagnosis both
+  advisors independently reached is factually correct, not a plausible-sounding guess.
+- **Weakest response, unanimously**: Diane. Every one of the five reviewers, independently, flagged
+  the same thing — her documentation-drift catch is real and her risk framing is sound, but she
+  proposed zero features against a question that explicitly asked for features. Being right about risk
+  isn't an answer to "what's next."
+- **What all five advisors missed, surfaced only in peer review**:
+  - **The web app is locked out of whatever ships here.** Raised independently by three reviewers:
+    `webapp/`'s router has no Events routes at all, so if event-expense linking ships native-only, the
+    one person the web client exists for can't use the feature the rest of the group starts relying on
+    for trip planning.
+  - **Nobody proposed the highest-leverage fix directly**: one reviewer pointed out that updating
+    `CLAUDE.md`/`SCOPE.md` to match what's actually shipped may itself be the single most valuable
+    "build" available right now, given this project's own history of severe bugs surfacing specifically
+    when documentation lags code — and no advisor said so outright.
+  - **Offline resilience.** Every flagship pitch (a live running trip total, Trip Mode) targets exactly
+    the low-connectivity moments — cabins, hikes, travel abroad — where a live Supabase round trip
+    can't be assumed, and nobody addressed what the event screen should show when it can't reach the
+    server.
+  - **Notification fatigue.** Multiple advisors independently propose adding *more* auto-push triggers
+    to a pipeline that's about a week old and has no mute/category-preference mechanism anywhere in the
+    schema or client yet.
+  - **The irony that the consensus pick is exactly the failure shape that already bit this project
+    twice** — both real, production RLS bugs to date (`42P17` infinite recursion) came from two tables'
+    policies referencing each other; wiring `expenses` to `events` is a new cross-table relationship in
+    a codebase with zero automated tests to catch a repeat.
+
+**One additional peer-review finding, verified independently after the chairman synthesis was already
+under way** (so the verdict below doesn't reflect it, but it's real and worth recording): a fifth
+review — cross-checking `schema.sql`'s actual trigger list — found that **`events` has exactly three
+triggers (insert/update/before-delete), and none of them are on `event_attendees`.** In plain terms:
+today, changing an RSVP or a carpool offer/need fires **no push notification at all** — only creating,
+editing, or cancelling the event itself does. Sam's "confirm carpool/RSVP changes actually push a
+notification" instinct was, per this specific check, not a redundant ask — it's a real, currently-true
+gap. The same review also flagged a structural question nobody else raised: **a phantom member (no
+`auth.users` row) cannot RSVP at all**, since every `event_attendees` write policy requires
+`m.account_id = auth.uid()`. For an app whose founding design principle is that phantom members
+participate in the ledger exactly like anyone else, RSVP is quietly the first feature where that
+principle doesn't extend — worth a deliberate decision (a proxy-RSVP-by-whoever-added-them affordance,
+or an explicit "phantom members can't be invited to events yet" scoping) rather than an accidental gap.
+
+## 2.4 The chairman's verdict
+
+*Synthesized from all five advisor responses and all five peer reviews — the chairman also cross-checked
+claims directly against `schema.sql`, `EVENTS_PLAN.md`, `SCOPE.md`, `MULTI_CURRENCY_PLAN.md`, the
+webapp router, and Part 1 of this document.*
+
+### Where the Council Agrees
+
+**The event-expense fusion is the standout idea, reached three independent ways.** Marcus
+(first-principles: money and time-together are the same occasion viewed from two angles), Alexandra
+(expansionist: "Trip Mode," the unified-channel vision the project's own scope doc already states),
+and Sam (outsider: the Vertical 1/Vertical 2 split is an engineering frame no real user shares) all
+landed on the same mechanism — let an event optionally own a scoped set of expenses, default the split
+to whoever RSVP'd "going," show a running total on the event page, prompt settle-up once the date
+passes. Four of five peer reviewers independently ranked this the strongest response, and the chairman
+confirmed the load-bearing technical claim directly: **`expenses` has no `event_id` anywhere in
+`schema.sql`** — every event-related foreign key in the file is scoped to `event_attendees` and the
+notification pipeline, none of it touches `expenses`. The gap is real, not assumed.
+
+**It's structurally cheap, not just conceptually appealing.** Both tables already gate access through
+the identical `is_group_member(group_id)` RLS pattern, so a nullable `expenses.event_id` needs no new
+policy and no cross-table recursion risk — the same "scope by group, not by the specific parent row"
+trick the schema already uses for receipt paths to dodge a chicken-and-egg problem. "A foreign key and
+some UI, not a subsystem" (Marcus) holds up against the actual code, not just as a pitch.
+
+**Nobody wants a third vertical.** No advisor proposed a genuinely new domain — budgets, chores,
+shopping lists, polls. Even Rosa's picks are depth-additions to verticals that already exist. The
+council converges hard on *connect what's built* over *add what isn't*.
+
+**Diane's documentation-drift finding is real, and every reviewer said so.** Confirmed precisely:
+`CLAUDE.md` was last edited two days before `HEAD`, and the gap is 36 files / ~1,370 lines / two entire
+features (multi-currency, Events & Calendar) with zero mention. This isn't a hunch — Part 1 of this
+same document, written independently the same morning from a cold read of the code, reached the
+identical conclusion by a completely different route and opens with it as finding #1.
+
+### Where the Council Clashes
+
+**Diane's guardrails vs. everyone else's appetite to ship.** Every reviewer penalized Diane for
+answering a features question with prohibitions. That's fair against the letter of the brief — but her
+evidence (one severe, data-touching bug per shipped feature, all caught live by real friends) is
+exactly what independent verification still confirms: **zero automated tests, zero CI**. And both real
+recursion bugs happened on cross-table policy references — structurally the same risk class as wiring
+`expenses` to `events`. This isn't "build vs. don't build." It's "how much guardrail does a cross-table
+feature need in a codebase with no regression net." Ship it, but ship it the way the schema already
+knows how to dodge this exact failure mode (additive nullable FK, no new policy referencing back into
+`events`) — not as a reason to skip it.
+
+**Rosa's "ship this week" sequencing vs. the fusion feature.** Rosa explicitly frames her two picks as
+substitutes — "skip anything needing a new UI paradigm... until these two are deployed." That's a real
+disagreement, not a complementary pick: she's optimizing for cheapest-win-this-week, the other four for
+highest-leverage-single-feature. Both individually reasonable; they can't both be first.
+
+**Rosa's ICS-feed pitch is good, but isn't "the next line in SCOPE.md" as claimed.** `SCOPE.md` already
+scopes a real "Phase 2.5 — Google Calendar sync" (OAuth, encrypted token storage, RRULE reconciliation),
+deliberately deferred until Events shipped — which it now has. Rosa's read-only ICS subscription is a
+genuinely smarter, cheaper substitute for that OAuth path (and rightly avoids reopening the exact PKCE
+`bad_oauth_state` fight already documented as lost once) — but it's a different, lighter feature than
+the roadmap's own plan, not a continuation of it. Worth building, worth being precise that it's a
+deliberate downgrade of scope, not "next per the plan."
+
+### Blind Spots the Council Caught
+
+- **The web-only friend loses the exact feature the group would use together.** `webapp/src/App.tsx`
+  has zero Events routes — not partial, not stubbed, absent. If event-expense linking ships native-only,
+  the one person the web client exists for is locked out of the trip-planning feature the rest of the
+  group starts using together. This needs a deliberate decision, not silence.
+- **Notification fatigue isn't a fresh oversight — it's a debt the project already wrote down and
+  deferred.** `EVENTS_PLAN.md`'s own "Explicitly deferred" list names "per-group notification muting,"
+  citing a notification-design section in `SCOPE.md` that already worked out category-level muting
+  conceptually. There is currently zero mute/preference mechanism anywhere in the schema or client.
+  Stacking a third or fourth trigger type on top isn't discovering a gap — it's compounding one the
+  project already knows about.
+- **The "which currency does a mixed-currency trip show" concern, raised in peer review, is already
+  solved, not open** — `groups.currency` is a required, locked-at-creation settlement currency, and
+  every expense already snapshots `amount_in_group_currency` at write time for exactly this reason. An
+  event running total is `sum(amount_in_group_currency) where event_id = X` — no new currency design
+  needed.
+- **Sam's ask to "confirm carpool/RSVP pushes actually work" is more right than the peer review gave it
+  credit for** — see §2.3's supplementary finding above: `event_attendees` genuinely has no push
+  trigger today.
+- **Offline resilience, unaddressed by all five.** Every repository call in this app is a live Supabase
+  round trip with no local cache or offline queue mentioned anywhere in the docs or the independent
+  review. Trip Mode's actual usage moments — cabins, hikes, travel abroad — are precisely where
+  connectivity is worst. Not a reason to build offline-first (too big for this project), but the event
+  page needs to degrade to "last known total" rather than error, or the flagship feature fails exactly
+  when it's needed most.
+- **Windows gets zero push, and Events leans on push for its entire coordination value.** Not raised by
+  any advisor. Every reminder/carpool/gift-pooling nudge the council proposes is an Android-only win.
+
+### The Recommendation
+
+**Build the event-expense link — Marcus's scoping, exactly as written**: nullable `expenses.event_id`,
+default split pulled from "going" RSVPs, a running total on the event page, settle-up prompted once the
+date passes. This is the one idea on the table that is genuinely a feature (not a prohibition, not a
+"wait"), that makes both verticals better at once instead of deepening one, and that the codebase can
+absorb safely — it rides existing RLS with no new recursion surface, exactly the kind of change this
+project's history shows it does well, as opposed to the two bugs that came from policies
+cross-referencing each other.
+
+Ship it with three guardrails the evidence above makes non-optional, not nice-to-haves:
+
+1. **Decide the web-client question before shipping, don't let it default.** Either scope a minimal
+   event-linked view into `webapp/` alongside this, or ship an explicit "not available on web yet"
+   indicator. Silent widening of an already-documented gap is the one outcome nobody should choose by
+   accident.
+2. **Do not add a fourth push trigger type before shipping the mute control `SCOPE.md` already
+   designed.** Rosa's due-date reminders and any carpool/gift-pooling nudges are good ideas — after
+   there's a way to turn a category off. The project already knows it needs this; build it now, not
+   after the next trigger makes it more urgent.
+3. **Additive-only migration.** Nullable FK, no new policy touching `events`' own RLS, manual
+   re-verification of the two already-known 42P17-prone paths (`is_group_member`, `is_own_member_row`)
+   afterward — given zero test coverage, this is the one place "move fast" needs a specific, not
+   general, brake.
+
+Do Rosa's two picks (recurring-due reminders, ICS calendar feed) next — they're real, cheap, and don't
+compete for the same schema surface, so there's no reason to choose between them and the fusion
+feature. Just don't let them substitute for it; they're depth on one vertical each, not the "oh I want
+this" the brief is actually asking for.
+
+Explicitly don't build: bank/Plaid sync or in-app chat (Diane's calls stand — nothing above overrides
+them), and don't reopen two-way Google OAuth calendar sync (the PKCE fight is already documented as
+lost once on this exact stack).
+
+### The One Thing to Do First
+
+**Catch `CLAUDE.md` and `SCOPE.md` up to what's actually shipped — before writing the `event_id`
+migration, as its first step, not a detour from it.** This isn't a hedge dressed as an answer: Part 1
+of this document already did the investigation (exactly which commits, exactly which two features,
+exactly what's missing) — this is transcription, a few hours, not a project. The reason it has to come
+first is concrete, not procedural: whoever builds the event-expense link next — human or agent — will
+read `CLAUDE.md` first, per this project's own stated practice, and right now that file doesn't mention
+`events`, `event_attendees`, the group-settlement-currency columns, or the RLS helper functions those
+features depend on. Building a cross-table schema change on top of docs that don't know the other table
+exists, in a codebase with no test suite to catch the mistake, is the one sequencing error that would
+compound every risk this council surfaced. Fix the map, then build the join.
+
+---
+
+# Part 3 — Closing synthesis
+
+Two independent processes — a cold read of the codebase (Part 1) and a five-advisor council debating
+product direction from adversarial angles (Part 2) — converged on the same starting point without
+either one steering the other: **the documentation is the bottleneck, not the idea supply.** Part 1
+flagged `CLAUDE.md`'s two-day, 36-file, two-feature gap as finding #1 before any council question was
+asked. The council, reasoning purely about "what to build next," independently rediscovered the same
+gap through Diane's contrarian pass, had it confirmed by every peer reviewer, and the chairman named
+fixing it "the one thing to do first" — ahead of the feature idea the rest of the council spent its
+energy on. When two differently-motivated passes over the same project land on the same top priority
+without coordinating, that's about as strong a signal as this kind of review can produce.
+
+The product answer underneath that is a genuinely good one, and it's good for a specific, checkable
+reason rather than because it sounded appealing: **event-expense linking is the only idea the council
+proposed that is verifiably cheap in this exact codebase** — a nullable foreign key riding RLS
+machinery that already exists, not a new subsystem — while also being the only idea that addresses a
+friction real users (the friends and family actually running trips and rent through this app right
+now) would recognize immediately. It also happens to sit exactly on top of this review's own §2.1
+performance finding: the N+1 query patterns in `GroupExpensesViewModel`/`GroupEventsViewModel` will get
+real exercise the moment expenses start rendering inline on event pages, so fixing those loops isn't
+just hygiene anymore — it becomes a prerequisite the event-expense feature will expose immediately if
+skipped.
+
+Put together, the punch list in §8 and the council's verdict in §2.4 point at the same short sequence:
+**update the docs, collapse the N+1 loops, then build the join** — in that order, because each step
+makes the next one safer in a codebase that currently has no automated safety net of its own.
+
