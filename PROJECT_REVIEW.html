@@ -1,0 +1,906 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>State of Axis</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F3F5FB; --surface:#FFFFFF; --surface-2:#EAEDF6; --surface-3:#DEE3F0;
+    --border:#D7DCEA; --border-strong:#B9C1D9;
+    --text:#121729; --text-2:#47506B; --text-3:#767F9C;
+    --accent:#2F52D6; --accent-ink:#FFFFFF;
+    --accent-2:#8A5D00; --accent-2-ink:#FFFFFF;
+    --success:#157A56; --warning:#8A6300; --danger:#B5203A; --info:#2E67B8;
+    --success-bg:#E1F3EB; --warning-bg:#FBF1D9; --danger-bg:#FAE6EA; --info-bg:#E7EFFC;
+    --code-bg:#EAEDF7; --code-text:#2A3157;
+    --shadow:0 1px 2px rgba(20,28,55,.05), 0 10px 28px rgba(20,28,55,.07);
+    --font-display:'Fraunces',Georgia,'Times New Roman',serif;
+    --font-body:'Source Sans 3',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:'JetBrains Mono',Consolas,'SF Mono',Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0B1220; --surface:#101826; --surface-2:#16202F; --surface-3:#1C2838;
+      --border:#232E42; --border-strong:#35405C;
+      --text:#F2F5FA; --text-2:#C3CCDA; --text-3:#8D97A8;
+      --accent:#5C82FF; --accent-ink:#08101F;
+      --accent-2:#F2A93C; --accent-2-ink:#08101F;
+      --success:#38D998; --warning:#F2C94C; --danger:#FF5C6C; --info:#6EA8FF;
+      --success-bg:rgba(56,217,152,.13); --warning-bg:rgba(242,201,76,.13);
+      --danger-bg:rgba(255,92,108,.13); --info-bg:rgba(110,168,255,.13);
+      --code-bg:#16202F; --code-text:#C9D3EA;
+      --shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 34px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0B1220; --surface:#101826; --surface-2:#16202F; --surface-3:#1C2838;
+    --border:#232E42; --border-strong:#35405C;
+    --text:#F2F5FA; --text-2:#C3CCDA; --text-3:#8D97A8;
+    --accent:#5C82FF; --accent-ink:#08101F;
+    --accent-2:#F2A93C; --accent-2-ink:#08101F;
+    --success:#38D998; --warning:#F2C94C; --danger:#FF5C6C; --info:#6EA8FF;
+    --success-bg:rgba(56,217,152,.13); --warning-bg:rgba(242,201,76,.13);
+    --danger-bg:rgba(255,92,108,.13); --info-bg:rgba(110,168,255,.13);
+    --code-bg:#16202F; --code-text:#C9D3EA;
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 34px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--font-body); font-size:16px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent); color:var(--accent-ink); }
+
+  .wrap{ max-width:860px; margin:0 auto; padding:0 24px; }
+  .wide{ max-width:980px; margin:0 auto; padding:0 24px; }
+
+  h1,h2,h3,h4{ font-family:var(--font-display); font-weight:600; color:var(--text); text-wrap:balance; margin:0; }
+  p{ margin:0 0 1em; color:var(--text-2); max-width:68ch; }
+  a{ color:var(--accent); text-decoration-thickness:1.5px; text-underline-offset:2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible{ outline:2.5px solid var(--accent); outline-offset:2px; border-radius:3px; }
+
+  code{
+    font-family:var(--font-mono); font-size:.86em; background:var(--code-bg); color:var(--code-text);
+    padding:.14em .42em; border-radius:5px; white-space:break-spaces;
+  }
+  strong{ color:var(--text); font-weight:700; }
+
+  /* ============ MASTHEAD ============ */
+  header.masthead{
+    border-bottom:1px solid var(--border);
+    background:
+      linear-gradient(180deg, var(--surface-2) 0%, var(--bg) 100%);
+  }
+  .masthead-inner{ padding:52px 0 34px; }
+  .eyebrow{
+    font-family:var(--font-mono); font-size:12.5px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--accent); font-weight:600; margin-bottom:14px; display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); display:inline-block; }
+  h1.title{ font-size:clamp(34px,5vw,50px); line-height:1.04; letter-spacing:-.01em; }
+  .deck{ font-size:18px; color:var(--text-2); max-width:62ch; margin-top:16px; }
+  .meta-row{
+    display:flex; flex-wrap:wrap; gap:8px 10px; margin-top:22px; font-family:var(--font-mono); font-size:12.5px;
+  }
+  .meta-chip{
+    background:var(--surface); border:1px solid var(--border); border-radius:7px; padding:5px 10px;
+    color:var(--text-3);
+  }
+  .meta-chip b{ color:var(--text-2); font-weight:600; }
+
+  /* ============ STAT ROW ============ */
+  .stat-row{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px;
+    background:var(--border); border:1px solid var(--border); border-radius:14px; overflow:hidden;
+    margin-top:30px; box-shadow:var(--shadow);
+  }
+  .stat{ background:var(--surface); padding:18px 18px 16px; }
+  .stat .n{ font-family:var(--font-display); font-size:28px; font-weight:600; line-height:1.05; font-variant-numeric:tabular-nums; }
+  .stat .n.danger{ color:var(--danger); } .stat .n.warning{ color:var(--warning); } .stat .n.accent{ color:var(--accent); }
+  .stat .l{ font-size:12.5px; color:var(--text-3); margin-top:5px; line-height:1.35; }
+
+  /* ============ NAV ============ */
+  nav.toc{
+    position:sticky; top:0; z-index:20; background:var(--bg);
+    border-bottom:1px solid var(--border); backdrop-filter:blur(6px);
+  }
+  nav.toc .wide{ display:flex; gap:2px; overflow-x:auto; padding-top:0; padding-bottom:0; scrollbar-width:thin; }
+  nav.toc a{
+    flex:none; font-size:13px; font-weight:600; color:var(--text-3); text-decoration:none;
+    padding:13px 12px; border-bottom:2.5px solid transparent; white-space:nowrap;
+  }
+  nav.toc a:hover{ color:var(--text); border-color:var(--border-strong); }
+  nav.toc a.pt2{ color:var(--accent-2); }
+
+  /* ============ SECTIONS ============ */
+  main{ padding:48px 0 20px; }
+  section{ margin-bottom:56px; scroll-margin-top:54px; }
+  section.part-open{ margin-bottom:36px; }
+
+  .part-label{
+    font-family:var(--font-mono); font-size:12.5px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--accent-2); font-weight:600; margin-bottom:8px;
+  }
+  h2.part-title{ font-size:clamp(26px,4vw,34px); margin-bottom:10px; }
+  .part-intro{ font-size:16.5px; max-width:70ch; }
+
+  h3.sec-title{
+    font-size:22px; display:flex; align-items:baseline; gap:12px; margin-bottom:16px;
+    padding-bottom:10px; border-bottom:1px solid var(--border);
+  }
+  h3.sec-title .num{ font-family:var(--font-mono); font-size:14px; color:var(--text-3); font-weight:600; }
+  h4.sub-title{ font-size:16.5px; font-family:var(--font-body); font-weight:700; color:var(--text); margin:26px 0 10px; }
+
+  section .wrap > p, section .wrap > ul, section .wrap > ol{ font-size:15.5px; }
+  ul, ol{ padding-left:1.3em; color:var(--text-2); }
+  li{ margin-bottom:.5em; max-width:68ch; }
+  li::marker{ color:var(--text-3); }
+
+  .callout{
+    border:1px solid var(--border); background:var(--surface); border-radius:12px;
+    padding:18px 20px; margin:18px 0; box-shadow:var(--shadow);
+  }
+  .callout.accent{ border-left:4px solid var(--accent); }
+  .callout.warn{ border-left:4px solid var(--warning); }
+  .callout p:last-child{ margin-bottom:0; }
+
+  /* ============ FINDINGS TABLE (doc gap etc) ============ */
+  .kv{ display:grid; grid-template-columns:auto 1fr; gap:4px 16px; font-size:14.5px; margin:14px 0 20px; }
+  .kv dt{ color:var(--text-3); font-family:var(--font-mono); font-size:12.5px; padding-top:2px; }
+  .kv dd{ margin:0; color:var(--text); }
+
+  /* ============ PARITY TABLE ============ */
+  .table-scroll{ overflow-x:auto; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); margin:18px 0; }
+  table.parity{ width:100%; border-collapse:collapse; font-size:14px; background:var(--surface); min-width:640px; }
+  table.parity th, table.parity td{ text-align:left; padding:11px 14px; border-bottom:1px solid var(--border); }
+  table.parity thead th{
+    background:var(--surface-2); font-family:var(--font-mono); font-size:11.5px; letter-spacing:.04em;
+    text-transform:uppercase; color:var(--text-3); font-weight:600;
+  }
+  table.parity tbody tr:last-child td{ border-bottom:none; }
+  table.parity td.yes{ color:var(--success); font-weight:700; }
+  table.parity td.no{ color:var(--danger); font-weight:700; }
+  table.parity td.partial{ color:var(--warning); font-weight:700; }
+  table.parity td.feat{ color:var(--text); font-weight:600; }
+
+  /* ============ PUNCH LIST ============ */
+  .punch-group{ margin-bottom:22px; }
+  .punch-head{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .tag{
+    font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    padding:3px 9px; border-radius:999px; white-space:nowrap;
+  }
+  .tag.soon{ background:var(--danger-bg); color:var(--danger); }
+  .tag.note{ background:var(--warning-bg); color:var(--warning); }
+  .tag.ok{ background:var(--success-bg); color:var(--success); }
+  .punch-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); }
+  .punch-list li{ background:var(--surface); padding:13px 16px; margin:0; font-size:14.5px; max-width:none; }
+  .punch-list li b.n{ font-family:var(--font-mono); color:var(--text-3); margin-right:8px; }
+
+  /* ============ STRENGTHS ============ */
+  .strength-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-top:16px; }
+  .strength-card{ background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; box-shadow:var(--shadow); }
+  .strength-card p{ font-size:14.5px; margin:0; }
+  .strength-card .k{ font-family:var(--font-display); font-weight:600; font-size:15.5px; color:var(--text); display:block; margin-bottom:6px; }
+
+  /* ============ COUNCIL QUESTION ============ */
+  blockquote.brief{
+    margin:18px 0; padding:18px 22px; border-radius:12px; background:var(--surface); border:1px solid var(--border);
+    border-left:4px solid var(--accent-2); box-shadow:var(--shadow); font-size:15px; color:var(--text-2);
+  }
+  blockquote.brief p{ margin-bottom:.75em; }
+  blockquote.brief p:last-child{ margin-bottom:0; }
+
+  /* ============ ADVISOR CARDS ============ */
+  .advisor-grid{ display:grid; grid-template-columns:1fr; gap:16px; margin-top:18px; }
+  .advisor{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:var(--shadow);
+  }
+  .advisor-head{ display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--border); }
+  .avatar{
+    width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-display); font-weight:700; font-size:15px; color:#fff; flex:none;
+  }
+  .advisor-name{ font-family:var(--font-display); font-weight:600; font-size:17px; color:var(--text); }
+  .advisor-role{ font-size:12.5px; color:var(--text-3); margin-top:1px; }
+  .advisor-body{ padding:16px 20px 20px; }
+  .advisor-body p{ font-size:14.5px; max-width:none; }
+  .advisor-body p:last-child{ margin-bottom:0; }
+  .advisor.diane .avatar{ background:var(--danger); } .advisor.diane{ border-top:3px solid var(--danger); }
+  .advisor.marcus .avatar{ background:var(--info); } .advisor.marcus{ border-top:3px solid var(--info); }
+  .advisor.alexandra .avatar{ background:#B8860B; } .advisor.alexandra{ border-top:3px solid var(--accent-2); }
+  .advisor.sam .avatar{ background:var(--text-3); } .advisor.sam{ border-top:3px solid var(--text-3); }
+  .advisor.rosa .avatar{ background:var(--success); } .advisor.rosa{ border-top:3px solid var(--success); }
+
+  /* ============ PEER REVIEW ============ */
+  .peer-list{ list-style:none; padding:0; margin:16px 0; display:flex; flex-direction:column; gap:10px; }
+  .peer-list li{
+    background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:13px 16px;
+    font-size:14.5px; max-width:none; box-shadow:var(--shadow);
+  }
+  .peer-list li .lbl{ font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); font-weight:700; display:block; margin-bottom:4px; }
+  .supp-note{ background:var(--info-bg); border:1px solid var(--border); border-left:4px solid var(--info); border-radius:10px; padding:16px 20px; margin-top:16px; }
+  .supp-note p{ font-size:14.5px; margin-bottom:.7em; } .supp-note p:last-child{margin-bottom:0;}
+
+  /* ============ VERDICT ============ */
+  .verdict{
+    background:var(--surface); border:1px solid var(--border-strong); border-radius:18px; padding:8px 8px 28px;
+    box-shadow:0 2px 4px rgba(20,28,55,.08), 0 20px 44px rgba(20,28,55,.1); margin-top:20px;
+  }
+  :root:not([data-theme="light"]) .verdict{ box-shadow:0 2px 4px rgba(0,0,0,.4), 0 20px 44px rgba(0,0,0,.45); }
+  :root[data-theme="dark"] .verdict{ box-shadow:0 2px 4px rgba(0,0,0,.4), 0 20px 44px rgba(0,0,0,.45); }
+  .verdict-top{
+    background:linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 130%);
+    border-radius:12px; padding:20px 24px; margin-bottom:6px;
+  }
+  .verdict-top .k{ font-family:var(--font-mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.85); }
+  .verdict-top h4{ font-family:var(--font-display); color:#fff; font-size:22px; margin-top:4px; }
+  .verdict-body{ padding:14px 24px 0; }
+  .verdict-block{ margin-top:22px; }
+  .verdict-block h5{ font-family:var(--font-body); font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--accent); font-weight:700; margin-bottom:8px; }
+  .verdict-block p{ font-size:15px; max-width:none; }
+  .verdict-block ol, .verdict-block ul{ font-size:15px; }
+  .final-call{
+    margin-top:22px; background:var(--surface-2); border:1px dashed var(--border-strong); border-radius:10px;
+    padding:16px 18px;
+  }
+  .final-call h5{ color:var(--danger); }
+  .final-call p{ margin-bottom:0; font-size:15px; }
+
+  /* ============ CLOSING ============ */
+  .closing{
+    background:var(--surface-2); border-radius:16px; padding:30px 32px; margin-top:8px;
+  }
+  .closing p{ font-size:15.5px; max-width:none; }
+
+  footer{
+    border-top:1px solid var(--border); padding:28px 0 60px; margin-top:20px;
+  }
+  footer p{ font-size:13px; color:var(--text-3); max-width:none; }
+
+  @media (max-width:640px){
+    .masthead-inner{ padding:36px 0 26px; }
+    main{ padding:34px 0 10px; }
+    section{ margin-bottom:44px; }
+    .advisor-grid{ gap:12px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap masthead-inner">
+    <div class="eyebrow"><span class="dot"></span>Project review · 2026-09-09</div>
+    <h1 class="title">State of Axis</h1>
+    <p class="deck">A full read of the Axis codebase — architecture, backend, cross-client parity,
+      and process — followed by a five-advisor council verdict on what to build next.</p>
+    <div class="meta-row">
+      <span class="meta-chip"><b>Branch</b> claude/project-review-features-kgdc3f</span>
+      <span class="meta-chip"><b>Commit</b> 6c3c0c0</span>
+      <span class="meta-chip"><b>Docs read</b> CLAUDE.md only</span>
+      <span class="meta-chip"><b>SQL read</b> schema.sql only</span>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><div class="n danger">2 days</div><div class="l">of shipped work missing from CLAUDE.md — two whole verticals</div></div>
+      <div class="stat"><div class="n">2,413</div><div class="l">lines of schema.sql, read in full</div></div>
+      <div class="stat"><div class="n warning">3</div><div class="l">N+1 query loops found across the ViewModel layer</div></div>
+      <div class="stat"><div class="n danger">0</div><div class="l">automated tests, 0 CI pipelines</div></div>
+      <div class="stat"><div class="n accent">5→1</div><div class="l">council advisors converging on one verdict</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wide">
+    <a href="#s1">1 · What Axis is</a>
+    <a href="#s2">2 · Architecture</a>
+    <a href="#s3">3 · Backend</a>
+    <a href="#s4">4 · Client parity</a>
+    <a href="#s5">5 · Setup &amp; process</a>
+    <a href="#s6">6 · UI system</a>
+    <a href="#s7">7 · Strengths</a>
+    <a href="#s8">8 · Punch list</a>
+    <a href="#part2" class="pt2">Council session</a>
+    <a href="#s24" class="pt2">Verdict</a>
+    <a href="#part3" class="pt2">Closing</a>
+  </div>
+</nav>
+
+<main>
+<div class="wide">
+
+  <section id="part1-open" class="part-open">
+    <div class="wrap" style="padding:0;">
+      <div class="part-label">Part 1</div>
+      <h2 class="part-title">Independent review</h2>
+      <p class="part-intro">Read directly from the repository on branch <code>claude/project-review-features-kgdc3f</code>
+      at commit <code>6c3c0c0</code> — no prior review content reused. Per instructions, the only Markdown file
+      read was <code>CLAUDE.md</code>; the only SQL file read was <code>supabase/schema.sql</code>, not the
+      one-off migration scripts beside it. <code>EVENTS_PLAN.md</code>, <code>MULTI_CURRENCY_PLAN.md</code>,
+      <code>REDESIGN_PLAN.md</code>, <code>README.md</code>, and <code>SCOPE.md</code> exist and are sizeable
+      (15–47&nbsp;KB each) but were not read — every claim below is grounded in the code and schema themselves.</p>
+    </div>
+  </section>
+
+  <section id="s1">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">01</span>What Axis actually is, right now</h3>
+    <p>Axis is a .NET MAUI (net10.0-android + net10.0-windows10.0.19041.0) shared-ledger app backed by a
+    single real Supabase project (Postgres + Auth + Storage + Edge Functions + pg_cron), plus two separate
+    web surfaces: a static Cloudflare-Worker site (<code>web/</code>) for invite links, legal pages, and
+    password reset, and a lightweight React SPA (<code>webapp/</code>) for browser-only friends who can't
+    install the Android app or don't have a Windows machine.</p>
+    <p>It is not just an expense splitter anymore. As of this commit it's a two-vertical friends/family app:
+    <strong>shared expenses</strong> (N-way split bills, settle-up, recurring templates, receipts,
+    multi-currency) and <strong>events &amp; calendar</strong> (RSVP, tri-state carpooling, auto-generated
+    birthday events). Both share one <code>GroupDetailPage</code> tab switch, one members/invite system, one
+    push transport, and one localization/theming layer.</p>
+
+    <h4 class="sub-title">The documentation is out of date — by a non-trivial amount</h4>
+    <p>Worth stating plainly rather than softening: <strong>CLAUDE.md does not describe roughly the last two
+    days of shipped work.</strong> It was last touched at commit <code>de66f3b</code> (2026-09-07).
+    <code>HEAD</code> is <code>6c3c0c0</code> (2026-09-09). The diff between those two points is 36 files and
+    ~1,370 inserted lines — and it is not small stuff.</p>
+    <div class="callout accent">
+      <p><strong>Multi-currency</strong> (per-expense currency, a locked group settlement currency, an
+      <code>exchange_rates</code> singleton, two conversion triggers, a daily <code>fetch-exchange-rates</code>
+      Edge Function) and <strong>Events &amp; Calendar</strong> (RSVP, tri-state carpooling with a
+      seats-offered/needed aggregate, auto-generated birthday events, a second entire push pipeline) — two
+      full features, zero mentions in the one file this whole project's own practice depends on to avoid
+      re-litigating already-fixed bugs.</p>
+    </div>
+    <p>CLAUDE.md is written as a running engineering journal and is genuinely excellent at what it does — dated,
+    cross-referenced, candid about real bugs found and fixed. That makes the gap more costly, not less:
+    anyone (or any agent) reading it today would conclude the app has no calendar and no currency support.
+    <strong>Recommendation:</strong> catch it up before the next feature starts, the same way commit
+    <code>8d992ce</code> already did once before.</p>
+    <p>A smaller instance of the same pattern: two pre-existing HTML review reports already sit in the repo
+    root — <code>ui-review-report.html</code> and <code>live-ui-walkthrough-report.html</code>. Both date to
+    commit <code>4eb9221</code>, <em>before</em> the redesign and the UI "juice pass." I spot-checked two of
+    their findings against current XAML: <code>LoginPage.xaml</code> now has the <code>ScrollView</code> +
+    busy-state guards the report said were missing, and the "Join with code / + New group look ugly together"
+    finding is moot — that button pair no longer exists in that shape. Both reports are stale artifacts that
+    will mislead the next reader into re-litigating fixed issues.</p>
+    </div>
+  </section>
+
+  <section id="s2">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">02</span>Architecture — this part is genuinely solid</h3>
+    <p>The backend-abstraction rule (<code>Services/I*Repository</code> interfaces, ViewModels never touch
+    <code>Supabase.Client</code> directly) is followed with no exceptions found. Every repository takes the
+    one shared <code>Supabase.Client</code> singleton registered in <code>MauiProgram.cs</code> — exactly one
+    authenticated session object in the whole app.</p>
+    <p>The MVVM layer is consistent CommunityToolkit.Mvvm end to end, and the standout piece of the whole
+    codebase is that <strong>every single async command runs through <code>BaseViewModel.RunSafeAsync</code></strong>
+    (<code>ViewModels/BaseViewModel.cs:24</code>). It turns process-fatal unhandled exceptions (confirmed in
+    the app's own history — a bare <code>AsyncRelayCommand</code> exception fail-fasts WinUI with
+    <code>0xc000027b</code>) into a plain <code>ErrorMessage</code> string, and transparently retries once on
+    the recurring Supabase clock-skew rejection. A well-reasoned, minimal fix for a real crash class.</p>
+    <p>The <code>GroupDetailViewModel</code> → <code>GroupExpensesViewModel</code> + <code>GroupEventsViewModel</code>
+    split (done when Events landed) is the right call — the alternative was one ballooning ViewModel covering
+    two unrelated verticals.</p>
+
+    <h4 class="sub-title">Real performance smell: N+1 query patterns, three separate places</h4>
+    <p>A genuine finding, not a style nitpick — and it gets worse as data grows, not better:</p>
+    <ul>
+      <li><strong><code>GroupExpensesViewModel.RefreshActivityAsync</code></strong>
+      (<code>ViewModels/GroupExpensesViewModel.cs:182-227</code>) calls <code>GetSharesAsync(expense.Id)</code>
+      inside a loop over every expense in the group — one round trip per expense, every time the tab loads.</li>
+      <li><strong><code>GroupEventsViewModel.LoadAsync</code></strong> (<code>:148-151</code>) does the same
+      for attendees — one round trip per event.</li>
+      <li><strong><code>GroupsViewModel.LoadAsync</code></strong> (<code>:90-105</code>) does it a third time
+      for the groups list — one round trip per group just to build the avatar stack.</li>
+    </ul>
+    <p>None of these are broken — they're correct — but a group with 150 expenses in its history means 150
+    sequential HTTP round trips just to render "Recent activity." Postgrest supports <code>in</code> filters
+    and embedded/nested selects (<code>expenses?select=*,expense_shares(*)</code>), either of which collapses
+    each of these to one request. This is the single most concrete "will bite you later" finding in the whole
+    review — invisible today because no test group has 150 expenses yet.</p>
+
+    <h4 class="sub-title"><code>Update(model)</code> sends the whole row — a documented, load-bearing footgun</h4>
+    <p>Several places explicitly carry forward fields a fresh model object would otherwise silently reset —
+    <code>AddExpenseViewModel</code> stashing <code>editingCreatedBy</code>/<code>editingCreatedAt</code>/
+    <code>editingIsSettlement</code> before calling <code>UpdateAsync</code>, <code>ProfileViewModel.SaveProfile</code>
+    mutating the already-loaded member in place. Consistent and well-commented everywhere checked, but entirely
+    convention-enforced — nothing in the type system stops the next new edit flow from silently zeroing
+    <code>CreatedBy</code>/<code>CreatedAt</code> the way it already did once for real (the
+    <code>expenses_created_by_fkey</code> violation documented in the app's own history).</p>
+    </div>
+  </section>
+
+  <section id="s3">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">03</span>Backend — <code>schema.sql</code>, 2,413 lines, read in full</h3>
+    <p>A well-run Postgres/RLS schema for a project this size, with self-documentation well above what most
+    side projects bother with — including two genuine <code>42P17</code> RLS-recursion postmortems written
+    inline. Specific things worth calling out:</p>
+    <ul>
+      <li>The core design decision (members vs. accounts, phantom vs. claimed) is applied <strong>consistently</strong>
+      — every ledger table points at <code>members</code>, never <code>auth.users</code>.</li>
+      <li><code>SECURITY DEFINER</code> is used narrowly and every instance is justified in a comment — either
+      a genuine permission gap (the <code>vault</code> schema reads) or RLS-recursion avoidance. None found
+      without a stated reason.</li>
+      <li>The currency conversion trigger <strong>fails closed, not open</strong> — if <code>exchange_rates</code>
+      has no row yet, it raises rather than silently treating the rate as 1:1. Right call for a ledger, but it
+      means the very first foreign-currency expense on a fresh deploy hard-fails until the daily fetch has run
+      once.</li>
+      <li>Birthday events are a genuinely clever reuse of existing infrastructure — correctly clamping Feb 29
+      to the target month's real last day instead of crashing on <code>make_date</code>, and deliberately
+      leaving <code>created_by</code> null so nobody gets a delete button the next day's cron would just
+      recreate anyway.</li>
+      <li>Every cron-only / trigger-only function is correctly <code>revoke</code>d from <code>anon</code>/
+      <code>authenticated</code> — checked every one; none reachable via PostgREST's <code>/rpc/</code> by an
+      ordinary user.</li>
+    </ul>
+
+    <h4 class="sub-title">Things that look like live risk, not just design notes</h4>
+    <div class="callout warn">
+      <p>The live Supabase project ref is <strong>hardcoded in ten separate <code>cron.schedule(...)</code>/
+      trigger bodies</strong> across <code>schema.sql</code>. Not a secret (correctly reasoned in the file's
+      own comments), but it does mean the file is no longer the portable "run this against a fresh project"
+      script its own header comment still claims to be.</p>
+    </div>
+    <p><code>schema.sql</code> itself is a single 2,413-line file hand-edited in place for months — a
+    defensible choice for a single-maintainer project (one canonical fresh-install script instead of an
+    ever-growing migrations folder), but it means the file is a reliable <em>current state</em>, not a
+    reliable <em>history</em>. One soft spot the schema's own comments already flag and this review repeats:
+    the <code>"update events in your groups"</code> policy lets any group member edit any event, including a
+    birthday row — enforced only by the app never exposing that entry point, an honestly-labeled soft
+    protection, not a hard one.</p>
+    </div>
+  </section>
+
+  <section id="s4">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">04</span>Cross-client feature parity — a real, growing gap</h3>
+    <p>There are now three Axis clients: the MAUI app (Android + Windows), the static <code>web/</code> site
+    (not a real client), and the React <code>webapp/</code> SPA. Comparing <code>webapp/src/App.tsx</code>'s
+    route table against the MAUI app's <code>AppConstants.Routes</code>:</p>
+    </div>
+    <div class="wrap table-scroll" style="padding:0;">
+      <table class="parity">
+        <thead><tr><th>Capability</th><th>MAUI app</th><th>webapp (React)</th></tr></thead>
+        <tbody>
+          <tr><td class="feat">Sign in (email + Google)</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td class="feat">Groups list · new group · join by code</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td class="feat">Balances — simplified + pairwise</td><td class="yes">✓</td><td class="yes">✓ (pairwise)</td></tr>
+          <tr><td class="feat">Add expense — equal split</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td class="feat">Add expense — manual/custom split</td><td class="yes">✓</td><td class="no">✗</td></tr>
+          <tr><td class="feat">Edit or delete an existing expense</td><td class="yes">✓</td><td class="no">✗ no route</td></tr>
+          <tr><td class="feat">Settle up</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td class="feat">Recurring expenses</td><td class="yes">✓</td><td class="no">✗ no route</td></tr>
+          <tr><td class="feat">Multi-currency</td><td class="yes">✓ full picker + toggle</td><td class="partial">partial</td></tr>
+          <tr><td class="feat">Receipts</td><td class="yes">✓</td><td class="no">✗</td></tr>
+          <tr><td class="feat">Events, RSVP, carpooling, birthdays</td><td class="yes">✓ entire vertical</td><td class="no">✗ no route at all</td></tr>
+          <tr><td class="feat">Push notifications</td><td class="yes">✓ Android</td><td class="no">✗</td></tr>
+          <tr><td class="feat">Members roster / add-by-name / alias</td><td class="yes">✓</td><td class="no">✗ no route</td></tr>
+          <tr><td class="feat">Profile — name, birthday, avatar, language, delete account</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="wrap" style="padding:0;">
+    <p>Not a criticism of the web app's <em>original</em> scope decision — it was deliberately narrower from
+    day one, built so one iPhone-only friend could use something. But the gap has grown materially wider since:
+    <strong>Events &amp; Calendar is now an entire second product vertical that doesn't exist on web at all.</strong>
+    Worth a deliberate decision — close the gap incrementally, or add explicit "not available on web yet"
+    messaging so it reads as a known limitation, not a broken feature.</p>
+    </div>
+  </section>
+
+  <section id="s5">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">05</span>Setup, tooling, and process gaps</h3>
+    <ul>
+      <li><strong>No automated tests anywhere</strong> — no test project, no xunit/nunit/mstest reference,
+      nothing under <code>webapp/</code> beyond a linter. Every "confirmed working end to end" note in the
+      app's history is a manual pass, not a regression test. None of the real, subtle bugs already documented
+      (the RLS-recursion pair, the sign-inversion bug, the invite-expiry-defaulting bug) would be caught
+      automatically if they regressed.</li>
+      <li><strong>No CI/CD</strong> — <code>.github/</code> doesn't exist. No automated build gate on push,
+      no lint gate on <code>webapp/</code>. The only verification any change gets is whatever the person (or
+      agent) making it happens to run locally.</li>
+      <li><strong>Secrets handling is correctly done</strong> — <code>Config.Local.cs</code> and
+      <code>webapp/.env</code> are both gitignored with committed <code>.example</code> templates; no
+      committed secret found anywhere in the files read.</li>
+      <li><code>AppUpdateService</code> reads <code>latestVersion</code> from <code>web/version.json</code>
+      but <strong>never reads <code>minVersion</code></strong> — the field is deployed, and simply unused.</li>
+      <li>Windows push is a <strong>deliberate no-op</strong> — every Windows user currently gets zero push
+      for anything. For an app whose entire second vertical leans on push for reminders and carpooling
+      coordination, that's a meaningfully-sized hole on one of only two supported platforms.</li>
+    </ul>
+    </div>
+  </section>
+
+  <section id="s6">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">06</span>UI / styling system</h3>
+    <p>The design-token discipline (<code>Tokens.xaml</code>, <code>Colors.xaml</code>, <code>Styles.xaml</code>)
+    is real and largely followed, not aspirational. The accent-color feature (8 curated presets, dark-only) is
+    implemented cleanly — colors that should react to the live accent use <code>DynamicResource</code>,
+    everything else <code>StaticResource</code> — and the in-place-dictionary-mutation approach was arrived at
+    only after confirming the more obvious remove-and-readd pattern under-updates real WinUI button chrome.
+    Careful, verified engineering, not a guess that happened to work.</p>
+    <p>The two old HTML reports (§1) did catch a real, now-fixed high-severity bug and a batch of
+    lower-severity, still-plausible issues — small icon-only tap targets, occasional raw pixel values sitting
+    next to token references. Most of that XAML has since been rewritten by the redesign, so line numbers no
+    longer line up, but the <em>category</em> of issue is still visibly present in newer XAML (e.g.
+    <code>SplitCheckboxStyle</code>'s 20×20 tap target is unchanged). A reasonable candidate for a dedicated
+    re-audit now that the redesign has settled, rather than re-litigating finding-by-finding here.</p>
+    </div>
+  </section>
+
+  <section id="s7">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">07</span>Concrete strengths worth stating plainly</h3>
+    <p>Easy for a review to read as a list of problems — to be direct about the other side: this is a
+    well-engineered solo/small-team project, above the bar of most side projects at this stage.</p>
+    </div>
+    <div class="wrap strength-grid" style="padding-left:24px;padding-right:24px;">
+      <div class="strength-card"><span class="k">Members vs. accounts</span><p>The phantom/claimed design is the right foundational call for a shared ledger, applied with real discipline everywhere — no silent violation found.</p></div>
+      <div class="strength-card"><span class="k">Bug-fixing rigor</span><p>Root causes are chased and explained (two RLS-recursion bugs, a sign-inversion bug, a silent-default bug) — not just patched around.</p></div>
+      <div class="strength-card"><span class="k">RunSafeAsync</span><p>A small piece of code doing an unusually good job containing a real, previously-fatal crash class app-wide, with no per-ViewModel opt-out to forget.</p></div>
+      <div class="strength-card"><span class="k">Shipped and verified</span><p>Multi-currency and Events both shipped with real end-to-end verification against the live project, not just a clean compile.</p></div>
+      <div class="strength-card"><span class="k">No premature abstraction</span><p>No speculative config, no dead feature flags. Grepping the whole app tree for <code>TODO|FIXME|HACK</code> returns zero matches.</p></div>
+    </div>
+  </section>
+
+  <section id="s8">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">08</span>Summary punch list</h3>
+
+    <div class="punch-group">
+      <div class="punch-head"><span class="tag soon">Worth doing soon</span></div>
+      <ul class="punch-list">
+        <li><b class="n">1</b>Catch <code>CLAUDE.md</code> up with the last two feature phases (multi-currency, Events &amp; Calendar) — it's the most-referenced source of truth in the repo and is meaningfully out of date.</li>
+        <li><b class="n">2</b>Delete or clearly mark the two old HTML review reports as superseded — both predate the redesign.</li>
+        <li><b class="n">3</b>Collapse the three N+1 query loops into single filtered/embedded queries before a real group's history makes them visibly slow.</li>
+        <li><b class="n">4</b>Decide, deliberately, what to do about the web app's growing feature gap — scope it in, or message it clearly in-app.</li>
+      </ul>
+    </div>
+
+    <div class="punch-group">
+      <div class="punch-head"><span class="tag note">Worth a note, not urgent</span></div>
+      <ul class="punch-list">
+        <li><b class="n">5</b><code>web/version.json</code>'s <code>minVersion</code> field is deployed but never read client-side.</li>
+        <li><b class="n">6</b><code>schema.sql</code>'s ten hardcoded <code>net.http_post</code> URLs mean it's no longer a portable fresh-install script.</li>
+        <li><b class="n">7</b>Windows gets zero push — worth an explicit decision now that Events leans on push for reminders/carpooling.</li>
+      </ul>
+    </div>
+
+    <div class="punch-group">
+      <div class="punch-head"><span class="tag ok">Known / accepted, no action needed</span></div>
+      <ul class="punch-list">
+        <li><b class="n">8</b>No automated tests, no CI — consistent with the project's current stage, but the reason every regression so far was caught by hand.</li>
+        <li><b class="n">9</b>The events-editing RLS policy is wider than the app's UI exposes — already self-documented as a deliberate soft protection, not a surprise.</li>
+      </ul>
+    </div>
+    </div>
+  </section>
+
+  <!-- ============ PART 2 ============ -->
+  <section id="part2" class="part-open">
+    <div class="wrap" style="padding:0;">
+      <div class="part-label">Part 2</div>
+      <h2 class="part-title">The council</h2>
+      <p class="part-intro">Everything above is one reviewer's read of the codebase. To pressure-test "what
+      should Axis build next" from more than one angle, the question went to a five-advisor LLM council
+      (adapted from Andrej Karpathy's LLM Council method): five independent advisors, each answering from a
+      deliberately different thinking style, peer-reviewing each other's anonymized answers, then a chairman
+      synthesizing everything into one verdict.</p>
+      <div class="callout">
+        <p><strong>A methodology note worth being upfront about:</strong> several advisors and reviewers had
+        tool access and used it — some read <code>CLAUDE.md</code>, <code>schema.sql</code>,
+        <code>EVENTS_PLAN.md</code>, <code>SCOPE.md</code>, and git history directly rather than relying only
+        on the briefing given to them, and the chairman went further, cross-checking claims against Part 1 of
+        this same document. That wasn't instructed, but it made the output substantially stronger — several
+        claims below are verified against the live schema, not just argued.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="s21">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">2.1</span>The question posed to the council</h3>
+    <blockquote class="brief">
+      <p>Axis is a .NET MAUI shared-ledger app for a small, invite-only group of friends/family — pre-launch,
+      no public signups yet. <strong>Vertical 1</strong>: N-way split expenses, settle-up, recurring
+      templates, receipts, full multi-currency, two balance display modes. <strong>Vertical 2</strong>: group
+      events with RSVP, tri-state carpooling with a seats-offered/needed aggregate, auto-generated birthday
+      events. Shared: Android-only push, aliases, avatars, 8 accent presets, en/es localization, phantom
+      members whose history transfers on claim; plus a narrower React web client for one browser-only friend.</p>
+      <p><strong>Given everything already built, what should be built next?</strong> Features that would make
+      someone go "oh, I want this" — not bug fixes or polish, but genuine product additions that would
+      meaningfully increase value for a small group actively managing shared money and shared plans together.
+      Consider what's plausible for a solo/small-team hobby project to actually build and maintain.</p>
+    </blockquote>
+    </div>
+  </section>
+
+  <section id="s22">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">2.2</span>Five advisors, five independent answers</h3>
+    </div>
+    <div class="wrap advisor-grid" style="padding-left:24px;padding-right:24px;">
+
+      <article class="advisor diane">
+        <div class="advisor-head">
+          <div class="avatar">D</div>
+          <div><div class="advisor-name">Diane</div><div class="advisor-role">The Contrarian — looks for what's wrong, what will fail</div></div>
+        </div>
+        <div class="advisor-body">
+          <p>CLAUDE.md itself confirms the gap I'd flag first: it frames events/calendar as a <strong>future
+          phase</strong>, not-yet-started. Currency shows up once, marked "reserved but unused." Yet two
+          entire verticals are live with zero trace in the one file this project depends on to avoid
+          re-litigating fixed bugs. That's the project's memory silently falling behind its shipped surface.</p>
+          <p>That's the real constraint on "what's next," not idea supply. This log shows roughly one severe,
+          data-touching bug per shipped feature, caught only after real friends hit it live — backwards
+          balance math, invites silently dead app-wide, two RLS infinite-recursion bugs, a race that told a
+          real member "Group not found." Whatever ships next inherits that tax.</p>
+          <p>So the filter matters more than the pick: nothing that widens blast radius on money-correctness
+          or adds an unverifiable integration. Do not build bank/Plaid sync — the most tempting "obvious next
+          step" and the one that turns a hobby ledger into a liability. Skip in-app chat too. Anything you add
+          should sit beside the ledger, not inside its math.</p>
+        </div>
+      </article>
+
+      <article class="advisor marcus">
+        <div class="advisor-head">
+          <div class="avatar">M</div>
+          <div><div class="advisor-name">Marcus</div><div class="advisor-role">First Principles — rebuilds the question from the ground up</div></div>
+        </div>
+        <div class="advisor-body">
+          <p>You're asking "what's the next vertical" by extrapolation — expenses, then events, so what's #3?
+          Wrong axis. Money and time-together aren't separate resources — they're the same occasion viewed
+          from two angles. A trip is an event <em>and</em> a pile of expenses. Right now those are parallel
+          data models with no edge between them: an event doesn't know its expenses, and the RSVP list isn't
+          the list you split the bill against three weeks later.</p>
+          <p>So: don't build vertical 3. Build the join. Let an event optionally own a scoped ledger — expenses
+          attached to it, default split pulled from "going" RSVPs, a running total on the event page,
+          settle-up prompted once the date passes. This reuses your split engine, your settle-up model, your
+          RSVP data, your push triggers. It's a foreign key and some UI, not a subsystem.</p>
+          <p>And it kills the exact annoying moment this group hits: reconciling "who was on this trip"
+          against "who paid for what" as two separate memories instead of one screen.</p>
+        </div>
+      </article>
+
+      <article class="advisor alexandra">
+        <div class="advisor-head">
+          <div class="avatar">A</div>
+          <div><div class="advisor-name">Alexandra</div><div class="advisor-role">The Expansionist — looks for the upside everyone else missed</div></div>
+        </div>
+        <div class="advisor-body">
+          <p>The vision doc already says it: "one unified channel per group," not a separate splitting app and
+          a separate calendar app. Nobody's built the fusion yet. The single biggest swing: <strong>Trip
+          Mode</strong> — let an Event become a container for expenses. RSVP to the cabin weekend, every
+          expense tagged to it rolls into a running trip total, split only among whoever's actually going,
+          visible live instead of reconstructed afterward from a date range.</p>
+          <p>Second, nearly free: a <strong>Recap</strong>. After a trip, month, or year, auto-generate a
+          shareable summary — total spent, cost per person per day, who fronted the most, photos if the
+          receipts pipeline gets reused for an album. Zero new infrastructure, exactly the kind of thing that
+          gets screenshotted into the group chat unprompted.</p>
+          <p>Third, criminally underused: birthdays already auto-generate as events — wire group gift pooling
+          off one, "chip in for Dave's gift," kept off Dave's own feed. Stop treating these as two apps that
+          share a login.</p>
+        </div>
+      </article>
+
+      <article class="advisor sam">
+        <div class="advisor-head">
+          <div class="avatar">S</div>
+          <div><div class="advisor-name">Sam</div><div class="advisor-role">The Outsider — zero context, reacts to what's in front of them</div></div>
+        </div>
+        <div class="advisor-body">
+          <p>Zero context, so I'm reacting to the two-vertical description itself — the split is the tell.
+          "Vertical 1/2" is an engineering frame, not how a friend group experiences a trip. Nobody planning
+          "Lake Trip" opens the events product, then separately the money product. The obvious next build: let
+          an expense optionally attach to an event, so opening "Lake Trip" shows who's coming, who's driving,
+          and a running per-person cost in one place. Currency conversion is already solved, so a live "$340
+          spent, ~$85/head" total is nearly free.</p>
+          <p>Second, just as obvious from outside: you already solved photo upload/resize/storage for
+          receipts — point that at events and give each trip a shared album. "Pictures from the trip" is the
+          most viscerally wanted thing by an actual friend group, more than any ledger feature.</p>
+          <p>Third: confirm carpool/RSVP changes actually push a notification. Carpooling only works socially
+          if the person offering a seat finds out the moment someone claims it.</p>
+        </div>
+      </article>
+
+      <article class="advisor rosa">
+        <div class="advisor-head">
+          <div class="avatar">R</div>
+          <div><div class="advisor-name">Rosa</div><div class="advisor-role">The Executor — can this be done, what's Monday morning</div></div>
+        </div>
+        <div class="advisor-body">
+          <p>Two features ship this week because you already built 90% of their plumbing.</p>
+          <p><strong>1. Recurring-expense due reminders.</strong> <code>materialize_recurring_expenses</code>
+          already runs daily; <code>send-push</code> is already proven end to end. Write
+          <code>upcoming_recurring_reminders()</code> mirroring the existing shape, call it right after
+          materialization. No new table, no new screen, no new push plumbing. The single most "oh I want
+          this" feature for the actual use case here: rent day.</p>
+          <p><strong>2. Google Calendar sync, as a read-only ICS feed</strong>, not OAuth. You already have
+          battle scars from Google OAuth on Windows. One Edge Function emitting a static <code>.ics</code>
+          feed; every calendar app subscribes to a URL natively — zero OAuth. Half a day.</p>
+          <p>Skip anything needing a new UI paradigm — polls, chat, budgets — until these two are deployed.</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section id="s23">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">2.3</span>Peer review — what the advisors caught in each other</h3>
+    <p>All five responses were anonymized and cross-reviewed. The pattern was unusually consistent:</p>
+    <ul class="peer-list">
+      <li><span class="lbl">Strongest response</span>Split between Marcus ("build the join," 3 of 5 reviewers) and Alexandra (Trip Mode + Recap + gift-pooling, 2 of 5) — never a real contest, since both argue the same core idea. One reviewer verified the load-bearing claim directly against <code>schema.sql</code>: <strong><code>expenses</code> genuinely has no <code>event_id</code> column.</strong></li>
+      <li><span class="lbl">Weakest response, unanimously</span>Diane. All five reviewers independently flagged the same thing — her documentation-drift catch is real and her risk framing is sound, but she proposed zero features against a question that explicitly asked for features.</li>
+      <li><span class="lbl">Missed by all five — the web app</span>Three reviewers independently flagged it: <code>webapp/</code>'s router has zero Events routes, so if event-expense linking ships native-only, the one person the web client exists for can't use the feature the rest of the group starts relying on.</li>
+      <li><span class="lbl">Missed by all five — the real fix nobody named</span>One reviewer: updating CLAUDE.md/SCOPE.md to match what's shipped may itself be the highest-leverage "build" available, given this project's history of bugs surfacing when docs lag code — and no advisor said so outright.</li>
+      <li><span class="lbl">Missed by all five — offline resilience</span>Every flagship pitch (a live running trip total) targets exactly the low-connectivity moments — cabins, hikes, travel abroad — where a live round trip can't be assumed.</li>
+      <li><span class="lbl">Missed by all five — notification fatigue</span>Multiple advisors independently propose <em>more</em> auto-push triggers on a week-old pipeline with no mute/preference mechanism anywhere yet.</li>
+      <li><span class="lbl">Missed by all five — the irony</span>The consensus pick is exactly the failure shape that already bit this project twice: both real production RLS bugs to date came from two tables' policies referencing each other. Wiring <code>expenses</code> to <code>events</code> is a new cross-table relationship, in a codebase with zero tests to catch a repeat.</li>
+    </ul>
+
+    <div class="supp-note">
+      <p><strong>One additional finding, verified after the chairman synthesis was already under way</strong>
+      (so the verdict below doesn't reflect it, but it's real): a fifth review, cross-checking
+      <code>schema.sql</code>'s actual trigger list, found that <strong><code>events</code> has exactly three
+      triggers — insert / update / before-delete — and none are on <code>event_attendees</code>.</strong> In
+      plain terms: today, changing an RSVP or a carpool offer/need fires <em>no push notification at all</em>
+      — only creating, editing, or cancelling the event itself does. Sam's "confirm carpool/RSVP changes
+      actually push" instinct was, per this check, a real gap, not a redundant ask.</p>
+      <p>The same review flagged a structural question nobody else raised: <strong>a phantom member cannot
+      RSVP at all</strong>, since every <code>event_attendees</code> write policy requires
+      <code>m.account_id = auth.uid()</code>. For an app whose founding principle is that phantom members
+      participate exactly like anyone else, RSVP is quietly the first feature where that principle doesn't
+      extend — worth a deliberate decision, not an accidental gap.</p>
+    </div>
+    </div>
+  </section>
+
+  <section id="s24">
+    <div class="wrap" style="padding:0;">
+    <h3 class="sec-title"><span class="num">2.4</span>The chairman's verdict</h3>
+    </div>
+    <div class="wrap" style="padding-left:24px;padding-right:24px;">
+    <div class="verdict">
+      <div class="verdict-top">
+        <div class="k">Council verdict</div>
+        <h4>Build the join, not a third vertical — but fix the map first</h4>
+      </div>
+      <div class="verdict-body">
+
+        <div class="verdict-block">
+          <h5>Where the council agrees</h5>
+          <p><strong>The event-expense fusion is the standout idea, reached three independent ways.</strong>
+          Marcus (first-principles), Alexandra (expansionist), and Sam (outsider) all landed on the same
+          mechanism — an event optionally owns a scoped set of expenses, default split from "going" RSVPs, a
+          running total on the event page, settle-up prompted once the date passes. Four of five peer
+          reviewers ranked this strongest, and the chairman confirmed the load-bearing claim directly:
+          <code>expenses</code> has no <code>event_id</code> anywhere in <code>schema.sql</code>.</p>
+          <p><strong>It's structurally cheap, not just appealing.</strong> Both tables already gate access
+          through the identical <code>is_group_member(group_id)</code> RLS pattern, so a nullable
+          <code>expenses.event_id</code> needs no new policy and no cross-table recursion risk — the same
+          "scope by group, not by parent row" trick the schema already uses for receipt paths.</p>
+          <p><strong>Nobody wants a third vertical.</strong> No advisor proposed a genuinely new domain —
+          budgets, chores, shopping lists, polls. The council converges hard on <em>connect what's built</em>
+          over <em>add what isn't</em>.</p>
+          <p><strong>Diane's documentation-drift finding is real</strong>, and every reviewer said so —
+          confirmed precisely: <code>CLAUDE.md</code> was last edited two days before <code>HEAD</code>, a gap
+          of 36 files / two entire features. Part 1 of this document, written independently the same morning,
+          reached the identical conclusion by a completely different route.</p>
+        </div>
+
+        <div class="verdict-block">
+          <h5>Where the council clashes</h5>
+          <p><strong>Diane's guardrails vs. everyone else's appetite to ship.</strong> Every reviewer penalized
+          Diane for answering with prohibitions, not features. Fair against the letter of the brief — but her
+          evidence (one severe bug per shipped feature, zero tests) still holds, and both real recursion bugs
+          to date came from cross-table policy references — the same risk class as this pick. Ship it, but the
+          way the schema already knows how to dodge this exact failure mode.</p>
+          <p><strong>Rosa's "ship this week" vs. the fusion feature.</strong> Rosa frames her two picks as
+          substitutes — "skip anything needing a new UI paradigm until these two are deployed." A real
+          disagreement: cheapest-win-this-week vs. highest-leverage-single-feature. Both reasonable; they
+          can't both be first.</p>
+          <p><strong>Rosa's ICS pitch is good, but isn't "next per the roadmap" as claimed</strong> — the
+          project's own scope doc already plans a heavier OAuth-based Google Calendar sync, deliberately
+          deferred until Events shipped. Rosa's read-only ICS feed is a smarter, cheaper substitute for that —
+          not a continuation of the existing plan.</p>
+        </div>
+
+        <div class="verdict-block">
+          <h5>Blind spots the council caught</h5>
+          <ul>
+            <li><strong>The web-only friend loses the exact feature the group would use together</strong> — <code>webapp/src/App.tsx</code> has zero Events routes, not partial, not stubbed.</li>
+            <li><strong>Notification fatigue is a debt the project already wrote down</strong> — a deferred "per-group notification muting" item exists in the project's own plans, and there's still no mute mechanism anywhere.</li>
+            <li><strong>The mixed-currency concern raised in peer review is already solved</strong> — <code>groups.currency</code> is locked at creation and every expense snapshots its converted amount, so an event total is a plain <code>sum()</code>, no new design needed.</li>
+            <li><strong>Sam's "confirm carpool/RSVP pushes work" is more right than peer review gave credit for</strong> — see the supplementary finding above: <code>event_attendees</code> genuinely has no push trigger today.</li>
+            <li><strong>Offline resilience, unaddressed by all five</strong> — every repository call is a live round trip with no local cache; Trip Mode's real usage moments (cabins, hikes, abroad) are exactly where connectivity is worst.</li>
+            <li><strong>Windows gets zero push</strong>, and every reminder/carpool nudge the council proposes is an Android-only win.</li>
+          </ul>
+        </div>
+
+        <div class="verdict-block">
+          <h5>The recommendation</h5>
+          <p><strong>Build the event-expense link — Marcus's scoping, exactly as written:</strong> nullable
+          <code>expenses.event_id</code>, default split from "going" RSVPs, a running total on the event page,
+          settle-up prompted once the date passes. The one idea on the table that is genuinely a feature, that
+          makes both verticals better at once, and that the codebase can absorb safely.</p>
+          <p>Ship it with three guardrails the evidence makes non-optional:</p>
+          <ol>
+            <li><strong>Decide the web-client question before shipping</strong> — scope a minimal linked view into <code>webapp/</code>, or ship an explicit "not on web yet" indicator. No silent widening of an already-documented gap.</li>
+            <li><strong>No fourth push trigger type before the mute control the project already designed exists.</strong> Build the mute mechanism now, not after the next trigger makes it more urgent.</li>
+            <li><strong>Additive-only migration</strong> — nullable FK, no new policy touching <code>events</code>' own RLS, manual re-verification of the two known recursion-prone paths afterward. Given zero test coverage, this is the one place that needs a specific, not general, brake.</li>
+          </ol>
+          <p>Do Rosa's two picks next — real, cheap, and on different schema surface, so there's no reason to
+          choose between them and the fusion feature. Just don't let them substitute for it.</p>
+        </div>
+
+        <div class="final-call">
+          <h5>The one thing to do first</h5>
+          <p><strong>Catch CLAUDE.md and SCOPE.md up to what's actually shipped — before writing the
+          <code>event_id</code> migration, as its first step, not a detour from it.</strong> Part 1 of this
+          document already did the investigation; this is transcription, a few hours, not a project. Whoever
+          builds the join next — human or agent — will read CLAUDE.md first, per this project's own stated
+          practice, and right now that file doesn't know <code>events</code> exists. Building a cross-table
+          schema change on docs that don't know the other table exists, with no test suite to catch the
+          mistake, is the one sequencing error that would compound every risk this council surfaced. Fix the
+          map, then build the join.</p>
+        </div>
+
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <section id="part3">
+    <div class="wrap" style="padding:0;">
+      <div class="part-label">Part 3</div>
+      <h2 class="part-title" style="margin-bottom:16px;">Closing synthesis</h2>
+      <div class="closing">
+        <p>Two independent processes — a cold read of the codebase (Part 1) and a five-advisor council
+        debating product direction from adversarial angles (Part 2) — converged on the same starting point
+        without either one steering the other: <strong>the documentation is the bottleneck, not the idea
+        supply.</strong> Part 1 flagged CLAUDE.md's two-day, 36-file, two-feature gap as finding #1 before any
+        council question was asked. The council, reasoning purely about "what to build next," independently
+        rediscovered the same gap through Diane's contrarian pass, had it confirmed by every peer reviewer,
+        and the chairman named fixing it "the one thing to do first" — ahead of the feature idea the rest of
+        the council spent its energy on. When two differently-motivated passes over the same project land on
+        the same top priority without coordinating, that's about as strong a signal as this kind of review can
+        produce.</p>
+        <p>The product answer underneath is good for a specific, checkable reason rather than because it
+        sounded appealing: <strong>event-expense linking is the only idea the council proposed that is
+        verifiably cheap in this exact codebase</strong> — a nullable foreign key riding RLS machinery that
+        already exists, not a new subsystem — while also being the only idea that addresses a friction real
+        users would recognize immediately. It also sits directly on top of this review's own §2 performance
+        finding: the N+1 query patterns will get real exercise the moment expenses start rendering inline on
+        event pages, so fixing those loops stops being hygiene and becomes a prerequisite.</p>
+        <p>Put together, the punch list in §8 and the council's verdict in §2.4 point at the same short
+        sequence: <strong>update the docs, collapse the N+1 loops, then build the join</strong> — in that
+        order, because each step makes the next one safer in a codebase that currently has no automated safety
+        net of its own.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Compiled from a direct read of the <code>AxisApp</code> repository (branch
+    <code>claude/project-review-features-kgdc3f</code>, commit <code>6c3c0c0</code>) plus a five-advisor LLM
+    council session. Full write-up: <code>PROJECT_REVIEW.md</code> in the repository root.</p>
+  </div>
+</footer>
+
+</body>
+</html>
