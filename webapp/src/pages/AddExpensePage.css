@@ -18,3 +18,58 @@
 .participant-item input {
   width: auto;
 }
+
+.amount-row {
+  display: flex;
+  gap: 12px;
+}
+
+.amount-field {
+  flex: 2;
+}
+
+.currency-field {
+  flex: 1;
+}
+
+.repeat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+}
+
+.repeat-toggle input {
+  width: auto;
+}
+
+.receipt-preview {
+  display: block;
+  margin-bottom: 10px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.receipt-preview img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+.receipt-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.receipt-upload-btn {
+  text-align: center;
+  cursor: pointer;
+  flex: 1;
+}
+
+.delete-btn {
+  margin-top: 12px;
+}

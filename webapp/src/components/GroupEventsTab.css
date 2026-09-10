@@ -1,0 +1,158 @@
+.events-toggle {
+  display: flex;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  margin-bottom: 20px;
+}
+
+.events-toggle button {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.events-toggle button.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.event-month-group {
+  margin-bottom: 20px;
+}
+
+.event-month-header {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0 0 10px;
+  text-transform: capitalize;
+}
+
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.event-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.event-header {
+  text-decoration: none;
+  color: inherit;
+}
+
+.event-title {
+  font-weight: 600;
+}
+
+.event-sub {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.event-avatars {
+  display: flex;
+  gap: -6px;
+}
+
+.event-avatars > * {
+  margin-right: -8px;
+  border: 2px solid var(--surface);
+}
+
+.rsvp-pill {
+  display: flex;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 3px;
+}
+
+.rsvp-pill button {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.rsvp-pill button.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.transport-section {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.transport-summary {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.transport-summary.shortfall {
+  color: var(--danger);
+}
+
+.transport-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.transport-controls .btn {
+  width: auto;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.transport-controls .btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.seat-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+}
+
+.seat-stepper button {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  width: 20px;
+  line-height: 1;
+}
+
+.seat-stepper span {
+  min-width: 16px;
+  text-align: center;
+  font-weight: 600;
+}

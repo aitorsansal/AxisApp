@@ -1,0 +1,24 @@
+.datetime-row {
+  display: flex;
+  gap: 12px;
+}
+
+.datetime-row .field {
+  flex: 1;
+}
+
+.repeat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+}
+
+.repeat-toggle input {
+  width: auto;
+}
+
+.delete-btn {
+  margin-top: 12px;
+}

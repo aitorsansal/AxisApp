@@ -10,12 +10,16 @@ export interface MyGroupBalance {
   balance: number
 }
 
+export interface MemberInfo {
+  id: string
+  display_name: string
+  account_id: string | null
+  avatar_path: string | null
+}
+
 export interface MemberRow {
   member_id: string
-  members: {
-    display_name: string
-    account_id: string | null
-  }
+  members: MemberInfo
 }
 
 export interface PairwiseBalance {
@@ -35,8 +39,41 @@ export interface ExpenseWithPayer {
   occurred_at: string
   created_at: string
   is_settlement: boolean
-  payer: { display_name: string } | null
+  receipt_path: string | null
 }
+
+export interface Invite {
+  id: string
+  token: string
+  group_id: string
+  target_member_id: string | null
+  expires_at: string
+  created_at: string
+}
+
+export interface RecurringExpense {
+  id: string
+  group_id: string
+  paid_by_member_id: string
+  amount: number
+  currency: string
+  description: string
+  category: string
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'
+  start_date: string
+  last_processed_date: string | null
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+}
+
+export interface RecurringExpenseShare {
+  recurring_expense_id: string
+  member_id: string
+  share_amount: number
+}
+
+export const RECURRING_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as const
 
 // Keys must stay in sync with AxisApp/AppConstants.cs's Categories.Keys —
 // these are stored as plain text in expenses.category with no DB check
@@ -51,6 +88,33 @@ export interface MyMember {
   display_name: string
   birth_date: string | null
   avatar_path: string | null
+  car_extra_seats: number | null
+}
+
+export interface EventRow {
+  id: string
+  group_id: string
+  title: string
+  description: string | null
+  location: string | null
+  starts_at: string
+  ends_at: string | null
+  needs_transport: boolean
+  is_birthday: boolean
+  member_id: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export type RsvpResponse = 'going' | 'maybe' | 'not_going'
+export type CarStatus = 'none' | 'offering' | 'needs_ride'
+
+export interface EventAttendee {
+  event_id: string
+  member_id: string
+  response: RsvpResponse
+  car_status: CarStatus
+  car_offered_seats: number | null
 }
 
 export const CURRENCIES = [

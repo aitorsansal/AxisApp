@@ -1,0 +1,63 @@
+.recurring-add-btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  margin-bottom: 20px;
+}
+
+.recurring-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recurring-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recurring-info {
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+.recurring-desc {
+  font-weight: 600;
+}
+
+.recurring-meta {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.recurring-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.recurring-amount {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.8rem;
+  padding: 0;
+}
+
+.link-btn.danger {
+  color: var(--danger);
+}

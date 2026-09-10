@@ -7,6 +7,7 @@ import { useLocale, type Language } from '../context/LocaleContext'
 import { resizeImageToWebp } from '../lib/imageResize'
 import type { MyMember } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
+import { DateField } from '../components/DateField'
 import './ProfilePage.css'
 
 const AVATAR_BUCKET = 'avatars'
@@ -19,6 +20,7 @@ export function ProfilePage() {
   const [member, setMember] = useState<MyMember | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [birthDate, setBirthDate] = useState('')
+  const [carExtraSeats, setCarExtraSeats] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
   const [newEmail, setNewEmail] = useState('')
@@ -50,7 +52,7 @@ export function ProfilePage() {
     // edge case in the MAUI app) resolves the same way on both clients.
     const { data, error } = await supabase
       .from('members')
-      .select('id, display_name, birth_date, avatar_path')
+      .select('id, display_name, birth_date, avatar_path, car_extra_seats')
       .eq('account_id', session.user.id)
       .order('created_at', { ascending: true })
       .limit(1)
@@ -63,6 +65,7 @@ export function ProfilePage() {
     setMember(row)
     setDisplayName(row.display_name ?? '')
     setBirthDate(row.birth_date ?? '')
+    setCarExtraSeats(row.car_extra_seats?.toString() ?? '')
     setAvatarUrl(row.avatar_path ? publicAvatarUrl(row.avatar_path) : null)
   }
 
@@ -72,13 +75,15 @@ export function ProfilePage() {
     setError(null)
     setNotice(null)
     setSavingProfile(true)
+    const parsedSeats = carExtraSeats.trim() === '' ? null : Number.parseInt(carExtraSeats, 10)
+    const seats = parsedSeats !== null && Number.isFinite(parsedSeats) ? parsedSeats : null
     const { error } = await supabase
       .from('members')
-      .update({ display_name: displayName, birth_date: birthDate || null })
+      .update({ display_name: displayName, birth_date: birthDate || null, car_extra_seats: seats })
       .eq('id', member.id)
     setSavingProfile(false)
     if (error) return setError(error.message)
-    setMember({ ...member, display_name: displayName, birth_date: birthDate || null })
+    setMember({ ...member, display_name: displayName, birth_date: birthDate || null, car_extra_seats: seats })
     setNotice(t('Profile_ProfileSaved'))
   }
 
@@ -236,7 +241,20 @@ export function ProfilePage() {
         </div>
         <div className="field">
           <label htmlFor="birthDate">{t('Profile_Birthday')}</label>
-          <input id="birthDate" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+          <DateField id="birthDate" value={birthDate} onChange={setBirthDate} />
+        </div>
+        <div className="field">
+          <label htmlFor="carExtraSeats">{t('Profile_CarSeats')}</label>
+          <input
+            id="carExtraSeats"
+            type="number"
+            min="0"
+            step="1"
+            value={carExtraSeats}
+            onChange={(e) => setCarExtraSeats(e.target.value)}
+            placeholder={t('Profile_CarSeatsPlaceholder')}
+          />
+          <p className="field-hint">{t('Profile_CarSeatsHint')}</p>
         </div>
         <button type="submit" className="btn btn-primary" disabled={savingProfile}>
           {savingProfile ? t('Common_Saving') : t('Common_Save')}
