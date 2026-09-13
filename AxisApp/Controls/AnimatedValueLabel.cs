@@ -32,6 +32,16 @@ public class AnimatedValueLabel : Label
         if (oldText is null || newText is null || oldText == newText)
             return;
 
+        // Guards against a real bug hit returning from AddExpensePage: if this label gets its
+        // new Text while the page is still mid pop-transition (not yet loaded/attached), the
+        // animation's first tick overwrites Text with the OLD value and never reliably reaches
+        // the finished callback that would set it to newText — the row then shows the previous
+        // value forever, until a fresh page load creates a brand-new label with no old text to
+        // tween from. Skip the tween entirely when not loaded; Text already holds newText from
+        // the binding, so simply leaving it alone is already correct.
+        if (!IsLoaded)
+            return;
+
         var oldMatch = NumberPattern.Match(oldText);
         var newMatch = NumberPattern.Match(newText);
         if (!oldMatch.Success || !newMatch.Success)
