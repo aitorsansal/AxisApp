@@ -20,7 +20,7 @@ public partial class ExpenseParticipant : ObservableObject
 
     [ObservableProperty] private bool isIncluded = true;
     [ObservableProperty] private decimal owes;
-    [ObservableProperty] private string owesText = "0.00";
+    [ObservableProperty] private string owesText = "0,00";
 
     private bool syncing;
 
@@ -33,7 +33,7 @@ public partial class ExpenseParticipant : ObservableObject
         syncing = true;
         try
         {
-            Owes = decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed)
+            Owes = decimal.TryParse(value.Replace(',', '.'), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var parsed)
                 ? parsed
                 : 0;
         }
@@ -44,7 +44,7 @@ public partial class ExpenseParticipant : ObservableObject
     {
         if (syncing) return;
         syncing = true;
-        try { OwesText = value.ToString("0.00", CultureInfo.InvariantCulture); }
+        try { OwesText = AddExpenseViewModel.FormatAmount(value); }
         finally { syncing = false; }
     }
 }
@@ -121,7 +121,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private ObservableCollection<CategoryChip> categoryChips = [];
     [ObservableProperty] private Member? selectedPayer;
     [ObservableProperty] private decimal amount;
-    [ObservableProperty] private string amountText = "0.00";
+    [ObservableProperty] private string amountText = "0,00";
     [ObservableProperty] private decimal remaining;
     [ObservableProperty] private string remainingText = "";
     [ObservableProperty] private bool canSave;
@@ -368,7 +368,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 
         Description = expense.Description;
         OccurredOn = expense.OccurredAt;
-        AmountText = expense.Amount.ToString("0.00", CultureInfo.InvariantCulture);
+        AmountText = FormatAmount(expense.Amount);
         ReceiptPath = expense.ReceiptPath;
         SetCurrencyByCode(expense.Currency);
 
@@ -421,7 +421,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 
         Description = template.Description;
         StartDate = template.StartDate;
-        AmountText = template.Amount.ToString("0.00", CultureInfo.InvariantCulture);
+        AmountText = FormatAmount(template.Amount);
         SetCurrencyByCode(template.Currency);
 
         SelectedCategory = template.Category;
@@ -458,7 +458,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     }
 
     partial void OnAmountTextChanged(string value) =>
-        Amount = decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed)
+        Amount = decimal.TryParse(value.Replace(',', '.'), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var parsed)
             ? parsed
             : 0;
 
@@ -579,12 +579,18 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         }
     }
 
+    /// <summary>Displays amounts with "," as the decimal separator, matching the numeric keyboard's
+    /// decimal key on this device's locale — typing "." is never guaranteed to work, so showing "."
+    /// back on automatic splits/remaining reads as inconsistent. Parsing (OnAmountTextChanged/
+    /// OnOwesTextChanged) still accepts both "," and "."; only the round-trip display format changed.</summary>
+    internal static string FormatAmount(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture).Replace('.', ',');
+
     private void RecalcRemaining()
     {
         var included = Participants.Where(p => p.IsIncluded).ToList();
         var sum = included.Sum(p => p.Owes);
         Remaining = decimal.Round(Amount - sum, 2);
-        RemainingText = LocalizationResourceManager.Instance.Format("AddExpense_Remaining", Remaining);
+        RemainingText = LocalizationResourceManager.Instance.Format("AddExpense_Remaining", Remaining).Replace('.', ',');
         CanSave = SelectedPayer is not null
                   && Amount > 0
                   && included.Count > 0
