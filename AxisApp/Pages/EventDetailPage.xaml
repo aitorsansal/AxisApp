@@ -249,6 +249,16 @@
                                 Style="{StaticResource LabelTertiary}"
                                 IsVisible="{Binding HasExpenses, Converter={StaticResource InverseBoolConverter}}" />
 
+                            <SearchBar
+                                Text="{Binding SearchQuery}"
+                                Placeholder="{loc:Translate EventDetail_SearchPlaceholder}"
+                                IsVisible="{Binding HasExpenses}" />
+
+                            <Label
+                                Text="{loc:Translate EventDetail_NoSearchResults}"
+                                Style="{StaticResource LabelTertiary}"
+                                IsVisible="{Binding HasNoSearchResults}" />
+
                             <VerticalStackLayout BindableLayout.ItemsSource="{Binding Expenses}" Spacing="{StaticResource SpacingS}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="vm:ActivityItem">

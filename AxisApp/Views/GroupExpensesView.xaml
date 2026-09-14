@@ -124,6 +124,13 @@
                 <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
                     <Label Text="{loc:Translate GroupDetail_RecentActivity}" Style="{StaticResource SectionHeaderTertiary}" />
 
+                    <SearchBar Text="{Binding SearchQuery}" Placeholder="{loc:Translate GroupDetail_SearchPlaceholder}" />
+
+                    <Label
+                        Text="{loc:Translate GroupDetail_NoSearchResults}"
+                        Style="{StaticResource LabelTertiary}"
+                        IsVisible="{Binding HasNoSearchResults}" />
+
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding RecentActivity}">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:ActivityItem">
@@ -170,6 +177,20 @@
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>
                     </VerticalStackLayout>
+
+                    <Button
+                        Text="{loc:Translate GroupDetail_LoadMore}"
+                        Command="{Binding LoadMoreCommand}"
+                        Style="{StaticResource BtnOutlinePrimary}"
+                        IsEnabled="{Binding IsLoadingMore, Converter={StaticResource InverseBoolConverter}}"
+                        HorizontalOptions="Center"
+                        IsVisible="{Binding HasMorePages}">
+                        <Button.Triggers>
+                            <DataTrigger TargetType="Button" Binding="{Binding IsSearching}" Value="True">
+                                <Setter Property="IsVisible" Value="False" />
+                            </DataTrigger>
+                        </Button.Triggers>
+                    </Button>
                 </VerticalStackLayout>
 
             </VerticalStackLayout>

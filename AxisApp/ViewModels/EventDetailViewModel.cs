@@ -58,6 +58,13 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
     private Event? currentEvent;
     private List<EventAttendee> currentAttendees = [];
 
+    /// <summary>Full set of this event's expenses, built once per LoadAsync — Expenses mirrors
+    /// this when SearchQuery is empty and gets filtered from it otherwise (client-side: an
+    /// event's expenses are inherently bounded, unlike a group's whole history, so a second
+    /// network round trip per keystroke isn't worth it here — see GroupExpensesViewModel for
+    /// the backend-search version of this used at group scope).</summary>
+    private List<ActivityItem> allExpenses = [];
+
     [ObservableProperty] private string title = "";
     [ObservableProperty] private string subCaption = "";
     [ObservableProperty] private string description = "";
@@ -89,6 +96,8 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
 
     [ObservableProperty] private ObservableCollection<ActivityItem> expenses = [];
     [ObservableProperty] private bool hasExpenses;
+    [ObservableProperty] private string searchQuery = "";
+    [ObservableProperty] private bool hasNoSearchResults;
 
     public EventDetailViewModel(
         IEventsRepository eventsRepository,
@@ -147,6 +156,9 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
 
                 currentEvent = ev;
                 currentAttendees = loadAttendees.Result;
+
+                SearchQuery = "";
+                HasNoSearchResults = false;
 
                 BuildHeader(ev);
                 BuildRsvpAndTransport(ev, currentAttendees);
@@ -227,45 +239,42 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
         HasNotGoingAttendees = NotGoingAttendees.Count > 0;
     }
 
-    /// <summary>Same row shape (and the same FormatExpenseAmount/FormatRelative helpers) as
-    /// GroupExpensesViewModel's Recent Activity list — reused rather than duplicated.</summary>
+    /// <summary>Same row shape and builder (GroupExpensesViewModel.BuildActivityItems) as the
+    /// group's Recent Activity list — reused rather than duplicated. Shares are batch-fetched in
+    /// one round trip instead of one GetSharesAsync call per expense (an event's expense count is
+    /// usually small, but there's no reason to pay the N+1 cost here either).</summary>
     private async Task BuildExpensesAsync(List<Expense> forEvent)
     {
+        var shares = await expensesRepository.GetSharesForExpensesAsync(forEvent.Select(e => e.Id).ToList());
+        var sharesByExpenseId = shares.ToLookup(s => s.ExpenseId);
         var groupSymbol = AppConstants.Currencies.SymbolFor(currentGroup!.Currency);
         var showConverted = Microsoft.Maui.Storage.Preferences.Default.Get(AppConstants.Preferences.AmountDisplayConverted, true);
-        var loc = LocalizationResourceManager.Instance;
-        var items = new List<ActivityItem>();
 
-        foreach (var expense in forEvent)
-        {
-            var payer = membersById.TryGetValue(expense.PaidByMemberId, out var expensePayer)
-                ? MemberDisplay.Name(expensePayer, aliases) : loc["GroupDetail_SomeoneCapitalized"];
-            var shares = await expensesRepository.GetSharesAsync(expense.Id);
+        var items = GroupExpensesViewModel.BuildActivityItems(
+            forEvent, sharesByExpenseId, membersById, aliases, groupSymbol, currentGroup!.Currency, showConverted);
 
-            var categoryLabel = string.IsNullOrEmpty(expense.Category) ? "" : loc[$"Category_{expense.Category}"];
-            var description = string.IsNullOrWhiteSpace(expense.Description) ? categoryLabel : expense.Description;
-            var subCaption = loc.Format("GroupDetail_PaidSplit", payer, shares.Count);
+        allExpenses = items.OrderByDescending(i => i.OccurredAt).ThenByDescending(i => i.CreatedAt).ToList();
+        ApplySearchFilter();
+    }
 
-            var (amountText, secondaryAmountText) = GroupExpensesViewModel.FormatExpenseAmount(
-                expense, groupSymbol, currentGroup!.Currency, showConverted);
+    /// <summary>Client-side filter over the already-loaded allExpenses — see the field's remarks
+    /// on why this doesn't hit the backend like GroupExpensesViewModel's search does. Matches
+    /// either Description or SubCaption (the latter carries the payer's name), so "who paid" is
+    /// searchable too, not just what the expense was for.</summary>
+    partial void OnSearchQueryChanged(string value) => ApplySearchFilter();
 
-            items.Add(new ActivityItem
-            {
-                Description = description,
-                SubCaption = subCaption,
-                AmountText = amountText,
-                SecondaryAmountText = secondaryAmountText,
-                IsSettlement = expense.IsSettlement,
-                OccurredAt = expense.OccurredAt,
-                CreatedAt = expense.CreatedAt,
-                RelativeDate = GroupExpensesViewModel.FormatRelative(expense.OccurredAt),
-                ExpenseId = expense.Id
-            });
-        }
+    private void ApplySearchFilter()
+    {
+        var trimmed = SearchQuery.Trim();
+        var filtered = trimmed.Length == 0
+            ? allExpenses
+            : allExpenses.Where(i =>
+                i.Description.Contains(trimmed, StringComparison.CurrentCultureIgnoreCase) ||
+                i.SubCaption.Contains(trimmed, StringComparison.CurrentCultureIgnoreCase)).ToList();
 
-        Expenses = new ObservableCollection<ActivityItem>(
-            items.OrderByDescending(i => i.OccurredAt).ThenByDescending(i => i.CreatedAt));
-        HasExpenses = Expenses.Count > 0;
+        Expenses = new ObservableCollection<ActivityItem>(filtered);
+        HasExpenses = allExpenses.Count > 0;
+        HasNoSearchResults = trimmed.Length > 0 && filtered.Count == 0;
     }
 
     [RelayCommand]

@@ -81,15 +81,39 @@ public partial class GroupExpensesViewModel : BaseViewModel
     private readonly IAliasesRepository aliasesRepository;
     private readonly IAuthService authService;
 
+    private const int PageSize = 30;
+    private const int SearchResultLimit = 50;
+
     private Guid groupId;
     private Dictionary<Guid, Member> membersById = new();
     private Dictionary<Guid, string> aliases = new();
     private Guid? myMemberId;
     private Group? currentGroup;
 
+    /// <summary>Every page loaded so far via LoadAsync/LoadMore, newest-first — RecentActivity
+    /// mirrors this when SearchQuery is empty and gets swapped for search results otherwise, so
+    /// clearing the search box can restore the paged view without refetching anything.</summary>
+    private readonly List<ActivityItem> loadedActivity = [];
+    private int loadedOffset;
+    private int searchGeneration;
+
+    /// <summary>Guards loadedActivity against overlapping LoadAsync calls — GroupDetailViewModel.
+    /// ApplyQueryAttributes re-runs LoadAsync on every navigation to GroupDetailPage, including
+    /// navigating back to it from AddExpensePage, and Shell can fire that twice in quick
+    /// succession. Two overlapping calls each clearing then appending their own fetched page used
+    /// to double every row (4 became 8) — bumped at the start of each LoadAsync/LoadMore and
+    /// checked in AppendActivityPageAsync before it touches loadedActivity, so a stale call's
+    /// results are discarded instead of appended on top of a newer call's.</summary>
+    private int loadGeneration;
+
     [ObservableProperty] private ObservableCollection<MemberBalanceItem> balances = [];
     [ObservableProperty] private ObservableCollection<ActivityItem> recentActivity = [];
     [ObservableProperty] private bool isBusy;
+    [ObservableProperty] private bool isLoadingMore;
+    [ObservableProperty] private bool hasMorePages;
+    [ObservableProperty] private string searchQuery = "";
+    [ObservableProperty] private bool isSearching;
+    [ObservableProperty] private bool hasNoSearchResults;
     /// <summary>True only while the very first LoadAsync (for this tab instance) is in flight —
     /// kept separate from IsBusy, which also gets set on every later Refresh (after a save/settle),
     /// so the skeleton and its minimum-visible-duration padding only apply to the cold load.</summary>
@@ -136,13 +160,16 @@ public partial class GroupExpensesViewModel : BaseViewModel
         IsInitialLoading = isFirstLoad;
         try
         {
+            var generation = ++loadGeneration;
+
             async Task DoLoad()
             {
                 var loadGroup = groupsRepository.GetByIdAsync(groupId);
                 var loadMembers = membersRepository.GetForGroupAsync(groupId);
-                var loadExpenses = expensesRepository.GetForGroupAsync(groupId);
+                var loadExpenses = expensesRepository.GetForGroupAsync(groupId, PageSize, 0);
                 var loadAliases = aliasesRepository.GetMyAliasesAsync();
                 await Task.WhenAll(loadGroup, loadMembers, loadExpenses, loadAliases);
+                if (generation != loadGeneration) return; // a newer LoadAsync already superseded this
 
                 var members = loadMembers.Result;
                 membersById = members.ToDictionary(m => m.Id);
@@ -150,8 +177,14 @@ public partial class GroupExpensesViewModel : BaseViewModel
                 myMemberId = members.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)?.Id;
                 currentGroup = loadGroup.Result;
 
+                SearchQuery = "";
+                IsSearching = false;
+                HasNoSearchResults = false;
+                loadedActivity.Clear();
+                loadedOffset = 0;
+
                 await RefreshBalancesAsync();
-                await RefreshActivityAsync(loadExpenses.Result);
+                await AppendActivityPageAsync(loadExpenses.Result, generation);
             }
 
             if (isFirstLoad)
@@ -179,17 +212,21 @@ public partial class GroupExpensesViewModel : BaseViewModel
         Balances = new ObservableCollection<MemberBalanceItem>(items);
     }
 
-    private async Task RefreshActivityAsync(IReadOnlyList<Expense> expenses)
+    /// <summary>Builds ActivityItem rows for a batch of expenses, given their shares already
+    /// fetched in one round trip (see IExpensesRepository.GetSharesForExpensesAsync) instead of
+    /// one GetSharesAsync call per expense. Internal so EventDetailViewModel can share it too.</summary>
+    internal static List<ActivityItem> BuildActivityItems(
+        IReadOnlyList<Expense> expenses, ILookup<Guid, ExpenseShare> sharesByExpenseId,
+        IReadOnlyDictionary<Guid, Member> membersById, IReadOnlyDictionary<Guid, string> aliases,
+        string groupSymbol, string groupCurrency, bool showConverted)
     {
-        var groupSymbol = AppConstants.Currencies.SymbolFor(currentGroup!.Currency);
-        var showConverted = Microsoft.Maui.Storage.Preferences.Default.Get(AppConstants.Preferences.AmountDisplayConverted, true);
         var loc = LocalizationResourceManager.Instance;
         var activity = new List<ActivityItem>();
         foreach (var expense in expenses)
         {
             var payer = membersById.TryGetValue(expense.PaidByMemberId, out var expensePayer)
                 ? MemberDisplay.Name(expensePayer, aliases) : loc["GroupDetail_SomeoneCapitalized"];
-            var shares = await expensesRepository.GetSharesAsync(expense.Id);
+            var shares = sharesByExpenseId[expense.Id].ToList();
 
             string description, subCaption;
             if (expense.IsSettlement)
@@ -206,7 +243,7 @@ public partial class GroupExpensesViewModel : BaseViewModel
                 subCaption = loc.Format("GroupDetail_PaidSplit", payer, shares.Count);
             }
 
-            var (amountText, secondaryAmountText) = FormatExpenseAmount(expense, groupSymbol, currentGroup!.Currency, showConverted);
+            var (amountText, secondaryAmountText) = FormatExpenseAmount(expense, groupSymbol, groupCurrency, showConverted);
 
             activity.Add(new ActivityItem
             {
@@ -221,9 +258,86 @@ public partial class GroupExpensesViewModel : BaseViewModel
                 ExpenseId = expense.Id
             });
         }
+        return activity;
+    }
 
-        RecentActivity = new ObservableCollection<ActivityItem>(
-            activity.OrderByDescending(a => a.OccurredAt).ThenByDescending(a => a.CreatedAt));
+    /// <summary>Appends one page of expenses to loadedActivity (batch-fetching their shares in a
+    /// single round trip), advances the paging cursor, and — only while not searching — mirrors
+    /// the accumulated list into the bound RecentActivity. Bails out without touching any state if
+    /// a newer LoadAsync/LoadMore has started since this page was requested (see loadGeneration's
+    /// remarks) — otherwise two overlapping calls would each append their own page on top of the
+    /// other's, duplicating every row.</summary>
+    private async Task AppendActivityPageAsync(IReadOnlyList<Expense> page, int generation)
+    {
+        var shares = await expensesRepository.GetSharesForExpensesAsync(page.Select(e => e.Id).ToList());
+        if (generation != loadGeneration) return;
+
+        var sharesByExpenseId = shares.ToLookup(s => s.ExpenseId);
+        var groupSymbol = AppConstants.Currencies.SymbolFor(currentGroup!.Currency);
+        var showConverted = Microsoft.Maui.Storage.Preferences.Default.Get(AppConstants.Preferences.AmountDisplayConverted, true);
+
+        var items = BuildActivityItems(page, sharesByExpenseId, membersById, aliases, groupSymbol, currentGroup!.Currency, showConverted);
+        loadedActivity.AddRange(items);
+        loadedOffset += page.Count;
+        HasMorePages = page.Count == PageSize;
+
+        if (!IsSearching)
+            RecentActivity = new ObservableCollection<ActivityItem>(loadedActivity);
+    }
+
+    [RelayCommand]
+    private Task LoadMore() => RunSafeAsync(async () =>
+    {
+        if (IsLoadingMore || !HasMorePages || IsSearching) return;
+        var generation = loadGeneration;
+        IsLoadingMore = true;
+        try
+        {
+            var page = await expensesRepository.GetForGroupAsync(groupId, PageSize, loadedOffset);
+            await AppendActivityPageAsync(page, generation);
+        }
+        finally
+        {
+            IsLoadingMore = false;
+        }
+    });
+
+    /// <summary>Search-as-you-type against the backend (not the loaded page) — same
+    /// generation-counter pattern as InviteToGroupViewModel.OnNewPhantomNameChanged, so a stale
+    /// response can't clobber a newer keystroke's result.</summary>
+    partial void OnSearchQueryChanged(string value)
+    {
+        var generation = ++searchGeneration;
+        _ = RunSafeAsync(() => RunSearchAsync(value, generation));
+    }
+
+    private async Task RunSearchAsync(string query, int generation)
+    {
+        if (currentGroup is null) return; // not loaded yet — LoadAsync will reset SearchQuery anyway
+
+        var trimmed = query.Trim();
+        if (trimmed.Length < 2)
+        {
+            IsSearching = false;
+            HasNoSearchResults = false;
+            RecentActivity = new ObservableCollection<ActivityItem>(loadedActivity);
+            return;
+        }
+
+        IsSearching = true;
+        var matches = await expensesRepository.SearchForGroupAsync(groupId, trimmed, SearchResultLimit);
+        if (generation != searchGeneration) return; // a newer keystroke already superseded this
+
+        var shares = await expensesRepository.GetSharesForExpensesAsync(matches.Select(e => e.Id).ToList());
+        if (generation != searchGeneration) return;
+
+        var sharesByExpenseId = shares.ToLookup(s => s.ExpenseId);
+        var groupSymbol = AppConstants.Currencies.SymbolFor(currentGroup!.Currency);
+        var showConverted = Microsoft.Maui.Storage.Preferences.Default.Get(AppConstants.Preferences.AmountDisplayConverted, true);
+        var items = BuildActivityItems(matches, sharesByExpenseId, membersById, aliases, groupSymbol, currentGroup!.Currency, showConverted);
+
+        RecentActivity = new ObservableCollection<ActivityItem>(items);
+        HasNoSearchResults = items.Count == 0;
     }
 
     /// <summary>Pairwise mode: my_pairwise_balances already gives real, two-party debts from

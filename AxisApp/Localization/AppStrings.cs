@@ -79,6 +79,9 @@ public static class AppStrings
         ["GroupDetail_Detailed"] = "Detailed",
         ["GroupDetail_Settle"] = "Settle",
         ["GroupDetail_RecentActivity"] = "Recent activity",
+        ["GroupDetail_SearchPlaceholder"] = "Search expenses",
+        ["GroupDetail_LoadMore"] = "Load more",
+        ["GroupDetail_NoSearchResults"] = "No expenses match your search.",
         ["GroupDetail_PaidSplit"] = "{0} paid · split {1} ways",
         ["GroupDetail_Paid"] = "{0} paid {1}",
         ["GroupDetail_SettleUp"] = "Settle up",
@@ -177,6 +180,8 @@ public static class AppStrings
         ["EventDetail_Expenses"] = "Expenses",
         ["EventDetail_AddExpense"] = "+ Add expense",
         ["EventDetail_NoExpenses"] = "No expenses linked to this event yet.",
+        ["EventDetail_SearchPlaceholder"] = "Search expenses",
+        ["EventDetail_NoSearchResults"] = "No expenses match your search.",
 
         // Categories (fixed, key-based — see AppConstants.Categories)
         ["Category_food"] = "Food",
@@ -322,6 +327,9 @@ public static class AppStrings
         ["GroupDetail_Detailed"] = "Detallado",
         ["GroupDetail_Settle"] = "Saldar",
         ["GroupDetail_RecentActivity"] = "Actividad reciente",
+        ["GroupDetail_SearchPlaceholder"] = "Buscar gastos",
+        ["GroupDetail_LoadMore"] = "Cargar más",
+        ["GroupDetail_NoSearchResults"] = "Ningún gasto coincide con tu búsqueda.",
         ["GroupDetail_PaidSplit"] = "{0} pagó · dividido entre {1}",
         ["GroupDetail_Paid"] = "{0} pagó a {1}",
         ["GroupDetail_SettleUp"] = "Saldar cuenta",
@@ -420,6 +428,8 @@ public static class AppStrings
         ["EventDetail_Expenses"] = "Gastos",
         ["EventDetail_AddExpense"] = "+ Añadir gasto",
         ["EventDetail_NoExpenses"] = "Todavía no hay gastos vinculados a este evento.",
+        ["EventDetail_SearchPlaceholder"] = "Buscar gastos",
+        ["EventDetail_NoSearchResults"] = "Ningún gasto coincide con tu búsqueda.",
 
         // Categories
         ["Category_food"] = "Comida",
