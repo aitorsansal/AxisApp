@@ -53,9 +53,14 @@ What's actually left, in rough order:
    `event_attendees` policies (structurally verified, not yet exercised
    under a real adversarial session); the stray `pnpm-lock.yaml` in
    `webapp/` next to `package-lock.json` (worth standardizing on one
-   package manager before this causes real lockfile drift); the web app
-   is still missing receipts, recurring expenses, push notifications, and
-   a members roster/add-by-name flow.
+   package manager before this causes real lockfile drift — both are kept
+   in sync by hand for now); the web app is still missing receipts,
+   recurring expenses, and a members roster/add-by-name flow. PWA install +
+   web push are implemented (see "Web app: PWA install + push
+   notifications" below) but **not yet activated** — `public/sw.js` still
+   has `REPLACE_ME` placeholders for the Firebase Web App config, no Web
+   app has been registered in the `axisapp-ee018` Firebase project yet, and
+   `web_push.sql` hasn't been run against the live database.
 4. The merge-on-claim code path in `redeem_invite()` (see "One account, one
    member" below) is still not exercised against real data.
 
@@ -239,6 +244,49 @@ static site, so it's easy to change one side and forget the other:
 - iOS Universal Links would need the equivalent (`apple-app-site-association`
   under `web/.well-known/`, entitlements on the iOS target) but iOS isn't in
   the active `TargetFrameworks` yet, so this is Android-only today.
+
+### Web app: PWA install + push notifications
+
+Added 2026-09-14, **not yet activated in production** — see the "not yet
+activated" gap above for exactly what's missing. Two purposes at once: makes
+`webapp/` installable as a standalone app, and (the reason iOS web push needs
+that first) reuses the same Firebase project as Android for push.
+
+- **`webapp/public/manifest.json`** + `index.html`'s `<link rel="manifest">`/
+  `apple-mobile-web-app-*` tags make the app installable. Chrome/Edge/Android
+  fire `beforeinstallprompt`, captured by `webapp/src/lib/useInstallPrompt.ts`
+  to drive an in-app "Install" button (`ProfilePage`) — there's no equivalent
+  event on iOS Safari, which only supports manual Share → "Add to Home
+  Screen", so `useInstallPrompt` also exposes `showIosInstructions` to show
+  text instead of a button there.
+- **iOS web push only works after that manual install** — a bare Safari tab
+  can never register for push, even with permission granted. This is the
+  reason PWA installability had to ship before push, not just a nice-to-have
+  alongside it.
+- **`webapp/public/sw.js`** is one service worker doing both jobs — a second,
+  competing SW was deliberately avoided. It's a static file Vite does not
+  process, so its Firebase config is hardcoded (not read from `.env`) and
+  must be filled in by hand from Firebase Console once a Web App is
+  registered under the same `axisapp-ee018` project
+  (`AxisApp/Platforms/Android/google-services.json`'s `project_id`) — see
+  that file's own header comment.
+- **`webapp/src/lib/firebase.ts`** initializes the Firebase JS SDK from
+  `VITE_FIREBASE_*` env vars (see `webapp/.env.example`); a web push token is
+  still an FCM registration token like Android's, so `supabase/functions/
+  send-push/index.ts` sends to both through the identical
+  `fcm.googleapis.com/v1/projects/.../messages:send` call — no separate Web
+  Push/VAPID-only send path.
+- **`webapp/src/lib/pushNotifications.ts`** upserts `device_tokens` rows with
+  `platform = 'web'` (added to that column's check constraint by
+  `supabase/web_push.sql` — run once against the live database; `schema.sql`
+  is already updated for fresh installs). `getPushState()` deliberately
+  cross-checks against the `device_tokens` row rather than trusting
+  `Notification.permission` alone — permission can't be revoked
+  programmatically once granted, so after unregistering, the browser would
+  still report `'granted'` with no token actually registered.
+- Event/expense push copy is still UTC-only (`send-push/index.ts`'s existing
+  limitation, unchanged by this feature — see that file's own header
+  comment).
 
 ### UI
 

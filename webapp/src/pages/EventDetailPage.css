@@ -1,0 +1,142 @@
+.edit-event-btn {
+  display: inline-block;
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+
+.event-subcaption {
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  margin: 0 0 8px;
+}
+
+.event-description {
+  margin: 0 0 16px;
+}
+
+.rsvp-pill {
+  display: flex;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.rsvp-pill button {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.rsvp-pill button.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.transport-section {
+  margin-bottom: 20px;
+}
+
+.transport-summary {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.transport-summary.shortfall {
+  color: var(--warning);
+}
+
+.transport-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.transport-controls .btn {
+  width: auto;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+}
+
+.transport-controls .btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.seat-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+}
+
+.seat-stepper button {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.attendee-group {
+  margin-bottom: 14px;
+}
+
+.attendee-group-header {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin: 0 0 8px;
+}
+
+.attendee-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.attendee-name {
+  font-weight: 600;
+}
+
+.attendee-you {
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+.attendee-car {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+.event-expenses-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.event-expenses-header .section-title {
+  margin: 0;
+}
+
+.add-event-expense-btn {
+  width: auto;
+  text-decoration: none;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}

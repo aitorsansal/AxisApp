@@ -119,7 +119,7 @@ export function AddEventPage() {
       setBusy(false)
     }
 
-    navigate(`/groups/${groupId}`)
+    navigate(eventId ? `/groups/${groupId}/events/${eventId}` : `/groups/${groupId}`)
   }
 
   async function handleDelete() {

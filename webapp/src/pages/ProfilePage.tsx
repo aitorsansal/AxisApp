@@ -5,7 +5,9 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useLocale, type Language } from '../context/LocaleContext'
 import { resizeImageToWebp } from '../lib/imageResize'
-import type { MyMember } from '../lib/types'
+import { useInstallPrompt } from '../lib/useInstallPrompt'
+import { getPushState, registerForPush, unregisterFromPush, type PushState } from '../lib/pushNotifications'
+import type { CalendarSubscription, MyMember } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
 import { DateField } from '../components/DateField'
 import './ProfilePage.css'
@@ -16,8 +18,11 @@ export function ProfilePage() {
   const { session } = useAuth()
   const { t, override, setOverride } = useLocale()
   const navigate = useNavigate()
+  const { installed, canPrompt, promptInstall, showIosInstructions } = useInstallPrompt()
 
   const [member, setMember] = useState<MyMember | null>(null)
+  const [calendarSubscription, setCalendarSubscription] = useState<CalendarSubscription | null>(null)
+  const [copyNotice, setCopyNotice] = useState(false)
   const [displayName, setDisplayName] = useState('')
   const [birthDate, setBirthDate] = useState('')
   const [carExtraSeats, setCarExtraSeats] = useState('')
@@ -35,8 +40,12 @@ export function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
+  const [pushState, setPushState] = useState<PushState>('unsupported')
+  const [savingPush, setSavingPush] = useState(false)
+
   useEffect(() => {
     load()
+    if (session) getPushState(session.user.id).then(setPushState)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -67,6 +76,71 @@ export function ProfilePage() {
     setBirthDate(row.birth_date ?? '')
     setCarExtraSeats(row.car_extra_seats?.toString() ?? '')
     setAvatarUrl(row.avatar_path ? publicAvatarUrl(row.avatar_path) : null)
+
+    const { data: existingSub } = await supabase
+      .from('calendar_subscriptions')
+      .select('id, member_id, token, created_at, last_accessed_at')
+      .eq('member_id', row.id)
+      .maybeSingle()
+    if (existingSub) {
+      setCalendarSubscription(existingSub as CalendarSubscription)
+    } else {
+      const { data: createdSub, error: subError } = await supabase
+        .from('calendar_subscriptions')
+        .insert({ member_id: row.id, token: generateFeedToken() })
+        .select('id, member_id, token, created_at, last_accessed_at')
+        .single()
+      if (!subError) setCalendarSubscription(createdSub as CalendarSubscription)
+    }
+  }
+
+  // Same random-token shape as SupabaseCalendarSubscriptionsRepository.GenerateToken — set
+  // explicitly on insert rather than left to the DB's own `default encode(gen_random_bytes(24),
+  // 'base64url')`, since Postgrest sends every plain column on insert regardless and would
+  // otherwise silently override it (see that repository's own remarks on the exact bug this
+  // avoids for invites.token).
+  function generateFeedToken(): string {
+    const bytes = crypto.getRandomValues(new Uint8Array(24))
+    let binary = ''
+    bytes.forEach((b) => (binary += String.fromCharCode(b)))
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  }
+
+  function calendarFeedUrl(token: string): string {
+    return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calendar-feed/${encodeURIComponent(token)}.ics`
+  }
+
+  async function handleCopyCalendarLink() {
+    if (!calendarSubscription) return
+    await navigator.clipboard.writeText(calendarFeedUrl(calendarSubscription.token))
+    setCopyNotice(true)
+    setTimeout(() => setCopyNotice(false), 2000)
+  }
+
+  async function handleShareCalendarLink() {
+    if (!calendarSubscription) return
+    const url = calendarFeedUrl(calendarSubscription.token)
+    if (navigator.share) {
+      try {
+        await navigator.share({ url })
+      } catch {
+        // Share sheet dismissed — no error to surface.
+      }
+    } else {
+      await handleCopyCalendarLink()
+    }
+  }
+
+  async function handleRegenerateCalendarLink() {
+    if (!calendarSubscription) return
+    if (!window.confirm(t('Profile_RegenerateCalendarLinkConfirm'))) return
+    const nextToken = generateFeedToken()
+    const { error } = await supabase
+      .from('calendar_subscriptions')
+      .update({ token: nextToken })
+      .eq('id', calendarSubscription.id)
+    if (error) return setError(error.message)
+    setCalendarSubscription({ ...calendarSubscription, token: nextToken })
   }
 
   async function handleSaveProfile(e: FormEvent) {
@@ -159,6 +233,37 @@ export function ProfilePage() {
     if (error) return setError(error.message)
     setNewPassword('')
     setNotice(t('Profile_PasswordUpdated'))
+  }
+
+  async function handleEnablePush() {
+    if (!session) return
+    setError(null)
+    setNotice(null)
+    setSavingPush(true)
+    try {
+      const result = await registerForPush(session.user.id)
+      setPushState(result)
+      if (result === 'denied') setError(t('Profile_PushDenied'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('Common_Error'))
+    } finally {
+      setSavingPush(false)
+    }
+  }
+
+  async function handleDisablePush() {
+    if (!session) return
+    setError(null)
+    setNotice(null)
+    setSavingPush(true)
+    try {
+      await unregisterFromPush()
+      setPushState(await getPushState(session.user.id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('Common_Error'))
+    } finally {
+      setSavingPush(false)
+    }
   }
 
   async function handleDeleteAccount() {
@@ -278,6 +383,70 @@ export function ProfilePage() {
             ),
           )}
         </div>
+      </section>
+
+      {!installed && (canPrompt || showIosInstructions) && (
+        <section className="card profile-section">
+          <h2 className="section-title">{t('Profile_InstallAppSection')}</h2>
+          <p className="field-hint">
+            {showIosInstructions ? t('Profile_InstallAppIosHint') : t('Profile_InstallAppHint')}
+          </p>
+          {canPrompt && (
+            <button type="button" className="btn btn-outline" onClick={promptInstall}>
+              {t('Profile_InstallAppButton')}
+            </button>
+          )}
+        </section>
+      )}
+
+      {pushState !== 'unsupported' && (
+        <section className="card profile-section">
+          <h2 className="section-title">{t('Profile_NotificationsSection')}</h2>
+          <p className="field-hint">
+            {pushState === 'denied' ? t('Profile_PushDenied') : t('Profile_NotificationsHint')}
+          </p>
+          {pushState === 'subscribed' ? (
+            <button type="button" className="btn btn-outline" onClick={handleDisablePush} disabled={savingPush}>
+              {savingPush ? t('Common_Saving') : t('Profile_DisableNotifications')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={handleEnablePush}
+              disabled={savingPush || pushState === 'denied'}
+            >
+              {savingPush ? t('Common_Saving') : t('Profile_EnableNotifications')}
+            </button>
+          )}
+        </section>
+      )}
+
+      <section className="card profile-section">
+        <h2 className="section-title">{t('Profile_CalendarFeedSection')}</h2>
+        <p className="field-hint">{t('Profile_CalendarFeedDescription')}</p>
+        {calendarSubscription && (
+          <div className="field">
+            <input readOnly value={calendarFeedUrl(calendarSubscription.token)} onFocus={(e) => e.target.select()} />
+          </div>
+        )}
+        {copyNotice && <p className="notice-text">{t('Profile_CalendarLinkCopied')}</p>}
+        <div className="calendar-feed-actions">
+          <button type="button" className="btn btn-outline" onClick={handleCopyCalendarLink} disabled={!calendarSubscription}>
+            {t('Profile_CopyCalendarLink')}
+          </button>
+          <button type="button" className="btn btn-outline" onClick={handleShareCalendarLink} disabled={!calendarSubscription}>
+            {t('Profile_ShareCalendarLink')}
+          </button>
+        </div>
+        <button
+          type="button"
+          className="btn btn-danger"
+          onClick={handleRegenerateCalendarLink}
+          disabled={!calendarSubscription}
+        >
+          {t('Profile_RegenerateCalendarLink')}
+        </button>
       </section>
 
       <form onSubmit={handleChangeEmail} className="card profile-section">

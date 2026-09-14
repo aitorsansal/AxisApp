@@ -1908,3 +1908,74 @@ the banner end-to-end on both Android (emulator) and Windows, then reverted
 back to `0.6` (matching the real current release) once confirmed working on
 both platforms — if this value is ever found bumped ahead of the actual
 shipped build again, that's leftover test state, not intentional.
+
+## PWA install + web push notifications (2026-09-14)
+
+Two-phase feature for `webapp/`, built in one session but landing as two
+concerns: making the SPA installable as a standalone app, and adding push
+notifications through the same Firebase project the Android app already
+uses. See CLAUDE.md's "Web app: PWA install + push notifications" for the
+current-state summary — this entry is the "why" behind it.
+
+- **Phase A — installability.** `webapp/` had zero PWA scaffolding
+  beforehand: no manifest, no service worker. Added `public/manifest.json`
+  (standalone display, black theme to match the app's dark-only UI) and a
+  minimal `public/sw.js` (install/activate only, no caching strategy — not
+  needed yet). Icons were rasterized directly from the existing MAUI
+  `AppIcon` SVGs (`appicon.svg` background + `appiconfg.svg` foreground,
+  composited into one file) via `resvg-cli` run through `npx` — no
+  ImageMagick/Inkscape available on this machine, and `resvg-cli` needed no
+  install step, just a CLI flag correction (`--fit-width`, not `-w`, was the
+  first attempt that failed). Deliberately reused the placeholder mark
+  as-is rather than blocking on real branding — same "swap later" caveat
+  CLAUDE.md already carries for the MAUI app icon.
+  - `useInstallPrompt.ts` wraps `beforeinstallprompt` (Chrome/Edge/Android)
+    for an in-app Install button. iOS Safari fires no such event — there is
+    no programmatic install API there at all — so the hook also exposes
+    `showIosInstructions` for a manual "Share → Add to Home Screen" message
+    instead. Wired into `ProfilePage` as a new card section, following its
+    existing pattern (localized strings, `t()`, `card profile-section`).
+- **Phase B — web push.** Chose to extend `send-push/index.ts`'s existing
+  FCM HTTP v1 call rather than build a separate Web Push/VAPID-only path,
+  since a Firebase Web App's registration tokens are still plain FCM tokens
+  — the same `fcm.googleapis.com/v1/projects/.../messages:send` request
+  works unmodified for both. That decision is what keeps this a one-line
+  filter change in the Edge Function (`androidRecipients` →
+  `pushableRecipients`, including `platform === "web"`) instead of a
+  parallel notification system.
+  - `device_tokens.platform`'s check constraint widened from
+    `('android', 'windows')` to add `'web'` — `schema.sql` updated in place
+    for fresh installs, plus a standalone `web_push.sql` migration (this
+    project's established pattern — see `supabase/README.md`) for the live
+    database. **Not yet run against the live project** — do that before
+    expecting web push to actually work.
+  - `public/sw.js` became the one service worker handling both Phase A
+    (installability) and Phase B (`onBackgroundMessage`/`notificationclick`)
+    — a second, competing service worker was deliberately avoided. Since
+    Vite doesn't process `public/`, the Firebase Web config inside it can't
+    come from `import.meta.env` — it's hardcoded (not a secret, same
+    reasoning as `google-services.json`'s api key) with `REPLACE_ME`
+    placeholders, filled in once a Web App is registered in the
+    `axisapp-ee018` Firebase project. **Not yet done** — no Web App has
+    been registered there yet, so this whole feature is inert until that
+    config is filled in on both the `.env.local`/`VITE_FIREBASE_*` side and
+    inside `sw.js` itself.
+  - `pushNotifications.ts`'s `getPushState()` cross-checks the current FCM
+    token against a live `device_tokens` row rather than trusting
+    `Notification.permission` alone — permission can't be revoked
+    programmatically once granted, so after calling `unregisterFromPush()`
+    the browser would still report `'granted'` with no token actually
+    registered, which would make a naive permission-only check show
+    "enabled" right after the user disabled it.
+  - Installed `firebase` (JS SDK) via both `npm install` and `pnpm install`
+    to keep the two lockfiles in sync — `webapp/` already carries a known,
+    unresolved dual-lockfile gap (`package-lock.json` + `pnpm-lock.yaml`,
+    see the "Web app" entry above), so this only avoided making that
+    specific gap worse, not fixing it.
+- **Build-verified, not live-verified.** `npm run build` and `npm run lint`
+  both pass clean (no new lint warnings — the new `getPushState()` effect
+  call in `ProfilePage` follows the same `useEffect` + `setState` pattern
+  already used throughout the codebase, e.g. `GroupsPage`/`MembersPage`).
+  Nothing here has been exercised against a real Firebase Web App or a real
+  push send yet — that requires the manual Firebase Console + migration
+  steps above first.

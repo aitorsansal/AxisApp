@@ -24,6 +24,16 @@
   margin: 0 0 12px;
 }
 
+.calendar-feed-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.calendar-feed-actions .btn {
+  flex: 1;
+}
+
 .avatar-section {
   display: flex;
   align-items: center;

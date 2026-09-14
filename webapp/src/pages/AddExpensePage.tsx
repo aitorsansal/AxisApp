@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
@@ -15,6 +15,7 @@ const RECEIPTS_BUCKET = 'receipts'
 export function AddExpensePage() {
   const { groupId, expenseId, recurringId } = useParams<{ groupId: string; expenseId?: string; recurringId?: string }>()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const isRecurringRoute = location.pathname.includes('/recurring/')
   const { session } = useAuth()
   const { displayName } = useAliases()
@@ -43,6 +44,13 @@ export function AddExpensePage() {
   const [receiptPath, setReceiptPath] = useState<string | null>(null)
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
   const [receiptBusy, setReceiptBusy] = useState(false)
+
+  // Set from the ?eventId= query param on a brand-new expense (EventDetailPage's "+ Add
+  // expense" link — see EventDetailViewModel.AddExpense's matching GoToAsync), or from the
+  // expense's own row when editing one that's already linked. Carried through unchanged on
+  // update, same "never re-derive a field the row already carries" rule as createdBy/createdAt.
+  const [linkedEventId, setLinkedEventId] = useState<string | null>(searchParams.get('eventId'))
+  const [linkedEventTitle, setLinkedEventTitle] = useState<string | null>(null)
 
   // Carried through unchanged on update — never re-derived — so editing a
   // template/expense's amount/split/category can't reset its schedule or
@@ -86,6 +94,7 @@ export function AddExpensePage() {
         setPaidBy(expense.paid_by_member_id)
         setIsSettlement(expense.is_settlement)
         setReceiptPath(expense.receipt_path)
+        setLinkedEventId(expense.event_id)
         setEditingMeta({
           createdBy: expense.created_by,
           createdAt: expense.created_at,
@@ -125,11 +134,25 @@ export function AddExpensePage() {
         const shareIds = new Set<string>((sharesRes.data ?? []).map((s: { member_id: string }) => s.member_id))
         setParticipants(shareIds)
       } else {
-        setParticipants(new Set(memberRows.map((m) => m.member_id)))
         setCurrency(groupData.currency)
         const myRow = memberRows.find((m) => m.members.account_id === session?.user.id)
         if (myRow) setPaidBy(myRow.member_id)
         else if (memberRows[0]) setPaidBy(memberRows[0].member_id)
+
+        // Pre-filter participants to whoever's currently "going" to the linked event, same as
+        // AddExpenseViewModel.LoadAsync's forEventId handling — falls back to everyone if the
+        // event has no "going" RSVPs yet (or isn't linked at all).
+        if (linkedEventId) {
+          const [{ data: eventRow }, { data: goingRows }] = await Promise.all([
+            supabase.from('events').select('title').eq('id', linkedEventId).single(),
+            supabase.from('event_attendees').select('member_id').eq('event_id', linkedEventId).eq('response', 'going'),
+          ])
+          setLinkedEventTitle(eventRow?.title ?? null)
+          const goingIds = new Set((goingRows ?? []).map((r: { member_id: string }) => r.member_id))
+          setParticipants(goingIds.size > 0 ? goingIds : new Set(memberRows.map((m) => m.member_id)))
+        } else {
+          setParticipants(new Set(memberRows.map((m) => m.member_id)))
+        }
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -252,6 +275,7 @@ export function AddExpensePage() {
       occurred_at: new Date(occurredOn).toISOString(),
       receipt_path: receiptPath,
       is_settlement: isSettlement,
+      event_id: linkedEventId,
       ...(expenseId ? { created_by: editingMeta.createdBy, created_at: editingMeta.createdAt } : {}),
     }
 
@@ -271,7 +295,7 @@ export function AddExpensePage() {
     setBusy(false)
     if (sharesError) return setError(sharesError.message)
 
-    navigate(`/groups/${groupId}`)
+    navigate(linkedEventId ? `/groups/${groupId}/events/${linkedEventId}` : `/groups/${groupId}`)
   }
 
   async function handleDelete() {
@@ -309,6 +333,8 @@ export function AddExpensePage() {
       <AppHeader title={title} back />
 
       <form onSubmit={handleSubmit}>
+        {linkedEventId && linkedEventTitle && <p className="field-hint linked-event-hint">{t('AddExpense_LinkedToEvent', linkedEventTitle)}</p>}
+
         <div className="field">
           <label htmlFor="description">{t('AddExpense_DescriptionLabel')}</label>
           <input

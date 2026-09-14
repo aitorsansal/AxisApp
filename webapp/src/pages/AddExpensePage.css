@@ -73,3 +73,9 @@
 .delete-btn {
   margin-top: 12px;
 }
+
+.linked-event-hint {
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  margin: 0 0 16px;
+}

@@ -13,6 +13,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { MembersPage } from './pages/MembersPage'
 import { RecurringExpensesPage } from './pages/RecurringExpensesPage'
 import { AddEventPage } from './pages/AddEventPage'
+import { EventDetailPage } from './pages/EventDetailPage'
 
 export default function App() {
   return (
@@ -35,7 +36,8 @@ export default function App() {
                 <Route path="/groups/:groupId/recurring/new" element={<AddExpensePage />} />
                 <Route path="/groups/:groupId/recurring/:recurringId" element={<AddExpensePage />} />
                 <Route path="/groups/:groupId/events/new" element={<AddEventPage />} />
-                <Route path="/groups/:groupId/events/:eventId" element={<AddEventPage />} />
+                <Route path="/groups/:groupId/events/:eventId" element={<EventDetailPage />} />
+                <Route path="/groups/:groupId/events/:eventId/edit" element={<AddEventPage />} />
               </Route>
             </Routes>
           </AliasesProvider>

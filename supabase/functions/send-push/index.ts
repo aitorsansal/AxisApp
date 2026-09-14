@@ -25,9 +25,11 @@
 // from the database Vault (Vault secrets are for SQL-side callers like the triggers' own
 // Authorization header; this one is only ever read here, in the function's own runtime).
 //
-// Android-only, per CLAUDE.md's push-notifications remarks — a recipient row with
+// Android + web, per CLAUDE.md's push-notifications remarks — a recipient row with
 // platform = 'windows' is silently skipped (IPushRegistrationService's Windows implementation is a
-// deliberate no-op, so none should exist yet, but the filter is here regardless).
+// deliberate no-op, so none should exist yet, but the filter is here regardless). Web push tokens
+// are FCM registration tokens too (Firebase JS SDK, same Firebase project as Android), so they go
+// through the identical messages:send call — no separate Web Push/VAPID-only code path needed.
 //
 // Event push copy shows times in UTC, not converted to each recipient's own timezone — a known
 // simplification (an Edge Function has no reliable way to know a given device's timezone), not
@@ -237,9 +239,9 @@ Deno.serve(async (req) => {
     }
   }
 
-  const androidRecipients = recipients.filter((r) => r.platform === "android");
-  if (androidRecipients.length === 0) {
-    return new Response(JSON.stringify({ sent: 0, reason: "no android recipients" }), {
+  const pushableRecipients = recipients.filter((r) => r.platform === "android" || r.platform === "web");
+  if (pushableRecipients.length === 0) {
+    return new Response(JSON.stringify({ sent: 0, reason: "no pushable recipients" }), {
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -262,7 +264,7 @@ Deno.serve(async (req) => {
 
   let sent = 0;
   const failures: string[] = [];
-  for (const recipient of androidRecipients) {
+  for (const recipient of pushableRecipients) {
     const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
       method: "POST",
       headers: {

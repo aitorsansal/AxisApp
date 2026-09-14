@@ -826,13 +826,16 @@ from (
 ) all_deltas
 group by group_id, member_id;
 
--- device_tokens: per-account push tokens (e.g. OneSignal player IDs), for
--- the notification feature. A token can only be registered once.
+-- device_tokens: per-account push tokens (FCM registration tokens — Android via
+-- Xamarin.Firebase.Messaging, web via the Firebase JS SDK), for the notification
+-- feature. A token can only be registered once. 'windows' is a placeholder for a
+-- platform whose IPushRegistrationService implementation is a deliberate no-op —
+-- see CLAUDE.md's push-notifications remarks.
 create table public.device_tokens (
   id uuid primary key default gen_random_uuid(),
   account_id uuid not null references auth.users(id) on delete cascade,
   push_token text not null unique,
-  platform text not null check (platform in ('android', 'windows')),
+  platform text not null check (platform in ('android', 'windows', 'web')),
   created_at timestamptz not null default now()
 );
 

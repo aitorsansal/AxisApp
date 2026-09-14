@@ -4,12 +4,15 @@ import { supabase } from '../lib/supabaseClient'
 import { CURRENCIES } from '../lib/types'
 import { useLocale } from '../context/LocaleContext'
 import { AppHeader } from '../components/AppHeader'
+import { GroupAppearancePicker } from '../components/GroupAppearancePicker'
 
 export function NewGroupPage() {
   const navigate = useNavigate()
   const { t } = useLocale()
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('EUR')
+  const [color, setColor] = useState('Blue')
+  const [icon, setIcon] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -21,11 +24,15 @@ export function NewGroupPage() {
       p_name: name,
       p_currency: currency,
     })
-    setBusy(false)
     if (error) {
+      setBusy(false)
       setError(error.message)
       return
     }
+    // create_group() only takes name/currency — color/icon are set with a follow-up update,
+    // same two-step flow the "Edit color & icon" overlay on an existing group uses.
+    await supabase.from('groups').update({ color, icon }).eq('id', data)
+    setBusy(false)
     navigate(`/groups/${data}`)
   }
 
@@ -47,6 +54,11 @@ export function NewGroupPage() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="field">
+          <label>{t('NewGroup_Appearance')}</label>
+          <GroupAppearancePicker color={color} icon={icon} onColorChange={setColor} onIconChange={setIcon} />
         </div>
 
         {error && <p className="error-text">{error}</p>}

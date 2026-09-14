@@ -61,11 +61,13 @@ const en: Dictionary = {
   Groups_EmptyState: 'No groups yet — create one or join with an invite code.',
   Groups_YoureOwedAmount: "you're owed {0} {1}",
   Groups_YouOweAmount: 'you owe {0} {1}',
+  Groups_ReorderHandle: 'Drag to reorder',
 
   // New group
   NewGroup_Title: 'New group',
   NewGroup_GroupName: 'Group name',
   NewGroup_Currency: 'Currency',
+  NewGroup_Appearance: 'Appearance',
   NewGroup_CreateButton: 'Create group',
 
   // Join group
@@ -106,6 +108,11 @@ const en: Dictionary = {
   GroupDetail_TransferOwnershipTitle: 'Transfer ownership to',
   GroupDetail_RenamePrompt: 'New group name',
   GroupDetail_NoTransferCandidates: 'No other member with an Axis account to transfer to yet.',
+  GroupDetail_EditAppearance: 'Edit color & icon',
+  GroupDetail_SearchExpenses: 'Search expenses…',
+  GroupDetail_NoSearchResults: 'No expenses match your search.',
+  GroupDetail_LoadMore: 'Load more',
+  GroupDetail_LinkedToEvent: 'Linked to an event',
 
   // Add expense
   AddExpense_Title: 'Add expense',
@@ -134,6 +141,7 @@ const en: Dictionary = {
   AddExpense_InvalidAmount: 'Enter a valid amount',
   AddExpense_PickParticipant: 'Pick at least one participant',
   AddExpense_PickPayer: 'Pick who paid',
+  AddExpense_LinkedToEvent: 'Linked to “{0}”',
 
   Recurring_Frequency_daily: 'Daily',
   Recurring_Frequency_weekly: 'Weekly',
@@ -202,6 +210,16 @@ const en: Dictionary = {
   AddEvent_DeleteConfirm: "This can't be undone.",
   AddEvent_TitleRequired: 'Enter a title',
 
+  // Event detail
+  EventDetail_GenericTitle: 'Event',
+  EventDetail_EditEvent: 'Edit event',
+  EventDetail_Attendees: 'Attendees',
+  EventDetail_NoAttendees: 'No one has RSVP’d yet.',
+  EventDetail_Expenses: 'Expenses',
+  EventDetail_AddExpense: '+ Add expense',
+  EventDetail_NoExpenses: 'No expenses linked to this event yet.',
+  EventDetail_HasCarSeats: 'Has a car ({0} free seats)',
+
   // Profile
   Profile_Title: 'Profile',
   Profile_DisplayName: 'Display name',
@@ -212,6 +230,23 @@ const en: Dictionary = {
   Profile_CarSeatsHint: 'Extra seats beyond yourself — how many other people your car can fit. Used for event carpooling.',
   Profile_ChangePhoto: 'Change photo',
   Profile_RemovePhoto: 'Remove photo',
+  Profile_InstallAppSection: 'Install app',
+  Profile_InstallAppHint: 'Install Axis on this device for a faster, full-screen experience — and to receive push notifications.',
+  Profile_InstallAppIosHint: 'Tap the Share button, then "Add to Home Screen" — installing is required on iOS to receive push notifications.',
+  Profile_InstallAppButton: 'Install',
+  Profile_NotificationsSection: 'Notifications',
+  Profile_NotificationsHint: 'Get notified about new expenses, settlements, and events in your groups.',
+  Profile_PushDenied: 'Notifications are blocked for this site — re-enable them in your browser settings.',
+  Profile_EnableNotifications: 'Enable notifications',
+  Profile_DisableNotifications: 'Disable notifications',
+  Profile_CalendarFeedSection: 'Calendar feed',
+  Profile_CalendarFeedDescription:
+    'Share this link with anyone who wants to see your events in Google/Apple/Outlook calendar without an Axis account. Birthdays are excluded.',
+  Profile_CopyCalendarLink: 'Copy link',
+  Profile_ShareCalendarLink: 'Share',
+  Profile_RegenerateCalendarLink: 'Regenerate link',
+  Profile_RegenerateCalendarLinkConfirm: 'The old link will stop working immediately. This can’t be undone.',
+  Profile_CalendarLinkCopied: 'Link copied.',
   Profile_Language: 'Language',
   Profile_LanguageSystem: 'System',
   Profile_LanguageEnglish: 'English',
@@ -282,11 +317,13 @@ const es: Dictionary = {
   Groups_EmptyState: 'Aún no tienes grupos — crea uno o únete con un código de invitación.',
   Groups_YoureOwedAmount: 'te deben {0} {1}',
   Groups_YouOweAmount: 'debes {0} {1}',
+  Groups_ReorderHandle: 'Arrastra para reordenar',
 
   // New group
   NewGroup_Title: 'Nuevo grupo',
   NewGroup_GroupName: 'Nombre del grupo',
   NewGroup_Currency: 'Moneda',
+  NewGroup_Appearance: 'Apariencia',
   NewGroup_CreateButton: 'Crear grupo',
 
   // Join group
@@ -327,6 +364,11 @@ const es: Dictionary = {
   GroupDetail_TransferOwnershipTitle: 'Transferir propiedad a',
   GroupDetail_RenamePrompt: 'Nuevo nombre del grupo',
   GroupDetail_NoTransferCandidates: 'Todavía no hay otro miembro con cuenta de Axis al que transferir.',
+  GroupDetail_EditAppearance: 'Editar color e icono',
+  GroupDetail_SearchExpenses: 'Buscar gastos…',
+  GroupDetail_NoSearchResults: 'Ningún gasto coincide con tu búsqueda.',
+  GroupDetail_LoadMore: 'Cargar más',
+  GroupDetail_LinkedToEvent: 'Vinculado a un evento',
 
   // Add expense
   AddExpense_Title: 'Añadir gasto',
@@ -355,6 +397,7 @@ const es: Dictionary = {
   AddExpense_InvalidAmount: 'Introduce un importe válido',
   AddExpense_PickParticipant: 'Elige al menos un participante',
   AddExpense_PickPayer: 'Elige quién pagó',
+  AddExpense_LinkedToEvent: 'Vinculado a «{0}»',
 
   Recurring_Frequency_daily: 'Diaria',
   Recurring_Frequency_weekly: 'Semanal',
@@ -423,6 +466,16 @@ const es: Dictionary = {
   AddEvent_DeleteConfirm: 'Esto no se puede deshacer.',
   AddEvent_TitleRequired: 'Introduce un título',
 
+  // Event detail
+  EventDetail_GenericTitle: 'Evento',
+  EventDetail_EditEvent: 'Editar evento',
+  EventDetail_Attendees: 'Asistentes',
+  EventDetail_NoAttendees: 'Todavía nadie ha confirmado asistencia.',
+  EventDetail_Expenses: 'Gastos',
+  EventDetail_AddExpense: '+ Añadir gasto',
+  EventDetail_NoExpenses: 'Todavía no hay gastos vinculados a este evento.',
+  EventDetail_HasCarSeats: 'Tiene coche ({0} plazas libres)',
+
   // Profile
   Profile_Title: 'Perfil',
   Profile_DisplayName: 'Nombre visible',
@@ -433,6 +486,23 @@ const es: Dictionary = {
   Profile_CarSeatsHint: 'Plazas extra además de ti — cuántas personas más caben en tu coche. Se usa para compartir coche en eventos.',
   Profile_ChangePhoto: 'Cambiar foto',
   Profile_RemovePhoto: 'Eliminar foto',
+  Profile_InstallAppSection: 'Instalar aplicación',
+  Profile_InstallAppHint: 'Instala Axis en este dispositivo para una experiencia más rápida a pantalla completa — y para recibir notificaciones push.',
+  Profile_InstallAppIosHint: 'Toca el botón Compartir y luego "Añadir a pantalla de inicio" — instalarla es necesario en iOS para recibir notificaciones push.',
+  Profile_InstallAppButton: 'Instalar',
+  Profile_NotificationsSection: 'Notificaciones',
+  Profile_NotificationsHint: 'Recibe avisos de nuevos gastos, pagos y eventos en tus grupos.',
+  Profile_PushDenied: 'Las notificaciones están bloqueadas para este sitio — actívalas en los ajustes de tu navegador.',
+  Profile_EnableNotifications: 'Activar notificaciones',
+  Profile_DisableNotifications: 'Desactivar notificaciones',
+  Profile_CalendarFeedSection: 'Suscripción de calendario',
+  Profile_CalendarFeedDescription:
+    'Comparte este enlace con quien quiera ver tus eventos en Google/Apple/Outlook Calendar sin tener cuenta de Axis. Los cumpleaños quedan excluidos.',
+  Profile_CopyCalendarLink: 'Copiar enlace',
+  Profile_ShareCalendarLink: 'Compartir',
+  Profile_RegenerateCalendarLink: 'Regenerar enlace',
+  Profile_RegenerateCalendarLinkConfirm: 'El enlace anterior dejará de funcionar de inmediato. Esto no se puede deshacer.',
+  Profile_CalendarLinkCopied: 'Enlace copiado.',
   Profile_Language: 'Idioma',
   Profile_LanguageSystem: 'Sistema',
   Profile_LanguageEnglish: 'English',

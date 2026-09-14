@@ -27,10 +27,28 @@
 .group-card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   text-decoration: none;
   color: inherit;
+  cursor: pointer;
+}
+
+.group-card.dragging {
+  opacity: 0.7;
+}
+
+.group-drag-handle {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 1.1rem;
+  padding: 4px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.group-card-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .group-name {

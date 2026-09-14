@@ -7,7 +7,11 @@ import { useLocale } from '../context/LocaleContext'
 import type { ExpenseWithPayer, Group, MemberRow, PairwiseBalance } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
 import { GroupEventsTab } from '../components/GroupEventsTab'
+import { GroupAppearancePicker } from '../components/GroupAppearancePicker'
 import './GroupDetailPage.css'
+
+const ACTIVITY_PAGE_SIZE = 30
+const SEARCH_RESULT_LIMIT = 50
 
 export function GroupDetailPage() {
   const { groupId } = useParams<{ groupId: string }>()
@@ -20,11 +24,17 @@ export function GroupDetailPage() {
   const [members, setMembers] = useState<MemberRow[]>([])
   const [balances, setBalances] = useState<PairwiseBalance[]>([])
   const [activity, setActivity] = useState<ExpenseWithPayer[]>([])
+  const [hasMoreActivity, setHasMoreActivity] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [settlingId, setSettlingId] = useState<string | null>(null)
 
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<ExpenseWithPayer[] | null>(null)
+
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isTransferOpen, setIsTransferOpen] = useState(false)
+  const [isAppearanceOpen, setIsAppearanceOpen] = useState(false)
   const [isEventsTab, setIsEventsTab] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -37,21 +47,24 @@ export function GroupDetailPage() {
   const isCreator = group?.created_by === session?.user.id
   const transferCandidates = members.filter((m) => m.members.account_id && m.member_id !== myMemberId)
 
+  const activitySelect =
+    'id, group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id'
+
   const load = useCallback(async () => {
     if (!groupId) return
     setError(null)
 
     const [groupRes, membersRes, balancesRes, activityRes] = await Promise.all([
-      supabase.from('groups').select('id, name, currency, created_by').eq('id', groupId).single(),
+      supabase.from('groups').select('id, name, currency, created_by, color, icon').eq('id', groupId).single(),
       supabase.from('group_members').select('member_id, members(id, display_name, account_id, avatar_path)').eq('group_id', groupId),
       supabase.from('my_pairwise_balances').select('group_id, other_member_id, balance').eq('group_id', groupId),
       supabase
         .from('expenses')
-        .select('id, group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_at, is_settlement, receipt_path')
+        .select(activitySelect)
         .eq('group_id', groupId)
         .order('occurred_at', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(30),
+        .range(0, ACTIVITY_PAGE_SIZE - 1),
     ])
 
     if (groupRes.error) return setError(groupRes.error.message)
@@ -62,12 +75,57 @@ export function GroupDetailPage() {
     setGroup(groupRes.data as Group)
     setMembers((membersRes.data as unknown as MemberRow[]) ?? [])
     setBalances((balancesRes.data as PairwiseBalance[]) ?? [])
-    setActivity((activityRes.data as unknown as ExpenseWithPayer[]) ?? [])
+    const page = (activityRes.data as unknown as ExpenseWithPayer[]) ?? []
+    setActivity(page)
+    setHasMoreActivity(page.length === ACTIVITY_PAGE_SIZE)
   }, [groupId])
 
   useEffect(() => {
     load()
   }, [load])
+
+  async function loadMoreActivity() {
+    if (!groupId || isLoadingMore) return
+    setIsLoadingMore(true)
+    const { data, error } = await supabase
+      .from('expenses')
+      .select(activitySelect)
+      .eq('group_id', groupId)
+      .order('occurred_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(activity.length, activity.length + ACTIVITY_PAGE_SIZE - 1)
+    setIsLoadingMore(false)
+    if (error) return setError(error.message)
+    const page = (data as unknown as ExpenseWithPayer[]) ?? []
+    setActivity((prev) => [...prev, ...page])
+    setHasMoreActivity(page.length === ACTIVITY_PAGE_SIZE)
+  }
+
+  // Server-side search on description only — same scope as GroupExpensesViewModel's
+  // SearchForGroupAsync — debounced with a short timeout rather than a library, since this is
+  // the only debounced input in the whole app.
+  useEffect(() => {
+    if (!groupId) return
+    const query = searchQuery.trim()
+    if (!query) {
+      setSearchResults(null)
+      return
+    }
+    const timeout = setTimeout(async () => {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select(activitySelect)
+        .eq('group_id', groupId)
+        .ilike('description', `%${query}%`)
+        .order('occurred_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(SEARCH_RESULT_LIMIT)
+      if (error) return setError(error.message)
+      setSearchResults((data as unknown as ExpenseWithPayer[]) ?? [])
+    }, 300)
+    return () => clearTimeout(timeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId, searchQuery])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -76,6 +134,25 @@ export function GroupDetailPage() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  const [appearanceColor, setAppearanceColor] = useState('Blue')
+  const [appearanceIcon, setAppearanceIcon] = useState<string | null>(null)
+
+  function openAppearance() {
+    if (!group) return
+    setIsMenuOpen(false)
+    setAppearanceColor(group.color)
+    setAppearanceIcon(group.icon)
+    setIsAppearanceOpen(true)
+  }
+
+  async function handleSaveAppearance() {
+    if (!group) return
+    const { error } = await supabase.from('groups').update({ color: appearanceColor, icon: appearanceIcon }).eq('id', group.id)
+    if (error) return setError(error.message)
+    setIsAppearanceOpen(false)
+    setGroup({ ...group, color: appearanceColor, icon: appearanceIcon })
+  }
 
   async function handleSettle(otherMemberId: string, balance: number) {
     if (!group || !myMemberId || !groupId) return
@@ -213,6 +290,7 @@ export function GroupDetailPage() {
                   {t('GroupDetail_ManageRecurring')}
                 </Link>
               )}
+              <button type="button" onClick={openAppearance}>{t('GroupDetail_EditAppearance')}</button>
               {isCreator && (
                 <>
                   <button type="button" onClick={handleRename}>{t('GroupDetail_RenameGroup')}</button>
@@ -252,6 +330,28 @@ export function GroupDetailPage() {
         </div>
       )}
 
+      {isAppearanceOpen && (
+        <div className="overlay-scrim" onClick={() => setIsAppearanceOpen(false)}>
+          <div className="overlay-card card" onClick={(e) => e.stopPropagation()}>
+            <h3>{t('GroupDetail_EditAppearance')}</h3>
+            <GroupAppearancePicker
+              color={appearanceColor}
+              icon={appearanceIcon}
+              onColorChange={setAppearanceColor}
+              onIconChange={setAppearanceIcon}
+            />
+            <div className="appearance-actions">
+              <button type="button" className="btn btn-outline" onClick={() => setIsAppearanceOpen(false)}>
+                {t('Common_Cancel')}
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleSaveAppearance}>
+                {t('Common_Save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isEventsTab ? (
         <GroupEventsTab groupId={groupId!} members={members} />
       ) : (
@@ -286,30 +386,56 @@ export function GroupDetailPage() {
 
           <section>
             <h2 className="section-title">{t('GroupDetail_RecentActivity')}</h2>
-            {activity.length === 0 && <p className="empty-state small">{t('GroupDetail_ActivityEmpty')}</p>}
-            <div className="activity-list">
-              {activity.map((exp) => (
-                <Link
-                  to={`/groups/${groupId}/expenses/${exp.id}`}
-                  className="card activity-row"
-                  key={exp.id}
-                >
-                  <div>
-                    <div className="activity-desc">
-                      {exp.is_settlement ? t('GroupDetail_SettleUp') : exp.description || t('GroupDetail_ExpenseFallback')}
-                      {exp.receipt_path && <span className="receipt-badge" title={t('AddExpense_ReceiptPhoto')}>📎</span>}
-                    </div>
-                    <div className="activity-meta">
-                      {memberName(exp.paid_by_member_id)} ·{' '}
-                      {new Date(exp.occurred_at).toLocaleDateString(dateLocale)}
-                    </div>
+            <input
+              type="search"
+              className="activity-search"
+              placeholder={t('GroupDetail_SearchExpenses')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {(() => {
+              const shownActivity = searchResults ?? activity
+              if (shownActivity.length === 0) {
+                return (
+                  <p className="empty-state small">
+                    {searchResults !== null ? t('GroupDetail_NoSearchResults') : t('GroupDetail_ActivityEmpty')}
+                  </p>
+                )
+              }
+              return (
+                <>
+                  <div className="activity-list">
+                    {shownActivity.map((exp) => (
+                      <Link
+                        to={`/groups/${groupId}/expenses/${exp.id}`}
+                        className="card activity-row"
+                        key={exp.id}
+                      >
+                        <div>
+                          <div className="activity-desc">
+                            {exp.is_settlement ? t('GroupDetail_SettleUp') : exp.description || t('GroupDetail_ExpenseFallback')}
+                            {exp.receipt_path && <span className="receipt-badge" title={t('AddExpense_ReceiptPhoto')}>📎</span>}
+                            {exp.event_id && <span className="receipt-badge" title={t('GroupDetail_LinkedToEvent')}>📅</span>}
+                          </div>
+                          <div className="activity-meta">
+                            {memberName(exp.paid_by_member_id)} ·{' '}
+                            {new Date(exp.occurred_at).toLocaleDateString(dateLocale)}
+                          </div>
+                        </div>
+                        <div className="activity-amount">
+                          {exp.amount.toFixed(2)} {exp.currency}
+                        </div>
+                      </Link>
+                    ))}
                   </div>
-                  <div className="activity-amount">
-                    {exp.amount.toFixed(2)} {exp.currency}
-                  </div>
-                </Link>
-              ))}
-            </div>
+                  {searchResults === null && hasMoreActivity && (
+                    <button type="button" className="btn btn-outline load-more-btn" onClick={loadMoreActivity} disabled={isLoadingMore}>
+                      {isLoadingMore ? t('Common_Loading') : t('GroupDetail_LoadMore')}
+                    </button>
+                  )}
+                </>
+              )
+            })()}
           </section>
         </>
       )}

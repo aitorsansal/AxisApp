@@ -1,0 +1,10 @@
+.group-icon-circle {
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}

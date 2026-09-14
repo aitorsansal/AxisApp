@@ -3,6 +3,8 @@ export interface Group {
   name: string
   currency: string
   created_by: string
+  color: string
+  icon: string | null
 }
 
 export interface MyGroupBalance {
@@ -40,6 +42,7 @@ export interface ExpenseWithPayer {
   created_at: string
   is_settlement: boolean
   receipt_path: string | null
+  event_id: string | null
 }
 
 export interface Invite {
@@ -115,6 +118,14 @@ export interface EventAttendee {
   response: RsvpResponse
   car_status: CarStatus
   car_offered_seats: number | null
+}
+
+export interface CalendarSubscription {
+  id: string
+  member_id: string
+  token: string
+  created_at: string
+  last_accessed_at: string | null
 }
 
 export const CURRENCIES = [
