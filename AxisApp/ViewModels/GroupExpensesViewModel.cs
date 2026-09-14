@@ -373,6 +373,7 @@ public partial class GroupExpensesViewModel : BaseViewModel
     private Task OpenActivity(ActivityItem? item) => RunSafeAsync(async () =>
     {
         if (item?.ExpenseId is not { } expenseId) return;
+        await Task.Delay(Controls.Juice.PressReleaseSettleMs);
         await Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={groupId}&expenseId={expenseId}");
     });
 

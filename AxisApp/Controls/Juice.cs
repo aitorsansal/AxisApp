@@ -18,6 +18,13 @@ namespace AxisApp.Controls;
 /// </summary>
 public static class Juice
 {
+    /// <summary>Milliseconds to wait before navigating away from a card carrying PressScale, so
+    /// the TouchBehavior's release animation (DefaultAnimationDuration below) finishes playing
+    /// instead of being cut off mid-bounce when the page tears down. Slightly longer than that
+    /// duration to absorb scheduling jitter. Callers: any [RelayCommand] that navigates in
+    /// response to a tap on a PressScale-carrying element (e.g. GroupsViewModel.OpenGroup).</summary>
+    public const int PressReleaseSettleMs = 130;
+
     public static readonly BindableProperty PressScaleProperty = BindableProperty.CreateAttached(
         "PressScale", typeof(double), typeof(Juice), 0d, propertyChanged: OnPressScaleChanged);
 

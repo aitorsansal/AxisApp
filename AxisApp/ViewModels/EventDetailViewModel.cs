@@ -280,6 +280,7 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
     private Task OpenExpense(ActivityItem? item) => RunSafeAsync(async () =>
     {
         if (item?.ExpenseId is not { } expenseId) return;
+        await Task.Delay(Controls.Juice.PressReleaseSettleMs);
         await Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={groupId}&expenseId={expenseId}");
     });
 

@@ -1,0 +1,751 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><title>Axis Feature Ledger</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+:root {
+  color-scheme: light;
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --surface-2: #e4e9f1;
+  --ink: #1a2233;
+  --muted: #55617a;
+  --border: #d7dee9;
+  --primary: #2748a6;
+  --primary-ink: #16306e;
+  --accent: #a8701e;
+  --accent-soft: #f4e6cf;
+  --council2: #6a3f9e;
+  --council2-soft: #ece2f7;
+  --good: #1f7a4d;
+  --good-soft: #ddefe4;
+  --warn: #a8402f;
+  --warn-soft: #f6e2dd;
+  --med: #93650f;
+  --med-soft: #f3e6ce;
+  --shadow: 0 1px 2px rgba(23, 34, 63, 0.06), 0 8px 24px -12px rgba(23, 34, 63, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f1420;
+    --surface: #161d2e;
+    --surface-2: #1c2438;
+    --ink: #e7ebf5;
+    --muted: #97a3bf;
+    --border: #2a3450;
+    --primary: #7d9cf2;
+    --primary-ink: #cdd9fb;
+    --accent: #e0ac55;
+    --accent-soft: #3a2f18;
+    --council2: #b697e0;
+    --council2-soft: #2c2140;
+    --good: #5bc98d;
+    --good-soft: #163425;
+    --warn: #ea7b6a;
+    --warn-soft: #3a2019;
+    --med: #e0b355;
+    --med-soft: #362a12;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.55);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1420;
+  --surface: #161d2e;
+  --surface-2: #1c2438;
+  --ink: #e7ebf5;
+  --muted: #97a3bf;
+  --border: #2a3450;
+  --primary: #7d9cf2;
+  --primary-ink: #cdd9fb;
+  --accent: #e0ac55;
+  --accent-soft: #3a2f18;
+  --council2: #b697e0;
+  --council2-soft: #2c2140;
+  --good: #5bc98d;
+  --good-soft: #163425;
+  --warn: #ea7b6a;
+  --warn-soft: #3a2019;
+  --med: #e0b355;
+  --med-soft: #362a12;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.55);
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  padding-inline: 20px;
+  padding-block: 48px 80px;
+}
+
+img { max-width: 100%; }
+
+.wrap {
+  max-width: 760px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+h1, h2, h3 { font-family: "Fraunces", Georgia, serif; text-wrap: balance; margin: 0; }
+
+code, .mono, .tag, .count-value { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+/* ---------- Header ---------- */
+
+header {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+}
+
+.eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+h1 {
+  font-size: clamp(1.9rem, 5vw, 2.6rem);
+  font-weight: 600;
+  color: var(--ink);
+  font-variation-settings: "opsz" 40;
+}
+
+.dek {
+  color: var(--muted);
+  font-size: 1.02rem;
+  max-width: 62ch;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.meta-row span b { color: var(--ink); font-weight: 500; }
+
+/* ---------- Summary strip ---------- */
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.summary .cell {
+  background: var(--surface);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.count-value {
+  font-size: 1.7rem;
+  font-weight: 500;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.count-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ---------- Section ---------- */
+
+section.block { display: flex; flex-direction: column; gap: 18px; }
+
+.section-head { display: flex; flex-direction: column; gap: 6px; }
+
+.section-head h2 { font-size: 1.5rem; font-weight: 600; }
+
+.section-head p { color: var(--muted); font-size: 0.92rem; max-width: 60ch; }
+
+.entries { display: flex; flex-direction: column; gap: 14px; }
+
+/* ---------- Entry card ---------- */
+
+.entry {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.entry-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.entry-title {
+  font-family: "Fraunces", serif;
+  font-size: 1.18rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.tags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.tag {
+  font-size: 0.68rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.tag.cheap { background: var(--good-soft); color: var(--good); }
+.tag.medium { background: var(--med-soft); color: var(--med); }
+.tag.large { background: var(--warn-soft); color: var(--warn); }
+.tag.impact {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+}
+.tag.council2 { background: var(--council2-soft); color: var(--council2); }
+
+.entry p { margin: 0; color: var(--ink); }
+.entry p.rationale { color: var(--muted); font-size: 0.95rem; }
+
+.entry .schema-note {
+  font-size: 0.85rem;
+  color: var(--muted);
+  border-left: 2px solid var(--border);
+  padding-left: 12px;
+}
+
+.entry .schema-note code {
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  color: var(--primary-ink);
+}
+
+/* ---------- Council callout ---------- */
+
+.callout {
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.callout.alt { background: var(--council2-soft); }
+
+.callout-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.callout-head .mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Fraunces", serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.callout.alt .mark { background: var(--council2); }
+
+.callout-head h3 { font-size: 1.1rem; font-weight: 600; }
+
+.callout p { margin: 0; font-size: 0.94rem; }
+.callout ul { margin: 0; padding-left: 20px; font-size: 0.92rem; display: flex; flex-direction: column; gap: 6px; }
+
+/* ---------- Cut list ---------- */
+
+.cut-list { display: flex; flex-direction: column; gap: 10px; }
+
+.cut-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.cut-item:first-child { border-top: none; }
+
+.cut-item .x {
+  color: var(--warn);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.cut-item div b { font-weight: 600; }
+.cut-item div { font-size: 0.92rem; color: var(--muted); }
+.cut-item div b { color: var(--ink); }
+
+footer {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .entry-top { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <span class="eyebrow">Axis &middot; Internal review</span>
+    <h1>The Axis Feature Ledger</h1>
+    <p class="dek">
+      Phase 1 (debt tracker) and Phase 2 (events &amp; calendar) are both shipped and confirmed
+      working end to end. This is what's next: ideas beyond the shortlist already sitting in
+      <code>POSSIBLE_FEATURES.md</code> &mdash; ranked cheapest-to-build first within each
+      section, checked against the live schema rather than just the docs, then cross-checked a
+      second time by an independent product pass for anything a pure schema read would miss.
+    </p>
+    <div class="meta-row">
+      <span><b>Reviewed</b> 2026-09-10</span>
+      <span><b>Scope</b> AxisApp/ + supabase/schema.sql</span>
+      <span><b>Excludes</b> anything already in POSSIBLE_FEATURES.md</span>
+    </div>
+  </header>
+
+  <div class="summary">
+    <div class="cell"><span class="count-value">11</span><span class="count-label">New features</span></div>
+    <div class="cell"><span class="count-value">11</span><span class="count-label">Upgrades</span></div>
+    <div class="cell"><span class="count-value">5</span><span class="count-label">Cut on review</span></div>
+    <div class="cell"><span class="count-value">2</span><span class="count-label">Schema corrections found</span></div>
+  </div>
+
+  <section class="block">
+    <div class="section-head">
+      <h2>New features</h2>
+      <p>None of these exist today in any form. Ordered by build cost, cheapest first.</p>
+    </div>
+    <div class="entries">
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Quick IOU</span>
+          <div class="tags"><span class="tag cheap">cheap</span><span class="tag impact">no schema change</span></div>
+        </div>
+        <p class="rationale">A one-participant <code>Expense</code> with a single <code>ExpenseShare</code> and
+          <code>is_settlement = false</code> is already, in full, "I lent Marc &euro;20" &mdash; the schema already
+          supports it. What's missing is a UI shortcut: a single quick-entry sheet (payer defaults to you, one
+          participant, no category/receipt/split screens) that writes the exact same row <code>AddExpensePage</code>
+          would, just without walking through N-way split UI for what's really a two-person loan.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Ledger export</span>
+          <div class="tags"><span class="tag cheap">cheap&ndash;medium</span><span class="tag impact">pure read</span></div>
+        </div>
+        <p class="rationale">A CSV/PDF settlement statement, for taxes, a dispute, or leaving a group with a receipt
+          of shared history. Generated client-side or via a small Edge Function straight from
+          <code>expenses</code>/<code>expense_shares</code>, scoped by the RLS a member already has &mdash; no new
+          table, no new policy, no new access rule to reason about.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Category budgets per group</span>
+          <div class="tags"><span class="tag medium">medium</span><span class="tag impact">+1 table</span></div>
+        </div>
+        <p class="rationale">A monthly cap per category ("Groceries: &euro;400/mo"), a progress bar on
+          <code>GroupDetailPage</code>, one nudge when a category crosses it. A new <code>category_budgets</code>
+          table (<code>group_id</code>, <code>category</code>, <code>monthly_limit</code>) read against expenses
+          already converted to the group's currency &mdash; the RLS is the same group-scoped shape every other
+          table here already uses, nothing novel to invent.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">One-screen overview</span>
+          <div class="tags"><span class="tag medium">medium</span><span class="tag impact">no schema change</span></div>
+        </div>
+        <p class="rationale">Front the flat Groups list with a single dashboard: net balance across every group
+          you're in, and the next three upcoming events across all of them. Every number already lives in
+          <code>my_group_balances</code> and <code>events</code>/<code>event_attendees</code> &mdash; this is a
+          new screen and a couple of aggregating queries across groups, not new data.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Where are we eating</span>
+          <div class="tags"><span class="tag medium">medium&ndash;large</span><span class="tag impact">+3 tables</span></div>
+        </div>
+        <p class="rationale">A lightweight Doodle-style poll inside a group: propose 2&ndash;6 options (restaurant,
+          date, time), members vote, and a winning "when" option can pre-fill <code>AddEventPage</code>. New
+          <code>polls</code>/<code>poll_options</code>/<code>poll_votes</code> tables, with group-scoped RLS that
+          mirrors <code>events</code>/<code>event_attendees</code> almost clause for clause.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">When's everyone actually free</span>
+          <div class="tags"><span class="tag medium">medium</span><span class="tag impact">reuses poll tables</span><span class="tag council2">product pass</span></div>
+        </div>
+        <p class="rationale">A step before "Where are we eating" even applies: a lightweight weekly
+          availability grid a group fills in together (free / busy / maybe per day), so picking a date for the
+          poll above stops happening in a separate group chat. Same <code>polls</code>-shaped schema as the item
+          above with a grid-shaped option set instead of a short list &mdash; the two features share
+          infrastructure and are worth building in the same pass, not sequentially.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Favors, not just money</span>
+          <div class="tags"><span class="tag medium">medium</span><span class="tag impact">+1 table</span><span class="tag council2">product pass</span></div>
+        </div>
+        <p class="rationale">Real household friction isn't only cash &mdash; "you drove last time," "I did the
+          bins this week," "you owe me a ride to the airport" are debts too, and today they live nowhere. A
+          parallel, lightweight <code>favor_ledger</code> table (<code>group_id</code>, <code>from_member_id</code>,
+          <code>to_member_id</code>, <code>description</code>, <code>settled_at</code>) reusing the member model
+          exactly as-is, surfaced as its own small list next to balances rather than forced into
+          <code>expenses</code>, which is genuinely about money.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Trip mode</span>
+          <div class="tags"><span class="tag large">large</span><span class="tag impact">+1 nullable column</span><span class="tag council2">product pass</span></div>
+        </div>
+        <p class="rationale">A weekend away spins up a burst of expenses and one or two events that don't deserve
+          a permanent group cluttering the Groups list forever, but also don't belong crammed into an existing
+          household group. A <code>groups.archived_at</code> (or a lightweight <code>occasion_starts_at</code>/
+          <code>occasion_ends_at</code> pair) lets a group be created, used hard for a week, then auto-collapse to
+          a single summarized card instead of sitting in the list at equal weight to "Family" forever. The
+          riskiest part isn't schema &mdash; it's deciding what "collapsed" looks like in the UI without hiding a
+          balance someone still owes.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Subscribe, don't sync</span>
+          <div class="tags"><span class="tag medium">medium&ndash;large</span><span class="tag impact">new Edge Function + signed token</span></div>
+        </div>
+        <p class="rationale">A per-group, per-member signed ICS URL that Apple/Google/Outlook Calendar can
+          subscribe to read-only &mdash; events and birthdays, no OAuth. A real, cheap precursor to the deferred
+          Phase 2.5 Google sync that ships value now without touching that later two-way work. Needs a new Edge
+          Function endpoint and a signed per-member token; the one real risk is making sure that token can't be
+          replayed to see anything beyond what that member's own RLS already permits.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Recurring events, not just recurring expenses</span>
+          <div class="tags"><span class="tag large">large</span><span class="tag impact">+1 column, +1 cron job</span></div>
+        </div>
+        <p class="rationale"><code>events</code> has no recurrence today &mdash; only <code>recurring_expenses</code>
+          and the birthday auto-generator materialize on a schedule. A weekly game night currently means
+          re-creating the event by hand, every week, forever. Add a simple <code>recurrence_rule</code> (interval
+          + unit + optional end &mdash; not full RRULE) and a <code>materialize_recurring_events()</code> job on
+          the same <code>pg_cron</code> pattern as <code>materialize_recurring_expenses()</code>. This would be the
+          <em>third</em> instance of the identical shape in this codebase &mdash; worth factoring the pattern out
+          once rather than hand-rolling it a third time. Natural follow-on once this exists: let a recurring
+          event's RSVP close-out offer to pre-fill an expense from last time's split ("same as usual?"), instead
+          of the group re-deciding the split fresh every week.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Switch without losing history</span>
+          <div class="tags"><span class="tag large">large</span><span class="tag impact">new parsing + review UI</span></div>
+        </div>
+        <p class="rationale">The single biggest adoption blocker for anyone currently on Splitwise or Tricount is
+          re-entering months of history by hand. A CSV importer that parses each app's export shape into a review
+          screen &mdash; draft expenses, editable before commit, never written straight to the ledger &mdash;
+          removes that. The most engineering-heavy item on this list: two different export shapes to support, and
+          real care needed so a bad column-guess doesn't silently attribute an expense to the wrong phantom member.</p>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="section-head">
+      <h2>Upgrades to what's already shipped</h2>
+      <p>Each of these starts from a real, current behavior &mdash; verified against the live schema and
+        view-model code, not assumed from the docs.</p>
+    </div>
+    <div class="entries">
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Invite links: expose what the schema already does</span>
+          <div class="tags"><span class="tag cheap">cheap</span><span class="tag impact">UI only</span></div>
+        </div>
+        <p class="rationale"><code>invites.expires_at</code> / <code>invites.max_uses</code> already exist and
+          already default to a 7-day, single-use link &mdash; but nothing in the invite UI lets someone dial that
+          down to "24 hours, one use" for an in-person hand-off, and there's no QR code, so the token still has to
+          be read out loud or copy-pasted. Expose both fields as options at invite-creation time and render the
+          code as a QR. No schema change &mdash; the columns are already there.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Percentage &amp; shares/weight split modes</span>
+          <div class="tags"><span class="tag cheap">cheap&ndash;medium</span><span class="tag impact">UI only</span></div>
+        </div>
+        <p class="rationale"><code>AddExpenseViewModel</code> already has a manual escape hatch
+          (<code>IsManualSplit</code>) where every participant's amount is directly editable on top of the default
+          equal split, and <code>expense_shares.share_amount</code> already stores whatever number it's given. This
+          is <em>not</em> "add splitting" &mdash; it's adding two more entry modes (60/40 percentages, or "2 shares
+          for me, 1 for the kid") that compute <code>share_amount</code> for you, on a column that's always been
+          able to hold it.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Expense search &amp; filter</span>
+          <div class="tags"><span class="tag medium">medium</span><span class="tag impact">maybe +1 index</span></div>
+        </div>
+        <p class="rationale">By member, category, date range, and free text on the description, scoped to one
+          group. Every row is already RLS-visible to a member of that group &mdash; this is a filtered read, plus
+          possibly one index on <code>expenses(group_id, occurred_at)</code>, not a new access rule.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Per-member display currency</span>
+          <div class="tags"><span class="tag medium">medium</span><span class="tag impact">local preference</span></div>
+        </div>
+        <p class="rationale">View every amount converted to your own currency without touching the group's
+          canonical <code>groups.currency</code> or its stored <code>amount_in_group_currency</code>.
+          <code>exchange_rates</code> is already cached daily &mdash; this is client-side math at render time plus
+          a <code>Preferences</code> key, the same non-synced, per-device shape
+          <code>BalanceDisplayModePrefix</code> already established for the simplified/pairwise toggle.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Configurable event reminder lead-time</span>
+          <div class="tags"><span class="tag medium">medium</span><span class="tag impact">cron scan-window change</span></div>
+        </div>
+        <p class="rationale">Today's schedule is fixed &mdash; daily plus day-of, by deliberate Phase 2 design.
+          Letting someone pick "1 hour before" vs. "1 day before," per event or as a Profile default, means
+          widening the reminder job's due-scan window and reading one new column &mdash; the same shape of change
+          as <code>materialize_recurring_expenses()</code>'s existing due-scan, not a new subsystem.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">RSVP deadline, one nudge</span>
+          <div class="tags"><span class="tag medium">medium</span><span class="tag impact">+1 column, reuses reminder job</span><span class="tag council2">product pass</span></div>
+        </div>
+        <p class="rationale">Distinct from the lead-time upgrade above: an organizer sets "please respond by
+          Friday," and anyone still un-RSVP'd at that point gets exactly one targeted nudge &mdash; not a repeat of
+          the standard event reminder, and not left to whoever notices the pending invite in a list. Same
+          <code>event_attendees</code> due-scan shape, filtered to <code>response is null</code>.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Multiple receipt photos per expense</span>
+          <div class="tags"><span class="tag medium">medium</span><span class="tag impact">schema change</span></div>
+        </div>
+        <p class="rationale"><code>Expense.receipt_path</code> is a single column today &mdash; a restaurant bill
+          split three ways sometimes has three photos (the bill, a card slip, a tip line). Move to a child
+          <code>expense_receipts</code> table (<code>expense_id</code>, <code>storage_path</code>), reusing the
+          exact resize/upload/signed-URL/cleanup infrastructure the <code>receipts</code> bucket already has.
+          Real schema work, but zero new subsystems.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Balance aging, not just amount</span>
+          <div class="tags"><span class="tag medium">medium</span><span class="tag impact">view change</span><span class="tag council2">product pass</span></div>
+        </div>
+        <p class="rationale">A &euro;5 debt from eight months ago and a &euro;5 debt from yesterday read
+          identically today &mdash; same number, same view. Surfacing "owed since" alongside the amount (oldest
+          contributing <code>expense</code> row per pairwise balance, not a new table) lets someone actually see
+          what's gone stale versus what's just normal week-to-week ebb and flow, which the existing simplified/
+          pairwise views don't distinguish at all.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">A line after settling up</span>
+          <div class="tags"><span class="tag medium">medium</span><span class="tag impact">+1 column</span><span class="tag council2">product pass</span></div>
+        </div>
+        <p class="rationale">Right now a full settle-up is just another row mixed into the same activity feed as
+          everything before and after it &mdash; there's no equivalent of a bank statement's period boundary. A
+          <code>groups.last_settled_at</code>, stamped whenever every pairwise balance in a group hits zero, lets
+          the activity feed group itself into "since last settle-up" versus history, without changing how
+          balances are computed at all.</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Group activity trail</span>
+          <div class="tags"><span class="tag medium">medium&ndash;large</span><span class="tag impact">+1 table, +N triggers</span></div>
+        </div>
+        <p class="rationale">Multiple people can add, edit, or delete an expense or event in the same group today
+          with zero record of who touched what last &mdash; thin for two people, thinner for a family group where
+          "did Dad delete that, or did it just not sync?" is a real question that comes up. A new
+          <code>activity_log</code> table plus <code>AFTER INSERT/UPDATE/DELETE</code> triggers on
+          <code>expenses</code>/<code>events</code> (the same trigger-driven shape
+          <code>expense_shares_snapshot_currency_conversion</code> already uses), RLS mirroring "visible if you can
+          see the parent group."</p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-top">
+          <span class="entry-title">Shared group admins, not just one owner</span>
+          <div class="tags"><span class="tag large">large</span><span class="tag impact">RLS audit, not a column migration</span></div>
+        </div>
+        <p class="rationale">Every group has exactly one <code>created_by</code> owner today, plus
+          <code>transfer_group_ownership()</code> to hand the whole thing to someone else &mdash; no co-admin
+          concept exists (<code>group_members</code> has no role column at all). A <code>role</code>
+          (<code>owner</code>/<code>admin</code>/<code>member</code>) sounds like one column, but it touches every
+          policy currently written against <code>created_by = auth.uid()</code> on <code>groups</code>/
+          <code>group_members</code>, plus <code>leave_group()</code>'s "creator can't leave" guard and
+          <code>transfer_group_ownership()</code>'s own logic. This is the one item here that's a genuine RLS-policy
+          audit, not a quick add-on &mdash; worth doing deliberately, on its own, not folded into something else.</p>
+      </article>
+
+    </div>
+  </section>
+
+  <div class="callout">
+    <div class="callout-head">
+      <span class="mark">&#9776;</span>
+      <h3>Council cross-check &mdash; schema pass</h3>
+    </div>
+    <p>A pass run independently against <code>supabase/schema.sql</code> and the ViewModel code rather than the
+      docs, to catch anything above that's wrong or already half-built.</p>
+    <ul>
+      <li><b>Correction folded in:</b> the split-mode upgrade originally read "add splitting" &mdash; it doesn't
+        need to. <code>AddExpenseViewModel.IsManualSplit</code> already lets every participant's amount be edited
+        by hand; the real gap is percentage/shares math on top of an already-flexible <code>share_amount</code>
+        column.</li>
+      <li><b>Correction folded in:</b> the invite-link upgrade originally proposed adding expiry and use-limits.
+        Both columns (<code>expires_at</code>, <code>max_uses</code>) already exist in <code>schema.sql</code> and
+        are enforced in <code>redeem_invite()</code> &mdash; the actual gap is only in the client UI and the
+        missing QR code.</li>
+      <li><b>Confirmed, not already present:</b> <code>events</code> has no recurrence column and
+        <code>group_members</code> has no role column &mdash; both new-feature/upgrade framings above hold as
+        written.</li>
+      <li><b>Strongest picks, technically:</b> Quick IOU and the split-mode upgrade &mdash; both ship real value on
+        data the schema already carries, with no migration risk.</li>
+    </ul>
+  </div>
+
+  <div class="callout alt">
+    <div class="callout-head">
+      <span class="mark">&#9670;</span>
+      <h3>Council cross-check &mdash; product pass</h3>
+    </div>
+    <p>A second, independent pass run purely from the household/friend-group use case &mdash; no schema in hand
+      &mdash; to catch what a code-first read tends to miss. Marked <span class="tag council2">product pass</span>
+      above; folded in only where it didn't overlap something the schema pass already covered (its "expense
+      edit history" idea, for instance, is the same gap the activity trail above already fills, so it isn't
+      listed twice).</p>
+    <ul>
+      <li><b>Its own strongest pick:</b> favors-not-money and balance aging &mdash; both point at the same real
+        gap, that Axis currently treats every debt as financially and temporally identical, which isn't how
+        households actually experience owing each other things.</li>
+      <li><b>Cut by that pass itself, before it reached me:</b> a shared shopping list (too close to the
+        already-dropped shared-lists vertical) and splitting by percentage-of-income (interesting, too niche for
+        a friend group).</li>
+    </ul>
+  </div>
+
+  <section class="block">
+    <div class="section-head">
+      <h2>Considered and cut</h2>
+      <p>In the same spirit as <code>POSSIBLE_FEATURES.md</code>'s own "explicitly dropped" list &mdash; kept here
+        so nobody re-proposes these without the reasoning attached.</p>
+    </div>
+    <div class="cut-list">
+      <div class="cut-item">
+        <span class="x">&times;</span>
+        <div><b>Offline-first / local cache with background sync.</b> Cuts against the product's own thesis
+          &mdash; a real backend from day one &mdash; and turns "two phones edit the same expense while offline"
+          into a real conflict-resolution surface, for a problem shared-wifi group chats mostly don't have.</div>
+      </div>
+      <div class="cut-item">
+        <span class="x">&times;</span>
+        <div><b>Biometric / PIN app lock, as a feature slot.</b> The concern is real &mdash; this is shared
+          financial data &mdash; but it's a security-hardening task, not a roadmap feature; it belongs in a
+          dedicated security pass, not competing for priority against the ideas above.</div>
+      </div>
+      <div class="cut-item">
+        <span class="x">&times;</span>
+        <div><b>Event photo gallery.</b> Would reuse the receipts bucket's exact upload/resize infrastructure for a
+          much rarer case (party photos vs. a tax receipt) &mdash; speculative until someone actually asks for it.</div>
+      </div>
+      <div class="cut-item">
+        <span class="x">&times;</span>
+        <div><b>Full RRULE recurrence on events.</b> Matching Google's actual RRULE grammar is Phase 2.5's problem
+          the moment real two-way Google sync gets built &mdash; a simpler interval-based rule now avoids solving
+          the hard version of this twice.</div>
+      </div>
+      <div class="cut-item">
+        <span class="x">&times;</span>
+        <div><b>Splitting by percentage-of-income.</b> A genuinely used pattern in some households, but a fairness
+          model, not a splitting mechanic &mdash; it needs each member to disclose income to the group, which is a
+          much bigger ask than anything else on this page and not a fit for a friends-and-family default.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Axis &middot; internal feature review</span>
+    <span>Generated 2026-09-10</span>
+  </footer>
+
+</div>
+
+</body></html>

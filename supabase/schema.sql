@@ -175,6 +175,10 @@ create policy "select invites for your groups" on public.invites
   for select using (is_group_member(group_id));
 create policy "insert invites for your groups" on public.invites
   for insert with check (is_group_member(group_id) and created_by = auth.uid());
+-- Added 2026-09-14 (invites_update_policy.sql) so a group member can edit an
+-- existing invite's max_uses/expires_at instead of always minting a new row.
+create policy "update invites for your groups" on public.invites
+  for update using (is_group_member(group_id)) with check (is_group_member(group_id));
 
 -- ============================================================
 -- redeem_invite: the one operation allowed to bypass the RLS chicken-and-egg

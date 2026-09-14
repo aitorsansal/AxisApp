@@ -94,7 +94,7 @@ public partial class MembersViewModel : BaseViewModel, IQueryAttributable
 
     [RelayCommand]
     private Task InvitePeople() => RunSafeAsync(() =>
-        Shell.Current.GoToAsync($"{AppConstants.Routes.JoinGroup}?groupId={groupId}&groupName={Uri.EscapeDataString(GroupName)}"));
+        Shell.Current.GoToAsync($"{AppConstants.Routes.InviteToGroup}?groupId={groupId}&groupName={Uri.EscapeDataString(GroupName)}"));
 
     /// <summary>Opens an inline rename overlay (MembersPage.xaml) rather than
     /// Shell.Current.DisplayPromptAsync — that API is a known WinUI crash on Windows (fail-fast in

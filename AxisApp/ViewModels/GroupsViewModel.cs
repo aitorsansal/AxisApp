@@ -161,6 +161,7 @@ public partial class GroupsViewModel : BaseViewModel
     private Task OpenGroup(GroupListItem? item) => RunSafeAsync(async () =>
     {
         if (item is null) return;
+        await Task.Delay(Controls.Juice.PressReleaseSettleMs);
         await Shell.Current.GoToAsync(
             $"{AppConstants.Routes.GroupDetails}?groupId={item.Group.Id}&groupName={Uri.EscapeDataString(item.Group.Name)}");
     });
@@ -172,10 +173,11 @@ public partial class GroupsViewModel : BaseViewModel
     [RelayCommand]
     private Task NewGroup() => RunSafeAsync(() => Shell.Current.GoToAsync(AppConstants.Routes.NewGroup));
 
-    /// <summary>The only other way onto this screen is GroupDetailViewModel's overflow menu,
+    /// <summary>The only other way to reach a group is MembersViewModel's "invite people" action,
     /// which requires already being in a group — so a brand-new account with zero groups had no
-    /// way to redeem an invite code at all. JoinGroupPage/ViewModel already handle a missing
-    /// groupId query param fine (HasActiveGroup just stays false), so this only needed a route in.</summary>
+    /// way to redeem an invite code at all. This is the route in: JoinGroupPage is the dedicated
+    /// "redeem someone else's code" screen (InviteToGroupPage is the separate "share my own group's
+    /// invite" one).</summary>
     [RelayCommand]
     private Task JoinGroup() => RunSafeAsync(() => Shell.Current.GoToAsync(AppConstants.Routes.JoinGroup));
 

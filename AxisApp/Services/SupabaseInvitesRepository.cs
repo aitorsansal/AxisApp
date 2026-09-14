@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using AxisApp.Models;
+using Supabase.Postgrest;
 
 namespace AxisApp.Services;
 
@@ -23,8 +24,25 @@ public class SupabaseInvitesRepository : IInvitesRepository
         this.authService = authService;
     }
 
-    public async Task<Invite> CreateAsync(Guid groupId, Guid? targetMemberId = null)
+    /// <summary>Looks for a still-usable invite first (avoids flooding the table with a fresh
+    /// row every time this group's Invite page or a phantom's Resend button is opened), scoped
+    /// by (group, target member) so the group's general QR/code invite (target_member_id null)
+    /// is never mixed up with a phantom-claim invite. There's no single PostgREST filter for
+    /// "use_count less than max_uses" (that compares two columns, not a column to a literal), so
+    /// this fetches the most recent candidate and checks both conditions client-side.</summary>
+    public async Task<Invite> GetOrCreateAsync(Guid groupId, Guid? targetMemberId = null)
     {
+        var query = client.From<Invite>()
+            .Filter("group_id", Constants.Operator.Equals, groupId.ToString());
+        query = targetMemberId is { } tid
+            ? query.Filter("target_member_id", Constants.Operator.Equals, tid.ToString())
+            : query.Filter("target_member_id", Constants.Operator.Is, "null");
+
+        var result = await query.Order("created_at", Constants.Ordering.Descending).Limit(1).Get();
+        var existing = result.Models.FirstOrDefault();
+        if (existing is not null && existing.UseCount < existing.MaxUses && existing.ExpiresAt > DateTime.UtcNow)
+            return existing;
+
         var invite = new Invite
         {
             Token = GenerateToken(),
@@ -34,7 +52,15 @@ public class SupabaseInvitesRepository : IInvitesRepository
             ExpiresAt = DateTime.UtcNow.AddDays(7)
         };
 
-        var result = await client.From<Invite>().Insert(invite);
+        var inserted = await client.From<Invite>().Insert(invite);
+        return inserted.Model!;
+    }
+
+    public async Task<Invite> UpdateAsync(Invite invite)
+    {
+        var result = await client.From<Invite>()
+            .Filter("id", Constants.Operator.Equals, invite.Id.ToString())
+            .Update(invite);
         return result.Model!;
     }
 
