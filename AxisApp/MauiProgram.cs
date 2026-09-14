@@ -58,6 +58,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IAvatarsRepository, SupabaseAvatarsRepository>();
         builder.Services.AddSingleton<IReceiptsRepository, SupabaseReceiptsRepository>();
         builder.Services.AddSingleton<IDeviceTokensRepository, SupabaseDeviceTokensRepository>();
+        builder.Services.AddSingleton<ICalendarSubscriptionsRepository, SupabaseCalendarSubscriptionsRepository>();
 
         // Same per-platform-file convention as IGoogleAuthService above — Android's implementation
         // is real (Firebase Cloud Messaging), Windows' is a deliberate no-op for now.

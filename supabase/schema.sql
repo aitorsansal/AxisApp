@@ -2430,3 +2430,34 @@ select cron.schedule(
   '30 7 * * *',
   $$ select public.send_birthday_notifications(); $$
 );
+
+-- ============================================================
+-- Calendar subscription feed (2026-09-14) — lets someone with no Axis account (or one who just
+-- doesn't want the app) subscribe to a member's events as a read-only feed in Google/Apple/
+-- Outlook calendar, via a plain unauthenticated .ics URL. That URL request carries no Supabase
+-- session, so the token in it *is* the credential — same "secret address in iCal format" model
+-- Google Calendar's own export links use. This table only governs the authenticated app-side
+-- flow (viewing/copying/regenerating your own link); the calendar-feed Edge Function looks the
+-- token up with the service-role key, deliberately bypassing this table's RLS, because the
+-- request that hits it was never authenticated as any account to begin with.
+--
+-- One row per member (not per group) — a claimed account has exactly one member row reused
+-- across every group it belongs to (see the members-vs-accounts design note in CLAUDE.md), so
+-- one feed already covers everything that account has been invited to see. "Regenerate" is a
+-- plain `update ... set token = default` from the app — the old link stops resolving the instant
+-- the token changes, no separate revoked_at/history table needed.
+create table public.calendar_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  member_id uuid not null unique references public.members(id) on delete cascade,
+  token text not null unique default encode(gen_random_bytes(24), 'base64url'),
+  created_at timestamptz not null default now(),
+  last_accessed_at timestamptz
+);
+
+create index on public.calendar_subscriptions (token);
+
+alter table public.calendar_subscriptions enable row level security;
+
+create policy "manage your own calendar subscription" on public.calendar_subscriptions
+  for all using (member_id in (select id from members where account_id = auth.uid()))
+  with check (member_id in (select id from members where account_id = auth.uid()));

@@ -3,6 +3,7 @@ using System.Globalization;
 using AxisApp.Localization;
 using AxisApp.Models;
 using AxisApp.Services;
+using CommunityToolkit.Maui.Alerts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Media;
@@ -28,8 +29,10 @@ public partial class ProfileViewModel : BaseViewModel
     private readonly IMembersRepository membersRepository;
     private readonly IAvatarsRepository avatarsRepository;
     private readonly IAuthService authService;
+    private readonly ICalendarSubscriptionsRepository calendarSubscriptionsRepository;
 
     private Member? myMember;
+    private CalendarSubscription? calendarSubscription;
 
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string displayName = "";
@@ -46,12 +49,18 @@ public partial class ProfileViewModel : BaseViewModel
     [ObservableProperty] private string newEmail = "";
     [ObservableProperty] private string newPassword = "";
     [ObservableProperty] private string statusMessage = "";
+    [ObservableProperty] private string calendarFeedUrl = "";
 
-    public ProfileViewModel(IMembersRepository membersRepository, IAvatarsRepository avatarsRepository, IAuthService authService)
+    public ProfileViewModel(
+        IMembersRepository membersRepository,
+        IAvatarsRepository avatarsRepository,
+        IAuthService authService,
+        ICalendarSubscriptionsRepository calendarSubscriptionsRepository)
     {
         this.membersRepository = membersRepository;
         this.avatarsRepository = avatarsRepository;
         this.authService = authService;
+        this.calendarSubscriptionsRepository = calendarSubscriptionsRepository;
 
         UserEmail = authService.CurrentEmail ?? "";
         selectedLanguageOverride = LocalizationResourceManager.Instance.CurrentOverride;
@@ -75,6 +84,9 @@ public partial class ProfileViewModel : BaseViewModel
             myMember = await membersRepository.GetMyMemberAsync();
             ApplyMemberToFields();
             await BackfillGoogleAvatarAsync();
+
+            calendarSubscription = await calendarSubscriptionsRepository.GetOrCreateAsync();
+            CalendarFeedUrl = calendarSubscription is null ? "" : AppConstants.Links.BuildCalendarFeedUrl(calendarSubscription.Token);
         }
         finally
         {
@@ -195,6 +207,65 @@ public partial class ProfileViewModel : BaseViewModel
 
         myMember = await avatarsRepository.RemoveAvatarAsync(myMember);
         AvatarUrl = null;
+    });
+
+    [RelayCommand]
+    private Task CopyCalendarLink() => RunSafeAsync(async () =>
+    {
+        if (string.IsNullOrEmpty(CalendarFeedUrl)) return;
+        await Clipboard.Default.SetTextAsync(CalendarFeedUrl);
+        await TryShowToast(LocalizationResourceManager.Instance["Profile_CalendarLinkCopied"]);
+    });
+
+    /// <summary>AX-07: on this unpackaged Win32 build, Toast.Show throws COMException 0x80070490
+    /// (AppNotificationManager isn't registered) — see InviteToGroupViewModel.TryShowToast for the
+    /// original finding. Swallowed here rather than left to bubble, since a copy/regenerate that
+    /// already succeeded shouldn't be reported as failed, or crash the app outright, just because
+    /// the confirmation toast couldn't show.</summary>
+    private static async Task TryShowToast(string message)
+    {
+        try
+        {
+            await Toast.Make(message).Show(CancellationToken.None);
+        }
+        catch
+        {
+            // best-effort confirmation only; see remarks above.
+        }
+    }
+
+    /// <summary>Shares the webcal:// form rather than the plain https:// link CopyCalendarLink
+    /// copies — tapping a webcal link opens the native "Subscribe to this calendar?" dialog
+    /// directly on iOS/macOS, which matters here since the whole point of sharing this is reaching
+    /// people who don't have Axis installed.</summary>
+    [RelayCommand]
+    private Task ShareCalendarLink() => RunSafeAsync(async () =>
+    {
+        if (calendarSubscription is null) return;
+        await Microsoft.Maui.ApplicationModel.DataTransfer.Share.Default.RequestAsync(new ShareTextRequest
+        {
+            Text = LocalizationResourceManager.Instance.Format(
+                "Profile_CalendarShareText", AppConstants.Links.BuildCalendarFeedWebcalUrl(calendarSubscription.Token)),
+            Title = LocalizationResourceManager.Instance["Profile_CalendarShareTitle"]
+        });
+    });
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    private Task RegenerateCalendarLink() => RunSafeAsync(async () =>
+    {
+        if (calendarSubscription is null) return;
+
+        var loc = LocalizationResourceManager.Instance;
+        var confirmed = await Shell.Current.DisplayAlert(
+            loc["Profile_RegenerateCalendarLinkTitle"],
+            loc["Profile_RegenerateCalendarLinkConfirm"],
+            loc["Common_Yes"],
+            loc["Common_Cancel"]);
+        if (!confirmed) return;
+
+        calendarSubscription = await calendarSubscriptionsRepository.RegenerateAsync(calendarSubscription);
+        CalendarFeedUrl = AppConstants.Links.BuildCalendarFeedUrl(calendarSubscription.Token);
+        await TryShowToast(loc["Profile_CalendarLinkRegenerated"]);
     });
 
     [RelayCommand]

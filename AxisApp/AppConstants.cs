@@ -140,6 +140,19 @@ public static class AppConstants
         public static string BuildInviteUrl(string code) =>
             $"https://{InviteHost}/invite?code={Uri.EscapeDataString(code)}";
 
+        /// <summary>The public, unauthenticated .ics feed backing CalendarSubscription — see
+        /// schema.sql's "Calendar subscription feed" remarks. Built off SupabaseConfig.Url (not a
+        /// constant here) since the Edge Function lives on the Supabase project itself, not
+        /// InviteHost's Cloudflare Worker.</summary>
+        public static string BuildCalendarFeedUrl(string token) =>
+            $"{SupabaseConfig.Url}/functions/v1/calendar-feed/{Uri.EscapeDataString(token)}.ics";
+
+        /// <summary>Same feed as BuildCalendarFeedUrl, as a webcal:// link — tapping this on
+        /// iOS/macOS opens the native "Subscribe to this calendar?" dialog directly instead of
+        /// requiring a manual "Add calendar by URL" menu detour.</summary>
+        public static string BuildCalendarFeedWebcalUrl(string token) =>
+            BuildCalendarFeedUrl(token).Replace("https://", "webcal://");
+
         /// <summary>Pulls the "code" query param out of an invite link — either one built by
         /// BuildInviteUrl or the raw URI handed over by the platform's app-link Intent. Returns
         /// null for anything that isn't shaped like one (e.g. a bare code with no URL at all),

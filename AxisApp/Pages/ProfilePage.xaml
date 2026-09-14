@@ -206,6 +206,37 @@
 
                     <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
 
+                    <!-- Calendar feed: read-only .ics subscription link for people who don't
+                         want/have the app — see AppConstants.Links.BuildCalendarFeedUrl. -->
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <Label Text="{loc:Translate Profile_CalendarFeedSection}" Style="{StaticResource SectionHeaderTertiary}" />
+                        <Label Text="{loc:Translate Profile_CalendarFeedDescription}" Style="{StaticResource LabelTertiary}" />
+                        <Border Style="{StaticResource InputBorderStyle}" IsVisible="{Binding CalendarFeedUrl, Converter={StaticResource StringNotEmptyConverter}}">
+                            <Label Text="{Binding CalendarFeedUrl}" LineBreakMode="MiddleTruncation" />
+                        </Border>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource SpacingS}">
+                            <Button
+                                Grid.Column="0"
+                                Text="{loc:Translate Profile_CopyCalendarLink}"
+                                Command="{Binding CopyCalendarLinkCommand}"
+                                Style="{StaticResource BtnOutlinePrimary}"
+                                controls:Juice.PressScale="0.96" />
+                            <Button
+                                Grid.Column="1"
+                                Text="{loc:Translate Profile_ShareCalendarLink}"
+                                Command="{Binding ShareCalendarLinkCommand}"
+                                Style="{StaticResource BtnOutlinePrimary}"
+                                controls:Juice.PressScale="0.96" />
+                        </Grid>
+                        <Button
+                            Text="{loc:Translate Profile_RegenerateCalendarLink}"
+                            Command="{Binding RegenerateCalendarLinkCommand}"
+                            Style="{StaticResource BtnOutlineDanger}"
+                            controls:Juice.PressScale="0.96" />
+                    </VerticalStackLayout>
+
+                    <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
+
                     <!-- Account: email + password -->
                     <VerticalStackLayout Spacing="{StaticResource SpacingS}">
                         <Label Text="{loc:Translate Profile_Email}" Style="{StaticResource SectionHeaderTertiary}" />
