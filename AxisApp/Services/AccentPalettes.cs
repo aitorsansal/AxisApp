@@ -324,6 +324,23 @@ internal static class AccentPalettes
     /// renders per option, same value as that preset's "Primary" key.</summary>
     public static Color SwatchColor(AccentPreset preset) => Color.FromArgb(Hex[preset]["Primary"]);
 
+    /// <summary>The pre-computed contrasting text/icon color for a preset's base color (WCAG
+    /// contrast against the app's dark/light surfaces — see this class's own remarks). Used by
+    /// GroupIconCircle to keep a group's icon glyph legible against its own flat color swatch,
+    /// the same "Purple/Navy need light text, everything else needs dark" table Profile's own
+    /// on-accent text already relies on.</summary>
+    public static Color TextOnAccent(AccentPreset preset) => Color.FromArgb(Hex[preset]["TextOnAccent"]);
+
+    /// <summary>Group.Color stores a plain AccentPreset name (string) rather than a hex value —
+    /// same convention as AppConstants.Preferences.AccentPreset — so these two parse it back to
+    /// a preset, falling back to Blue for an unset/stray value rather than throwing (a group
+    /// created before this feature, or a legacy value, should still render something).</summary>
+    public static Color ColorFor(string? presetName) =>
+        SwatchColor(Enum.TryParse<AccentPreset>(presetName, out var preset) ? preset : AccentPreset.Blue);
+
+    public static Color TextOnAccentFor(string? presetName) =>
+        TextOnAccent(Enum.TryParse<AccentPreset>(presetName, out var preset) ? preset : AccentPreset.Blue);
+
     public static IEnumerable<(string Key, Color Color)> Values(AccentPreset preset) =>
         Hex[preset].Select(kv => (kv.Key, Color.FromArgb(kv.Value)));
 }

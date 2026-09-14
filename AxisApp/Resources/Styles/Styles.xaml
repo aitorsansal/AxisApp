@@ -629,6 +629,19 @@
         </Style.Triggers>
     </Style>
 
+    <!-- New Group / Group Detail's group-icon grid picker — same "ring on the selected tile"
+         idea as AccentSwatchBorder above, but based on AvatarCircle's neutral background rather
+         than a color swatch, since the tile's own background never changes (only the ring does)
+         — the icon color/background preview lives in the picker's own color-swatch row, not here. -->
+    <Style x:Key="GroupIconOptionBorder" TargetType="Border" BasedOn="{StaticResource AvatarCircle}">
+        <Style.Triggers>
+            <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                <Setter Property="Stroke" Value="{DynamicResource TextPrimary}" />
+                <Setter Property="StrokeThickness" Value="3" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="AvatarInitialsLabel" TargetType="Label">
         <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="FontAttributes" Value="Bold" />

@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
     xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:constants="clr-namespace:AxisApp"
     xmlns:loc="clr-namespace:AxisApp.Localization"
     x:Class="AxisApp.Views.GroupEventsView"
     x:DataType="vm:GroupEventsViewModel">
@@ -113,7 +114,9 @@
                                                         <Label Grid.Column="0" Text="{Binding Title}" FontAttributes="Bold" LineBreakMode="TailTruncation" />
                                                         <Label
                                                             Grid.Column="1"
-                                                            Text="&#128663;"
+                                                            Text="{x:Static constants:AppConstants+Icons.Car}"
+                                                            FontFamily="Lucide"
+                                                            TextColor="{DynamicResource TextPrimary}"
                                                             IsVisible="{Binding NeedsTransport}"
                                                             VerticalOptions="Center">
                                                             <Label.Margin>

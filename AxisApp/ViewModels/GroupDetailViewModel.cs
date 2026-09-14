@@ -52,6 +52,10 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private bool isRenameGroupOverlayOpen;
     [ObservableProperty] private string renameGroupInput = "";
 
+    [ObservableProperty] private bool isEditAppearanceOverlayOpen;
+    [ObservableProperty] private ObservableCollection<GroupColorSwatch> appearanceColorSwatches = [];
+    [ObservableProperty] private ObservableCollection<GroupIconOption> appearanceIconOptions = [];
+
     public GroupDetailViewModel(
         IGroupsRepository groupsRepository,
         IMembersRepository membersRepository,
@@ -154,6 +158,65 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
         group.Name = trimmed;
         currentGroup = await groupsRepository.RenameAsync(group);
         GroupName = currentGroup.Name;
+    });
+
+    /// <summary>Offered to every member, not just the creator (see GroupDetailPage.xaml) —
+    /// unlike rename, color/icon are cosmetic, not structural. The DB enforces this split too
+    /// (schema.sql's enforce_group_owner_only_columns() trigger), this is just the UI side of it.</summary>
+    [RelayCommand]
+    private void OpenEditAppearanceOverlay()
+    {
+        IsGroupOptionsMenuOpen = false;
+        if (currentGroup is not { } group) return;
+
+        AppearanceColorSwatches = new ObservableCollection<GroupColorSwatch>(
+            Enum.GetValues<AccentPreset>().Select(preset => new GroupColorSwatch
+            {
+                Preset = preset,
+                Color = AccentPalettes.SwatchColor(preset),
+                IsSelected = preset.ToString() == group.Color,
+            }));
+
+        AppearanceIconOptions = new ObservableCollection<GroupIconOption>(
+            AppConstants.GroupIcons.All.Select(i => new GroupIconOption
+            {
+                Key = i.Key,
+                Glyph = i.Glyph,
+                IsSelected = i.Key == group.Icon,
+            }));
+
+        IsEditAppearanceOverlayOpen = true;
+    }
+
+    [RelayCommand]
+    private void CancelEditAppearanceOverlay() => IsEditAppearanceOverlayOpen = false;
+
+    [RelayCommand]
+    private void SelectAppearanceColor(GroupColorSwatch swatch)
+    {
+        foreach (var s in AppearanceColorSwatches)
+            s.IsSelected = s == swatch;
+    }
+
+    [RelayCommand]
+    private void SelectAppearanceIcon(GroupIconOption option)
+    {
+        var wasSelected = option.IsSelected;
+        foreach (var o in AppearanceIconOptions)
+            o.IsSelected = false;
+        option.IsSelected = !wasSelected;
+    }
+
+    [RelayCommand]
+    private Task ConfirmEditAppearance() => RunSafeAsync(async () =>
+    {
+        IsEditAppearanceOverlayOpen = false;
+        if (currentGroup is not { } group) return;
+
+        var color = AppearanceColorSwatches.FirstOrDefault(s => s.IsSelected)?.Preset.ToString() ?? group.Color;
+        var icon = AppearanceIconOptions.FirstOrDefault(o => o.IsSelected)?.Key;
+
+        currentGroup = await groupsRepository.UpdateAppearanceAsync(group.Id, color, icon);
     });
 
     /// <summary>Self-service leave. The confirm dialog only covers the always-true "you'll lose

@@ -22,4 +22,16 @@ public class Group : BaseModel
     /// afterward — see /MULTI_CURRENCY_PLAN.md's "Decisions locked" section.</summary>
     [Column("currency")]
     public string Currency { get; set; } = "EUR";
+
+    /// <summary>An AccentPreset name (see Services/AccentPalettes.cs), not a hex value — same
+    /// convention as the per-device accent preference. Member-editable (unlike Name/Currency
+    /// above): see schema.sql's enforce_group_owner_only_columns() trigger for how name/currency
+    /// stay creator-only despite the table's UPDATE policy now covering any member.</summary>
+    [Column("color")]
+    public string Color { get; set; } = "Blue";
+
+    /// <summary>A key into AppConstants.GroupIcons, or null (falls back to an initials circle —
+    /// see GroupIconCircle). Member-editable, same as Color.</summary>
+    [Column("icon")]
+    public string? Icon { get; set; }
 }

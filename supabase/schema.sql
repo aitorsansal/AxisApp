@@ -40,6 +40,12 @@ create table public.members (
 -- list is Frankfurter's (frankfurter.dev, ECB reference rates) actual
 -- supported currency set, verified against its live /v1/currencies
 -- response, not guessed — AppConstants.Currencies mirrors this exact list.
+-- color/icon: an "appearance" tag for the Groups list (a colored circle showing a Lucide
+-- icon glyph, initials fallback otherwise) — added 2026-09-14, member-editable unlike name/
+-- currency above (see this file's "update groups you belong to" policy and
+-- enforce_group_owner_only_columns() trigger below for how that split is actually enforced).
+-- color is an AccentPreset name (Services/AccentPalettes.cs), not a hex value; icon is a key
+-- into AppConstants.GroupIcons, mirrored by the check constraint below — keep both in sync.
 create table public.groups (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -48,6 +54,14 @@ create table public.groups (
       'AUD','BRL','CAD','CHF','CNY','CZK','DKK','EUR','GBP','HKD','HUF','IDR',
       'ILS','INR','ISK','JPY','KRW','MXN','MYR','NOK','NZD','PHP','PLN','RON',
       'SEK','SGD','THB','TRY','USD','ZAR'
+    )),
+  color text not null default 'Blue'
+    check (color in ('Blue','Green','Red','Purple','Pink','Amber','Orange','Navy')),
+  icon text
+    check (icon is null or icon in (
+      'home','users','heart','baby','dog','plane','car','ship','bike','tent','map_pin',
+      'mountain','utensils_crossed','coffee','beer','party_popper','gift','wallet','piggy_bank',
+      'briefcase','dumbbell','graduation_cap','gamepad','film','music','book','shopping_cart','star'
     )),
   created_by uuid not null references auth.users(id),
   created_at timestamptz not null default now()
@@ -118,10 +132,36 @@ create policy "select groups you belong to" on public.groups
   for select using (is_group_member(id) or created_by = auth.uid());
 create policy "insert groups" on public.groups
   for insert with check (created_by = auth.uid());
-create policy "update own groups" on public.groups
-  for update using (created_by = auth.uid());
+-- Any current member can update a group's row (needed for the member-editable color/icon
+-- appearance tag below) — every creator is already a member too (create_group() adds them in
+-- the same transaction), so this covers rename/currency-attempting requests as well; which
+-- columns those are actually allowed to touch is enforced by the
+-- enforce_group_owner_only_columns() trigger, not by this policy.
+create policy "update groups you belong to" on public.groups
+  for update using (is_group_member(id)) with check (is_group_member(id));
 create policy "delete own groups" on public.groups
   for delete using (created_by = auth.uid());
+
+-- Plain RLS can only gate whole rows, not "these columns only if you're the creator" — so
+-- name/currency staying creator-only despite the member-wide update policy above is enforced
+-- here instead, regardless of how the update request was made (not just what the app's own
+-- Set(color/icon)-only update path happens to send).
+create or replace function public.enforce_group_owner_only_columns()
+returns trigger
+language plpgsql
+as $$
+begin
+  if (new.name is distinct from old.name or new.currency is distinct from old.currency)
+     and auth.uid() <> old.created_by then
+    raise exception 'Only the group creator can change name or currency.';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger enforce_group_owner_only_columns
+  before update on public.groups
+  for each row execute function public.enforce_group_owner_only_columns();
 
 -- members: visible if they share a group with you, or it's you
 -- "or created_by = auth.uid()" matters at creation time, same reason as groups/group_members

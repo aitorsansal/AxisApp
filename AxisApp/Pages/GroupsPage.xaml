@@ -44,125 +44,70 @@
 
         <Grid Grid.Row="1">
             <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
-                <ScrollView>
-                    <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingS}">
+                <!-- CollectionView (not the BindableLayout-on-VerticalStackLayout this used to be)
+                so each row can carry Drag/DropGestureRecognizers — long-press a row and drag it
+                onto another to reorder (see GroupsViewModel.BeginDragGroup/DropGroup). Header/
+                EmptyView fold in what used to be separate siblings in the old ScrollView, since a
+                CollectionView owns its own scrolling instead of living inside one. -->
+                <CollectionView
+                    ItemsSource="{Binding Groups}"
+                    SelectionMode="None"
+                    Margin="{StaticResource SpacingM}">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="{StaticResource SpacingS}" />
+                    </CollectionView.ItemsLayout>
 
-                        <Grid ColumnDefinitions="*,Auto">
-                            <Label Grid.Column="0" Text="{loc:Translate Groups_YourGroups}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
-                            <Border Grid.Column="1" BackgroundColor="Transparent" StrokeThickness="0" Padding="{StaticResource SpacingS}" VerticalOptions="Center">
-                                <Label
-                                    Text="{loc:Translate Groups_JoinWithCode}"
-                                    TextColor="{DynamicResource Primary}"
-                                    FontSize="{StaticResource TypeCaption}"
-                                    FontAttributes="Bold"
-                                    VerticalOptions="Center">
-                                    <Label.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding JoinGroupCommand}" />
-                                    </Label.GestureRecognizers>
-                                </Label>
-                            </Border>
-                        </Grid>
+                    <CollectionView.Header>
+                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Grid.Column="0" Text="{loc:Translate Groups_YourGroups}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
+                                <Border Grid.Column="1" BackgroundColor="Transparent" StrokeThickness="0" Padding="{StaticResource SpacingS}" VerticalOptions="Center">
+                                    <Label
+                                        Text="{loc:Translate Groups_JoinWithCode}"
+                                        TextColor="{DynamicResource Primary}"
+                                        FontSize="{StaticResource TypeCaption}"
+                                        FontAttributes="Bold"
+                                        VerticalOptions="Center">
+                                        <Label.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding JoinGroupCommand}" />
+                                        </Label.GestureRecognizers>
+                                    </Label>
+                                </Border>
+                            </Grid>
 
-                        <!-- Skeleton: three fake group-card rows shown only during the initial load,
-                             matching the real card's shape (title+amount line, avatars+caption line). -->
-                        <VerticalStackLayout IsVisible="{Binding IsInitialLoading}" Spacing="{StaticResource SpacingS}">
-                            <Border Style="{StaticResource ListItemCard}">
-                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource SpacingS}">
-                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="0" WidthRequest="120" HeightRequest="18" HorizontalOptions="Start" />
-                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="1" WidthRequest="60" HeightRequest="18" HorizontalOptions="End" />
-                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="0" WidthRequest="80" HeightRequest="12" HorizontalOptions="Start" />
-                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="1" WidthRequest="50" HeightRequest="12" HorizontalOptions="End" />
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource ListItemCard}">
-                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource SpacingS}">
-                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="0" WidthRequest="150" HeightRequest="18" HorizontalOptions="Start" />
-                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="1" WidthRequest="60" HeightRequest="18" HorizontalOptions="End" />
-                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="0" WidthRequest="100" HeightRequest="12" HorizontalOptions="Start" />
-                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="1" WidthRequest="50" HeightRequest="12" HorizontalOptions="End" />
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource ListItemCard}">
-                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource SpacingS}">
-                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="0" WidthRequest="100" HeightRequest="18" HorizontalOptions="Start" />
-                                    <controls:SkeletonBox Grid.Row="0" Grid.Column="1" WidthRequest="60" HeightRequest="18" HorizontalOptions="End" />
-                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="0" WidthRequest="90" HeightRequest="12" HorizontalOptions="Start" />
-                                    <controls:SkeletonBox Grid.Row="1" Grid.Column="1" WidthRequest="50" HeightRequest="12" HorizontalOptions="End" />
-                                </Grid>
-                            </Border>
+                            <!-- Skeleton: three fake group-card rows shown only during the initial load,
+                                 matching the real card's shape (title+amount line, avatars+caption line).
+                                 Groups is still empty at this point, so it sits above zero real rows. -->
+                            <VerticalStackLayout IsVisible="{Binding IsInitialLoading}" Spacing="{StaticResource SpacingS}">
+                                <Border Style="{StaticResource ListItemCard}">
+                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource SpacingS}">
+                                        <controls:SkeletonBox Grid.Row="0" Grid.Column="0" WidthRequest="120" HeightRequest="18" HorizontalOptions="Start" />
+                                        <controls:SkeletonBox Grid.Row="0" Grid.Column="1" WidthRequest="60" HeightRequest="18" HorizontalOptions="End" />
+                                        <controls:SkeletonBox Grid.Row="1" Grid.Column="0" WidthRequest="80" HeightRequest="12" HorizontalOptions="Start" />
+                                        <controls:SkeletonBox Grid.Row="1" Grid.Column="1" WidthRequest="50" HeightRequest="12" HorizontalOptions="End" />
+                                    </Grid>
+                                </Border>
+                                <Border Style="{StaticResource ListItemCard}">
+                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource SpacingS}">
+                                        <controls:SkeletonBox Grid.Row="0" Grid.Column="0" WidthRequest="150" HeightRequest="18" HorizontalOptions="Start" />
+                                        <controls:SkeletonBox Grid.Row="0" Grid.Column="1" WidthRequest="60" HeightRequest="18" HorizontalOptions="End" />
+                                        <controls:SkeletonBox Grid.Row="1" Grid.Column="0" WidthRequest="100" HeightRequest="12" HorizontalOptions="Start" />
+                                        <controls:SkeletonBox Grid.Row="1" Grid.Column="1" WidthRequest="50" HeightRequest="12" HorizontalOptions="End" />
+                                    </Grid>
+                                </Border>
+                                <Border Style="{StaticResource ListItemCard}">
+                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource SpacingS}">
+                                        <controls:SkeletonBox Grid.Row="0" Grid.Column="0" WidthRequest="100" HeightRequest="18" HorizontalOptions="Start" />
+                                        <controls:SkeletonBox Grid.Row="0" Grid.Column="1" WidthRequest="60" HeightRequest="18" HorizontalOptions="End" />
+                                        <controls:SkeletonBox Grid.Row="1" Grid.Column="0" WidthRequest="90" HeightRequest="12" HorizontalOptions="Start" />
+                                        <controls:SkeletonBox Grid.Row="1" Grid.Column="1" WidthRequest="50" HeightRequest="12" HorizontalOptions="End" />
+                                    </Grid>
+                                </Border>
+                            </VerticalStackLayout>
                         </VerticalStackLayout>
+                    </CollectionView.Header>
 
-                        <VerticalStackLayout
-                            BindableLayout.ItemsSource="{Binding Groups}"
-                            Spacing="{StaticResource SpacingS}"
-                            IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
-                            <BindableLayout.ItemTemplate>
-                                <DataTemplate x:DataType="vm:GroupListItem">
-                                    <Border Style="{StaticResource ListItemCard}" controls:Juice.PressScale="0.97">
-                                        <Border.GestureRecognizers>
-                                            <TapGestureRecognizer
-                                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupsViewModel}}, Path=OpenGroupCommand}"
-                                                CommandParameter="{Binding .}" />
-                                        </Border.GestureRecognizers>
-                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="{StaticResource SpacingXS}">
-                                            <Label
-                                                Grid.Row="0" Grid.Column="0"
-                                                Text="{Binding Group.Name}"
-                                                FontSize="{StaticResource TypeTitle}"
-                                                FontAttributes="Bold"
-                                                LineBreakMode="TailTruncation"
-                                                MaxLines="1" />
-
-                                            <controls:AnimatedValueLabel
-                                                Grid.Row="0" Grid.Column="1"
-                                                Text="{Binding BalanceAmountText}"
-                                                FontSize="{StaticResource TypeBody}"
-                                                FontAttributes="Bold">
-                                                <Label.Triggers>
-                                                    <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
-                                                        <Setter Property="TextColor" Value="{DynamicResource Success}" />
-                                                    </DataTrigger>
-                                                    <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
-                                                        <Setter Property="TextColor" Value="{DynamicResource Danger}" />
-                                                    </DataTrigger>
-                                                    <DataTrigger TargetType="Label" Binding="{Binding IsSettled}" Value="True">
-                                                        <Setter Property="TextColor" Value="{DynamicResource TextTertiary}" />
-                                                    </DataTrigger>
-                                                </Label.Triggers>
-                                            </controls:AnimatedValueLabel>
-
-                                            <HorizontalStackLayout
-                                                Grid.Row="1" Grid.Column="0"
-                                                Spacing="-6"
-                                                BindableLayout.ItemsSource="{Binding MemberAvatars}">
-                                                <BindableLayout.ItemTemplate>
-                                                    <DataTemplate x:DataType="vm:GroupMemberAvatar">
-                                                        <controls:ProfileCircle
-                                                            ImageUrl="{Binding AvatarUrl}"
-                                                            Initials="{Binding Initials}"
-                                                            Diameter="{StaticResource AvatarSizeS}"
-                                                            Margin="0,0,-4,0" />
-                                                    </DataTemplate>
-                                                </BindableLayout.ItemTemplate>
-                                            </HorizontalStackLayout>
-
-                                            <Label
-                                                Grid.Row="2" Grid.Column="0"
-                                                Text="{Binding MemberSummary}"
-                                                Style="{StaticResource LabelTertiary}"
-                                                LineBreakMode="TailTruncation" />
-
-                                            <Label
-                                                Grid.Row="2" Grid.Column="1"
-                                                Text="{Binding BalanceCaptionText}"
-                                                Style="{StaticResource LabelTertiary}"
-                                                HorizontalOptions="End" />
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </BindableLayout.ItemTemplate>
-                        </VerticalStackLayout>
-
+                    <CollectionView.EmptyView>
                         <Label
                             Text="{loc:Translate Groups_EmptyState}"
                             Style="{StaticResource LabelTertiary}"
@@ -172,9 +117,91 @@
                                 <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="0" Bottom="0" />
                             </Label.Margin>
                         </Label>
+                    </CollectionView.EmptyView>
 
-                    </VerticalStackLayout>
-                </ScrollView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:GroupListItem">
+                            <Border Style="{StaticResource ListItemCard}" controls:Juice.PressScale="0.97">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupsViewModel}}, Path=OpenGroupCommand}"
+                                        CommandParameter="{Binding .}" />
+                                    <DragGestureRecognizer
+                                        CanDrag="True"
+                                        DragStartingCommand="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupsViewModel}}, Path=BeginDragGroupCommand}"
+                                        DragStartingCommandParameter="{Binding .}" />
+                                    <DropGestureRecognizer
+                                        AllowDrop="True"
+                                        DropCommand="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupsViewModel}}, Path=DropGroupCommand}"
+                                        DropCommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="{StaticResource SpacingXS}" ColumnSpacing="{StaticResource SpacingS}">
+                                    <controls:GroupIconCircle
+                                        Grid.Row="0" Grid.RowSpan="3" Grid.Column="0"
+                                        IconBackgroundColor="{Binding IconBackgroundColor}"
+                                        IconForegroundColor="{Binding IconForegroundColor}"
+                                        Glyph="{Binding IconGlyph}"
+                                        Initials="{Binding GroupInitials}"
+                                        Diameter="{StaticResource AvatarSizeM}"
+                                        VerticalOptions="Center" />
+
+                                    <Label
+                                        Grid.Row="0" Grid.Column="1"
+                                        Text="{Binding Group.Name}"
+                                        FontSize="{StaticResource TypeTitle}"
+                                        FontAttributes="Bold"
+                                        LineBreakMode="TailTruncation"
+                                        MaxLines="1" />
+
+                                    <controls:AnimatedValueLabel
+                                        Grid.Row="0" Grid.Column="2"
+                                        Text="{Binding BalanceAmountText}"
+                                        FontSize="{StaticResource TypeBody}"
+                                        FontAttributes="Bold">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
+                                                <Setter Property="TextColor" Value="{DynamicResource Success}" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
+                                                <Setter Property="TextColor" Value="{DynamicResource Danger}" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsSettled}" Value="True">
+                                                <Setter Property="TextColor" Value="{DynamicResource TextTertiary}" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </controls:AnimatedValueLabel>
+
+                                    <HorizontalStackLayout
+                                        Grid.Row="1" Grid.Column="1"
+                                        Spacing="-6"
+                                        BindableLayout.ItemsSource="{Binding MemberAvatars}">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:GroupMemberAvatar">
+                                                <controls:ProfileCircle
+                                                    ImageUrl="{Binding AvatarUrl}"
+                                                    Initials="{Binding Initials}"
+                                                    Diameter="{StaticResource AvatarSizeS}"
+                                                    Margin="0,0,-4,0" />
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </HorizontalStackLayout>
+
+                                    <Label
+                                        Grid.Row="2" Grid.Column="1"
+                                        Text="{Binding MemberSummary}"
+                                        Style="{StaticResource LabelTertiary}"
+                                        LineBreakMode="TailTruncation" />
+
+                                    <Label
+                                        Grid.Row="2" Grid.Column="2"
+                                        Text="{Binding BalanceCaptionText}"
+                                        Style="{StaticResource LabelTertiary}"
+                                        HorizontalOptions="End" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
             </RefreshView>
 
             <Button

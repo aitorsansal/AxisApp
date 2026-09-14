@@ -38,6 +38,58 @@
                 <Label Text="{loc:Translate NewGroup_CurrencyHint}" Style="{StaticResource LabelTertiary}" />
             </VerticalStackLayout>
 
+            <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                <Label Text="{loc:Translate NewGroup_Appearance}" Style="{StaticResource SectionHeaderTertiary}" />
+                <CollectionView ItemsSource="{Binding ColorSwatches}" HeightRequest="44">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Horizontal" ItemSpacing="{StaticResource SpacingS}" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:GroupColorSwatch">
+                            <Border
+                                Style="{StaticResource AccentSwatchBorder}"
+                                BackgroundColor="{Binding Color}"
+                                controls:Juice.PressScale="0.85"
+                                controls:Juice.Selected="{Binding IsSelected}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:NewGroupViewModel}}, Path=SelectColorCommand}"
+                                        CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+                <CollectionView ItemsSource="{Binding IconOptions}" HeightRequest="176">
+                    <CollectionView.ItemsLayout>
+                        <GridItemsLayout Orientation="Vertical" Span="7" VerticalItemSpacing="{StaticResource SpacingS}" HorizontalItemSpacing="{StaticResource SpacingS}" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:GroupIconOption">
+                            <Border
+                                Style="{StaticResource GroupIconOptionBorder}"
+                                WidthRequest="36" HeightRequest="36"
+                                controls:Juice.PressScale="0.85"
+                                controls:Juice.Selected="{Binding IsSelected}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:NewGroupViewModel}}, Path=SelectIconCommand}"
+                                        CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <Label
+                                    Text="{Binding Glyph}"
+                                    FontFamily="Lucide"
+                                    TextColor="{DynamicResource TextPrimary}"
+                                    HorizontalTextAlignment="Center"
+                                    VerticalTextAlignment="Center"
+                                    HorizontalOptions="Fill"
+                                    VerticalOptions="Fill" />
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+
             <Button
                 Text="{loc:Translate Common_Create}"
                 Command="{Binding CreateCommand}"

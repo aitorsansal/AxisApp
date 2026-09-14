@@ -21,6 +21,13 @@ public partial class GroupListItem : ObservableObject
     public List<GroupMemberAvatar> MemberAvatars { get; init; } = [];
     public string MemberSummary { get; init; } = "";
 
+    /// <summary>Resolved from Group.Color/Icon at load time (AccentPalettes/GroupIcons) so the
+    /// row template just renders a GroupIconCircle without knowing either lookup exists.</summary>
+    public Color IconBackgroundColor { get; init; } = Colors.Transparent;
+    public Color IconForegroundColor { get; init; } = Colors.White;
+    public string? IconGlyph { get; init; }
+    public string GroupInitials { get; init; } = "";
+
     [ObservableProperty] private bool isOwed;
     [ObservableProperty] private bool isOwing;
     [ObservableProperty] private bool isSettled = true;
@@ -108,13 +115,17 @@ public partial class GroupsViewModel : BaseViewModel
                           AvatarUrl = MemberDisplay.AvatarUrl(m)
                         }).ToList(),
                         MemberSummary = loc.Format(
-                            members.Count == 1 ? "Groups_MemberSingular" : "Groups_MemberPlural", members.Count)
+                            members.Count == 1 ? "Groups_MemberSingular" : "Groups_MemberPlural", members.Count),
+                        IconBackgroundColor = AccentPalettes.ColorFor(group.Color),
+                        IconForegroundColor = AccentPalettes.TextOnAccentFor(group.Color),
+                        IconGlyph = AppConstants.GroupIcons.GlyphFor(group.Icon),
+                        GroupInitials = Initials(group.Name),
                     };
                     ApplyBalance(item, balance, AppConstants.Currencies.SymbolFor(group.Currency));
                     items.Add(item);
                 }
 
-                Groups = new ObservableCollection<GroupListItem>(items);
+                Groups = new ObservableCollection<GroupListItem>(ApplySavedOrder(items));
                 IsEmpty = Groups.Count == 0;
 
                 // Fire-and-forget, deliberately not awaited: it may show a permission prompt, and
@@ -183,6 +194,55 @@ public partial class GroupsViewModel : BaseViewModel
 
     [RelayCommand]
     private Task Refresh() => LoadAsync();
+
+    /// <summary>Sorts freshly-loaded items (already in created_at order, see
+    /// SupabaseGroupsRepository.GetMyGroupsAsync) by the saved drag order, if any — a group not
+    /// in the saved list (new since it was last saved, or this account predates the feature)
+    /// falls through to int.MaxValue, so LINQ's stable OrderBy leaves it after every listed group
+    /// in its original created_at position rather than jumping to an arbitrary spot.</summary>
+    private static List<GroupListItem> ApplySavedOrder(List<GroupListItem> items)
+    {
+        var saved = Microsoft.Maui.Storage.Preferences.Default.Get(AppConstants.Preferences.GroupOrder, "");
+        if (string.IsNullOrEmpty(saved)) return items;
+
+        var order = saved.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => Guid.TryParse(s, out var id) ? id : (Guid?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToList();
+
+        return items
+            .OrderBy(i => order.IndexOf(i.Group.Id) is var idx && idx >= 0 ? idx : int.MaxValue)
+            .ToList();
+    }
+
+    private void PersistGroupOrder() =>
+        Microsoft.Maui.Storage.Preferences.Default.Set(
+            AppConstants.Preferences.GroupOrder, string.Join(',', Groups.Select(g => g.Group.Id)));
+
+    /// <summary>Set by BeginDragGroup (the row the drag started on), consumed and cleared by
+    /// DropGroup (the row it was dropped on) — see GroupsPage.xaml's per-row
+    /// DragGestureRecognizer/DropGestureRecognizer, both bound to the row's own GroupListItem.</summary>
+    private GroupListItem? draggedItem;
+
+    [RelayCommand]
+    private void BeginDragGroup(GroupListItem item) => draggedItem = item;
+
+    [RelayCommand]
+    private void DropGroup(GroupListItem targetItem)
+    {
+        if (draggedItem is null) return;
+        var dragged = draggedItem;
+        draggedItem = null;
+        if (dragged == targetItem) return;
+
+        var oldIndex = Groups.IndexOf(dragged);
+        var newIndex = Groups.IndexOf(targetItem);
+        if (oldIndex < 0 || newIndex < 0) return;
+
+        Groups.Move(oldIndex, newIndex);
+        PersistGroupOrder();
+    }
 
     [RelayCommand]
     private void ToggleAccountMenu() => IsAccountMenuOpen = !IsAccountMenuOpen;

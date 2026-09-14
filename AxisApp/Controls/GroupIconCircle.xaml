@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="AxisApp.Controls.GroupIconCircle"
+    x:Name="Root">
+
+    <!-- Glyph-if-set-else-initials, same intent as ProfileCircle's Image-if-set-else-initials —
+         but a Lucide Label glyph has a transparent background unlike an Image's opaque pixels, so
+         it can't just paint over the initials Label as a later sibling. HasGlyph (set in
+         code-behind from OnGlyphChanged) drives an explicit IsVisible pair instead. -->
+    <Border
+        BackgroundColor="{Binding IconBackgroundColor, Source={x:Reference Root}}"
+        StrokeThickness="0"
+        WidthRequest="{Binding Diameter, Source={x:Reference Root}}"
+        HeightRequest="{Binding Diameter, Source={x:Reference Root}}"
+        Padding="0">
+        <Border.StrokeShape>
+            <RoundRectangle CornerRadius="{StaticResource ShapePill}" />
+        </Border.StrokeShape>
+        <Grid>
+            <Label
+                Text="{Binding Initials, Source={x:Reference Root}}"
+                TextColor="{Binding IconForegroundColor, Source={x:Reference Root}}"
+                FontAttributes="Bold"
+                HorizontalTextAlignment="Center"
+                VerticalTextAlignment="Center"
+                HorizontalOptions="Fill"
+                VerticalOptions="Fill"
+                IsVisible="{Binding HasGlyph, Source={x:Reference Root}, Converter={StaticResource InverseBoolConverter}}" />
+            <Label
+                Text="{Binding Glyph, Source={x:Reference Root}}"
+                TextColor="{Binding IconForegroundColor, Source={x:Reference Root}}"
+                FontFamily="Lucide"
+                HorizontalTextAlignment="Center"
+                VerticalTextAlignment="Center"
+                HorizontalOptions="Fill"
+                VerticalOptions="Fill"
+                IsVisible="{Binding HasGlyph, Source={x:Reference Root}}" />
+        </Grid>
+    </Border>
+</ContentView>

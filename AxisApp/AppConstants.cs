@@ -34,6 +34,15 @@ public static class AppConstants
         /// permanently, so it comes back as a daily nudge for as long as an update is genuinely
         /// available.</summary>
         public const string UpdateBannerDismissedDate = "update_banner_dismissed_date";
+
+        /// <summary>Per-device, drag-to-reorder custom order for the Groups list — a
+        /// comma-separated list of group id GUIDs, most-recently-arranged first. Deliberately
+        /// local only (not group state, not synced), same reasoning as AccentPreset above: it's
+        /// how this one person likes to scan their own list, not something other members should
+        /// see change under them. A group not present in the list (new, or before this feature
+        /// existed) sorts after every listed group, in created_at order — see
+        /// GroupsViewModel.ApplySavedOrder.</summary>
+        public const string GroupOrder = "group_order";
     }
 
     /// <summary>Fixed, developer-maintained expense categories — not a database table. Each key
@@ -93,6 +102,65 @@ public static class AppConstants
         public const string Plane = "";
         public const string Eye = "";
         public const string EyeOff = "";
+    }
+
+    /// <summary>Added for group appearance (AppConstants.GroupIcons below) - verified present in
+    /// the vendored lucide.ttf's cmap against lucide-static's current codepoints.json
+    /// (2026-09-14), not guessed. Written as \u escapes rather than raw PUA characters (unlike
+    /// the block above) so they stay legible/diffable in source.</summary>
+    public static class GroupAppearanceIcons
+    {
+        public const string Home = "\uE0F5";
+        public const string Heart = "\uE0F2";
+        public const string Baby = "\uE2CE";
+        public const string Dog = "\uE38D";
+        public const string Ship = "\uE3BA";
+        public const string Bike = "\uE1D2";
+        public const string Tent = "\uE227";
+        public const string MapPin = "\uE111";
+        public const string Mountain = "\uE231";
+        public const string UtensilsCrossed = "\uE2F7";
+        public const string Coffee = "\uE096";
+        public const string Beer = "\uE2CF";
+        public const string PartyPopper = "\uE343";
+        public const string Gift = "\uE0E1";
+        public const string Wallet = "\uE204";
+        public const string PiggyBank = "\uE13A";
+        public const string Briefcase = "\uE062";
+        public const string Dumbbell = "\uE3A1";
+        public const string GraduationCap = "\uE234";
+        public const string Gamepad2 = "\uE0DF";
+        public const string Film = "\uE0D0";
+        public const string Music = "\uE122";
+        public const string Book = "\uE05E";
+        public const string Star = "\uE176";
+    }
+
+    /// <summary>Fixed, curated set of Lucide glyphs offered as a group's icon (Groups list /
+    /// Group Detail's "Edit appearance"). Each key is a stable, language-independent identifier
+    /// stored in Group.Icon \u2014 same reasoning as Categories.Keys above. groups.icon's DB check
+    /// constraint (schema.sql) mirrors this exact key list; keep both in sync.</summary>
+    public static class GroupIcons
+    {
+        public static readonly IReadOnlyList<(string Key, string Glyph)> All =
+        [
+            ("home", GroupAppearanceIcons.Home), ("users", Icons.Users), ("heart", GroupAppearanceIcons.Heart),
+            ("baby", GroupAppearanceIcons.Baby), ("dog", GroupAppearanceIcons.Dog), ("plane", Icons.Plane),
+            ("car", Icons.Car), ("ship", GroupAppearanceIcons.Ship), ("bike", GroupAppearanceIcons.Bike),
+            ("tent", GroupAppearanceIcons.Tent), ("map_pin", GroupAppearanceIcons.MapPin), ("mountain", GroupAppearanceIcons.Mountain),
+            ("utensils_crossed", GroupAppearanceIcons.UtensilsCrossed), ("coffee", GroupAppearanceIcons.Coffee), ("beer", GroupAppearanceIcons.Beer),
+            ("party_popper", GroupAppearanceIcons.PartyPopper), ("gift", GroupAppearanceIcons.Gift), ("wallet", GroupAppearanceIcons.Wallet),
+            ("piggy_bank", GroupAppearanceIcons.PiggyBank), ("briefcase", GroupAppearanceIcons.Briefcase), ("dumbbell", GroupAppearanceIcons.Dumbbell),
+            ("graduation_cap", GroupAppearanceIcons.GraduationCap), ("gamepad", GroupAppearanceIcons.Gamepad2), ("film", GroupAppearanceIcons.Film),
+            ("music", GroupAppearanceIcons.Music), ("book", GroupAppearanceIcons.Book), ("shopping_cart", Icons.ShoppingCart),
+            ("star", GroupAppearanceIcons.Star),
+        ];
+
+        /// <summary>Looks up a key's glyph, or null for an unset/unrecognized key \u2014 the caller
+        /// (GroupIconCircle) then falls back to an initials circle, same "never crash on a
+        /// stray/legacy value" reasoning as Currencies.SymbolFor.</summary>
+        public static string? GlyphFor(string? key) =>
+            key is null ? null : All.FirstOrDefault(i => i.Key == key).Glyph;
     }
 
     public static class Routes

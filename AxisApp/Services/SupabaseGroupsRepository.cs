@@ -13,10 +13,13 @@ public class SupabaseGroupsRepository : IGroupsRepository
     }
 
     /// <summary>No explicit filter needed — RLS's "select groups you belong to" policy already
-    /// scopes this to the current account, so a plain Get() returns exactly "my groups".</summary>
+    /// scopes this to the current account, so a plain Get() returns exactly "my groups". Ordered
+    /// by created_at — a query with no explicit Order() has no guaranteed row order at all (found
+    /// live: editing a group's color/icon rewrites its row, which silently moved it to the end of
+    /// an unordered Get() on the next load, looking like a random reorder).</summary>
     public async Task<List<Group>> GetMyGroupsAsync()
     {
-        var result = await client.From<Group>().Get();
+        var result = await client.From<Group>().Order("created_at", Constants.Ordering.Ascending).Get();
         return result.Models;
     }
 
@@ -55,6 +58,21 @@ public class SupabaseGroupsRepository : IGroupsRepository
         var result = await client.From<Group>()
             .Filter("id", Constants.Operator.Equals, group.Id.ToString())
             .Update(group);
+
+        return result.Model!;
+    }
+
+    /// <summary>Column-scoped partial update (Set/Set/Update, no model argument) rather than
+    /// RenameAsync's full-row Update(model) — any member can call this, and a full-row send
+    /// would otherwise put Name/Currency/CreatedBy/CreatedAt in the same PATCH body, which a
+    /// non-creator has no business touching even incidentally.</summary>
+    public async Task<Group> UpdateAppearanceAsync(Guid groupId, string color, string? icon)
+    {
+        var result = await client.From<Group>()
+            .Filter("id", Constants.Operator.Equals, groupId.ToString())
+            .Set(g => g.Color, color)
+            .Set(g => g.Icon, icon!)
+            .Update();
 
         return result.Model!;
     }

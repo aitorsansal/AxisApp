@@ -77,6 +77,7 @@ public static class AppStrings
         ["NewGroup_CurrencyPlaceholder"] = "Select a currency",
         ["NewGroup_CurrencyHint"] = "This can't be changed later.",
         ["NewGroup_SelectCurrency"] = "Select a currency.",
+        ["NewGroup_Appearance"] = "Color & icon",
 
         // Group detail
         ["GroupDetail_InvitePeople"] = "+ Invite people",
@@ -104,6 +105,7 @@ public static class AppStrings
         ["GroupDetail_Pays"] = "pays {0}",
         ["GroupDetail_GroupOptions"] = "Group options",
         ["GroupDetail_RenameGroup"] = "Rename group",
+        ["GroupDetail_EditAppearance"] = "Edit color & icon",
         ["GroupDetail_ViewMembers"] = "View members",
         ["GroupDetail_LeaveGroup"] = "Leave group",
         ["GroupDetail_TransferOwnership"] = "Transfer ownership",
@@ -344,6 +346,7 @@ public static class AppStrings
         ["NewGroup_CurrencyPlaceholder"] = "Selecciona una moneda",
         ["NewGroup_CurrencyHint"] = "No se puede cambiar más adelante.",
         ["NewGroup_SelectCurrency"] = "Selecciona una moneda.",
+        ["NewGroup_Appearance"] = "Color e icono",
 
         // Group detail
         ["GroupDetail_InvitePeople"] = "+ Invitar personas",
@@ -371,6 +374,7 @@ public static class AppStrings
         ["GroupDetail_Pays"] = "paga a {0}",
         ["GroupDetail_GroupOptions"] = "Opciones del grupo",
         ["GroupDetail_RenameGroup"] = "Renombrar grupo",
+        ["GroupDetail_EditAppearance"] = "Editar color e icono",
         ["GroupDetail_ViewMembers"] = "Ver miembros",
         ["GroupDetail_LeaveGroup"] = "Salir del grupo",
         ["GroupDetail_TransferOwnership"] = "Transferir propiedad",

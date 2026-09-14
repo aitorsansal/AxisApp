@@ -21,6 +21,13 @@ public interface IGroupsRepository
     /// CreatedBy/CreatedAt.</summary>
     Task<Group> RenameAsync(Group group);
 
+    /// <summary>Sets a group's color/icon "appearance" tag. Member-editable (any current member,
+    /// not just the creator) — unlike RenameAsync, this deliberately sends a column-scoped
+    /// partial update rather than the full Group model, so it never touches Name/Currency/
+    /// CreatedBy/CreatedAt even incidentally. See schema.sql's enforce_group_owner_only_columns()
+    /// trigger for the DB-side half of "name/currency stay creator-only, color/icon don't".</summary>
+    Task<Group> UpdateAppearanceAsync(Guid groupId, string color, string? icon);
+
     /// <summary>Self-service leave via the leave_group() RPC. Rejects the group's creator (they
     /// must transfer ownership or dissolve instead) and rejects a nonzero balance in that group —
     /// see schema.sql's leave_group() remarks.</summary>
