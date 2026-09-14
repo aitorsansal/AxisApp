@@ -23,7 +23,7 @@ public static class Juice
     /// instead of being cut off mid-bounce when the page tears down. Slightly longer than that
     /// duration to absorb scheduling jitter. Callers: any [RelayCommand] that navigates in
     /// response to a tap on a PressScale-carrying element (e.g. GroupsViewModel.OpenGroup).</summary>
-    public const int PressReleaseSettleMs = 130;
+    public const int PressReleaseSettleMs = 40;
 
     public static readonly BindableProperty PressScaleProperty = BindableProperty.CreateAttached(
         "PressScale", typeof(double), typeof(Juice), 0d, propertyChanged: OnPressScaleChanged);

@@ -48,6 +48,14 @@ public static class AppStrings
         ["Login_Or"] = "OR",
         ["Login_ContinueWithGoogle"] = "Continue with Google",
 
+        // Register
+        ["Register_Title"] = "Create Account",
+        ["Register_ConfirmPasswordPlaceholder"] = "Confirm password",
+        ["Register_DisplayNamePlaceholder"] = "Display name (optional)",
+        ["Register_Submit"] = "Create Account",
+        ["Register_MissingRequiredFields"] = "Enter an email and password.",
+        ["Register_PasswordMismatch"] = "Passwords don't match.",
+
         // Groups
         ["Groups_Title"] = "Groups",
         ["Groups_YourGroups"] = "Your groups",
@@ -295,6 +303,14 @@ public static class AppStrings
         ["Login_ForgotPasswordSent"] = "Revisa tu correo para restablecer la contraseña.",
         ["Login_Or"] = "O",
         ["Login_ContinueWithGoogle"] = "Continuar con Google",
+
+        // Register
+        ["Register_Title"] = "Crear cuenta",
+        ["Register_ConfirmPasswordPlaceholder"] = "Confirmar contraseña",
+        ["Register_DisplayNamePlaceholder"] = "Nombre para mostrar (opcional)",
+        ["Register_Submit"] = "Crear cuenta",
+        ["Register_MissingRequiredFields"] = "Introduce un correo electrónico y una contraseña.",
+        ["Register_PasswordMismatch"] = "Las contraseñas no coinciden.",
 
         // Groups
         ["Groups_Title"] = "Grupos",

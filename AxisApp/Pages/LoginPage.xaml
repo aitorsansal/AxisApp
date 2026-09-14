@@ -34,11 +34,25 @@
                 </Border>
 
                 <Border Style="{StaticResource InputBorderStyle}">
-                    <Entry
-                        Text="{Binding Password}"
-                        Placeholder="{loc:Translate Login_PasswordPlaceholder}"
-                        IsPassword="True"
-                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                        <Entry
+                            Grid.Column="0"
+                            Text="{Binding Password}"
+                            Placeholder="{loc:Translate Login_PasswordPlaceholder}"
+                            IsPassword="{Binding IsPasswordVisible, Converter={StaticResource InverseBoolConverter}}"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+                        <Label
+                            Grid.Column="1"
+                            Text="{Binding IsPasswordVisible, Converter={StaticResource PasswordEyeConverter}}"
+                            FontFamily="Lucide"
+                            FontSize="{StaticResource TypeBody}"
+                            TextColor="{DynamicResource TextSecondary}"
+                            VerticalOptions="Center">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding TogglePasswordVisibilityCommand}" />
+                            </Label.GestureRecognizers>
+                        </Label>
+                    </Grid>
                 </Border>
 
                 <Label
@@ -56,7 +70,7 @@
 
                 <Button
                     Text="{loc:Translate Login_CreateAccount}"
-                    Command="{Binding SignUpCommand}"
+                    Command="{Binding GoToRegisterCommand}"
                     Style="{StaticResource BtnOutlinePrimary}"
                     IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
                     controls:Juice.PressScale="0.96" />

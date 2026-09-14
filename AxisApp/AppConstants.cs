@@ -91,12 +91,15 @@ public static class AppConstants
         public const string Ticket = "";
         public const string Car = "";
         public const string Plane = "";
+        public const string Eye = "";
+        public const string EyeOff = "";
     }
 
     public static class Routes
     {
         public const string Splash = "//Splash";
         public const string Login = "//Login";
+        public const string Register = "Register";
         public const string Groups = "//Groups";
         public const string GroupDetails = "GroupDetails";
         public const string Members = "Members";

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
+    x:Class="AxisApp.Pages.RegisterPage"
+    x:DataType="vm:RegisterViewModel"
+    Shell.NavBarIsVisible="False"
+    Title="{loc:Translate Register_Title}">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="{loc:Translate Register_Title}" />
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingM}">
+
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Entry
+                        Text="{Binding Email}"
+                        Placeholder="{loc:Translate Login_EmailPlaceholder}"
+                        Keyboard="Email"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+                </Border>
+
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                        <Entry
+                            Grid.Column="0"
+                            Text="{Binding Password}"
+                            Placeholder="{loc:Translate Login_PasswordPlaceholder}"
+                            IsPassword="{Binding IsPasswordVisible, Converter={StaticResource InverseBoolConverter}}"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+                        <Label
+                            Grid.Column="1"
+                            Text="{Binding IsPasswordVisible, Converter={StaticResource PasswordEyeConverter}}"
+                            FontFamily="Lucide"
+                            FontSize="{StaticResource TypeBody}"
+                            TextColor="{DynamicResource TextSecondary}"
+                            VerticalOptions="Center">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding TogglePasswordVisibilityCommand}" />
+                            </Label.GestureRecognizers>
+                        </Label>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
+                        <Entry
+                            Grid.Column="0"
+                            Text="{Binding ConfirmPassword}"
+                            Placeholder="{loc:Translate Register_ConfirmPasswordPlaceholder}"
+                            IsPassword="{Binding IsConfirmPasswordVisible, Converter={StaticResource InverseBoolConverter}}"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+                        <Label
+                            Grid.Column="1"
+                            Text="{Binding IsConfirmPasswordVisible, Converter={StaticResource PasswordEyeConverter}}"
+                            FontFamily="Lucide"
+                            FontSize="{StaticResource TypeBody}"
+                            TextColor="{DynamicResource TextSecondary}"
+                            VerticalOptions="Center">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding ToggleConfirmPasswordVisibilityCommand}" />
+                            </Label.GestureRecognizers>
+                        </Label>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource InputBorderStyle}">
+                    <Entry
+                        Text="{Binding DisplayName}"
+                        Placeholder="{loc:Translate Register_DisplayNamePlaceholder}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}" />
+                </Border>
+
+                <!-- Birthday: same optional decorative-row pattern as ProfilePage. -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                    <Label Text="{loc:Translate Profile_Birthday}" Style="{StaticResource SectionHeaderTertiary}" />
+                    <Border Style="{StaticResource InputBorderStyle}" IsVisible="{Binding HasBirthday}">
+                        <Grid>
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
+                                <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
+                                <Label Grid.Column="1" Text="{Binding BirthdayDisplay}" VerticalOptions="Center" />
+                                <Label Grid.Column="2" Text="{loc:Translate Profile_ClearBirthday}" TextColor="{DynamicResource Danger}" VerticalOptions="Center">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding ClearBirthdayCommand}" />
+                                    </Label.GestureRecognizers>
+                                </Label>
+                            </Grid>
+                            <DatePicker Date="{Binding Birthday}" Opacity="0" />
+                        </Grid>
+                    </Border>
+                    <Button
+                        Text="{loc:Translate Profile_SetBirthday}"
+                        Command="{Binding SetBirthdayCommand}"
+                        Style="{StaticResource BtnOutlinePrimary}"
+                        IsVisible="{Binding HasBirthday, Converter={StaticResource InverseBoolConverter}}"
+                        controls:Juice.PressScale="0.96" />
+                </VerticalStackLayout>
+
+                <Button
+                    Text="{loc:Translate Register_Submit}"
+                    Command="{Binding RegisterCommand}"
+                    Style="{StaticResource BtnPrimaryStyle}"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
+                    controls:Juice.PressScale="0.96" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <ActivityIndicator
+            Grid.Row="0" Grid.RowSpan="2"
+            IsRunning="{Binding IsBusy}"
+            IsVisible="{Binding IsBusy}"
+            Color="{DynamicResource Primary}"
+            HorizontalOptions="Center"
+            VerticalOptions="Center" />
+
+        <controls:ErrorPopup Grid.Row="0" Grid.RowSpan="2" Message="{Binding ErrorMessage}" />
+        <controls:UpdateBanner Grid.Row="0" Grid.RowSpan="2" />
+
+    </Grid>
+</ContentPage>

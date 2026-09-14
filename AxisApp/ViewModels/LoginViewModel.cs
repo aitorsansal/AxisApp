@@ -13,11 +13,15 @@ public partial class LoginViewModel : BaseViewModel
     [ObservableProperty] private string password = string.Empty;
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string statusMessage = string.Empty;
+    [ObservableProperty] private bool isPasswordVisible;
 
     public LoginViewModel(IAuthService authService)
     {
         this.authService = authService;
     }
+
+    [RelayCommand]
+    private void TogglePasswordVisibility() => IsPasswordVisible = !IsPasswordVisible;
 
     [RelayCommand]
     private Task SignIn() => RunSafeAsync(async () =>
@@ -94,23 +98,5 @@ public partial class LoginViewModel : BaseViewModel
     });
 
     [RelayCommand]
-    private Task SignUp() => RunSafeAsync(async () =>
-    {
-        if (IsBusy) return;
-        IsBusy = true;
-        try
-        {
-            var result = await authService.SignUpAsync(Email, Password);
-            if (!result.Success)
-                ErrorMessage = result.ErrorMessage ?? LocalizationResourceManager.Instance["Login_SignUpFailed"];
-            else
-                // No separate "create your profile" step: a Member row only exists once this
-                // account creates or joins a group, both reachable from the (empty) Groups list.
-                await Shell.Current.GoToAsync(AppConstants.Routes.Groups);
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    });
+    private Task GoToRegister() => Shell.Current.GoToAsync(AppConstants.Routes.Register);
 }
