@@ -2,8 +2,10 @@ using AxisApp.Pages;
 using AxisApp.Services;
 using AxisApp.ViewModels;
 using CommunityToolkit.Maui;
+using LiveChartsCore.SkiaSharpView.Maui;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using SkiaSharp.Views.Maui.Controls.Hosting;
 
 namespace AxisApp;
 
@@ -14,6 +16,17 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<App>()
             .UseMauiCommunityToolkit()
+            // LiveCharts' CartesianChart renders via SkiaSharp — UseSkiaSharp() must run before
+            // UseLiveCharts() (order matters, per LiveCharts2's install docs), or SkiaSharp's own
+            // rendering-mode handler (LiveChartsCore.SkiaSharpView.Maui.Rendering.CPURenderMode)
+            // never gets registered and the app crashes with HandlerNotFoundException the moment
+            // any CartesianChart is instantiated — found live via logcat, not caught by the debug
+            // build pass before this. Note: the installed SkiaSharp.Views.Maui.Controls 3.119.0
+            // package's own bundled .xml doc names this method "UseSkiaSharpHandlers" — that's
+            // stale/mismatched against the actual compiled DLL (confirmed via the DLL's raw string
+            // heap), which only has "UseSkiaSharp". Don't trust that xml doc for this package.
+            .UseSkiaSharp()
+            .UseLiveCharts()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("lucide.ttf", "Lucide");
@@ -75,10 +88,13 @@ public static class MauiProgram
         builder.Services.AddTransient<GroupsPage>();
         builder.Services.AddTransient<GroupExpensesViewModel>();
         builder.Services.AddTransient<GroupEventsViewModel>();
+        builder.Services.AddTransient<GroupStatsViewModel>();
         builder.Services.AddTransient<GroupDetailViewModel>();
         builder.Services.AddTransient<GroupDetailPage>();
         builder.Services.AddTransient<MembersViewModel>();
         builder.Services.AddTransient<MembersPage>();
+        builder.Services.AddTransient<MemberProfileViewModel>();
+        builder.Services.AddTransient<MemberProfilePage>();
         builder.Services.AddTransient<AddExpenseViewModel>();
         builder.Services.AddTransient<AddExpensePage>();
         builder.Services.AddTransient<RecurringExpensesViewModel>();

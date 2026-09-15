@@ -67,10 +67,26 @@
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Maui" Version="13.0.0" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageReference Include="LiveChartsCore.SkiaSharpView.Maui" Version="2.0.5" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.10" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
 		<PackageReference Include="QRCoder" Version="1.8.0" />
-		<PackageReference Include="SkiaSharp" Version="4.151.1" />
+		<!-- Downgraded from 4.151.1 to 3.119.0 (2026-09-15) to match the version
+		     LiveChartsCore.SkiaSharpView.Maui's whole SkiaSharp.Views/.HarfBuzz/.Views.Maui.Controls
+		     dependency chain resolves to — a 4.151.1 core against those still-3.119.0 companion
+		     assemblies compiled fine (both sides expose stable public API) but broke at runtime:
+		     confirmed live via logcat as a MethodAccessException in SkiaSharp.HarfBuzz.SKShaper.Shape
+		     calling SKPaint.GetFont(), silently swallowed by LiveCharts' own internal render-error
+		     handling ("[LiveCharts] chart update failed", never thrown) — every chart rendered as a
+		     blank canvas with no error surfaced anywhere in the app itself. Explicitly pinning every
+		     companion package up to 4.151.1 instead was rejected: SkiaSharp.Views.Maui.Controls
+		     4.151.1 requires Microsoft.Maui.Controls >= 10.0.20 (this project pins 10.0.10), and
+		     SkiaSharp.Views.WinUI/NativeAssets.WinUI don't ship an Android-compatible asset at all —
+		     bumping the whole MAUI Controls version is a separate, bigger decision than this bug fix.
+		     ImageResizer.cs (avatar/receipt resize) only uses long-stable core APIs (SKBitmap.Decode,
+		     Resize, SKImage.FromBitmap, Encode) with nothing 4.x-specific — confirmed by a real build
+		     + the same avatar-upload code path, not assumed. -->
+		<PackageReference Include="SkiaSharp" Version="3.119.0" />
 		<PackageReference Include="Supabase" Version="1.6.0" />
 	</ItemGroup>
 

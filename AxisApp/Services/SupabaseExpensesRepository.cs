@@ -26,6 +26,15 @@ public class SupabaseExpensesRepository : IExpensesRepository
         return result.Models;
     }
 
+    public async Task<List<Expense>> GetAllForGroupAsync(Guid groupId)
+    {
+        var result = await client.From<Expense>()
+            .Filter("group_id", Constants.Operator.Equals, groupId.ToString())
+            .Get();
+
+        return result.Models;
+    }
+
     public async Task<List<Expense>> GetForEventAsync(Guid eventId)
     {
         var result = await client.From<Expense>()

@@ -21,5 +21,6 @@ public partial class AppShell : Shell
         Routing.RegisterRoute(AppConstants.Routes.InviteToGroup, typeof(InviteToGroupPage));
         Routing.RegisterRoute(AppConstants.Routes.NewGroup, typeof(NewGroupPage));
         Routing.RegisterRoute(AppConstants.Routes.Profile, typeof(ProfilePage));
+        Routing.RegisterRoute(AppConstants.Routes.MemberProfile, typeof(MemberProfilePage));
     }
 }

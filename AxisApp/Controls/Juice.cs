@@ -111,4 +111,36 @@ public static class Juice
 
         element.TranslateTo(slideRight ? element.Width : 0, 0, 220, Easing.CubicInOut);
     }
+
+    /// <summary>Same sliding-highlight mechanism as SlideRight above, generalized to N equal-width
+    /// columns instead of a fixed 2 — for a segmented selector with 3+ options (e.g. GroupDetail's
+    /// Expenses/Events/Stats tabs). The indicator Border still occupies column 0 of the Grid (sized
+    /// to one column's width by the Grid itself) and translates by index * element.Width, same
+    /// column-width assumption SlideRight relies on. Kept as a separate property rather than
+    /// generalizing SlideRight itself, to avoid touching its existing bool-bound call sites
+    /// (GroupEventsView, AddExpensePage).</summary>
+    public static readonly BindableProperty SlideIndexProperty = BindableProperty.CreateAttached(
+        "SlideIndex", typeof(int), typeof(Juice), 0, propertyChanged: OnSlideIndexChanged);
+
+    public static void SetSlideIndex(BindableObject view, int value) => view.SetValue(SlideIndexProperty, value);
+    public static int GetSlideIndex(BindableObject view) => (int)view.GetValue(SlideIndexProperty);
+
+    private static void OnSlideIndexChanged(BindableObject bindable, object oldValue, object newValue)
+    {
+        if (bindable is not VisualElement element) return;
+        if (newValue is not int index) return;
+
+        if (element.Width <= 0)
+        {
+            void OnceSized(object? s, EventArgs e)
+            {
+                element.SizeChanged -= OnceSized;
+                element.TranslationX = index * element.Width;
+            }
+            element.SizeChanged += OnceSized;
+            return;
+        }
+
+        element.TranslateTo(index * element.Width, 0, 220, Easing.CubicInOut);
+    }
 }

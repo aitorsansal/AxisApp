@@ -538,13 +538,25 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [RelayCommand]
     private void SplitManually() => IsManualSplit = true;
 
+    /// <summary>Rebuilds CategoryChips with fresh instances rather than mutating IsSelected
+    /// in-place on the existing ones — CategoryChips backs a virtualizing CollectionView
+    /// (AddExpensePage.xaml), and ChipBorderStyle's selected-state DataTrigger is a known class of
+    /// MAUI bug where a Style.Triggers-bound DataTrigger doesn't reliably re-evaluate on a recycled
+    /// container when the bound property changes in place without the item's own identity
+    /// changing — found live: switching from "food" to "drinks" saved correctly but left both
+    /// chips showing as visually selected.</summary>
     [RelayCommand]
     private void SelectCategory(CategoryChip? chip)
     {
         if (chip is null) return;
-        SelectedCategory = chip.IsSelected ? string.Empty : chip.Key;
-        foreach (var c in CategoryChips)
-            c.IsSelected = c == chip && !string.IsNullOrEmpty(SelectedCategory);
+        var newCategory = chip.IsSelected ? string.Empty : chip.Key;
+        SelectedCategory = newCategory;
+        CategoryChips = new ObservableCollection<CategoryChip>(CategoryChips.Select(c => new CategoryChip
+        {
+            Key = c.Key,
+            Name = c.Name,
+            IsSelected = c.Key == newCategory && !string.IsNullOrEmpty(newCategory)
+        }));
     }
 
     /// <summary>Equal split with the classic penny-rounding fix (ported from DebtTracker's

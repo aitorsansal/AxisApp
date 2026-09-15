@@ -9,6 +9,12 @@ public interface IExpensesRepository
     /// (not a keyset cursor: simpler, and good enough at this app's scale/concurrency).</summary>
     Task<List<Expense>> GetForGroupAsync(Guid groupId, int limit, int offset);
 
+    /// <summary>Every expense a group has ever had, unpaginated — for the Stats tab's aggregations,
+    /// which need the whole history to sum/count over rather than a page of it. Fine at this app's
+    /// household-group scale; revisit (e.g. server-side aggregation) only if a specific group's
+    /// history makes this slow in practice.</summary>
+    Task<List<Expense>> GetAllForGroupAsync(Guid groupId);
+
     Task<List<Expense>> GetForEventAsync(Guid eventId);
 
     /// <summary>Server-side description search within a group, newest-first, capped at limit —

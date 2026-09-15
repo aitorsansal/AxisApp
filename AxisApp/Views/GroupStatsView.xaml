@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentView
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.Maui;assembly=LiveChartsCore.SkiaSharpView.Maui"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
+    x:Class="AxisApp.Views.GroupStatsView"
+    x:DataType="vm:GroupStatsViewModel">
+
+    <!-- Stats tab of GroupDetailPage — four read-only aggregation charts over the group's whole
+    expense history (see the chat design discussion this was built from). Lazily loaded by
+    GroupDetailViewModel on this tab's first selection, not eagerly with Expenses/Events — see
+    GroupStatsViewModel's remarks. -->
+    <Grid>
+    <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+        <ScrollView>
+            <VerticalStackLayout Spacing="{StaticResource SpacingL}">
+                <VerticalStackLayout.Padding>
+                    <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingM}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingM}" />
+                </VerticalStackLayout.Padding>
+
+                <!-- Skeleton: shown only while the initial load is in flight. -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingL}" IsVisible="{Binding IsInitialLoading}">
+                    <controls:SkeletonBox WidthRequest="140" HeightRequest="12" HorizontalOptions="Start" />
+                    <controls:SkeletonBox HeightRequest="200" />
+                    <controls:SkeletonBox WidthRequest="140" HeightRequest="12" HorizontalOptions="Start" />
+                    <controls:SkeletonBox HeightRequest="200" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout
+                    Spacing="{StaticResource SpacingL}"
+                    IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
+
+                    <!-- Empty state: no expense history yet for this group. -->
+                    <Label
+                        Text="{loc:Translate Stats_Empty}"
+                        Style="{StaticResource LabelTertiary}"
+                        HorizontalTextAlignment="Center"
+                        IsVisible="{Binding HasData, Converter={StaticResource InverseBoolConverter}}">
+                        <Label.Margin>
+                            <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="0" Bottom="0" />
+                        </Label.Margin>
+                    </Label>
+
+                    <VerticalStackLayout Spacing="{StaticResource SpacingL}" IsVisible="{Binding HasData}">
+
+                        <!-- Date-range picker — page-level, feeds every chart below at once (not
+                        a per-chart control). Same chip-row shape as AddExpensePage's category
+                        picker, four fixed options so no need for a data-bound list. -->
+                        <HorizontalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Border Style="{StaticResource ChipBorderStyle}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding SelectAllTimeCommand}" />
+                                </Border.GestureRecognizers>
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border" Binding="{Binding SelectedDateRange}" Value="AllTime">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource Primary}" />
+                                        <Setter Property="Stroke" Value="{DynamicResource Primary}" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+                                <Label Text="{loc:Translate Stats_RangeAllTime}" FontSize="{StaticResource TypeCaption}" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding SelectedDateRange}" Value="AllTime">
+                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </Border>
+                            <Border Style="{StaticResource ChipBorderStyle}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding SelectLast3MonthsCommand}" />
+                                </Border.GestureRecognizers>
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border" Binding="{Binding SelectedDateRange}" Value="Last3Months">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource Primary}" />
+                                        <Setter Property="Stroke" Value="{DynamicResource Primary}" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+                                <Label Text="{loc:Translate Stats_Range3Months}" FontSize="{StaticResource TypeCaption}" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding SelectedDateRange}" Value="Last3Months">
+                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </Border>
+                            <Border Style="{StaticResource ChipBorderStyle}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding SelectLast6MonthsCommand}" />
+                                </Border.GestureRecognizers>
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border" Binding="{Binding SelectedDateRange}" Value="Last6Months">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource Primary}" />
+                                        <Setter Property="Stroke" Value="{DynamicResource Primary}" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+                                <Label Text="{loc:Translate Stats_Range6Months}" FontSize="{StaticResource TypeCaption}" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding SelectedDateRange}" Value="Last6Months">
+                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </Border>
+                            <Border Style="{StaticResource ChipBorderStyle}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding SelectLast12MonthsCommand}" />
+                                </Border.GestureRecognizers>
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border" Binding="{Binding SelectedDateRange}" Value="Last12Months">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource Primary}" />
+                                        <Setter Property="Stroke" Value="{DynamicResource Primary}" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+                                <Label Text="{loc:Translate Stats_Range12Months}" FontSize="{StaticResource TypeCaption}" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding SelectedDateRange}" Value="Last12Months">
+                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </Border>
+                        </HorizontalStackLayout>
+
+                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Label Text="{loc:Translate Stats_SpendByCategory}" Style="{StaticResource SectionHeaderTertiary}" Margin="0" />
+                            <lvc:CartesianChart
+                                HeightRequest="220"
+                                Series="{Binding CategorySpendSeries}"
+                                YAxes="{Binding CategorySpendYAxes}" />
+                        </VerticalStackLayout>
+
+                        <!-- The one multi-series chart on this tab — a legend is mandatory here
+                        (dataviz skill: identity is never color-alone for >=2 series), the other
+                        four charts are single-series so they don't need one. -->
+                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Label Text="{loc:Translate Stats_CategoryTrend}" Style="{StaticResource SectionHeaderTertiary}" Margin="0" />
+                            <lvc:CartesianChart
+                                HeightRequest="260"
+                                Series="{Binding CategoryTrendSeries}"
+                                XAxes="{Binding CategoryTrendXAxes}"
+                                LegendPosition="Bottom" />
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Label Text="{loc:Translate Stats_CategoryFrequency}" Style="{StaticResource SectionHeaderTertiary}" Margin="0" />
+                            <lvc:CartesianChart
+                                HeightRequest="220"
+                                Series="{Binding CategoryFrequencySeries}"
+                                YAxes="{Binding CategoryFrequencyYAxes}" />
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                <Label Grid.Column="0" Text="{loc:Translate Stats_SpendByMember}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" Margin="0" />
+                                <!-- Both ends labeled (not just "Share" alone) so the switch reads
+                                as a spectrum between two named things, not one unexplained word. -->
+                                <Label
+                                    Grid.Column="1"
+                                    Text="{loc:Translate Stats_PaidMode}"
+                                    Style="{StaticResource LabelTertiary}"
+                                    VerticalOptions="Center" />
+                                <Switch Grid.Column="2" IsToggled="{Binding IsShareModeSelected}" VerticalOptions="Center" />
+                                <Label
+                                    Grid.Column="3"
+                                    Text="{loc:Translate Stats_ShareMode}"
+                                    Style="{StaticResource LabelTertiary}"
+                                    VerticalOptions="Center" />
+                            </Grid>
+                            <lvc:CartesianChart
+                                HeightRequest="220"
+                                Series="{Binding MemberSpendSeries}"
+                                YAxes="{Binding MemberSpendYAxes}" />
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                            <Label Text="{loc:Translate Stats_SettleUpCadence}" Style="{StaticResource SectionHeaderTertiary}" Margin="0" />
+                            <lvc:CartesianChart
+                                HeightRequest="200"
+                                Series="{Binding SettlementCadenceSeries}"
+                                XAxes="{Binding SettlementCadenceXAxes}" />
+                        </VerticalStackLayout>
+
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </ScrollView>
+    </RefreshView>
+
+    <controls:ErrorPopup Message="{Binding ErrorMessage}" />
+    </Grid>
+</ContentView>

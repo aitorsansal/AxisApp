@@ -7,13 +7,17 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AxisApp.ViewModels;
 
-/// <summary>Group Detail's shell: header, the Expenses/Events tab selector, and the ⋮ overflow
-/// menu (leave/transfer/dissolve/rename/view members/view recurring expenses) — everything that
-/// applies to the group itself regardless of which tab is active. Split out of a single, growing
-/// monolith (see /EVENTS_PLAN.md Milestone 2) once Events needed a genuinely separate vertical:
-/// balances/recent-activity/Settle/Add-Expense now live in <see cref="GroupExpensesViewModel"/>
-/// (<see cref="ExpensesVm"/>), events/RSVP/carpooling will live in <see cref="GroupEventsViewModel"/>
-/// (<see cref="EventsVm"/>, still a placeholder as of Milestone 2).
+/// <summary>Which of GroupDetailPage's tabs is showing.</summary>
+public enum GroupDetailTab { Expenses, Events, Stats }
+
+/// <summary>Group Detail's shell: header, the Expenses/Events/Stats tab selector, and the ⋮
+/// overflow menu (leave/transfer/dissolve/rename/view members/view recurring expenses) —
+/// everything that applies to the group itself regardless of which tab is active. Split out of a
+/// single, growing monolith (see /EVENTS_PLAN.md Milestone 2) once Events needed a genuinely
+/// separate vertical: balances/recent-activity/Settle/Add-Expense now live in
+/// <see cref="GroupExpensesViewModel"/> (<see cref="ExpensesVm"/>), events/RSVP/carpooling live in
+/// <see cref="GroupEventsViewModel"/> (<see cref="EventsVm"/>), and the Stats aggregations live in
+/// <see cref="GroupStatsViewModel"/> (<see cref="StatsVm"/>).
 ///
 /// Deliberately still does its own group/members fetch here (not just delegating to the child
 /// view models) — IsGroupCreator/HasOtherMembers/TransferCandidates need it for the ⋮ menu
@@ -32,14 +36,37 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
 
     public GroupExpensesViewModel ExpensesVm { get; }
     public GroupEventsViewModel EventsVm { get; }
+    public GroupStatsViewModel StatsVm { get; }
 
     [ObservableProperty] private string groupName = "";
 
-    /// <summary>Which of the two GroupDetailPage tabs is showing — false = Expenses (default),
-    /// true = Events. A plain in-page flip (SelectExpensesTab/SelectEventsTab below), never a
-    /// Shell navigation, so the back button always leaves the group rather than un-flipping the
-    /// tab first — see /EVENTS_PLAN.md's "Decisions locked".</summary>
-    [ObservableProperty] private bool isEventsTabSelected;
+    /// <summary>Which of GroupDetailPage's tabs is showing — Expenses is the default. A plain
+    /// in-page flip (SelectExpensesTab/SelectEventsTab/SelectStatsTab below), never a Shell
+    /// navigation, so the back button always leaves the group rather than un-flipping the tab
+    /// first — see /EVENTS_PLAN.md's "Decisions locked". Stats is lazily loaded on first
+    /// selection (see OnSelectedTabChanged) rather than eagerly alongside Expenses/Events, since
+    /// most group visits never open it.</summary>
+    [ObservableProperty] private GroupDetailTab selectedTab = GroupDetailTab.Expenses;
+
+    partial void OnSelectedTabChanged(GroupDetailTab value)
+    {
+        OnPropertyChanged(nameof(IsExpensesTabSelected));
+        OnPropertyChanged(nameof(IsEventsTabSelected));
+        OnPropertyChanged(nameof(IsStatsTabSelected));
+        OnPropertyChanged(nameof(SelectedTabIndex));
+
+        if (value == GroupDetailTab.Stats)
+            _ = StatsVm.EnsureLoadedAsync(groupId);
+    }
+
+    public bool IsExpensesTabSelected => SelectedTab == GroupDetailTab.Expenses;
+    public bool IsEventsTabSelected => SelectedTab == GroupDetailTab.Events;
+    public bool IsStatsTabSelected => SelectedTab == GroupDetailTab.Stats;
+
+    /// <summary>Backs the 3-position sliding tab highlight (controls:Juice.SlideIndex) —
+    /// GroupDetailPage.xaml's segmented pill has one column per tab, and the indicator translates
+    /// by index * columnWidth.</summary>
+    public int SelectedTabIndex => (int)SelectedTab;
 
     /// <summary>Whether the current account created this group — drives which of Rename/Leave/
     /// Transfer/Dissolve show up in the group options menu (GroupDetailPage.xaml).</summary>
@@ -62,7 +89,8 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
         IBalancesRepository balancesRepository,
         IAuthService authService,
         GroupExpensesViewModel expensesVm,
-        GroupEventsViewModel eventsVm)
+        GroupEventsViewModel eventsVm,
+        GroupStatsViewModel statsVm)
     {
         this.groupsRepository = groupsRepository;
         this.membersRepository = membersRepository;
@@ -70,6 +98,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
         this.authService = authService;
         ExpensesVm = expensesVm;
         EventsVm = eventsVm;
+        StatsVm = statsVm;
     }
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)
@@ -107,10 +136,13 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     });
 
     [RelayCommand]
-    private void SelectExpensesTab() => IsEventsTabSelected = false;
+    private void SelectExpensesTab() => SelectedTab = GroupDetailTab.Expenses;
 
     [RelayCommand]
-    private void SelectEventsTab() => IsEventsTabSelected = true;
+    private void SelectEventsTab() => SelectedTab = GroupDetailTab.Events;
+
+    [RelayCommand]
+    private void SelectStatsTab() => SelectedTab = GroupDetailTab.Stats;
 
     [RelayCommand]
     private Task ViewMembers() => RunSafeAsync(() =>

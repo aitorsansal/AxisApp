@@ -52,19 +52,23 @@
 
         <Grid Grid.Row="1" RowDefinitions="Auto,*">
 
-            <!-- Expenses/Events tab selector — an in-page flip (SelectExpensesTab/
-            SelectEventsTabCommand), never a Shell navigation, so the back button always leaves
-            the group rather than un-flipping the tab first. See /EVENTS_PLAN.md Milestone 2. -->
-            <Border Grid.Row="0" Style="{StaticResource SegmentPillContainer}" HorizontalOptions="Center" WidthRequest="220">
+            <!-- Expenses/Events/Stats tab selector — an in-page flip (SelectExpensesTab/
+            SelectEventsTab/SelectStatsTabCommand), never a Shell navigation, so the back button
+            always leaves the group rather than un-flipping the tab first. See /EVENTS_PLAN.md
+            Milestone 2. Widened from 220 (2 columns) to 340 (3), plus tighter per-button padding
+            and a smaller font below, than SegmentButtonBase's default (16px horizontal padding at
+            TypeCaption 12pt) — at 3 equal columns that clipped "Estadísticas" (Spanish for Stats,
+            the longest of the three labels) against its 100-113px column width. -->
+            <Border Grid.Row="0" Style="{StaticResource SegmentPillContainer}" HorizontalOptions="Center" WidthRequest="340">
                 <Border.Margin>
                     <Thickness Left="0" Top="{StaticResource SpacingS}" Right="0" Bottom="{StaticResource SpacingS}" />
                 </Border.Margin>
-                <Grid ColumnDefinitions="*,*">
+                <Grid ColumnDefinitions="*,*,*">
                     <Border
                         Grid.Column="0"
                         Background="{DynamicResource Primary}"
                         StrokeThickness="0"
-                        controls:Juice.SlideRight="{Binding IsEventsTabSelected}">
+                        controls:Juice.SlideIndex="{Binding SelectedTabIndex}">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="{StaticResource ShapePill}" />
                         </Border.StrokeShape>
@@ -73,9 +77,11 @@
                         Grid.Column="0"
                         Text="{loc:Translate GroupDetail_ExpensesTab}"
                         Command="{Binding SelectExpensesTabCommand}"
-                        Style="{StaticResource SegmentButtonUnselected}">
+                        Style="{StaticResource SegmentButtonUnselected}"
+                        FontSize="11"
+                        Padding="{StaticResource SpacingS}">
                         <Button.Triggers>
-                            <DataTrigger TargetType="Button" Binding="{Binding IsEventsTabSelected}" Value="False">
+                            <DataTrigger TargetType="Button" Binding="{Binding IsExpensesTabSelected}" Value="True">
                                 <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
                             </DataTrigger>
                         </Button.Triggers>
@@ -84,9 +90,24 @@
                         Grid.Column="1"
                         Text="{loc:Translate GroupDetail_EventsTab}"
                         Command="{Binding SelectEventsTabCommand}"
-                        Style="{StaticResource SegmentButtonUnselected}">
+                        Style="{StaticResource SegmentButtonUnselected}"
+                        FontSize="11"
+                        Padding="{StaticResource SpacingS}">
                         <Button.Triggers>
                             <DataTrigger TargetType="Button" Binding="{Binding IsEventsTabSelected}" Value="True">
+                                <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
+                            </DataTrigger>
+                        </Button.Triggers>
+                    </Button>
+                    <Button
+                        Grid.Column="2"
+                        Text="{loc:Translate GroupDetail_StatsTab}"
+                        Command="{Binding SelectStatsTabCommand}"
+                        FontSize="11"
+                        Padding="{StaticResource SpacingS}"
+                        Style="{StaticResource SegmentButtonUnselected}">
+                        <Button.Triggers>
+                            <DataTrigger TargetType="Button" Binding="{Binding IsStatsTabSelected}" Value="True">
                                 <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
                             </DataTrigger>
                         </Button.Triggers>
@@ -95,26 +116,31 @@
             </Border>
 
             <Grid Grid.Row="1">
-                <!-- IsVisible lives on a wrapping Grid, not on GroupExpensesView/GroupEventsView
-                themselves — putting BindingContext and IsVisible on the SAME element meant
-                IsVisible's compiled binding resolved against the new BindingContext
-                (ExpensesVm/EventsVm, neither of which has IsEventsTabSelected) instead of the
-                page's GroupDetailViewModel, so it silently failed and both stayed visible
-                (found live, both tabs' content rendering stacked on top of each other). -->
-                <Grid IsVisible="{Binding IsEventsTabSelected, Converter={StaticResource InverseBoolConverter}}">
+                <!-- IsVisible lives on a wrapping Grid, not on GroupExpensesView/GroupEventsView/
+                GroupStatsView themselves — putting BindingContext and IsVisible on the SAME
+                element meant IsVisible's compiled binding resolved against the new BindingContext
+                (ExpensesVm/EventsVm/StatsVm, none of which has IsExpensesTabSelected etc.) instead
+                of the page's GroupDetailViewModel, so it silently failed and every tab's content
+                stayed visible (found live, stacked on top of each other, back when this was a
+                2-tab bool). -->
+                <Grid IsVisible="{Binding IsExpensesTabSelected}">
                     <views:GroupExpensesView BindingContext="{Binding ExpensesVm}" />
                 </Grid>
                 <Grid IsVisible="{Binding IsEventsTabSelected}">
                     <views:GroupEventsView BindingContext="{Binding EventsVm}" />
                 </Grid>
+                <Grid IsVisible="{Binding IsStatsTabSelected}">
+                    <views:GroupStatsView BindingContext="{Binding StatsVm}" />
+                </Grid>
 
-                <!-- FAB context-switches per tab — two overlaid buttons, each visible only for its
-                own tab, rather than one button with a dynamically-swapped command. -->
+                <!-- FAB context-switches per tab — overlaid buttons, each visible only for its own
+                tab, rather than one button with a dynamically-swapped command. Stats has no FAB
+                (nothing to add from a read-only aggregation screen). -->
                 <Button
                     Text="+"
                     Command="{Binding ExpensesVm.AddExpenseCommand}"
                     Style="{StaticResource FabButtonStyle}"
-                    IsVisible="{Binding IsEventsTabSelected, Converter={StaticResource InverseBoolConverter}}"
+                    IsVisible="{Binding IsExpensesTabSelected}"
                     controls:Juice.PressScale="0.88" />
                 <Button
                     Text="+"
@@ -167,10 +193,10 @@
             /EVENTS_PLAN.md Milestone 2). -->
             <BoxView
                 Style="{StaticResource SectionDivider}" HeightRequest="1"
-                IsVisible="{Binding IsEventsTabSelected, Converter={StaticResource InverseBoolConverter}}" />
+                IsVisible="{Binding IsExpensesTabSelected}" />
             <Label
                 Text="{loc:Translate GroupDetail_RepeatingExpenses}"
-                IsVisible="{Binding IsEventsTabSelected, Converter={StaticResource InverseBoolConverter}}">
+                IsVisible="{Binding IsExpensesTabSelected}">
                 <Label.Padding>
                     <Thickness Left="{StaticResource SpacingM}" Top="{StaticResource SpacingS}" Right="{StaticResource SpacingM}" Bottom="{StaticResource SpacingS}" />
                 </Label.Padding>

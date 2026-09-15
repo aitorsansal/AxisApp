@@ -159,6 +159,15 @@ public partial class MembersViewModel : BaseViewModel, IQueryAttributable
         await LoadAsync();
     });
 
+    /// <summary>Opens the cross-group "you and X" profile — no-ops for the viewer's own row (a
+    /// profile of yourself against yourself is meaningless).</summary>
+    [RelayCommand]
+    private Task ViewMemberProfile(MemberRowItem? item) => RunSafeAsync(() =>
+        item is null || item.IsYou
+            ? Task.CompletedTask
+            : Shell.Current.GoToAsync(
+                $"{AppConstants.Routes.MemberProfile}?memberId={item.Member.Id}&memberName={Uri.EscapeDataString(item.Name)}"));
+
     [RelayCommand]
     private Task Refresh() => LoadAsync();
 }

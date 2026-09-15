@@ -51,7 +51,16 @@
                                                 </DataTrigger>
                                             </controls:ProfileCircle.Triggers>
                                         </controls:ProfileCircle>
+                                        <!-- Tap the name/avatar area (not the whole row) to open
+                                        the cross-group "you and X" profile — kept off the pencil/
+                                        Remove columns so their own tap targets never compete with
+                                        this one for the same touch. -->
                                         <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                            <VerticalStackLayout.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MembersViewModel}}, Path=ViewMemberProfileCommand}"
+                                                    CommandParameter="{Binding .}" />
+                                            </VerticalStackLayout.GestureRecognizers>
                                             <Label Text="{Binding Name}" FontAttributes="Bold" LineBreakMode="TailTruncation" />
                                             <Label Text="{loc:Translate Members_You}" Style="{StaticResource LabelTertiary}" IsVisible="{Binding IsYou}" />
                                             <Label Text="{loc:Translate JoinGroup_PhantomMember}" Style="{StaticResource LabelTertiary}" IsVisible="{Binding IsPhantom}" />

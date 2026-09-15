@@ -54,7 +54,7 @@ public static class AppConstants
     public static class Categories
     {
         public static readonly IReadOnlyList<string> Keys =
-            ["food", "transport", "rent", "utilities", "entertainment", "other"];
+            ["food", "drinks", "transport", "travel", "entertainment", "shopping", "subscriptions", "other"];
     }
 
     /// <summary>The fixed 30-currency list this app supports — tied 1:1 to the DB check
@@ -179,6 +179,7 @@ public static class AppConstants
         public const string EventDetail = "EventDetail";
         public const string NewGroup = "NewGroup";
         public const string Profile = "Profile";
+        public const string MemberProfile = "MemberProfile";
     }
 
     /// <summary>Web-facing invite links (Android App Links today; iOS Universal Links whenever that

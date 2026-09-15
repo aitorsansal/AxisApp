@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AxisApp.ViewModels"
+    xmlns:controls="clr-namespace:AxisApp.Controls"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
+    x:Class="AxisApp.Pages.MemberProfilePage"
+    x:DataType="vm:MemberProfileViewModel"
+    Shell.NavBarIsVisible="False"
+    Title="{Binding MemberName}">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="{Binding MemberName}" />
+
+        <RefreshView Grid.Row="1" IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+            <ScrollView>
+                <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
+
+                    <!-- Skeleton: shown only while the initial load is in flight. -->
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsInitialLoading}">
+                        <controls:SkeletonBox HeightRequest="96" />
+                        <controls:SkeletonBox HeightRequest="96" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout
+                        Spacing="{StaticResource SpacingM}"
+                        IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
+
+                        <controls:ProfileCircle
+                            ImageUrl="{Binding AvatarUrl}"
+                            Initials="{Binding Initials}"
+                            Diameter="{StaticResource AvatarSizeL}"
+                            HorizontalOptions="Center" />
+
+                        <!-- No groups shared with this member at all (shouldn't normally happen —
+                        MembersPage only links to members of a group the viewer is already in — but
+                        guarded anyway rather than showing an empty scroll view). -->
+                        <Label
+                            Text="{loc:Translate MemberProfile_Empty}"
+                            Style="{StaticResource LabelTertiary}"
+                            HorizontalTextAlignment="Center"
+                            IsVisible="{Binding HasSharedGroups, Converter={StaticResource InverseBoolConverter}}" />
+
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding SharedGroups}" Spacing="{StaticResource SpacingM}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:MemberProfileGroupItem">
+                                    <Border Style="{StaticResource BalanceTileSettled}">
+                                        <Border.Triggers>
+                                            <DataTrigger TargetType="Border" Binding="{Binding IsOwed}" Value="True">
+                                                <Setter Property="Style" Value="{StaticResource BalanceTileReceive}" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Border" Binding="{Binding IsOwing}" Value="True">
+                                                <Setter Property="Style" Value="{StaticResource BalanceTilePay}" />
+                                            </DataTrigger>
+                                        </Border.Triggers>
+                                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <Label Grid.Column="0" Text="{Binding GroupName}" FontAttributes="Bold" VerticalOptions="Center" LineBreakMode="TailTruncation">
+                                                    <Label.Triggers>
+                                                        <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
+                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
+                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                                        </DataTrigger>
+                                                    </Label.Triggers>
+                                                </Label>
+                                                <VerticalStackLayout Grid.Column="1" HorizontalOptions="End">
+                                                    <Label Text="{Binding AmountText}" FontSize="{StaticResource TypeTitle}" FontAttributes="Bold" HorizontalTextAlignment="End">
+                                                        <Label.Triggers>
+                                                            <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
+                                                                <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
+                                                                <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                                            </DataTrigger>
+                                                        </Label.Triggers>
+                                                    </Label>
+                                                    <Label Text="{Binding CaptionText}" FontSize="{StaticResource TypeCaption}" HorizontalTextAlignment="End">
+                                                        <Label.Triggers>
+                                                            <DataTrigger TargetType="Label" Binding="{Binding IsOwed}" Value="True">
+                                                                <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger TargetType="Label" Binding="{Binding IsOwing}" Value="True">
+                                                                <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                                            </DataTrigger>
+                                                        </Label.Triggers>
+                                                    </Label>
+                                                </VerticalStackLayout>
+                                            </Grid>
+
+                                            <!-- Category breakdown: money that's actually moved between the
+                                            two of you in this group — not the group's whole aggregate. -->
+                                            <VerticalStackLayout Spacing="{StaticResource SpacingXS}" IsVisible="{Binding HasCategoryBreakdown}">
+                                                <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
+                                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding CategoryBreakdown}">
+                                                    <BindableLayout.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:MemberProfileCategoryItem">
+                                                            <Grid ColumnDefinitions="*,Auto">
+                                                                <Label Grid.Column="0" Text="{Binding Label}" FontSize="{StaticResource TypeCaption}">
+                                                                    <Label.Triggers>
+                                                                        <DataTrigger TargetType="Label" Binding="{Binding Source={RelativeSource AncestorType={x:Type vm:MemberProfileGroupItem}}, Path=IsOwed}" Value="True">
+                                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger TargetType="Label" Binding="{Binding Source={RelativeSource AncestorType={x:Type vm:MemberProfileGroupItem}}, Path=IsOwing}" Value="True">
+                                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                                                        </DataTrigger>
+                                                                    </Label.Triggers>
+                                                                </Label>
+                                                                <Label Grid.Column="1" Text="{Binding AmountText}" FontSize="{StaticResource TypeCaption}">
+                                                                    <Label.Triggers>
+                                                                        <DataTrigger TargetType="Label" Binding="{Binding Source={RelativeSource AncestorType={x:Type vm:MemberProfileGroupItem}}, Path=IsOwed}" Value="True">
+                                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger TargetType="Label" Binding="{Binding Source={RelativeSource AncestorType={x:Type vm:MemberProfileGroupItem}}, Path=IsOwing}" Value="True">
+                                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+                                                                        </DataTrigger>
+                                                                    </Label.Triggers>
+                                                                </Label>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </BindableLayout.ItemTemplate>
+                                                </VerticalStackLayout>
+                                            </VerticalStackLayout>
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </ScrollView>
+        </RefreshView>
+
+        <controls:ErrorPopup Message="{Binding ErrorMessage}" />
+    </Grid>
+</ContentPage>
