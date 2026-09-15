@@ -1979,3 +1979,135 @@ current-state summary — this entry is the "why" behind it.
   Nothing here has been exercised against a real Firebase Web App or a real
   push send yet — that requires the manual Firebase Console + migration
   steps above first.
+
+## Stats tab — charts, date-range filter, member profile, export (2026-09-15)
+
+`POSSIBLE_FEATURES.md`'s "Spending insights" was picked over the other item
+on the shortlist (home-screen widgets) specifically because it needed zero
+new schema/RLS and zero Android-only `RemoteViews` infrastructure — see the
+chat design discussion for the full comparison. Built in two passes, v1
+(the four core charts) then v2 (picked from a "go wild" brainstorm,
+narrowed by explicit choice): date-range filter + category trend chart,
+member profile, export. See CLAUDE.md's "Stats tab" section for the
+current-state summary this entry is the "why" behind.
+
+- **v1 — four charts, no new backend.** `GroupStatsViewModel`/
+  `GroupStatsView` add a third `GroupDetailPage` tab: spend by category,
+  category usage frequency, spend by member (Paid/Share toggle), settle-ups
+  per month — all LINQ aggregation over one `IExpensesRepository
+  .GetAllForGroupAsync` (new: the existing `GetForGroupAsync` is
+  deliberately paginated for Recent Activity, Stats needs the whole
+  history) + `GetSharesForExpensesAsync` fetch, lazily loaded on the tab's
+  first selection rather than eagerly with Expenses/Events. Also added
+  `ExpenseShare.ShareAmountInGroupCurrency` — the DB column
+  (`share_amount_in_group_currency`) already existed but was never mapped
+  on the C# model, needed here for currency-correct per-member aggregation.
+  `GroupDetailPage`'s 2-tab bool selector (`IsEventsTabSelected`) became a
+  `GroupDetailTab` enum for the 3rd tab; `Controls/Juice.cs` gained a
+  `SlideIndex` attached property (N-position) alongside the existing
+  2-position `SlideRight` rather than replacing it, since `GroupEventsView`/
+  `AddExpensePage` still use the 2-tab version unchanged.
+- **Charting library: `LiveChartsCore.SkiaSharpView.Maui` 2.0.5, picked
+  over Syncfusion/Telerik specifically to avoid a "free tier" licensing
+  gate** (explicit ask) — MIT, and its target frameworks matched this
+  project's `net10.0-android36.0`/`net10.0-windows10.0.19041` exactly.
+  Verified via a real local build (not just NuGet metadata) before writing
+  any chart code, per this file's own "be skeptical of an SDK's API
+  surface" rule.
+  - **Bug 1 — app crashed on launch after adding LiveCharts**: `[Microsoft
+    .Maui.Platform.HandlerNotFoundException]: Unable to find a
+    IElementHandler corresponding to LiveChartsCore.SkiaSharpView.Maui
+    .Rendering.CPURenderMode`. Found via `adb logcat`, not visible from a
+    clean build. Root cause: `MauiProgram.cs` called `.UseLiveCharts()`
+    without `.UseSkiaSharp()` first — LiveCharts' install docs (fetched
+    live, not assumed) say order matters. The installed package's own
+    bundled `.xml` doc names this method `UseSkiaSharpHandlers`, which
+    doesn't exist on the compiled DLL — confirmed stale by grepping the raw
+    DLL string heap, which only has `UseSkiaSharp`. Fixed.
+  - **Bug 2 — no crash, but every chart rendered as a blank canvas**:
+    `[LiveCharts] chart update failed: System.MethodAccessException: Method
+    'SkiaSharp.SKPaint.GetFont()' is inaccessible from method
+    'SkiaSharp.HarfBuzz.SKShaper.Shape(string,SkiaSharp.SKPaint)'` — logged
+    by LiveCharts' own internal render-error handling, never thrown, so
+    nothing in the app itself surfaced an error. Root cause: the project's
+    direct `SkiaSharp` pin (4.151.1) was newer than the rest of the
+    SkiaSharp family LiveCharts pulled in (3.119.0) — a binary ABI mismatch
+    a clean build can't catch, since both sides compile against stable
+    public API. Considered pinning every `SkiaSharp.*` companion package up
+    to 4.151.1 instead of downgrading; rejected because
+    `SkiaSharp.Views.Maui.Controls` 4.151.1 needs `Microsoft.Maui.Controls
+    >= 10.0.20` (this project pins 10.0.10) and `SkiaSharp.Views.WinUI`/
+    `NativeAssets.WinUI` don't ship an Android-compatible asset at all —
+    bumping the whole MAUI Controls version is a separate, bigger decision
+    than a chart-library bug fix. Fixed by downgrading `SkiaSharp` to
+    3.119.0 instead, after confirming `Services/ImageResizer.cs` (avatar/
+    receipt resize) only uses long-stable core APIs with nothing
+    4.x-specific.
+  - Both confirmed fixed live on a real device (screenshot + logcat), not
+    just build-verified.
+- **v2 — picked from a "go wild" brainstorm, explicitly narrowed:**
+  - **Date-range filter** (all time / 3 / 6 / 12 months) — one page-level
+    `StatsDateRange` selector feeds every chart at once, not a per-chart
+    control (explicit choice over the alternative).
+  - **Category spend trend, over time** — the one genuinely multi-series
+    chart on the tab (one `LineSeries` per category, sharing a month axis),
+    added as a 5th chart rather than replacing the all-time totals bar
+    chart (explicit choice). This is the one chart that actually needed
+    the dataviz skill's categorical color treatment: an 8-slot palette
+    validated with `validate_palette.js` against Axis's real dark surface
+    (`#0B1220`, not the skill's generic default) — every other chart on
+    this tab is single-series, where a single consistent hue (Axis's own
+    Primary accent) is the right call per the skill's own form guidance,
+    so the categorical palette work only pays off here.
+  - **Member profile ("you and X")** — merges the "per-member drill-down"
+    and "cross-group pairwise" ideas from the brainstorm into one screen
+    (explicit choice) rather than shipping them separately. New
+    `MemberProfilePage`/`MemberProfileViewModel`, opened by tapping a
+    member's name/avatar on `MembersPage` (not the whole row — kept off
+    the existing rename-pencil/Remove-button tap targets so none of the
+    three compete for the same touch). Entirely composed from existing
+    repository methods (`GetMyGroupsAsync`, `GetForGroupAsync`,
+    `GetMyPairwiseForGroupAsync`, `GetAllForGroupAsync`,
+    `GetSharesForExpensesAsync`) — no new SQL, confirmed feasible during
+    the design discussion specifically because `members` is a global table
+    (the same `member_id` really does recur across every group that person
+    belongs to). Uses the same payer/share-holder edge definition
+    `my_pairwise_balances` uses server-side for its category breakdown, not
+    the shared group's whole aggregate.
+  - **Export** — CSV (all-time raw expense history, general-purpose, not
+    Stats-specific) and PDF (numbers-table snapshot of the current tab's
+    aggregations, respecting the selected date range) were both explicitly
+    requested; a PDF-report-of-the-charts-themselves option was considered
+    and rejected in favor of tables only, simpler and lower-risk than
+    redrawing bar/line marks against a raw `SKCanvas`. PDF uses
+    `SkiaSharp.SKDocument.CreatePdf` directly — confirmed present in the
+    already-installed `SkiaSharp` 3.119.0 package by inspecting its own
+    DLL before committing to it, so this added **zero new dependency** and
+    sidestepped any licensing/"gated free tier" question entirely (the
+    same concern that shaped the charting-library choice above). Both
+    exports hand off to the OS share sheet via
+    `Share.Default.RequestAsync(ShareFileRequest)` — the same API
+    `ProfileViewModel`/`InviteToGroupViewModel` already use for a text
+    share, but this app's first *file* share, so it got a real on-device
+    check (confirmed working) rather than just a build-verify.
+- **Unrelated bug fix, found live while testing this feature**:
+  `AddExpenseViewModel.SelectCategory` mutated `IsSelected` in place on the
+  existing `CategoryChip` objects backing `AddExpensePage`'s category
+  `CollectionView` — switching from "food" to "drinks" saved correctly but
+  left both chips showing as visually selected. A known class of MAUI bug:
+  a `Style.Triggers`-based `DataTrigger` doesn't reliably re-evaluate on a
+  recycled `CollectionView` container when the bound property changes in
+  place without the item's own identity changing. Fixed by rebuilding
+  `CategoryChips` with fresh instances on every selection instead of
+  mutating the existing ones.
+- Small UX fixes found in the same testing pass: the 3-tab pill selector
+  clipped "Estadísticas" (Spanish, the longest of the three labels) against
+  its ~100px column width — widened the pill and tightened per-button
+  padding/font-size, not a wrong string (the Spanish text was already
+  correct). The Paid/Share toggle's Spanish label ("Parte") read as
+  meaningless on its own — added a "Paid" label on the switch's other side
+  so it reads as a spectrum, and changed the Spanish label to "Reparto"
+  (reusing `AddExpense_Split`'s existing term) instead of the ambiguous
+  standalone "Parte". Chart axis labels now truncate a long member name
+  (e.g. one added by email, no display name set) to 11 chars + "…" rather
+  than squeezing the bars themselves.

@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
+using Microsoft.Maui.ApplicationModel.DataTransfer;
 using SkiaSharp;
 
 namespace AxisApp.ViewModels;
@@ -34,6 +35,7 @@ public partial class GroupStatsViewModel : BaseViewModel
     private readonly IExpensesRepository expensesRepository;
     private readonly IMembersRepository membersRepository;
     private readonly IAliasesRepository aliasesRepository;
+    private readonly IGroupsRepository groupsRepository;
 
     /// <summary>Axis's own Primary accent (Colors.xaml) — these are single-measure magnitude
     /// charts (one bar per category/member/month), not multi-series identity charts, so a single
@@ -67,6 +69,8 @@ public partial class GroupStatsViewModel : BaseViewModel
     private List<ExpenseShare> allShares = [];
     private Dictionary<Guid, Member> membersById = new();
     private Dictionary<Guid, string> aliases = new();
+    private string groupName = "";
+    private string groupSymbol = "";
 
     [ObservableProperty] private bool isBusy;
     /// <summary>True only while the very first load (for this tab instance) is in flight — same
@@ -104,11 +108,13 @@ public partial class GroupStatsViewModel : BaseViewModel
     public GroupStatsViewModel(
         IExpensesRepository expensesRepository,
         IMembersRepository membersRepository,
-        IAliasesRepository aliasesRepository)
+        IAliasesRepository aliasesRepository,
+        IGroupsRepository groupsRepository)
     {
         this.expensesRepository = expensesRepository;
         this.membersRepository = membersRepository;
         this.aliasesRepository = aliasesRepository;
+        this.groupsRepository = groupsRepository;
     }
 
     /// <summary>No-ops if this group's data is already loaded — called from GroupDetailViewModel
@@ -129,12 +135,15 @@ public partial class GroupStatsViewModel : BaseViewModel
                 var loadExpenses = expensesRepository.GetAllForGroupAsync(groupId);
                 var loadMembers = membersRepository.GetForGroupAsync(groupId);
                 var loadAliases = aliasesRepository.GetMyAliasesAsync();
-                await Task.WhenAll(loadExpenses, loadMembers, loadAliases);
+                var loadGroup = groupsRepository.GetByIdAsync(groupId);
+                await Task.WhenAll(loadExpenses, loadMembers, loadAliases, loadGroup);
 
                 allExpenses = loadExpenses.Result;
                 var members = loadMembers.Result;
                 membersById = members.ToDictionary(m => m.Id);
                 aliases = loadAliases.Result;
+                groupName = loadGroup.Result.Name;
+                groupSymbol = AppConstants.Currencies.SymbolFor(loadGroup.Result.Currency);
 
                 var expenseIds = allExpenses.Select(e => e.Id).ToList();
                 allShares = await expensesRepository.GetSharesForExpensesAsync(expenseIds);
@@ -158,6 +167,43 @@ public partial class GroupStatsViewModel : BaseViewModel
 
     [RelayCommand]
     private Task Refresh() => LoadAsync(groupId);
+
+    private string DateRangeLabel()
+    {
+        var loc = LocalizationResourceManager.Instance;
+        return SelectedDateRange switch
+        {
+            StatsDateRange.Last3Months => loc["Stats_Range3Months"],
+            StatsDateRange.Last6Months => loc["Stats_Range6Months"],
+            StatsDateRange.Last12Months => loc["Stats_Range12Months"],
+            _ => loc["Stats_RangeAllTime"]
+        };
+    }
+
+    /// <summary>CSV is the group's whole raw history regardless of the on-screen date-range filter
+    /// — it's general-purpose export, not a Stats-specific snapshot (see StatsExporter's remarks).
+    /// PDF instead respects SelectedDateRange, since it's explicitly a report of what's currently
+    /// showing on this tab.</summary>
+    [RelayCommand]
+    private Task Export() => RunSafeAsync(async () =>
+    {
+        var loc = LocalizationResourceManager.Instance;
+        var choice = await Shell.Current.DisplayActionSheet(
+            loc["Stats_Export"], loc["Common_Cancel"], null,
+            loc["Stats_ExportCsv"], loc["Stats_ExportPdf"]);
+
+        if (choice == loc["Stats_ExportCsv"])
+        {
+            var path = await StatsExporter.ExportExpensesCsvAsync(groupName, allExpenses, membersById, aliases);
+            await Share.Default.RequestAsync(new ShareFileRequest { Title = loc["Stats_ExportCsv"], File = new ShareFile(path) });
+        }
+        else if (choice == loc["Stats_ExportPdf"])
+        {
+            var path = await StatsExporter.ExportStatsPdfAsync(
+                groupName, DateRangeLabel(), groupSymbol, FilteredExpenses, allShares, membersById, aliases);
+            await Share.Default.RequestAsync(new ShareFileRequest { Title = loc["Stats_ExportPdf"], File = new ShareFile(path) });
+        }
+    });
 
     [RelayCommand]
     private void SelectPaidMode() => IsShareModeSelected = false;

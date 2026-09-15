@@ -7,13 +7,6 @@ ideas worth picking up when there's time. See `CLAUDE.md`/`CHANGELOG.md`/
 
 ## New features
 
-### Spending insights
-A "Stats" screen per group: spend by category over time, by member, a
-settle-up cadence. Pure read — every number already lives in
-`expenses`/`expense_shares`, converted via `amount_in_group_currency`. No
-new schema, no new RLS — just an aggregation screen (and maybe one grouped
-Postgrest query for efficiency). Cheapest item on this list to ship.
-
 ### Settle-up nudges (monthly)
 A monthly `pg_cron` job scans `group_balances` for a nonzero balance and
 sends one gentle push per debtor — a private reminder, not a public list.
@@ -57,6 +50,14 @@ per-group `Preferences` flag checked before each recipient computation, on
 top of infra that already exists.
 
 ---
+
+**Spending insights — shipped 2026-09-15.** Went further than this file's
+original one-liner: a "Stats" tab per group (spend by category, category
+usage frequency, spend by member, settle-up cadence, category trend over
+time), a page-level date-range filter, a cross-group member profile screen,
+and CSV/PDF export. See CHANGELOG.md's "Stats tab" entry and CLAUDE.md's
+"Stats tab" section. Picked over home-screen widgets (below) specifically
+because it needed zero new schema/RLS and zero Android-only infrastructure.
 
 Explicitly dropped from the original review: multi-payer expenses, a
 shared-lists third vertical, receipt OCR, debt-simplification counterparty

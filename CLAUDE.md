@@ -122,6 +122,73 @@ specific counterparty from simplification — needs pairwise data as
 simplification's *input* (a constrained matching/flow problem), materially
 bigger than either display mode.
 
+## Stats tab
+
+Group Detail's third tab (`GroupStatsView`/`GroupStatsViewModel`), added
+2026-09-15 — pure read-only aggregation over a group's whole expense
+history, no new schema/view (see CHANGELOG.md's "Stats tab" entry for the
+full build history and the two real runtime bugs it took to get charts
+actually rendering). Current-state facts worth knowing before touching
+this area again:
+
+- **`GroupDetailPage`'s tab selector is enum-driven, not bool-driven** —
+  `GroupDetailTab { Expenses, Events, Stats }` on `GroupDetailViewModel`,
+  with derived `IsXTabSelected` bools for XAML bindings and `SelectedTabIndex`
+  feeding `Controls/Juice.cs`'s `SlideIndex` attached property (an N-position
+  generalization of the older 2-position `SlideRight`, added alongside it
+  rather than replacing it — `GroupEventsView`/`AddExpensePage`'s existing
+  2-tab toggles still use `SlideRight` unchanged). Adding a 4th tab anywhere
+  in the app means extending this enum pattern, not reintroducing a bool.
+- **Lazily loaded, unlike the other two tabs** — `ExpensesVm`/`EventsVm` load
+  eagerly in `GroupDetailViewModel.LoadAsync`'s `Task.WhenAll` on every group
+  open; `StatsVm.EnsureLoadedAsync` only fires from `OnSelectedTabChanged`
+  on the Stats tab's first selection, since most group visits never open it.
+- **Charts are `LiveChartsCore.SkiaSharpView.Maui`** (`CartesianChart`,
+  `RowSeries<T>`/`ColumnSeries<T>`/`LineSeries<T>`), wired via
+  `.UseSkiaSharp().UseLiveCharts()` in `MauiProgram.cs` — **that call order
+  matters**, `UseLiveCharts()` alone throws `HandlerNotFoundException` on
+  `LiveChartsCore.SkiaSharpView.Maui.Rendering.CPURenderMode` the moment any
+  `CartesianChart` is instantiated (which happens as soon as `GroupDetailPage`
+  loads, regardless of which tab is active — MAUI builds the whole visual
+  tree eagerly, `IsVisible="False"` doesn't defer construction). See the
+  NuGet Packages section above for the other real bug this shipped with
+  (a `SkiaSharp` version split).
+- **One consistent hue (Axis's own Primary accent) for every single-series
+  chart**, the validated 8-slot categorical palette
+  (`GroupStatsViewModel.CategoricalPalette`, checked with the dataviz
+  skill's `validate_palette.js` against Axis's actual dark surface
+  `#0B1220`) only for the one genuinely multi-series chart (category spend
+  trend over time) — color identity is for distinguishing series, not for
+  decorating every bar of a single magnitude chart. A category keeps the
+  same palette slot everywhere via its position in
+  `AppConstants.Categories.Keys`, never by a chart's own per-render sort
+  order.
+- **`CategoryDisplay.Label`/`Services/MemberDisplay.cs`** are the shared
+  resolvers for a category key → localized label and a member → display
+  name — both `GroupStatsViewModel` and `MemberProfileViewModel` (and
+  `StatsExporter`) go through these rather than resolving either inline.
+- **`MemberProfilePage`** ("you and X") is a related but separate screen,
+  opened by tapping a member's name/avatar on `MembersPage` (not "You") —
+  merges the "per-member drill-down" and "cross-group pairwise" ideas into
+  one screen, entirely composed from existing repository methods
+  (`GetMyGroupsAsync`, `GetForGroupAsync`, `GetMyPairwiseForGroupAsync`,
+  `GetAllForGroupAsync`, `GetSharesForExpensesAsync`) — no new SQL. Walks
+  the viewer's own groups client-side to find which ones the target member
+  is also in (members are a global table, so the same `member_id` really
+  does recur across every group that person belongs to — see "members vs.
+  accounts" above), and for each shared group uses the same payer/
+  share-holder edge definition `my_pairwise_balances` uses server-side, not
+  the group's whole aggregate.
+- **Export (`Services/StatsExporter.cs`)** — CSV is the group's whole raw
+  expense history (general-purpose, not Stats-specific); PDF is a
+  numbers-table snapshot of the current tab's aggregations, over whichever
+  `StatsDateRange` is selected. PDF uses `SkiaSharp.SKDocument.CreatePdf`
+  directly — no separate PDF library, confirmed present in the
+  already-installed `SkiaSharp` package. Both hand off to the OS share
+  sheet via `Share.Default.RequestAsync(ShareFileRequest)`, the same API
+  `ProfileViewModel`/`InviteToGroupViewModel` already use for a text share
+  — this was the app's first *file* share.
+
 ## Architecture
 
 ### Backend abstraction — why it exists, and the one rule
@@ -183,11 +250,12 @@ silently blanks those columns; this has bitten `Expense` edits twice.
 
 Uses **MAUI Shell**, routes declared as constants in `AppConstants.Routes`
 (`Splash`, `Login`, `Groups`, `GroupDetails`, `Members`, `JoinGroup`,
-`AddExpense`, `NewGroup`, `AddEvent`) rather than hardcoded strings — follow
-that pattern for any new screen. The Events list itself has **no** separate
-route — it lives embedded in `GroupDetailPage`'s Events tab
-(`GroupEventsView`), not as its own navigated page; only `AddEventPage`
-needed a real route, same shape as `AddExpensePage`. `Splash` is the first
+`AddExpense`, `NewGroup`, `AddEvent`, `MemberProfile`) rather than hardcoded
+strings — follow that pattern for any new screen. The Events list itself
+has **no** separate route — it lives embedded in `GroupDetailPage`'s Events
+tab (`GroupEventsView`), not as its own navigated page; only `AddEventPage`
+needed a real route, same shape as `AddExpensePage`. Same for the Stats
+tab (`GroupStatsView`, no route of its own). `Splash` is the first
 `ShellContent` in `AppShell.xaml`; it decides between `//Login` and
 `//Groups` before anything else renders (`SplashPage.OnAppearing` must
 `await Task.Yield()` before touching `Shell.Current` — Shell's own initial
@@ -380,11 +448,27 @@ permission grants, `security definer` needs, off-peak scheduling choices).
 | `CommunityToolkit.Maui` | 13.0.0 | UI controls & behaviors |
 | `CommunityToolkit.Mvvm` | 8.4.0 | MVVM source generators |
 | `Supabase` | 1.6.0 | Supabase client (Auth + Postgrest + Realtime + Storage) |
-| `SkiaSharp` | 4.151.1 | Client-side image resize/WebP encode for avatar uploads |
+| `SkiaSharp` | 3.119.0 | Client-side image resize/WebP encode for avatar uploads; PDF export (`SKDocument.CreatePdf`, see "Stats tab" below) |
+| `LiveChartsCore.SkiaSharpView.Maui` | 2.0.5 | Charts on the Stats tab (see "Stats tab" below) |
 | `Xamarin.AndroidX.Credentials` | 1.6.0.1 | Android-only: Credential Manager for native Google sign-in |
 | `Xamarin.AndroidX.Credentials.PlayServicesAuth` | 1.6.0.1 | Android-only, paired with the above |
 | `Xamarin.Google.Android.Libraries.Identity.GoogleId` | 1.1.0.15 | Android-only: Google ID token credential type |
 | `Xamarin.Firebase.Messaging` | 125.1.1.1 | Android-only: FCM push notifications |
+
+**`SkiaSharp` is pinned to 3.119.0, not the newer 4.151.1 it briefly was** —
+`LiveChartsCore.SkiaSharpView.Maui` 2.0.5's own dependency chain
+(`SkiaSharp.Views.Maui.Controls`/`.Core`, `SkiaSharp.HarfBuzz`, etc.) floors
+at 3.119.0, and NuGet doesn't auto-unify a directly-pinned core package
+against its own still-3.119.0 companion assemblies. That split compiles
+clean (both sides expose stable public API) but breaks at *runtime*: a
+`MethodAccessException` in `SkiaSharp.HarfBuzz.SKShaper.Shape` calling
+`SKPaint.GetFont()`, silently swallowed by LiveCharts' own render-error
+handling — every chart rendered as a blank canvas with no error anywhere in
+the app. See CHANGELOG.md's "Stats tab" entry. Don't re-bump `SkiaSharp`
+alone without bumping every `SkiaSharp.*` companion package to the exact
+same version (and re-verifying `Microsoft.Maui.Controls`' own version floor
+doesn't move as a result — `SkiaSharp.Views.Maui.Controls` 4.151.1 needs
+`Microsoft.Maui.Controls >= 10.0.20`, this project pins 10.0.10).
 
 Be skeptical of assuming an SDK's API surface without checking a real local
 build. This bit the project repeatedly early on (wrong `Postgrest`
@@ -393,7 +477,13 @@ namespace, wrong `CreateSignedUrl` return shape, `CommunityToolkit.Maui
 The reliable source of truth is still a real local build's compiler errors
 or a reflection probe of the actually-installed package, not fetched docs
 — when something new comes up that hasn't been build-verified, say so
-explicitly rather than asserting an API shape with false confidence.
+explicitly rather than asserting an API shape with false confidence. A
+package's own bundled `.xml` doc can itself be stale against the compiled
+DLL (found live: `SkiaSharp.Views.Maui.Controls`' doc names a method
+`UseSkiaSharpHandlers` that the actual DLL doesn't have — the real one is
+`UseSkiaSharp`, confirmed by grepping the DLL's raw string heap) — treat
+even the installed package's own doc file as unverified until a build or a
+binary check confirms it.
 
 ## Environment
 

@@ -46,6 +46,15 @@
 
                     <VerticalStackLayout Spacing="{StaticResource SpacingL}" IsVisible="{Binding HasData}">
 
+                        <Button
+                            Text="{loc:Translate Stats_Export}"
+                            Command="{Binding ExportCommand}"
+                            Style="{StaticResource BtnOutlinePrimary}"
+                            FontSize="{StaticResource TypeCaption}"
+                            Padding="{StaticResource SpacingS}"
+                            MinimumHeightRequest="36"
+                            HorizontalOptions="End" />
+
                         <!-- Date-range picker — page-level, feeds every chart below at once (not
                         a per-chart control). Same chip-row shape as AddExpensePage's category
                         picker, four fixed options so no need for a data-bound list. -->
