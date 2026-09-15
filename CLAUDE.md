@@ -246,6 +246,25 @@ carry over `CreatedBy`/`CreatedAt` (and any other server-set field) from
 the original row — building a brand-new object and sending the whole thing
 silently blanks those columns; this has bitten `Expense` edits twice.
 
+**`SupabaseAuthService.RestoreSessionAsync()` is a genuine no-op once
+`client.Auth.CurrentSession` is already set in memory** — it returns
+immediately rather than re-running `LoadSession()+InitializeAsync()`. Don't
+remove that early-return: `InitializeAsync()` calls Gotrue's
+`RetrieveSessionAsync()`, which unconditionally calls `RefreshToken()`
+whenever a refresh token exists (no check on whether the access token is
+actually near expiry), and the SDK already runs its own independent refresh
+timer in parallel. Calling `RestoreSessionAsync()` again on an already-live
+session races that timer for the same refresh token; Supabase rotates it on
+use, so the losing call gets `InvalidRefreshToken` back, which Gotrue
+handles by destroying the *entire* session — a real, persisted logout, even
+though the winning call had just succeeded. This is a real bug the Android
+home-screen widgets hit (see CHANGELOG.md's "Widget-triggered logout" entry)
+by calling `RestoreSessionAsync()` on every 30-minute widget tick, same
+process, same `Client` singleton as the app. Any other code path that might
+touch this client from a background trigger (a future sync job, a
+notification handler) needs the same guard, not a fresh
+`LoadSession()+InitializeAsync()` call.
+
 ### Navigation
 
 Uses **MAUI Shell**, routes declared as constants in `AppConstants.Routes`

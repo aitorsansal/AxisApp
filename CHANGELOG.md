@@ -2111,3 +2111,47 @@ current-state summary this entry is the "why" behind.
   standalone "Parte". Chart axis labels now truncate a long member name
   (e.g. one added by email, no display name set) to 11 chars + "…" rather
   than squeezing the bars themselves.
+
+## Widget-triggered logout bug (2026-09-16)
+
+Reported live: intermittent real logouts (confirmed by opening the app, not
+just the widgets showing an empty "no upcoming events"/"no expenses" state)
+starting right after the Android home-screen widgets shipped, with no
+error visible anywhere and no reliable repro steps — "from time to time."
+
+Root cause, confirmed against the actual installed package source (fetched
+the real tagged releases — `supabase-community/gotrue-csharp` v6.3.0 and
+`supabase-community/supabase-csharp` v1.6.0 — not docs, per this file's own
+"be skeptical of an SDK's API surface" rule):
+
+- `WidgetDataAccess.GetReadyServicesAsync` (Android widgets run in the same
+  process as the app, sharing the same singleton `Supabase.Client`) called
+  `SupabaseAuthService.RestoreSessionAsync()` — `LoadSession()` +
+  `InitializeAsync()` — unconditionally on every widget refresh: the OS's
+  30-minute `updatePeriodMillis` tick, any resize, and any app-triggered
+  `IWidgetRefreshService` push.
+- `Supabase.Client.InitializeAsync()` calls Gotrue's
+  `Auth.RetrieveSessionAsync()`, which unconditionally calls `RefreshToken()`
+  whenever a refresh token exists — it never checks whether the access token
+  is actually close to expiry, it refreshes every time it's called.
+- The SDK already runs its own independent refresh timer
+  (`Gotrue.TokenRefresh`, scheduled at 4/5 of the access token's lifetime),
+  entirely separate from anything the app does.
+- When the widget's forced refresh and the SDK's own scheduled timer fired
+  close together, both sent a refresh request using the *same* refresh
+  token. Supabase rotates the refresh token on use, so whichever request
+  lost the race got `InvalidRefreshToken` back — and Gotrue's `RefreshToken()`
+  special-cases that error into `DestroySession()` + `SignedOut`, destroying
+  the *entire* session even though the winning request had just succeeded a
+  moment earlier. That's a real, persisted logout on the shared client,
+  and `WidgetDataAccess`'s own `try/catch` around `RestoreSessionAsync()`
+  swallowed the failure, so nothing ever surfaced it.
+
+Fixed by making `RestoreSessionAsync()` a genuine no-op once
+`client.Auth.CurrentSession` is already set in memory — it now returns
+immediately instead of re-running `LoadSession()+InitializeAsync()`, so the
+SDK's own timer is the only thing driving a refresh once a session is live.
+Cold-start behavior (a widget-triggered process start being the first thing
+to touch the client) is unchanged, since `CurrentSession` is null there too.
+See CLAUDE.md's "MVVM + Dependency Injection" section for the current-state
+rule this leaves behind.

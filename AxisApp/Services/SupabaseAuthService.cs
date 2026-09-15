@@ -158,9 +158,26 @@ public class SupabaseAuthService : IAuthService
     /// first: InitializeAsync() alone never calls the configured SessionHandler on its own (found
     /// 2026-08-25 — SaveSession fired correctly on sign-in, but nothing ever called LoadSession
     /// on the next launch, so every restart fell through to Login despite a valid persisted
-    /// session sitting right there in SecureStorage). Same two-call order PokeCards uses.</summary>
+    /// session sitting right there in SecureStorage). Same two-call order PokeCards uses.
+    ///
+    /// Genuinely no-ops once a session is already live in memory — found 2026-09-15 via the home
+    /// screen widgets (WidgetDataAccess calls this on every 30-minute widget tick, same-process,
+    /// same Client singleton as the app). InitializeAsync() calls Auth.RetrieveSessionAsync(),
+    /// which unconditionally calls RefreshToken() whenever a refresh token exists, with no check
+    /// on whether the access token is actually near expiry. The SDK already runs its own
+    /// independent refresh timer (Gotrue's TokenRefresh, ~4/5 through the access token's
+    /// lifetime). Two refresh calls landing close together on the same client race on the same
+    /// refresh token; Supabase rotates it on use, so the losing call gets InvalidRefreshToken back
+    /// and that response destroys the *entire* session (Gotrue's RefreshToken() special-cases
+    /// InvalidRefreshToken into DestroySession()+SignedOut) — even though the winning call had
+    /// just succeeded. That's a real, persisted logout, and WidgetDataAccess's own try/catch
+    /// swallows it, so it surfaced only as "why am I logged out" with no error anywhere. Skipping
+    /// this entirely once CurrentSession is already set removes the second, racing refresh path;
+    /// the SDK's own timer is enough to keep an already-live session current.</summary>
     public async Task RestoreSessionAsync()
     {
+        if (client.Auth.CurrentSession is not null) return;
+
         client.Auth.LoadSession();
         await client.InitializeAsync();
     }
