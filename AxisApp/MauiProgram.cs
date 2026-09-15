@@ -73,6 +73,11 @@ public static class MauiProgram
         builder.Services.AddSingleton<IDeviceTokensRepository, SupabaseDeviceTokensRepository>();
         builder.Services.AddSingleton<ICalendarSubscriptionsRepository, SupabaseCalendarSubscriptionsRepository>();
 
+        // Same per-platform-file convention as IGoogleAuthService/IPushRegistrationService above —
+        // Android's implementation broadcasts a widget refresh; Windows has no widget host, so its
+        // WidgetRefreshService is a deliberate no-op.
+        builder.Services.AddSingleton<IWidgetRefreshService, WidgetRefreshService>();
+
         // Same per-platform-file convention as IGoogleAuthService above — Android's implementation
         // is real (Firebase Cloud Messaging), Windows' is a deliberate no-op for now.
         builder.Services.AddSingleton<IPushRegistrationService, PushRegistrationService>();

@@ -7,11 +7,13 @@ public class SupabaseExpensesRepository : IExpensesRepository
 {
     private readonly Supabase.Client client;
     private readonly IAuthService authService;
+    private readonly IWidgetRefreshService widgetRefresh;
 
-    public SupabaseExpensesRepository(Supabase.Client client, IAuthService authService)
+    public SupabaseExpensesRepository(Supabase.Client client, IAuthService authService, IWidgetRefreshService widgetRefresh)
     {
         this.client = client;
         this.authService = authService;
+        this.widgetRefresh = widgetRefresh;
     }
 
     public async Task<List<Expense>> GetForGroupAsync(Guid groupId, int limit, int offset)
@@ -100,6 +102,7 @@ public class SupabaseExpensesRepository : IExpensesRepository
 
         await client.From<ExpenseShare>().Insert(shares);
 
+        widgetRefresh.RequestBalancesRefresh();
         return insertedExpense.Model!;
     }
 
@@ -141,11 +144,16 @@ public class SupabaseExpensesRepository : IExpensesRepository
         if (toInsert.Count > 0)
             await client.From<ExpenseShare>().Insert(toInsert);
 
+        widgetRefresh.RequestBalancesRefresh();
         return updatedExpense.Model!;
     }
 
-    public async Task DeleteAsync(Guid expenseId) =>
+    public async Task DeleteAsync(Guid expenseId)
+    {
         await client.From<Expense>()
             .Filter("id", Constants.Operator.Equals, expenseId.ToString())
             .Delete();
+
+        widgetRefresh.RequestBalancesRefresh();
+    }
 }

@@ -52,6 +52,16 @@ namespace AxisApp
             var groupId = intent.GetStringExtra("group_id");
             if (string.IsNullOrEmpty(groupId)) return;
 
+            // Same extras a tapped push notification carries, plus event_id — set by
+            // EventsWidgetProvider's per-row PendingIntent template (Widgets/WidgetNavigation.cs)
+            // when the tapped row is a specific event rather than a group.
+            var eventId = intent.GetStringExtra("event_id");
+            if (!string.IsNullOrEmpty(eventId))
+            {
+                App.HandleNotificationTap($"{AppConstants.Routes.EventDetail}?groupId={groupId}&eventId={eventId}");
+                return;
+            }
+
             var groupName = intent.GetStringExtra("group_name") ?? "";
             App.HandleNotificationTap(
                 $"{AppConstants.Routes.GroupDetails}?groupId={groupId}&groupName={Uri.EscapeDataString(groupName)}");

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- minWidth/minHeight follow Android's own "70dp * cells - 30dp" grid formula, sized for a 2x2
+     slot (110dp) rather than the previous 3x2 — a header + list layout has nothing that breaks at
+     that size. resizeMode still allows growing back up to however many cells the launcher's grid
+     permits. widgetFeatures="reconfigurable" gets the native long-press "Edit" affordance on
+     Android 12+; below that (this app's minSdk is 23), the in-widget gear icon
+     (BalancesWidgetProvider.ApplyWidget) is the only reliable way to reconfigure a placed
+     instance, so this attribute is a bonus, not the only path. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="60dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_balances"
+    android:configure="com.aitorsansal.axisapp.WidgetConfigActivity"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable"
+    android:previewImage="@mipmap/appicon" />

@@ -7,11 +7,13 @@ public class SupabaseEventsRepository : IEventsRepository
 {
     private readonly Supabase.Client client;
     private readonly IAuthService authService;
+    private readonly IWidgetRefreshService widgetRefresh;
 
-    public SupabaseEventsRepository(Supabase.Client client, IAuthService authService)
+    public SupabaseEventsRepository(Supabase.Client client, IAuthService authService, IWidgetRefreshService widgetRefresh)
     {
         this.client = client;
         this.authService = authService;
+        this.widgetRefresh = widgetRefresh;
     }
 
     public async Task<List<Event>> GetForGroupAsync(Guid groupId)
@@ -33,19 +35,25 @@ public class SupabaseEventsRepository : IEventsRepository
     {
         ev.CreatedBy = authService.RequireAccountId();
         var inserted = await client.From<Event>().Insert(ev);
+        widgetRefresh.RequestEventsRefresh();
         return inserted.Model!;
     }
 
     public async Task<Event> UpdateAsync(Event ev)
     {
         var updated = await client.From<Event>().Update(ev);
+        widgetRefresh.RequestEventsRefresh();
         return updated.Model!;
     }
 
-    public async Task DeleteAsync(Guid eventId) =>
+    public async Task DeleteAsync(Guid eventId)
+    {
         await client.From<Event>()
             .Filter("id", Constants.Operator.Equals, eventId.ToString())
             .Delete();
+
+        widgetRefresh.RequestEventsRefresh();
+    }
 
     public async Task<List<EventAttendee>> GetAttendeesAsync(Guid eventId)
     {
