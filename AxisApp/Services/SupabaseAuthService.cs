@@ -153,6 +153,9 @@ public class SupabaseAuthService : IAuthService
         }
     }
 
+    private readonly object restoreSessionLock = new();
+    private Task? restoreSessionTask;
+
     /// <summary>Must run once before any other call — wires up the child clients and restores
     /// a persisted session if one exists. Called from App's constructor. LoadSession() has to run
     /// first: InitializeAsync() alone never calls the configured SessionHandler on its own (found
@@ -173,13 +176,43 @@ public class SupabaseAuthService : IAuthService
     /// just succeeded. That's a real, persisted logout, and WidgetDataAccess's own try/catch
     /// swallows it, so it surfaced only as "why am I logged out" with no error anywhere. Skipping
     /// this entirely once CurrentSession is already set removes the second, racing refresh path;
-    /// the SDK's own timer is enough to keep an already-live session current.</summary>
-    public async Task RestoreSessionAsync()
+    /// the SDK's own timer is enough to keep an already-live session current.
+    ///
+    /// The `CurrentSession is not null` guard alone still has a gap, hit for real 2026-09-16 on a
+    /// physical device with both home-screen widgets (Balances + Events) placed at once: on a cold
+    /// boot, Android fires OnUpdate for every placed widget instance close together, all in the
+    /// same process, all before any of them has restored a session — so both see CurrentSession as
+    /// null and both start their own LoadSession()+InitializeAsync(), racing each other on the same
+    /// refresh token exactly like the 30-minute-tick case above, just triggered by two widgets at
+    /// once instead of two ticks. Caching the in-flight Task and handing every concurrent caller
+    /// the same one (instead of each starting its own restore) closes that gap: only the first
+    /// caller actually calls LoadSession()/InitializeAsync(), everyone else just awaits its
+    /// result.</summary>
+    public Task RestoreSessionAsync()
     {
-        if (client.Auth.CurrentSession is not null) return;
+        if (client.Auth.CurrentSession is not null) return Task.CompletedTask;
 
-        client.Auth.LoadSession();
-        await client.InitializeAsync();
+        lock (restoreSessionLock)
+        {
+            restoreSessionTask ??= RestoreSessionCoreAsync();
+            return restoreSessionTask;
+        }
+    }
+
+    private async Task RestoreSessionCoreAsync()
+    {
+        try
+        {
+            client.Auth.LoadSession();
+            await client.InitializeAsync();
+        }
+        finally
+        {
+            lock (restoreSessionLock)
+            {
+                restoreSessionTask = null;
+            }
+        }
     }
 
     /// <summary>First direct Edge Function call from the app (every other Edge Function so far —

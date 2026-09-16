@@ -263,6 +263,7 @@ Deno.serve(async (req) => {
   const projectId = JSON.parse(serviceAccountJson).project_id;
 
   let sent = 0;
+  let cleaned = 0;
   const failures: string[] = [];
   for (const recipient of pushableRecipients) {
     const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
@@ -296,12 +297,42 @@ Deno.serve(async (req) => {
 
     if (res.ok) {
       sent++;
-    } else {
-      failures.push(await res.text());
+      continue;
+    }
+
+    const errorText = await res.text();
+    failures.push(errorText);
+
+    // A redeployed/uninstalled app invalidates its old token — FCM's HTTP v1 API reports this as
+    // errorCode "UNREGISTERED" inside error.details[], not via the top-level error.status (that's
+    // just "NOT_FOUND", same as several other failure modes). Only this specific code means the
+    // token itself is permanently dead; anything else (INVALID_ARGUMENT, SENDER_ID_MISMATCH, a
+    // transient 5xx/quota error) leaves the row alone — same "cleanup on a specific detected
+    // failure" shape cleanup-receipts already uses, just inline here instead of on a schedule,
+    // since there's no polling job for push sends to hang this off of.
+    let errorCode: string | undefined;
+    try {
+      const parsed = JSON.parse(errorText);
+      errorCode = parsed?.error?.details?.find(
+        // deno-lint-ignore no-explicit-any
+        (d: any) => d["@type"]?.includes("FcmError"),
+      )?.errorCode;
+    } catch {
+      // Not JSON (or shape doesn't match) — leave errorCode undefined, no cleanup.
+    }
+
+    if (errorCode === "UNREGISTERED") {
+      const { error: deleteError } = await supabase
+        .from("device_tokens")
+        .delete()
+        .eq("push_token", recipient.push_token);
+      if (!deleteError) {
+        cleaned++;
+      }
     }
   }
 
-  return new Response(JSON.stringify({ sent, failed: failures.length, failures }), {
+  return new Response(JSON.stringify({ sent, failed: failures.length, cleaned, failures }), {
     headers: { "Content-Type": "application/json" },
   });
 });
