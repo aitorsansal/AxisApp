@@ -2155,3 +2155,107 @@ Cold-start behavior (a widget-triggered process start being the first thing
 to touch the client) is unchanged, since `CurrentSession` is null there too.
 See CLAUDE.md's "MVVM + Dependency Injection" section for the current-state
 rule this leaves behind.
+
+## Richer push notifications + three real bugs found chasing "it never arrives" (2026-09-16)
+
+Started as a design discussion (a Claude Design mockup showing `BigTextStyle`/
+`BigPictureStyle`/`InboxStyle` Android notification cards) that narrowed to
+one scoped piece: upgrade the existing expense/event pushes from a bare
+one-line notification to `BigTextStyle` with a real per-recipient "you owe
+€X" amount, the payer's avatar as the large icon, and tray actions (SETTLE
+on an expense you owe a share of; GOING/MAYBE/CAN'T GO on an event) that
+write directly via the real repositories without opening the app. Dropped
+from scope: a receipt-added `BigPictureStyle` card (no trigger exists for
+it and wasn't wanted) and the balances/events `InboxStyle` digests (separate
+cron work, see POSSIBLE_FEATURES.md).
+
+**Built:**
+- `send-push/index.ts`'s `expense_id` branch now builds the notification
+  body *per recipient* (join `expense_shares` on `recipient.member_id`,
+  which `expense_notification_recipients` now also returns) instead of one
+  flat body sent to everyone — the payer gets "You added X", each
+  share-holder gets their own "you owe €Y", not the expense total.
+- `AxisFirebaseMessagingService.cs`: `BigTextStyle`, a 10s-timeout best-effort
+  avatar fetch for the large icon (silently skipped on failure — a
+  notification landing without an icon beats one that never lands because a
+  fetch hung), and the SETTLE/VIEW or GOING/MAYBE/CAN'T GO actions.
+- New `NotificationActionReceiver` (`[BroadcastReceiver(Exported = false)]`):
+  writes the settle-up `Expense` or the RSVP via the real repositories,
+  reusing `WidgetDataAccess.GetReadyServicesAsync()` — the same
+  DI-container-access-from-a-cold-process-start-with-no-Activity pattern the
+  home-screen widgets already use, including restoring the Supabase session
+  first. **Any failure (not signed in, network, RLS) falls back to opening
+  the app** rather than silently dropping the action — confirmed live: the
+  RSVP action worked correctly end-to-end ("I go!" → really added the
+  attendee row), no feedback UX gap is documented below, not a correctness
+  one.
+
+**Bug 1 — `device_tokens` re-registration silently fails across account
+switches.** `SupabaseDeviceTokensRepository.RegisterAsync` re-registers by
+deleting any row for the exact FCM token, then inserting fresh (`push_token`
+is globally unique) — but `device_tokens` RLS is `account_id = auth.uid()`,
+so that delete only ever removes rows *you already own*. A device previously
+logged into a different account (dev/test churn on the same physical device
+— exactly this session's test setup) leaves the token owned by that old
+account; the new account's delete silently affects 0 rows, and the insert
+then throws `23505 duplicate key value violates unique constraint
+"device_tokens_push_token_key"` — logged as a `Warning`, never surfaced to
+the user. Net effect: the currently signed-in account never gets a
+`device_tokens` row on that device, so it's never in *anyone's* recipient
+list — every push notification silently vanishes, permanently, with no
+error the user would ever see. **Not fixed this session** — worked around
+by manually deleting the stale row; see POSSIBLE_FEATURES.md for the real
+fix (a `SECURITY DEFINER` "claim this token" RPC).
+
+**Bug 2 — `created_at`/`created_by` silently wrong across the board, found
+by literally reading the `expenses` table while debugging.** Two distinct
+bugs surfaced together:
+- `DeviceToken.CreatedAt` (and, confirmed by inspecting the live `expenses`
+  table, almost every other model's `created_at`) has no
+  `[Column("created_at", ignoreOnInsert: true)]`. Postgrest's C# client
+  serializes *every* mapped property including one left at its CLR default
+  — so a freshly-inserted row's `created_at` was sent as literal
+  `0001-01-01T00:00:00`, overriding the column's `default now()`. The web
+  app never hits this (JS just omits an unset field from the JSON). Fixed
+  for `DeviceToken` only this session (confirmed via `dotnet build` that
+  `ignoreOnInsert` is real — `Supabase.Postgrest.Attributes.ColumnAttribute`
+  has it, `PrimaryKeyAttribute`'s `shouldInsert` is a different, unrelated
+  parameter). **Every other model with a plain `created_at`/`updated_at`
+  property almost certainly has the identical bug** — see
+  POSSIBLE_FEATURES.md for the full sweep, deliberately not done yet.
+- The real notification blocker: `webapp/src/pages/AddExpensePage.tsx` only
+  included `created_by` in the insert payload on *edit*
+  (`...(expenseId ? { created_by: ... } : {})`), never on create — every
+  expense/settlement made through the webapp got `created_by = NULL`. In
+  `expense_notification_recipients`'s `where ... and m.account_id <>
+  i.created_by`, SQL's three-valued logic makes `anything <> NULL`
+  evaluate to `NULL`, not `TRUE` — so a `NULL` creator silently excluded
+  *every* candidate recipient, not just the (unknown) creator. This is why
+  two separate live tests (a settlement, then a plain expense) both showed
+  `recipients=0` even though the payee's account plainly should have
+  qualified — nothing to do with FCM, tokens, or the BigTextStyle work
+  above. Confirmed by literally reading the `expenses` table's raw rows in
+  the Supabase Table Editor rather than guessing further from Edge Function
+  invocation byte-counts (see this session's own transcript for how far
+  that rabbit hole went before switching to reading the actual data — worth
+  remembering: when a response's `content_length` doesn't match any
+  expected JSON shape, stop computing string lengths and go read the row).
+  Fixed both ends: `AddExpensePage.tsx` now always sets
+  `created_by: session?.user.id` on create, and — belt-and-suspenders, in
+  case some future client makes the same mistake —
+  `expense_notification_recipients`/`event_notification_recipients` now
+  guard with `(created_by is null or account_id <> created_by)`, the same
+  pattern `event_attendee_notification_recipients` already used for its
+  nullable `p_actor_account_id`.
+
+**Debugging trail that got here, for the next time push "just doesn't
+arrive":** `send-push` had zero `console.log` calls before this session —
+added minimal logging (`send-push: pushType=X recipients=N (...)`, plus a
+per-recipient `sent`/`FAILED` line with the raw FCM error body) specifically
+because Edge Functions → Invocations only shows request/response
+`content_length`, not the actual body — genuinely faster to add three log
+lines and re-test than to keep guessing JSON shapes from byte counts. Check
+Edge Functions → **Logs** (not Invocations) first on any future "push never
+arrived" report; it'll usually say directly whether the recipient list was
+empty (a DB-side problem) or FCM rejected the send (a token/payload
+problem).

@@ -19,6 +19,6 @@ public class DeviceToken : BaseModel
     [Column("platform")]
     public string Platform { get; set; } = "";
 
-    [Column("created_at")]
+    [Column("created_at", ignoreOnInsert: true)]
     public DateTime CreatedAt { get; set; }
 }

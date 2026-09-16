@@ -1576,8 +1576,22 @@ alter table public.members add column birth_date date;
 -- find_expired_receipts were before their own cron jobs went live.
 -- ============================================================
 
+-- member_id added 2026-09-16 (BigTextStyle push upgrade) so send-push can look up each
+-- recipient's own expense_shares row and show their real "you owe €X" amount instead of sending
+-- every recipient the same expense-total body text. Changing a returns-table signature isn't a
+-- plain create-or-replace in Postgres — the deployed version must be dropped first:
+--   drop function public.expense_notification_recipients(uuid);
+-- before re-running this definition, or the CREATE OR REPLACE will fail with 42P13.
+--
+-- created_by is nullable in practice (a client that omits it on insert — found live 2026-09-16,
+-- the webapp's AddExpensePage only set it on edit, never on create) even though it's declared
+-- not null above; whatever the actual cause, `<> i.created_by` against a NULL evaluates to NULL
+-- in SQL's three-valued logic, not TRUE, which silently excludes every single candidate row from
+-- this WHERE clause — a NULL creator meant nobody ever got notified, not "notify everyone since
+-- nobody's excluded". Guarding it the same way event_attendee_notification_recipients already
+-- guards p_actor_account_id below.
 create or replace function public.expense_notification_recipients(p_expense_id uuid)
-returns table (account_id uuid, push_token text, platform text)
+returns table (account_id uuid, push_token text, platform text, member_id uuid)
 language sql
 stable
 set search_path = public
@@ -1592,12 +1606,12 @@ as $$
     join expenses e on e.id = es.expense_id
     where es.expense_id = p_expense_id
   )
-  select distinct dt.account_id, dt.push_token, dt.platform
+  select distinct dt.account_id, dt.push_token, dt.platform, i.member_id
   from involved i
   join members m on m.id = i.member_id
   join device_tokens dt on dt.account_id = m.account_id
   where m.account_id is not null
-    and m.account_id <> i.created_by;
+    and (i.created_by is null or m.account_id <> i.created_by);
 $$;
 
 revoke execute on function public.expense_notification_recipients(uuid) from public, anon, authenticated;
@@ -2026,7 +2040,7 @@ create policy "delete your own rsvp" on public.event_attendees
 
 -- event_notification_recipients: creation push — every current group
 -- member minus the creator (mirrors expense_notification_recipients's
--- shape exactly).
+-- shape exactly, including the NULL-created_by guard — see that function's remarks).
 create or replace function public.event_notification_recipients(p_event_id uuid)
 returns table (account_id uuid, push_token text, platform text)
 language sql
@@ -2040,7 +2054,7 @@ as $$
   join device_tokens dt on dt.account_id = m.account_id
   where e.id = p_event_id
     and m.account_id is not null
-    and m.account_id <> e.created_by;
+    and (e.created_by is null or m.account_id <> e.created_by);
 $$;
 
 revoke execute on function public.event_notification_recipients(uuid) from public, anon, authenticated;

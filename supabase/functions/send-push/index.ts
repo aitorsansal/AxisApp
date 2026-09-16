@@ -45,6 +45,11 @@ interface Recipient {
   account_id: string;
   push_token: string;
   platform: string;
+  // Only populated by expense_notification_recipients (2026-09-16) — used to look up this
+  // recipient's own expense_shares row so the notification body/actions can be personalized
+  // ("you owe €21.13") instead of one flat body sent to everyone. Undefined for every other
+  // recipients RPC (events have no per-recipient amount).
+  member_id?: string;
 }
 
 // FCM's HTTP v1 API is authenticated via a short-lived OAuth2 access token, exchanged for the
@@ -147,6 +152,14 @@ Deno.serve(async (req) => {
   let groupId = "";
   let isSettlement = false;
   let pushType = "expense";
+  // Per-recipient personalization for the expense branch only — a settlement has exactly one
+  // share (the payee), so it keeps the single flat `body` above. Populated below, read inside the
+  // send loop near the bottom of this function.
+  let payerMemberId = "";
+  let payerAvatarUrl = "";
+  let sharesByMemberId: Record<string, string> = {};
+  let expenseDescription = "";
+  let expenseCurrency = "EUR";
 
   if (expense_id) {
     const { data: recipientRows, error: recError } = await supabase
@@ -159,7 +172,7 @@ Deno.serve(async (req) => {
 
     const { data: expense } = await supabase
       .from("expenses")
-      .select("group_id, description, amount, currency, is_settlement, groups(name), members!expenses_paid_by_member_id_fkey(display_name)")
+      .select("group_id, paid_by_member_id, description, amount, currency, is_settlement, groups(name), members!expenses_paid_by_member_id_fkey(display_name, avatar_path)")
       .eq("id", expense_id)
       .single();
 
@@ -170,10 +183,27 @@ Deno.serve(async (req) => {
       const payerName = e.members?.display_name ?? "Someone";
       isSettlement = e.is_settlement === true;
       title = groupName;
+      expenseDescription = e.description || "an expense";
+      expenseCurrency = e.currency;
       body = isSettlement
         ? `${payerName} paid you back — ${e.amount} ${e.currency}`
-        : `${payerName} added ${e.description || "an expense"} — ${e.amount} ${e.currency}`;
+        : `${payerName} added ${expenseDescription} — ${e.amount} ${e.currency}`;
       groupId = e.group_id ?? "";
+      payerMemberId = e.paid_by_member_id ?? "";
+      payerAvatarUrl = e.members?.avatar_path
+        ? `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/avatars/${e.members.avatar_path}`
+        : "";
+
+      if (!isSettlement) {
+        const { data: shareRows } = await supabase
+          .from("expense_shares")
+          .select("member_id, share_amount")
+          .eq("expense_id", expense_id);
+        // deno-lint-ignore no-explicit-any
+        for (const s of (shareRows ?? []) as any[]) {
+          sharesByMemberId[s.member_id] = String(s.share_amount);
+        }
+      }
     }
     pushType = isSettlement ? "settlement" : "expense";
   } else if (event_type === "cancelled") {
@@ -239,8 +269,16 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Diagnostic logging — this function had zero visibility into what actually happened per
+  // invocation (added 2026-09-16 while chasing a "expense push never arrives, event push does"
+  // report). Shows up under the function's own Logs tab, not just Invocations, keyed by the same
+  // request that appears in Invocations so a specific test can be traced end to end.
+  console.log(`send-push: pushType=${pushType} recipients=${recipients.length} ` +
+    `(${recipients.map((r) => `${r.platform}:${r.account_id.slice(0, 8)}`).join(", ")})`);
+
   const pushableRecipients = recipients.filter((r) => r.platform === "android" || r.platform === "web");
   if (pushableRecipients.length === 0) {
+    console.log("send-push: no pushable recipients, exiting");
     return new Response(JSON.stringify({ sent: 0, reason: "no pushable recipients" }), {
       headers: { "Content-Type": "application/json" },
     });
@@ -248,6 +286,7 @@ Deno.serve(async (req) => {
 
   const serviceAccountJson = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_KEY");
   if (!serviceAccountJson) {
+    console.log("send-push: FIREBASE_SERVICE_ACCOUNT_KEY not configured");
     return new Response(JSON.stringify({ error: "FIREBASE_SERVICE_ACCOUNT_KEY not configured" }), {
       status: 500,
     });
@@ -266,6 +305,23 @@ Deno.serve(async (req) => {
   let cleaned = 0;
   const failures: string[] = [];
   for (const recipient of pushableRecipients) {
+    // Personalize the expense body per recipient — the payer gets a different message than
+    // someone who owes a share, and each share-holder sees their own amount, not the expense
+    // total. recipient.member_id is only populated for the expense_id branch (see Recipient's
+    // remarks); every other pushType keeps the flat `body` computed above.
+    let recipientBody = body;
+    let myShareAmount = "";
+    if (pushType === "expense" && recipient.member_id) {
+      if (recipient.member_id === payerMemberId) {
+        recipientBody = `You added ${expenseDescription}`;
+      } else if (recipient.member_id in sharesByMemberId) {
+        myShareAmount = sharesByMemberId[recipient.member_id];
+        // body is "{payer} added {description} — {total} {currency}" — reuse the prefix before
+        // the em dash rather than restating the payer/description logic here.
+        recipientBody = `${body.split(" — ")[0]} — you owe ${myShareAmount} ${expenseCurrency}`;
+      }
+    }
+
     const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
       method: "POST",
       headers: {
@@ -289,7 +345,14 @@ Deno.serve(async (req) => {
             group_id: groupId,
             group_name: title,
             title,
-            body,
+            body: recipientBody,
+            // Only meaningful for pushType "expense" — used by AxisFirebaseMessagingService to
+            // render BigTextStyle with the payer's avatar and offer a SETTLE action (only when
+            // my_share_amount is non-empty, i.e. this recipient isn't the payer themselves).
+            payer_member_id: payerMemberId,
+            payer_avatar_url: payerAvatarUrl,
+            my_share_amount: myShareAmount,
+            currency: expenseCurrency,
           },
         },
       }),
@@ -297,10 +360,13 @@ Deno.serve(async (req) => {
 
     if (res.ok) {
       sent++;
+      console.log(`send-push: sent to ${recipient.platform}:${recipient.account_id.slice(0, 8)} ok`);
       continue;
     }
 
     const errorText = await res.text();
+    console.log(`send-push: FAILED to ${recipient.platform}:${recipient.account_id.slice(0, 8)} ` +
+      `status=${res.status} body=${errorText}`);
     failures.push(errorText);
 
     // A redeployed/uninstalled app invalidates its old token — FCM's HTTP v1 API reports this as

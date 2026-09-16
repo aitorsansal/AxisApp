@@ -243,7 +243,8 @@ export function AddExpensePage() {
         start_date: startDate,
         last_processed_date: editingMeta.lastProcessedDate,
         is_active: recurringId ? editingMeta.isActive : true,
-        ...(recurringId ? { created_by: editingMeta.createdBy, created_at: editingMeta.createdAt } : {}),
+        created_by: recurringId ? editingMeta.createdBy : session?.user.id,
+        ...(recurringId ? { created_at: editingMeta.createdAt } : {}),
       }
 
       const { data: template, error: templateError } = recurringId
@@ -276,7 +277,8 @@ export function AddExpensePage() {
       receipt_path: receiptPath,
       is_settlement: isSettlement,
       event_id: linkedEventId,
-      ...(expenseId ? { created_by: editingMeta.createdBy, created_at: editingMeta.createdAt } : {}),
+      created_by: expenseId ? editingMeta.createdBy : session?.user.id,
+      ...(expenseId ? { created_at: editingMeta.createdAt } : {}),
     }
 
     const { data: expense, error: expenseError } = expenseId
