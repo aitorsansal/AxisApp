@@ -1,0 +1,4 @@
+# BEGIN gplay-managed
+config.local.json
+edit-*.json
+# END gplay-managed
