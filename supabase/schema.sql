@@ -2048,15 +2048,40 @@ grant execute on function public.delete_account() to authenticated;
 -- error if a real sign-up doesn't produce a members row.
 -- ============================================================
 
+-- display_name/birth_date from sign-up metadata added 2026-09-17
+-- (signup_profile_metadata.sql), ahead of turning on "Confirm email": with
+-- confirmation on, sign-up returns no session, so the Register page can't
+-- update the new member row itself anymore — it sends both as
+-- raw_user_meta_data on the sign-up request instead. Only those two keys are
+-- read (Google sign-ins set neither, so they keep the email fallback), and a
+-- malformed birth_date is ignored rather than raised, since this runs inside
+-- account creation and an optional field must never block a signup.
 create or replace function public.handle_new_user_member()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_display_name text := nullif(btrim(new.raw_user_meta_data->>'display_name'), '');
+  v_birth_date_text text := new.raw_user_meta_data->>'birth_date';
+  v_birth_date date;
 begin
-  insert into public.members (account_id, display_name, created_by)
-  values (new.id, coalesce(new.email, 'New member'), new.id);
+  if v_birth_date_text ~ '^\d{4}-\d{2}-\d{2}$' then
+    begin
+      v_birth_date := v_birth_date_text::date;
+    exception when others then
+      v_birth_date := null;
+    end;
+  end if;
+
+  insert into public.members (account_id, display_name, birth_date, created_by)
+  values (
+    new.id,
+    coalesce(left(v_display_name, 100), new.email, 'New member'),
+    v_birth_date,
+    new.id
+  );
   return new;
 end;
 $$;

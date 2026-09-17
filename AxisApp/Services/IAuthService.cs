@@ -1,6 +1,9 @@
 namespace AxisApp.Services;
 
-public record AuthResult(bool Success, string? ErrorMessage = null);
+/// <summary>NeedsEmailConfirmation: on sign-up, the account was created but has no session until
+/// its email is confirmed (Success is true); on sign-in, the password was right but the email
+/// isn't confirmed yet (Success is false).</summary>
+public record AuthResult(bool Success, string? ErrorMessage = null, bool NeedsEmailConfirmation = false);
 
 /// <summary>
 /// Wraps whatever auth provider backs the app (Supabase Auth today). Nothing outside this
@@ -22,7 +25,11 @@ public interface IAuthService
     /// <summary>Raised after sign-in, sign-up, or sign-out changes the current session.</summary>
     event EventHandler? AuthStateChanged;
 
-    Task<AuthResult> SignUpAsync(string email, string password);
+    /// <summary>displayName/birthDate travel as sign-up metadata and are applied server-side by
+    /// handle_new_user_member() when the member row is provisioned — with email confirmation on
+    /// there's no session yet to update the row from the client. Check NeedsEmailConfirmation on
+    /// the result before assuming the user is signed in.</summary>
+    Task<AuthResult> SignUpAsync(string email, string password, string? displayName = null, DateTime? birthDate = null);
     Task<AuthResult> SignInAsync(string email, string password);
 
     /// <summary>Delegates to the platform-specific IGoogleAuthService — see its remarks for why

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Confirm your Axis email</title>
+<!--
+  Landing page for Supabase's sign-up confirmation link (AppConstants.Links.EmailConfirmedUrl /
+  the web app's EMAIL_CONFIRMED_URL). The account is already confirmed by Supabase's own
+  /auth/v1/verify endpoint before it redirects here — this page only reports the outcome.
+
+  Deliberately does NOT load supabase-js: Supabase appends a session (access/refresh token) to the
+  URL fragment on success, and this page has no use for it. The fragment is read once to tell
+  success from failure, then stripped from the address bar and history so the tokens don't linger.
+  The fragment never reaches the server (browsers don't send it), and no-referrer keeps the page
+  URL out of outgoing requests.
+-->
+<style>
+  :root {
+    --bg: #0B1220;
+    --card: #121A2B;
+    --text: #E8ECF4;
+    --muted: #8A93A6;
+    --accent: #3D7EFF;
+    --accent2: #F5A623;
+    --border: #22304A;
+    --danger: #F2545B;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px 28px;
+    text-align: center;
+  }
+  .mark {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    margin: 0 auto 20px;
+    display: block;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 8px; }
+  p { color: var(--muted); line-height: 1.5; margin: 0 0 24px; font-size: 0.95rem; }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px 20px;
+    border-radius: 12px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: 12px;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .detail { font-size: 0.85rem; color: var(--danger); margin: -12px 0 24px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <img class="mark" src="https://axisapp.aitorsansal.com/email-assets/icon.svg" width="48" height="48" alt="Axis">
+    <h1 id="title">Checking your link…</h1>
+    <p id="subtitle"></p>
+    <p class="detail" id="detail" hidden></p>
+    <a class="btn btn-primary" id="webLink" href="https://app.axisapp.aitorsansal.com" hidden>Open Axis on the web</a>
+  </div>
+
+<script>
+  (function () {
+    var params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    var query = new URLSearchParams(window.location.search);
+    var errorCode = params.get('error_code') || query.get('error_code');
+    var errorDescription = params.get('error_description') || query.get('error_description');
+    // Implicit flow puts the session in the fragment; a PKCE-flow client gets ?code= instead.
+    // Either way Supabase only redirects with one of these after the email was verified.
+    var hasSession = params.has('access_token') || params.get('type') === 'signup' || query.has('code');
+
+    // Strip the fragment (and any error query) so tokens aren't left in the address bar or history.
+    if (window.location.hash || window.location.search) {
+      history.replaceState(null, '', window.location.pathname);
+    }
+
+    var title = document.getElementById('title');
+    var subtitle = document.getElementById('subtitle');
+    var detail = document.getElementById('detail');
+    var webLink = document.getElementById('webLink');
+
+    if (errorCode || errorDescription) {
+      title.textContent = errorCode === 'otp_expired'
+        ? 'This link has expired'
+        : 'This link didn’t work';
+      subtitle.textContent = 'Confirmation links only work once and expire after a while. '
+        + 'Go back to Axis and create your account again with the same email to get a new link.';
+      if (errorDescription) {
+        detail.textContent = errorDescription.replace(/\+/g, ' ');
+        detail.hidden = false;
+      }
+    } else if (hasSession) {
+      title.textContent = 'Email confirmed';
+      subtitle.textContent = 'Your Axis account is ready. Go back to the app and sign in with your email and password.';
+      webLink.hidden = false;
+    } else {
+      title.textContent = 'Nothing to confirm here';
+      subtitle.textContent = 'Open the confirmation link from your email to activate your Axis account.';
+    }
+  })();
+</script>
+</body>
+</html>

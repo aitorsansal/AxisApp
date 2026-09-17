@@ -49,6 +49,9 @@ const en: Dictionary = {
   Login_SignUp: 'Sign up',
   Login_ToggleToSignup: "Don't have an account? Sign up",
   Login_ToggleToSignin: 'Already have an account? Sign in',
+  Login_CheckInbox: 'We sent a confirmation link to {0}. Open it to activate your account, then sign in.',
+  Login_EmailNotConfirmed: 'Confirm your email before signing in.',
+  Login_ResendConfirmation: 'Resend confirmation email',
 
   // App header
   Groups_Profile: 'Profile',
@@ -308,6 +311,9 @@ const es: Dictionary = {
   Login_SignUp: 'Crear cuenta',
   Login_ToggleToSignup: '¿No tienes cuenta? Regístrate',
   Login_ToggleToSignin: '¿Ya tienes cuenta? Inicia sesión',
+  Login_CheckInbox: 'Hemos enviado un enlace de confirmación a {0}. Ábrelo para activar tu cuenta y después inicia sesión.',
+  Login_EmailNotConfirmed: 'Confirma tu correo antes de iniciar sesión.',
+  Login_ResendConfirmation: 'Reenviar correo de confirmación',
 
   // App header
   Groups_Profile: 'Perfil',

@@ -12,7 +12,6 @@ namespace AxisApp.ViewModels;
 public partial class RegisterViewModel : BaseViewModel
 {
     private readonly IAuthService authService;
-    private readonly IMembersRepository membersRepository;
 
     [ObservableProperty] private string email = string.Empty;
     [ObservableProperty] private string password = string.Empty;
@@ -25,10 +24,9 @@ public partial class RegisterViewModel : BaseViewModel
     [ObservableProperty] private DateTime birthday = DateTime.Today.AddYears(-25);
     [ObservableProperty] private string birthdayDisplay = string.Empty;
 
-    public RegisterViewModel(IAuthService authService, IMembersRepository membersRepository)
+    public RegisterViewModel(IAuthService authService)
     {
         this.authService = authService;
-        this.membersRepository = membersRepository;
         RefreshBirthdayDisplay();
     }
 
@@ -80,14 +78,30 @@ public partial class RegisterViewModel : BaseViewModel
         IsBusy = true;
         try
         {
-            var result = await authService.SignUpAsync(trimmedEmail, Password);
+            // DisplayName/Birthday go with the sign-up request itself and are applied by
+            // handle_new_user_member() when the member row is provisioned — with email
+            // confirmation on there's no session yet to update that row from here.
+            var result = await authService.SignUpAsync(
+                trimmedEmail,
+                Password,
+                DisplayName,
+                HasBirthday ? Birthday.Date : null);
             if (!result.Success)
             {
                 ErrorMessage = result.ErrorMessage ?? LocalizationResourceManager.Instance["Login_SignUpFailed"];
                 return;
             }
 
-            await TryApplyProfileDetailsAsync();
+            if (result.NeedsEmailConfirmation)
+            {
+                var loc = LocalizationResourceManager.Instance;
+                await Shell.Current.DisplayAlertAsync(
+                    loc["Register_CheckInboxTitle"],
+                    loc.Format("Register_CheckInboxMessage", trimmedEmail),
+                    loc["Common_OK"]);
+                await Shell.Current.GoToAsync("..");
+                return;
+            }
 
             // No separate "create your profile" step needed beyond this: a group-scoped Member
             // row only exists once this account creates or joins a group, both reachable from
@@ -99,29 +113,4 @@ public partial class RegisterViewModel : BaseViewModel
             IsBusy = false;
         }
     });
-
-    /// <summary>Best-effort: the member row is provisioned server-side by a DB trigger on
-    /// account creation (handle_new_user_member(), defaulted to the account's email), so it
-    /// should already exist by the time SignUpAsync returns. If DisplayName/Birthday were left
-    /// blank, or this lookup/update fails for any reason, don't block account creation on it —
-    /// the fields stay editable later from ProfilePage regardless.</summary>
-    private async Task TryApplyProfileDetailsAsync()
-    {
-        var trimmedName = DisplayName.Trim();
-        if (string.IsNullOrEmpty(trimmedName) && !HasBirthday) return;
-
-        try
-        {
-            var myMember = await membersRepository.GetMyMemberAsync();
-            if (myMember is null) return;
-
-            if (!string.IsNullOrEmpty(trimmedName)) myMember.DisplayName = trimmedName;
-            myMember.BirthDate = HasBirthday ? Birthday.Date : null;
-            await membersRepository.UpdateAsync(myMember);
-        }
-        catch
-        {
-            // Swallow — see remarks above, this is a nice-to-have, not required for signup.
-        }
-    }
 }

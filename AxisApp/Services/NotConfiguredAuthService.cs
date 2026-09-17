@@ -14,7 +14,7 @@ public class NotConfiguredAuthService : IAuthService
 
     public event EventHandler? AuthStateChanged { add { } remove { } }
 
-    public Task<AuthResult> SignUpAsync(string email, string password) =>
+    public Task<AuthResult> SignUpAsync(string email, string password, string? displayName = null, DateTime? birthDate = null) =>
         Task.FromResult(new AuthResult(false, "Supabase isn't configured yet — see /supabase/README.md."));
 
     public Task<AuthResult> SignInAsync(string email, string password) =>

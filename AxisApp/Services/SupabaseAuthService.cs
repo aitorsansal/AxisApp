@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using Supabase;
+using Supabase.Gotrue.Exceptions;
 
 namespace AxisApp.Services;
 
@@ -56,11 +58,30 @@ public class SupabaseAuthService : IAuthService
         client.Auth.AddStateChangedListener((_, _) => AuthStateChanged?.Invoke(this, EventArgs.Empty));
     }
 
-    public async Task<AuthResult> SignUpAsync(string email, string password)
+    /// <summary>With "Confirm email" on in Supabase Auth, SignUp creates the account but doesn't
+    /// sign it in — the package's own doc says CurrentSession stays unchanged in that case, which
+    /// is what's checked here rather than the returned Session's shape. The confirmation link
+    /// lands on AppConstants.Links.EmailConfirmedUrl (web/confirm/index.html), a plain browser
+    /// page for the same reason PasswordResetUrl is one: no deep-link support on Windows.</summary>
+    public async Task<AuthResult> SignUpAsync(string email, string password, string? displayName = null, DateTime? birthDate = null)
     {
         try
         {
-            await client.Auth.SignUp(email, password);
+            var metadata = new Dictionary<string, object>();
+            if (!string.IsNullOrWhiteSpace(displayName))
+                metadata["display_name"] = displayName.Trim();
+            if (birthDate is { } date)
+                metadata["birth_date"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+            await client.Auth.SignUp(email, password, new Supabase.Gotrue.SignUpOptions
+            {
+                RedirectTo = AppConstants.Links.EmailConfirmedUrl,
+                Data = metadata
+            });
+
+            if (client.Auth.CurrentSession is null)
+                return new AuthResult(true, NeedsEmailConfirmation: true);
+
             // Re-running InitializeAsync() after a successful sign-up rewires the client's
             // internal state (including whatever propagates the session to Postgrest request
             // headers) to the freshly-established session — see PokeCards'
@@ -83,6 +104,10 @@ public class SupabaseAuthService : IAuthService
             await client.Auth.SignIn(email, password);
             await client.InitializeAsync();
             return new AuthResult(true);
+        }
+        catch (GotrueException ex) when (ex.Reason == FailureHint.Reason.UserEmailNotConfirmed)
+        {
+            return new AuthResult(false, ex.Message, NeedsEmailConfirmation: true);
         }
         catch (Exception ex)
         {
