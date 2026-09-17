@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
+import { useGoBackTo } from '../lib/navigation'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
@@ -18,7 +19,7 @@ export function GroupDetailPage() {
   const { session } = useAuth()
   const { displayName } = useAliases()
   const { t, language } = useLocale()
-  const navigate = useNavigate()
+  const goBackTo = useGoBackTo()
 
   const [group, setGroup] = useState<Group | null>(null)
   const [members, setMembers] = useState<MemberRow[]>([])
@@ -197,7 +198,7 @@ export function GroupDetailPage() {
     if (!window.confirm(t('GroupDetail_LeaveGroupConfirm'))) return
     const { error } = await supabase.rpc('leave_group', { p_group_id: groupId })
     if (error) return setError(error.message)
-    navigate('/')
+    goBackTo('/')
   }
 
   async function handleDissolve() {
@@ -210,7 +211,7 @@ export function GroupDetailPage() {
     if (!window.confirm(message)) return
     const { error } = await supabase.from('groups').delete().eq('id', groupId)
     if (error) return setError(error.message)
-    navigate('/')
+    goBackTo('/')
   }
 
   function openTransfer() {
@@ -232,7 +233,7 @@ export function GroupDetailPage() {
   if (!group) {
     return (
       <div className="page">
-        <AppHeader title={t('GroupDetail_GenericTitle')} back />
+        <AppHeader title={t('GroupDetail_GenericTitle')} backTo="/" />
         {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
       </div>
     )
@@ -242,7 +243,7 @@ export function GroupDetailPage() {
 
   return (
     <div className="page">
-      <AppHeader title={group.name} back />
+      <AppHeader title={group.name} backTo="/" />
       {error && <p className="error-text">{error}</p>}
 
       <div className="tab-pill">

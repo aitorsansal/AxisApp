@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { useGoBackTo } from '../lib/navigation'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
@@ -41,7 +42,7 @@ export function AddExpensePage() {
   const { session } = useAuth()
   const { displayName } = useAliases()
   const { t } = useLocale()
-  const navigate = useNavigate()
+  const goBackTo = useGoBackTo()
 
   const [group, setGroup] = useState<Group | null>(null)
   const [members, setMembers] = useState<MemberRow[]>([])
@@ -292,7 +293,7 @@ export function AddExpensePage() {
       })
       setBusy(false)
       if (saveError) return setError(saveError.message)
-      navigate(`/groups/${groupId}/recurring`)
+      goBackTo(`/groups/${groupId}/recurring`)
       return
     }
 
@@ -315,7 +316,7 @@ export function AddExpensePage() {
     setBusy(false)
     if (saveError) return setError(saveError.message)
 
-    navigate(linkedEventId ? `/groups/${groupId}/events/${linkedEventId}` : `/groups/${groupId}`)
+    goBackTo(parentPath)
   }
 
   async function handleDelete() {
@@ -326,8 +327,14 @@ export function AddExpensePage() {
       : await supabase.from('expenses').delete().eq('id', expenseId)
     setBusy(false)
     if (error) return setError(error.message)
-    navigate(recurringId ? `/groups/${groupId}/recurring` : `/groups/${groupId}`)
+    goBackTo(parentPath)
   }
+
+  const parentPath = isRecurringRoute
+    ? `/groups/${groupId}/recurring`
+    : linkedEventId
+      ? `/groups/${groupId}/events/${linkedEventId}`
+      : `/groups/${groupId}`
 
   const title = recurringId
     ? t('AddExpense_EditRecurringTitle')
@@ -342,7 +349,7 @@ export function AddExpensePage() {
   if (!group) {
     return (
       <div className="page">
-        <AppHeader title={title} back />
+        <AppHeader title={title} backTo={parentPath} />
         {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
       </div>
     )
@@ -350,7 +357,7 @@ export function AddExpensePage() {
 
   return (
     <div className="page">
-      <AppHeader title={title} back />
+      <AppHeader title={title} backTo={parentPath} />
 
       <form onSubmit={handleSubmit}>
         {linkedEventId && linkedEventTitle && <p className="field-hint linked-event-hint">{t('AddExpense_LinkedToEvent', linkedEventTitle)}</p>}

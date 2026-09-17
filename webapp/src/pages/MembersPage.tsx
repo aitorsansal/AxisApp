@@ -180,7 +180,7 @@ export function MembersPage() {
   if (!group) {
     return (
       <div className="page">
-        <AppHeader title={t('Members_Title')} back />
+        <AppHeader title={t('Members_Title')} backTo={`/groups/${groupId}`} />
         {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
       </div>
     )
@@ -190,7 +190,7 @@ export function MembersPage() {
 
   return (
     <div className="page">
-      <AppHeader title={group.name} back />
+      <AppHeader title={group.name} backTo={`/groups/${groupId}`} />
       {error && <p className="error-text">{error}</p>}
       {notice && <p className="notice-text">{notice}</p>}
 

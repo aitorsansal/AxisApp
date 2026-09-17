@@ -99,7 +99,7 @@ export function EventDetailPage() {
   if (!loaded || !event || !group) {
     return (
       <div className="page">
-        <AppHeader title={t('EventDetail_GenericTitle')} back />
+        <AppHeader title={t('EventDetail_GenericTitle')} backTo={`/groups/${groupId}`} />
         {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
       </div>
     )
@@ -151,7 +151,7 @@ export function EventDetailPage() {
 
   return (
     <div className="page">
-      <AppHeader title={event.title} back />
+      <AppHeader title={event.title} backTo={`/groups/${groupId}`} />
       {error && <p className="error-text">{error}</p>}
 
       {!event.is_birthday && (

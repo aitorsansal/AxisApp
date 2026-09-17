@@ -33,12 +33,12 @@ export function NewGroupPage() {
     // same two-step flow the "Edit color & icon" overlay on an existing group uses.
     await supabase.from('groups').update({ color, icon }).eq('id', data)
     setBusy(false)
-    navigate(`/groups/${data}`)
+    navigate(`/groups/${data}`, { replace: true })
   }
 
   return (
     <div className="page">
-      <AppHeader title={t('NewGroup_Title')} back />
+      <AppHeader title={t('NewGroup_Title')} backTo="/" />
 
       <form onSubmit={handleSubmit}>
         <div className="field">
