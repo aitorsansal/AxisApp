@@ -19,9 +19,35 @@ interface ExpiredReceipt {
   expense_id: string | null;
 }
 
+// Only the weekly pg_cron job calls this, with the service-role key from Vault. The gateway's JWT
+// verification alone accepts any signed-in user's token too — see send-push's isServiceRoleCaller
+// remarks. Relies on JWT verification staying ON for this function.
+function isServiceRoleCaller(req: Request): boolean {
+  const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  if (!token) return false;
+  if (token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) return true;
+
+  const payload = token.split(".")[1];
+  if (!payload) return false;
+  try {
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const claims = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")));
+    return claims.role === "service_role";
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
+  }
+
+  if (!isServiceRoleCaller(req)) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const supabase = createClient(
