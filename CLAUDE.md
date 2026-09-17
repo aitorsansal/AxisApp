@@ -441,10 +441,16 @@ the small helper functions `is_group_member()`/`is_own_member_row()`/
 `is_unscoped_expense_party()` (used *inside* other policies specifically to
 avoid Postgres RLS recursion when two tables' policies would otherwise
 reference each other — two real `42P17` recursion bugs documented in
-CHANGELOG.md). `leave_group()` and `create_group()` are notably **not**
-security definer — every operation they perform is already permitted under
-existing RLS, so there's no permission gap to bypass, only atomicity
-(`create_group`) or explicit business-rule guards (`leave_group`).
+CHANGELOG.md). `leave_group()` and `create_group()` are security definer too
+since the 2026-09-17 RLS hardening (`supabase/rls_hardening.sql`): there are
+no direct-DELETE policies on `group_members` anymore and its INSERT policy is
+phantom-only, so both genuinely need to run as owner. `save_expense()`/
+`save_recurring_expense()` are the ones that deliberately run as the caller
+(atomicity only). Column locks on `members`/`groups`/`invites`/`events`/
+`event_attendees` are `protect_*` BEFORE UPDATE triggers keyed on
+`current_user in ('authenticated','anon')` — so security definer functions,
+cron jobs and service-role Edge Functions can still change those columns;
+keep that pattern for any new locked column.
 Don't add a new `SECURITY DEFINER` function without a similarly specific
 reason (a real permission gap, or breaking an RLS recursion cycle); prefer
 expressing access rules as plain RLS policies so Postgres enforces them

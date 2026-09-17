@@ -146,14 +146,30 @@ create policy "delete own groups" on public.groups
 -- name/currency staying creator-only despite the member-wide update policy above is enforced
 -- here instead, regardless of how the update request was made (not just what the app's own
 -- Set(color/icon)-only update path happens to send).
+--
+-- id/created_by/created_at locked too (2026-09-17 RLS hardening, rls_hardening.sql): the
+-- member-wide update policy otherwise let any member PATCH created_by to themselves and then
+-- dissolve the group. The lock is keyed on current_user rather than auth.uid(): an app request
+-- via PostgREST runs as `authenticated`, while transfer_group_ownership() (security definer) runs
+-- as its owner, so ownership transfer keeps working with no bypass flag. A trigger function that
+-- isn't itself security definer inherits the caller's current_user, which is what makes this
+-- reliable — the same pattern every other protect_*_columns trigger in this file uses. Locked
+-- columns are silently restored rather than raising, so a client sending the whole row back
+-- unchanged (MAUI's Update(model)) never breaks a normal edit.
 create or replace function public.enforce_group_owner_only_columns()
 returns trigger
 language plpgsql
 as $$
 begin
-  if (new.name is distinct from old.name or new.currency is distinct from old.currency)
-     and auth.uid() <> old.created_by then
-    raise exception 'Only the group creator can change name or currency.';
+  if current_user in ('authenticated', 'anon') then
+    new.id := old.id;
+    new.created_by := old.created_by;
+    new.created_at := old.created_at;
+
+    if (new.name is distinct from old.name or new.currency is distinct from old.currency)
+       and auth.uid() is distinct from old.created_by then
+      raise exception 'Only the group creator can change name or currency.';
+    end if;
   end if;
   return new;
 end;
@@ -178,10 +194,43 @@ create policy "select members you can see" on public.members
         and is_group_member(gm.group_id)
     )
   );
-create policy "insert members" on public.members
-  for insert with check (created_by = auth.uid());
-create policy "update members you created or claim yourself" on public.members
-  for update using (created_by = auth.uid() or account_id = auth.uid());
+-- Inserting a member row pointing at someone else's account is not allowed — only a phantom
+-- (account_id null) or your own row. handle_new_user_member()/create_group()/redeem_invite()
+-- create claimed rows as security definer, so they're unaffected.
+create policy "insert phantoms or your own member" on public.members
+  for insert with check (
+    created_by = auth.uid()
+    and (account_id is null or account_id = auth.uid())
+  );
+-- A phantom's creator edits the phantom; once claimed, only its own account edits it.
+create policy "update your own member or a phantom you created" on public.members
+  for update
+  using ((account_id is null and created_by = auth.uid()) or account_id = auth.uid())
+  with check ((account_id is null and created_by = auth.uid()) or account_id = auth.uid());
+
+-- account_id/created_by can never change through an app request (2026-09-17 RLS hardening):
+-- before this, the update policy above had no WITH CHECK, so a phantom's creator could set
+-- account_id = themselves and inherit every group that phantom was linked into
+-- (is_group_member() only looks at account_id). They only change via redeem_invite() /
+-- delete_account() now. Same current_user keying as enforce_group_owner_only_columns().
+create or replace function public.protect_member_identity_columns()
+returns trigger
+language plpgsql
+as $$
+begin
+  if current_user in ('authenticated', 'anon') then
+    new.id := old.id;
+    new.account_id := old.account_id;
+    new.created_by := old.created_by;
+    new.created_at := old.created_at;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger protect_member_identity_columns
+  before update on public.members
+  for each row execute function public.protect_member_identity_columns();
 
 -- group_members (normal reads only; joining happens through redeem_invite below)
 -- "or is group creator" matters at group-creation time for the same reason
@@ -194,31 +243,112 @@ create policy "select group_members in your groups" on public.group_members
     or exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
   );
 -- Any existing group member can add a phantom (or link an existing phantom from another
--- group) into this group, not just the creator — the "created_by" clause stays only for the
--- same chicken-and-egg reason as groups'/invites' SELECT policies: the creator's own
--- group_members row (inserted right after the group itself, in the same CreateAsync call)
--- can't satisfy is_group_member(group_id) yet at that exact instant.
-create policy "group members can add members" on public.group_members
+-- group) into this group, not just the creator. Only phantoms, though (2026-09-17 RLS
+-- hardening): a real account joins only by redeeming an invite itself, never by someone else's
+-- insert. And only a phantom you created or already share a group with — the same visibility
+-- the name search (SearchVisibleByNameAsync) respects through members' SELECT policy, enforced
+-- here too so a crafted request with a known member id can't link a phantom you can't see.
+-- The creator's own row no longer needs a clause here: create_group() inserts it as security
+-- definer.
+create or replace function public.is_linkable_phantom(p_member_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from members m
+    where m.id = p_member_id
+      and m.account_id is null
+      and (
+        m.created_by = auth.uid()
+        or exists (
+          select 1 from group_members gm
+          where gm.member_id = m.id
+            and is_group_member(gm.group_id)
+        )
+      )
+  );
+$$;
+
+create policy "group members can add phantoms" on public.group_members
   for insert with check (
     is_group_member(group_id)
-    or exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
+    and is_linkable_phantom(member_id)
   );
-create policy "group creator can remove members" on public.group_members
-  for delete using (
-    exists (select 1 from groups g where g.id = group_id and g.created_by = auth.uid())
-  );
+-- No DELETE policy on purpose (2026-09-17 RLS hardening): removal only happens through
+-- leave_group() / remove_group_member(), both security definer. The direct-delete policies that
+-- used to exist here ("group creator can remove members", "members can remove themselves") let a
+-- request skip those functions' balance/creator/phantom-only rules entirely.
 
 -- invites: only existing group members can create/view them; redemption is via
 -- the redeem_invite() function below, which runs as SECURITY DEFINER precisely
 -- because the redeemer isn't a group member yet at the moment they redeem.
 create policy "select invites for your groups" on public.invites
   for select using (is_group_member(group_id));
+-- A phantom-claim invite must target a phantom that's actually in the invite's own group
+-- (2026-09-17 RLS hardening) — before this, target_member_id was unchecked, so any member could
+-- mint a claim invite for any phantom id they'd ever seen. Any group member can still create
+-- one (deliberate: if the phantom's creator is unreachable, someone else in the group can send
+-- the invite); who's allowed to *redeem* it is enforced in redeem_invite() below.
+create or replace function public.is_phantom_in_group(p_member_id uuid, p_group_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from members m
+    join group_members gm on gm.member_id = m.id
+    where m.id = p_member_id
+      and m.account_id is null
+      and gm.group_id = p_group_id
+  );
+$$;
+
 create policy "insert invites for your groups" on public.invites
-  for insert with check (is_group_member(group_id) and created_by = auth.uid());
+  for insert with check (
+    is_group_member(group_id)
+    and created_by = auth.uid()
+    and (target_member_id is null or is_phantom_in_group(target_member_id, group_id))
+  );
 -- Added 2026-09-14 (invites_update_policy.sql) so a group member can edit an
 -- existing invite's max_uses/expires_at instead of always minting a new row.
 create policy "update invites for your groups" on public.invites
   for update using (is_group_member(group_id)) with check (is_group_member(group_id));
+-- Added 2026-09-17 — invites couldn't be revoked at all before.
+create policy "delete invites for your groups" on public.invites
+  for delete using (is_group_member(group_id));
+
+-- Only max_uses/expires_at stay member-editable (2026-09-17 RLS hardening). use_count in
+-- particular could be reset to 0 to reopen a spent invite. Same current_user keying and
+-- silent-restore behavior as enforce_group_owner_only_columns(); redeem_invite() increments
+-- use_count as security definer, so it's unaffected.
+create or replace function public.protect_invite_columns()
+returns trigger
+language plpgsql
+as $$
+begin
+  if current_user in ('authenticated', 'anon') then
+    new.id := old.id;
+    new.token := old.token;
+    new.group_id := old.group_id;
+    new.target_member_id := old.target_member_id;
+    new.use_count := old.use_count;
+    new.created_by := old.created_by;
+    new.created_at := old.created_at;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger protect_invite_columns
+  before update on public.invites
+  for each row execute function public.protect_invite_columns();
 
 -- ============================================================
 -- redeem_invite: the one operation allowed to bypass the RLS chicken-and-egg
@@ -252,6 +382,22 @@ create policy "update invites for your groups" on public.invites
 --    deleted — cascading away its own group_members/invites/member_aliases
 --    rows, which is fine, those were about the phantom identity that no
 --    longer exists.
+--
+-- Who can claim, tightened 2026-09-17 (RLS hardening). Claiming still carries
+-- over every group the phantom is linked into and merges its history — one
+-- invite covers a phantom linked into Trip/House/Parties, by design. New rules:
+--   * must be signed in (and anon has no EXECUTE on this function anymore);
+--   * the invite's creator must still be a member of its group, so someone
+--     removed from the group can't reopen access with an invite they made
+--     earlier;
+--   * the target must still be a phantom inside the invite's own group;
+--   * the redeemer must not already belong to ANY group the phantom is in.
+--     Any member can hand out a claim invite (e.g. Bob in Parties, when the
+--     phantom's creator isn't reachable), but can't redeem it themselves to
+--     absorb the phantom's other groups. Accepted residual risk: Bob could
+--     pass the code to an outside, allowlisted account — the database can't
+--     tell whether the redeemer really is the person the phantom stands for;
+--   * a fresh join by someone already in the group returns without burning a use.
 create or replace function public.redeem_invite(p_token text)
 returns uuid
 language plpgsql
@@ -263,6 +409,10 @@ declare
   v_member_id uuid;
   v_existing_member_id uuid;
 begin
+  if auth.uid() is null then
+    raise exception 'Not signed in';
+  end if;
+
   select * into v_invite from invites where token = p_token for update;
   if not found then
     raise exception 'Invalid invite code';
@@ -274,19 +424,45 @@ begin
     raise exception 'Invite already used';
   end if;
 
+  if v_invite.created_by is null or not exists (
+    select 1
+    from group_members gm
+    join members m on m.id = gm.member_id
+    where gm.group_id = v_invite.group_id
+      and m.account_id = v_invite.created_by
+  ) then
+    raise exception 'This invite is no longer valid — ask a current group member for a new one';
+  end if;
+
+  select id into v_existing_member_id from members where account_id = auth.uid() limit 1;
+
   if v_invite.target_member_id is not null then
     -- Claiming an existing phantom member.
-    select id into v_existing_member_id from members where account_id = auth.uid() limit 1;
+    if not exists (
+      select 1
+      from members m
+      join group_members gm on gm.member_id = m.id
+      where m.id = v_invite.target_member_id
+        and m.account_id is null
+        and gm.group_id = v_invite.group_id
+    ) then
+      raise exception 'This invite has already been claimed';
+    end if;
+
+    if v_existing_member_id is not null and exists (
+      select 1
+      from group_members gm_phantom
+      join group_members gm_me
+        on gm_me.group_id = gm_phantom.group_id
+       and gm_me.member_id = v_existing_member_id
+      where gm_phantom.member_id = v_invite.target_member_id
+    ) then
+      raise exception 'You''re already in a group with this person, so this invite isn''t for you';
+    end if;
 
     if v_existing_member_id is not null then
       -- Account already has a members row — merge the phantom into it
       -- instead of creating a second claimed row for the same account.
-      if not exists (
-        select 1 from members where id = v_invite.target_member_id and account_id is null
-      ) then
-        raise exception 'This invite has already been claimed';
-      end if;
-
       update expenses
          set paid_by_member_id = v_existing_member_id
        where paid_by_member_id = v_invite.target_member_id;
@@ -349,6 +525,8 @@ begin
 
       v_member_id := v_existing_member_id;
     else
+      -- No members row yet (only possible if handle_new_user_member() didn't
+      -- run for this account) — claim the phantom row itself.
       update members
          set account_id = auth.uid()
        where id = v_invite.target_member_id
@@ -362,10 +540,14 @@ begin
   else
     -- Fresh join: reuse this account's members row if it has one, from any
     -- group, otherwise create one.
-    select m.id into v_member_id
-      from members m
-     where m.account_id = auth.uid()
-     limit 1;
+    v_member_id := v_existing_member_id;
+
+    if v_member_id is not null and exists (
+      select 1 from group_members
+      where group_id = v_invite.group_id and member_id = v_member_id
+    ) then
+      return v_invite.group_id;
+    end if;
 
     if v_member_id is null then
       insert into members (account_id, display_name, created_by)
@@ -385,6 +567,10 @@ begin
   return v_invite.group_id;
 end;
 $$;
+
+-- Every function in public is executable by PUBLIC (anon included) by default.
+revoke execute on function public.redeem_invite(text) from public, anon;
+grant execute on function public.redeem_invite(text) to authenticated;
 
 -- ============================================================
 -- Phase 1 additions (see /SCOPE.md): N-way expense splitting, a computed
@@ -942,8 +1128,10 @@ drop table if exists public.categories cascade;
 -- multi-step write into one Postgres function, which runs as a single
 -- transaction — if any statement fails, all of it rolls back.
 -- Every individual insert here is already permitted to the calling user
--- under the existing RLS policies (see "insert groups"/"insert members"/
--- "group members can add members" above) — atomicity, not a permission gap,
+-- under the RLS policies at the time (see "insert groups"/"insert members"/
+-- "group members can add members" above — the last one is phantom-only since
+-- 2026-09-17, so the creator's own row now genuinely depends on this running
+-- as security definer) — atomicity, not a permission gap,
 -- was the original reason for wrapping this in a function. It still needs
 -- `security definer`, though: the `auth.users` lookup below (for the
 -- creator's email, same as redeem_invite() does) is a plain table-grant
@@ -1005,17 +1193,20 @@ begin
 end;
 $$;
 
+revoke execute on function public.create_group(text, char) from public, anon;
+grant execute on function public.create_group(text, char) to authenticated;
+
 -- ============================================================
 -- Leave / transfer ownership / dissolve — added 2026-08-31 (see the app-side
 -- design discussion the same day). Entirely additive on top of everything
 -- above; run this block once against the already-live project.
 --
--- group_members' only existing delete policy is "group creator can remove
+-- group_members' only existing delete policy was "group creator can remove
 -- members" — there was no policy letting a member remove *themselves*, so
--- leaving a group was RLS-impossible, not just missing UI. Fixed by adding a
--- second permissive delete policy (multiple permissive policies for the same
--- command are OR'd together in Postgres, so this doesn't touch or replace
--- the existing one).
+-- leaving a group was RLS-impossible, not just missing UI. Originally fixed by
+-- adding a second permissive delete policy. Superseded 2026-09-17 (RLS
+-- hardening): both direct-delete policies were dropped, and leave_group()/
+-- remove_group_member() are the only removal paths, both security definer.
 --
 -- Separately: expenses/recurring_expenses already go to `group_id is null`
 -- (not deleted) when their group is dissolved, by design (ON DELETE SET
@@ -1055,9 +1246,12 @@ as $$
   select exists (select 1 from members where id = p_member_id and account_id = auth.uid());
 $$;
 
--- group_members: let a member remove their own row (leaving a group).
-create policy "members can remove themselves" on public.group_members
-  for delete using (is_own_member_row(member_id));
+-- group_members: there used to be a "members can remove themselves" DELETE
+-- policy here (using is_own_member_row(member_id)). Dropped 2026-09-17 (RLS
+-- hardening) — a direct delete skipped leave_group()'s balance/creator guards
+-- entirely; leave_group() now runs as security definer instead (below).
+-- is_own_member_row() is kept only because it still exists live; nothing in
+-- this file references it anymore.
 
 -- is_unscoped_expense_party: whether the current account is the payer or a
 -- share-holder on a specific unscoped (dissolved-group) expense. Has to be
@@ -1100,31 +1294,41 @@ create policy "select unscoped expenses you're a party to" on public.expenses
 create policy "select unscoped shares you're a party to" on public.expense_shares
   for select using (is_unscoped_expense_party(expense_shares.expense_id));
 
--- leave_group: self-service leave for a non-creator member. Runs as the
--- caller (no security definer needed) since the delete itself is already
--- permitted by the "members can remove themselves" policy above (which
--- routes through is_own_member_row() to avoid the group_members/members
--- policy cycle — see that function's remarks) — the only things this
--- function adds are the creator/balance guards, not an RLS bypass. The
--- creator can't leave via this path (they'd orphan `created_by` on
--- groups/group_members'-remove/the visibility fallback above) — they must
--- transfer ownership or dissolve instead, both below.
+-- leave_group: self-service leave for a non-creator member. The creator can't
+-- leave via this path (they'd orphan `created_by` on groups/the visibility
+-- fallback above) — they must transfer ownership or dissolve instead, both
+-- below.
+--
+-- security definer since 2026-09-17 (RLS hardening): it used to run as the
+-- caller and rely on a "members can remove themselves" DELETE policy, which
+-- also let a plain request skip these guards. That policy is gone, so this
+-- has to run as owner; every rule it enforces is explicit below and keyed on
+-- auth.uid(). Also removes the leaver's RSVPs to this group's events, so they
+-- stop receiving that group's event pushes and stop counting in transport
+-- totals.
 create or replace function public.leave_group(p_group_id uuid)
 returns void
 language plpgsql
+security definer
+set search_path = public
 as $$
 declare
   v_member_id uuid;
   v_balance numeric;
 begin
+  if auth.uid() is null then
+    raise exception 'Not signed in';
+  end if;
+
   if exists (select 1 from groups where id = p_group_id and created_by = auth.uid()) then
     raise exception 'The group creator cannot leave directly — transfer ownership or dissolve the group instead';
   end if;
 
-  select id into v_member_id
-    from members
-   where account_id = auth.uid()
-     and id in (select member_id from group_members where group_id = p_group_id)
+  select m.id into v_member_id
+    from members m
+    join group_members gm on gm.member_id = m.id
+   where m.account_id = auth.uid()
+     and gm.group_id = p_group_id
    limit 1;
 
   if v_member_id is null then
@@ -1140,9 +1344,18 @@ begin
     raise exception 'Settle your balance in this group before leaving';
   end if;
 
+  delete from event_attendees ea
+   using events e
+   where e.id = ea.event_id
+     and e.group_id = p_group_id
+     and ea.member_id = v_member_id;
+
   delete from group_members where group_id = p_group_id and member_id = v_member_id;
 end;
 $$;
+
+revoke execute on function public.leave_group(uuid) from public, anon;
+grant execute on function public.leave_group(uuid) to authenticated;
 
 -- transfer_group_ownership: hands `groups.created_by` to another current,
 -- claimed (real-account) member. security definer, same reasoning as
@@ -1181,6 +1394,9 @@ begin
   update groups set created_by = v_new_owner_account where id = p_group_id;
 end;
 $$;
+
+revoke execute on function public.transfer_group_ownership(uuid, uuid) from public, anon;
+grant execute on function public.transfer_group_ownership(uuid, uuid) to authenticated;
 
 -- Dissolve itself needs no new function: `groups`' existing "delete own
 -- groups" policy (created_by = auth.uid()) already permits it, and the FK
@@ -1249,6 +1465,9 @@ begin
   delete from group_members where group_id = p_group_id and member_id = p_member_id;
 end;
 $$;
+
+revoke execute on function public.remove_group_member(uuid, uuid) from public, anon;
+grant execute on function public.remove_group_member(uuid, uuid) to authenticated;
 
 -- ============================================================
 -- Member aliases + reserved avatar column — added 2026-08-31 (see the
@@ -1427,9 +1646,35 @@ declare
   v_count int;
   v_new_expense_id uuid;
 begin
+  -- Added 2026-09-17 (RLS hardening): a template whose group was dissolved, or
+  -- whose payer / any share-holder is no longer in the group, is deactivated
+  -- instead of silently charging people who can't see it — dissolved groups'
+  -- templates used to keep materializing unscoped expenses (and pushes) every
+  -- day. Reactivating one is the normal pause/resume toggle (SetActiveAsync)
+  -- after fixing its participants.
+  update recurring_expenses re
+     set is_active = false
+   where re.is_active
+     and (
+       re.group_id is null
+       or not exists (
+         select 1 from group_members gm
+         where gm.group_id = re.group_id and gm.member_id = re.paid_by_member_id
+       )
+       or exists (
+         select 1 from recurring_expense_shares res
+         where res.recurring_expense_id = re.id
+           and not exists (
+             select 1 from group_members gm
+             where gm.group_id = re.group_id and gm.member_id = res.member_id
+           )
+       )
+     );
+
   for v_template in
     select * from recurring_expenses
     where is_active
+      and group_id is not null
       and start_date <= current_date
       and (last_processed_date is null or last_processed_date < current_date)
   loop
@@ -1590,6 +1835,10 @@ alter table public.members add column birth_date date;
 -- this WHERE clause — a NULL creator meant nobody ever got notified, not "notify everyone since
 -- nobody's excluded". Guarding it the same way event_attendee_notification_recipients already
 -- guards p_actor_account_id below.
+--
+-- Current-members-only since 2026-09-17 (RLS hardening): a payer/share-holder who isn't (or is no
+-- longer) in the expense's group doesn't get pushed that group's name and amounts. An unscoped
+-- expense (dissolved group) has no membership to check, so it still notifies its parties.
 create or replace function public.expense_notification_recipients(p_expense_id uuid)
 returns table (account_id uuid, push_token text, platform text, member_id uuid)
 language sql
@@ -1597,11 +1846,11 @@ stable
 set search_path = public
 as $$
   with involved as (
-    select e.paid_by_member_id as member_id, e.created_by
+    select e.paid_by_member_id as member_id, e.created_by, e.group_id
     from expenses e
     where e.id = p_expense_id
     union
-    select es.member_id, e.created_by
+    select es.member_id, e.created_by, e.group_id
     from expense_shares es
     join expenses e on e.id = es.expense_id
     where es.expense_id = p_expense_id
@@ -1611,7 +1860,14 @@ as $$
   join members m on m.id = i.member_id
   join device_tokens dt on dt.account_id = m.account_id
   where m.account_id is not null
-    and (i.created_by is null or m.account_id <> i.created_by);
+    and (i.created_by is null or m.account_id <> i.created_by)
+    and (
+      i.group_id is null
+      or exists (
+        select 1 from group_members gm
+        where gm.group_id = i.group_id and gm.member_id = i.member_id
+      )
+    );
 $$;
 
 revoke execute on function public.expense_notification_recipients(uuid) from public, anon, authenticated;
@@ -1969,6 +2225,59 @@ create policy "update events in your groups" on public.events
 create policy "delete own events" on public.events
   for delete using (created_by = auth.uid());
 
+-- Column locks (2026-09-17 RLS hardening). Before this, any member could set
+-- created_by = themselves on update and then delete someone else's event —
+-- defeating the creator-only delete above — or flip is_birthday. On insert,
+-- created_by is always the caller and the birthday/reminder columns start
+-- clean; on update, organizer/group/birthday columns are silently restored
+-- and a birthday event can't be edited at all. Also fixes duplicate reminders:
+-- an edit only clears reminder_sent_at when starts_at actually moved (clients
+-- send a fresh Event object with ReminderSentAt null on every edit).
+-- References is_birthday/member_id/birthday_notified_at, added further down
+-- ("Birthday events") — fine, plpgsql only resolves columns at execution time.
+-- Same current_user keying as enforce_group_owner_only_columns(): the
+-- birthday/reminder cron jobs run as postgres and aren't affected.
+create or replace function public.protect_event_columns()
+returns trigger
+language plpgsql
+as $$
+begin
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    new.created_by := auth.uid();
+    new.is_birthday := false;
+    new.member_id := null;
+    new.reminder_sent_at := null;
+    new.birthday_notified_at := null;
+    return new;
+  end if;
+
+  if old.is_birthday then
+    raise exception 'Birthday events can''t be edited';
+  end if;
+
+  new.id := old.id;
+  new.group_id := old.group_id;
+  new.created_by := old.created_by;
+  new.created_at := old.created_at;
+  new.is_birthday := old.is_birthday;
+  new.member_id := old.member_id;
+  new.birthday_notified_at := old.birthday_notified_at;
+  new.reminder_sent_at := case
+    when new.starts_at is distinct from old.starts_at then null
+    else old.reminder_sent_at
+  end;
+  return new;
+end;
+$$;
+
+create trigger protect_event_columns
+  before insert or update on public.events
+  for each row execute function public.protect_event_columns();
+
 -- event_attendees: select follows the parent event's visibility. Writes are
 -- restricted to your own row AND require you to actually be a member of
 -- that event's group — the "own row" check alone isn't enough on its own,
@@ -1997,14 +2306,38 @@ create policy "insert your own rsvp" on public.event_attendees
         and m.account_id = auth.uid()
     )
   );
+-- Update requires current membership too, with an explicit WITH CHECK
+-- (2026-09-17 RLS hardening). Before, it only checked "this is my member row",
+-- so an RSVP could still be edited after leaving the group, or moved onto an
+-- event in another group — putting its owner on that event's push recipients.
 create policy "update your own rsvp" on public.event_attendees
-  for update using (
+  for update
+  using (
     exists (
+      select 1 from events e
+      where e.id = event_attendees.event_id
+        and is_group_member(e.group_id)
+    )
+    and exists (
+      select 1 from members m
+      where m.id = event_attendees.member_id
+        and m.account_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from events e
+      where e.id = event_attendees.event_id
+        and is_group_member(e.group_id)
+    )
+    and exists (
       select 1 from members m
       where m.id = event_attendees.member_id
         and m.account_id = auth.uid()
     )
   );
+-- Delete stays own-row only (no membership check): removing your own stale
+-- RSVP after leaving is harmless and only cleans up.
 create policy "delete your own rsvp" on public.event_attendees
   for delete using (
     exists (
@@ -2013,6 +2346,25 @@ create policy "delete your own rsvp" on public.event_attendees
         and m.account_id = auth.uid()
     )
   );
+
+-- An RSVP's event/member can't be repointed by a client update (2026-09-17).
+create or replace function public.protect_rsvp_keys()
+returns trigger
+language plpgsql
+as $$
+begin
+  if current_user in ('authenticated', 'anon') then
+    new.event_id := old.event_id;
+    new.member_id := old.member_id;
+    new.created_at := old.created_at;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger protect_rsvp_keys
+  before update on public.event_attendees
+  for each row execute function public.protect_rsvp_keys();
 
 -- ============================================================
 -- Event notifications — Phase 2, Milestone 5 (2026-09-07, see
@@ -2063,7 +2415,10 @@ revoke execute on function public.event_notification_recipients(uuid) from publi
 -- attendee (any event_attendees row, any response) minus whoever made the
 -- edit. Deliberately narrower than the creation set: someone who never
 -- RSVP'd at all doesn't need to hear that an event they're not tracking
--- got moved, only people who've actually engaged with it.
+-- got moved, only people who've actually engaged with it. Joined against
+-- group_members since 2026-09-17 (RLS hardening), same for the reminder and
+-- cancellation recipients below: an attendee row left behind by someone no
+-- longer in the group no longer gets that group's event pushes.
 create or replace function public.event_attendee_notification_recipients(p_event_id uuid, p_actor_account_id uuid)
 returns table (account_id uuid, push_token text, platform text)
 language sql
@@ -2072,6 +2427,8 @@ set search_path = public
 as $$
   select distinct dt.account_id, dt.push_token, dt.platform
   from event_attendees ea
+  join events e on e.id = ea.event_id
+  join group_members gm on gm.group_id = e.group_id and gm.member_id = ea.member_id
   join members m on m.id = ea.member_id
   join device_tokens dt on dt.account_id = m.account_id
   where ea.event_id = p_event_id
@@ -2093,6 +2450,8 @@ set search_path = public
 as $$
   select distinct dt.account_id, dt.push_token, dt.platform
   from event_attendees ea
+  join events e on e.id = ea.event_id
+  join group_members gm on gm.group_id = e.group_id and gm.member_id = ea.member_id
   join members m on m.id = ea.member_id
   join device_tokens dt on dt.account_id = m.account_id
   where ea.event_id = p_event_id
@@ -2197,6 +2556,7 @@ begin
   )), '[]'::jsonb)
   into v_recipients
   from event_attendees ea
+  join group_members gm on gm.group_id = old.group_id and gm.member_id = ea.member_id
   join members m on m.id = ea.member_id
   join device_tokens dt on dt.account_id = m.account_id
   where ea.event_id = old.id
