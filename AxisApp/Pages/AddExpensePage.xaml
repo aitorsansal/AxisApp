@@ -397,7 +397,7 @@
                 Text="{loc:Translate AddExpense_DeleteExpense}"
                 Command="{Binding DeleteCommand}"
                 Style="{StaticResource BtnOutlineDanger}"
-                IsVisible="{Binding IsEditMode}" />
+                IsVisible="{Binding CanDelete}" />
         </VerticalStackLayout>
 
         <!-- Only for Save/Delete's busy spinner — the initial load uses the skeleton below

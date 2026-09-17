@@ -27,6 +27,9 @@ internal static class WidgetDataAccess
         {
             var authService = services.GetRequiredService<IAuthService>();
             await authService.RestoreSessionAsync();
+            // A widget tick or notification action can run long after the process last had a
+            // chance to refresh (device asleep), with the same stale-timer gap as a window resume.
+            await authService.EnsureFreshSessionAsync();
         }
         catch
         {

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { useGoBackTo } from '../lib/navigation'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
@@ -12,6 +13,27 @@ import './AddExpensePage.css'
 
 const RECEIPTS_BUCKET = 'receipts'
 
+// All split math runs in integer cents so shares always sum to exactly the
+// total — float `+=` on a leftover cent produced values like 3.3400000000000003.
+function parseCents(text: string) {
+  const n = Number(text.replace(',', '.'))
+  return Number.isFinite(n) ? Math.round(n * 100) : 0
+}
+
+const formatCents = (cents: number) => (cents / 100).toFixed(2)
+
+// Same penny-rounding fix as AddExpenseViewModel.RedistributeEqually: equal
+// rounded share for everyone, leftover onto the last participant.
+function equalSplitCents(totalCents: number, ids: string[]) {
+  const result: Record<string, number> = {}
+  if (ids.length === 0) return result
+  const share = Math.round(totalCents / ids.length)
+  ids.forEach((id, i) => {
+    result[id] = i === ids.length - 1 ? totalCents - share * (ids.length - 1) : share
+  })
+  return result
+}
+
 export function AddExpensePage() {
   const { groupId, expenseId, recurringId } = useParams<{ groupId: string; expenseId?: string; recurringId?: string }>()
   const location = useLocation()
@@ -20,7 +42,7 @@ export function AddExpensePage() {
   const { session } = useAuth()
   const { displayName } = useAliases()
   const { t } = useLocale()
-  const navigate = useNavigate()
+  const goBackTo = useGoBackTo()
 
   const [group, setGroup] = useState<Group | null>(null)
   const [members, setMembers] = useState<MemberRow[]>([])
@@ -33,10 +55,17 @@ export function AddExpensePage() {
   const [frequency, setFrequency] = useState<(typeof RECURRING_FREQUENCIES)[number]>('monthly')
   const [paidBy, setPaidBy] = useState('')
   const [participants, setParticipants] = useState<Set<string>>(new Set())
+  // Mirrors AddExpenseViewModel.IsManualSplit: off = shares derived equally from
+  // amount + participants; on = shareInputs holds each participant's typed amount.
+  // Editing starts in manual mode so a saved uneven split is never flattened.
+  const [isManualSplit, setIsManualSplit] = useState(false)
+  const [shareInputs, setShareInputs] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const [isEditMode, setIsEditMode] = useState(false)
+  // Server rule (enforce_expense_delete_permission): creator, payer or group owner. Templates aren't restricted.
+  const [canDelete, setCanDelete] = useState(false)
   const [isRecurringMode, setIsRecurringMode] = useState(isRecurringRoute)
   const [canToggleRecurring] = useState(!expenseId && !recurringId)
   const [isSettlement, setIsSettlement] = useState(false)
@@ -51,17 +80,6 @@ export function AddExpensePage() {
   // update, same "never re-derive a field the row already carries" rule as createdBy/createdAt.
   const [linkedEventId, setLinkedEventId] = useState<string | null>(searchParams.get('eventId'))
   const [linkedEventTitle, setLinkedEventTitle] = useState<string | null>(null)
-
-  // Carried through unchanged on update — never re-derived — so editing a
-  // template/expense's amount/split/category can't reset its schedule or
-  // silently drop who created it. Same footgun class documented on the
-  // MAUI side (AddExpenseViewModel's editingCreatedBy/editingLastProcessedDate).
-  const [editingMeta, setEditingMeta] = useState<{
-    createdBy: string | null
-    createdAt: string | null
-    lastProcessedDate: string | null
-    isActive: boolean
-  }>({ createdBy: null, createdAt: null, lastProcessedDate: null, isActive: true })
 
   useEffect(() => {
     if (!groupId) return
@@ -82,7 +100,7 @@ export function AddExpensePage() {
         setIsEditMode(true)
         const [expenseRes, sharesRes] = await Promise.all([
           supabase.from('expenses').select('*').eq('id', expenseId).single(),
-          supabase.from('expense_shares').select('member_id').eq('expense_id', expenseId),
+          supabase.from('expense_shares').select('member_id, share_amount').eq('expense_id', expenseId),
         ])
         if (expenseRes.error) return setError(expenseRes.error.message)
         const expense = expenseRes.data
@@ -93,16 +111,14 @@ export function AddExpensePage() {
         setOccurredOn(expense.occurred_at.slice(0, 10))
         setPaidBy(expense.paid_by_member_id)
         setIsSettlement(expense.is_settlement)
+        const myId = session?.user.id
+        const payerAccount = memberRows.find((m) => m.member_id === expense.paid_by_member_id)?.members.account_id
+        setCanDelete(!!myId && (expense.created_by === myId || payerAccount === myId || groupData.created_by === myId))
         setReceiptPath(expense.receipt_path)
         setLinkedEventId(expense.event_id)
-        setEditingMeta({
-          createdBy: expense.created_by,
-          createdAt: expense.created_at,
-          lastProcessedDate: null,
-          isActive: true,
-        })
-        const shareIds = new Set<string>((sharesRes.data ?? []).map((s: { member_id: string }) => s.member_id))
-        setParticipants(shareIds)
+        loadShares(sharesRes.data ?? [])
+        // A settlement is always one share for the full amount — keep it derived.
+        setIsManualSplit(!expense.is_settlement)
         if (expense.receipt_path) {
           const { data: signed } = await supabase.storage
             .from(RECEIPTS_BUCKET)
@@ -111,10 +127,11 @@ export function AddExpensePage() {
         }
       } else if (recurringId) {
         setIsEditMode(true)
+        setCanDelete(true)
         setIsRecurringMode(true)
         const [templateRes, sharesRes] = await Promise.all([
           supabase.from('recurring_expenses').select('*').eq('id', recurringId).single(),
-          supabase.from('recurring_expense_shares').select('member_id').eq('recurring_expense_id', recurringId),
+          supabase.from('recurring_expense_shares').select('member_id, share_amount').eq('recurring_expense_id', recurringId),
         ])
         if (templateRes.error) return setError(templateRes.error.message)
         const tpl = templateRes.data
@@ -125,14 +142,8 @@ export function AddExpensePage() {
         setStartDate(tpl.start_date)
         setFrequency(tpl.frequency)
         setPaidBy(tpl.paid_by_member_id)
-        setEditingMeta({
-          createdBy: tpl.created_by,
-          createdAt: tpl.created_at,
-          lastProcessedDate: tpl.last_processed_date,
-          isActive: tpl.is_active,
-        })
-        const shareIds = new Set<string>((sharesRes.data ?? []).map((s: { member_id: string }) => s.member_id))
-        setParticipants(shareIds)
+        loadShares(sharesRes.data ?? [])
+        setIsManualSplit(true)
       } else {
         setCurrency(groupData.currency)
         const myRow = memberRows.find((m) => m.members.account_id === session?.user.id)
@@ -158,6 +169,21 @@ export function AddExpensePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, expenseId, recurringId, session])
 
+  function loadShares(rows: { member_id: string; share_amount: number }[]) {
+    setParticipants(new Set(rows.map((s) => s.member_id)))
+    setShareInputs(Object.fromEntries(rows.map((s) => [s.member_id, Number(s.share_amount).toFixed(2)])))
+  }
+
+  // Member-list order, so "last participant" (who absorbs the leftover cent) is stable.
+  const includedIds = members.map((m) => m.member_id).filter((id) => participants.has(id))
+  const totalCents = parseCents(amount)
+  const useEqualSplit = !isManualSplit || isSettlement
+  const shareCents: Record<string, number> = useEqualSplit
+    ? equalSplitCents(totalCents, includedIds)
+    : Object.fromEntries(includedIds.map((id) => [id, parseCents(shareInputs[id] ?? '')]))
+  const remainingCents = totalCents - includedIds.reduce((sum, id) => sum + shareCents[id], 0)
+  const isSplitValid = remainingCents === 0 && includedIds.every((id) => shareCents[id] > 0)
+
   function toggleParticipant(memberId: string) {
     setParticipants((prev) => {
       const next = new Set(prev)
@@ -165,15 +191,33 @@ export function AddExpensePage() {
       else next.add(memberId)
       return next
     })
+    // An excluded participant owes nothing; re-including starts from empty, same as MAUI.
+    if (isManualSplit) {
+      setShareInputs((prev) => {
+        const next = { ...prev }
+        delete next[memberId]
+        return next
+      })
+    }
   }
 
-  function equalShares(total: number) {
-    const ids = Array.from(participants)
-    const share = Math.round((total / ids.length) * 100) / 100
-    const shares = ids.map((memberId) => ({ member_id: memberId, share_amount: share }))
-    const roundingError = Math.round((total - share * ids.length) * 100) / 100
-    if (roundingError !== 0 && shares.length > 0) shares[shares.length - 1].share_amount += roundingError
-    return shares
+  function handleShareChange(memberId: string, value: string) {
+    // First manual edit snapshots the current equal split so the other
+    // participants keep their amounts instead of dropping to empty.
+    const base = isManualSplit
+      ? shareInputs
+      : Object.fromEntries(includedIds.map((id) => [id, formatCents(shareCents[id])]))
+    setShareInputs({ ...base, [memberId]: value })
+    setIsManualSplit(true)
+  }
+
+  function handleSplitEqually() {
+    setIsManualSplit(false)
+    setShareInputs({})
+  }
+
+  function buildShares() {
+    return includedIds.map((id) => ({ member_id: id, share_amount: shareCents[id] / 100 }))
   }
 
   async function handleReceiptChange(e: ChangeEvent<HTMLInputElement>) {
@@ -228,76 +272,57 @@ export function AddExpensePage() {
       setError(t('AddExpense_PickPayer'))
       return
     }
+    if (!isSplitValid) {
+      setError(t('AddExpense_SplitInvalid'))
+      return
+    }
 
     setBusy(true)
 
+    // One transaction per save (supabase/atomic_expense_save.sql) — the row and
+    // its full share list commit or roll back together. created_by/created_at
+    // (and a template's schedule fields) are server-owned, never sent.
     if (isRecurringMode) {
-      const templatePayload = {
+      const { error: saveError } = await supabase.rpc('save_recurring_expense', {
+        p_template: {
+          id: recurringId ?? null,
+          group_id: groupId,
+          paid_by_member_id: paidBy,
+          amount: total,
+          currency,
+          description,
+          category,
+          frequency,
+          start_date: startDate,
+        },
+        p_shares: buildShares(),
+      })
+      setBusy(false)
+      if (saveError) return setError(saveError.message)
+      goBackTo(`/groups/${groupId}/recurring`)
+      return
+    }
+
+    const { error: saveError } = await supabase.rpc('save_expense', {
+      p_expense: {
+        id: expenseId ?? null,
         group_id: groupId,
         paid_by_member_id: paidBy,
         amount: total,
         currency,
         description,
-        category,
-        frequency,
-        start_date: startDate,
-        last_processed_date: editingMeta.lastProcessedDate,
-        is_active: recurringId ? editingMeta.isActive : true,
-        created_by: recurringId ? editingMeta.createdBy : session?.user.id,
-        ...(recurringId ? { created_at: editingMeta.createdAt } : {}),
-      }
-
-      const { data: template, error: templateError } = recurringId
-        ? await supabase.from('recurring_expenses').update(templatePayload).eq('id', recurringId).select('id').single()
-        : await supabase.from('recurring_expenses').insert(templatePayload).select('id').single()
-
-      if (templateError) {
-        setError(templateError.message)
-        setBusy(false)
-        return
-      }
-
-      if (recurringId) await supabase.from('recurring_expense_shares').delete().eq('recurring_expense_id', recurringId)
-      const shares = equalShares(total).map((s) => ({ ...s, recurring_expense_id: template.id }))
-      const { error: sharesError } = await supabase.from('recurring_expense_shares').insert(shares)
-      setBusy(false)
-      if (sharesError) return setError(sharesError.message)
-      navigate(`/groups/${groupId}/recurring`)
-      return
-    }
-
-    const expensePayload = {
-      group_id: groupId,
-      paid_by_member_id: paidBy,
-      amount: total,
-      currency,
-      description,
-      category: isSettlement ? '' : category,
-      occurred_at: new Date(occurredOn).toISOString(),
-      receipt_path: receiptPath,
-      is_settlement: isSettlement,
-      event_id: linkedEventId,
-      created_by: expenseId ? editingMeta.createdBy : session?.user.id,
-      ...(expenseId ? { created_at: editingMeta.createdAt } : {}),
-    }
-
-    const { data: expense, error: expenseError } = expenseId
-      ? await supabase.from('expenses').update(expensePayload).eq('id', expenseId).select('id').single()
-      : await supabase.from('expenses').insert(expensePayload).select('id').single()
-
-    if (expenseError) {
-      setError(expenseError.message)
-      setBusy(false)
-      return
-    }
-
-    if (expenseId) await supabase.from('expense_shares').delete().eq('expense_id', expenseId)
-    const shares = equalShares(total).map((s) => ({ ...s, expense_id: expense.id }))
-    const { error: sharesError } = await supabase.from('expense_shares').insert(shares)
+        category: isSettlement ? '' : category,
+        occurred_at: new Date(occurredOn).toISOString(),
+        receipt_path: receiptPath,
+        is_settlement: isSettlement,
+        event_id: linkedEventId,
+      },
+      p_shares: buildShares(),
+    })
     setBusy(false)
-    if (sharesError) return setError(sharesError.message)
+    if (saveError) return setError(saveError.message)
 
-    navigate(linkedEventId ? `/groups/${groupId}/events/${linkedEventId}` : `/groups/${groupId}`)
+    goBackTo(parentPath)
   }
 
   async function handleDelete() {
@@ -308,8 +333,14 @@ export function AddExpensePage() {
       : await supabase.from('expenses').delete().eq('id', expenseId)
     setBusy(false)
     if (error) return setError(error.message)
-    navigate(recurringId ? `/groups/${groupId}/recurring` : `/groups/${groupId}`)
+    goBackTo(parentPath)
   }
+
+  const parentPath = isRecurringRoute
+    ? `/groups/${groupId}/recurring`
+    : linkedEventId
+      ? `/groups/${groupId}/events/${linkedEventId}`
+      : `/groups/${groupId}`
 
   const title = recurringId
     ? t('AddExpense_EditRecurringTitle')
@@ -324,7 +355,7 @@ export function AddExpensePage() {
   if (!group) {
     return (
       <div className="page">
-        <AppHeader title={title} back />
+        <AppHeader title={title} backTo={parentPath} />
         {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
       </div>
     )
@@ -332,7 +363,7 @@ export function AddExpensePage() {
 
   return (
     <div className="page">
-      <AppHeader title={title} back />
+      <AppHeader title={title} backTo={parentPath} />
 
       <form onSubmit={handleSubmit}>
         {linkedEventId && linkedEventTitle && <p className="field-hint linked-event-hint">{t('AddExpense_LinkedToEvent', linkedEventTitle)}</p>}
@@ -432,19 +463,45 @@ export function AddExpensePage() {
         </div>
 
         <div className="field">
-          <label>{t('AddExpense_SplitEquallyBetween')}</label>
-          <div className="participant-list">
-            {members.map((m) => (
-              <label key={m.member_id} className="participant-item">
-                <input
-                  type="checkbox"
-                  checked={participants.has(m.member_id)}
-                  onChange={() => toggleParticipant(m.member_id)}
-                />
-                {displayName(m.members)}
-              </label>
-            ))}
+          <div className="split-header">
+            <label>{t('AddExpense_Split')}</label>
+            {!isSettlement && isManualSplit && (
+              <button type="button" className="split-equally-btn" onClick={handleSplitEqually}>
+                {t('AddExpense_SplitEqually')}
+              </button>
+            )}
           </div>
+          <div className="participant-list">
+            {members.map((m) => {
+              const included = participants.has(m.member_id)
+              return (
+                <div key={m.member_id} className="participant-item">
+                  <label className="participant-name">
+                    <input type="checkbox" checked={included} onChange={() => toggleParticipant(m.member_id)} />
+                    {displayName(m.members)}
+                  </label>
+                  {!isSettlement && included && (
+                    <input
+                      className="share-input"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      aria-label={displayName(m.members)}
+                      placeholder="0.00"
+                      value={useEqualSplit ? formatCents(shareCents[m.member_id]) : (shareInputs[m.member_id] ?? '')}
+                      onChange={(e) => handleShareChange(m.member_id, e.target.value)}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {!isSettlement && (
+            <p className={`split-remaining${remainingCents !== 0 ? ' split-remaining-off' : ''}`}>
+              {t('AddExpense_Remaining', formatCents(remainingCents), currency)}
+            </p>
+          )}
         </div>
 
         {!isRecurringMode && !isSettlement && (
@@ -475,7 +532,7 @@ export function AddExpensePage() {
           {busy ? t('Common_Saving') : t('AddExpense_SaveExpense')}
         </button>
 
-        {isEditMode && (
+        {isEditMode && canDelete && (
           <button type="button" className="btn btn-danger delete-btn" onClick={handleDelete} disabled={busy}>
             {t('AddExpense_DeleteExpense')}
           </button>

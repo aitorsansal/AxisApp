@@ -299,7 +299,7 @@ export function ProfilePage() {
   if (!member) {
     return (
       <div className="page">
-        <AppHeader title={t('Profile_Title')} back />
+        <AppHeader title={t('Profile_Title')} backTo="/" />
         {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
       </div>
     )
@@ -307,7 +307,7 @@ export function ProfilePage() {
 
   return (
     <div className="page">
-      <AppHeader title={t('Profile_Title')} back />
+      <AppHeader title={t('Profile_Title')} backTo="/" />
 
       {error && <p className="error-text">{error}</p>}
       {notice && <p className="notice-text">{notice}</p>}

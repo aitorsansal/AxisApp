@@ -5,6 +5,10 @@ import { useAuth } from '../context/AuthContext'
 import { useLocale } from '../context/LocaleContext'
 import './LoginPage.css'
 
+// Static "email confirmed" page under web/confirm/ — same page the MAUI app's sign-up points at
+// (AppConstants.Links.EmailConfirmedUrl). Must be in Supabase Auth's redirect allow-list.
+const EMAIL_CONFIRMED_URL = 'https://axisapp.aitorsansal.com/confirm/'
+
 export function LoginPage() {
   const { session } = useAuth()
   const { t } = useLocale()
@@ -12,6 +16,8 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   if (session) return <Navigate to="/" replace />
@@ -19,18 +25,60 @@ export function LoginPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    setNotice(null)
+    setUnconfirmedEmail(null)
     setBusy(true)
     try {
-      const { error } =
-        mode === 'signin'
-          ? await supabase.auth.signInWithPassword({ email, password })
-          : await supabase.auth.signUp({ email, password })
-      if (error) throw error
+      if (mode === 'signin') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error?.code === 'email_not_confirmed') {
+          setUnconfirmedEmail(email)
+          setError(t('Login_EmailNotConfirmed'))
+          return
+        }
+        if (error?.code === 'invalid_credentials') {
+          setError(t('Login_InvalidCredentials'))
+          return
+        }
+        if (error) throw error
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: EMAIL_CONFIRMED_URL },
+        })
+        if (error) throw error
+        // With "Confirm email" on, the account exists but has no session until the link is
+        // clicked. With it off, the session is set and AuthContext redirects on its own.
+        if (!data.session) {
+          setPassword('')
+          setMode('signin')
+          setNotice(t('Login_CheckInbox', email))
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('Common_Error'))
     } finally {
       setBusy(false)
     }
+  }
+
+  async function handleResend() {
+    if (!unconfirmedEmail) return
+    setError(null)
+    setBusy(true)
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: unconfirmedEmail,
+      options: { emailRedirectTo: EMAIL_CONFIRMED_URL },
+    })
+    setBusy(false)
+    // Supabase allows one auth email per address per 60s, counted from the last one sent —
+    // usually the sign-up email itself, so resending right after signing up always hits this.
+    if (error?.code === 'over_email_send_rate_limit') return setError(t('Login_ResendRateLimited'))
+    if (error) return setError(error.message)
+    setUnconfirmedEmail(null)
+    setNotice(t('Login_CheckInbox', unconfirmedEmail))
   }
 
   async function handleGoogle() {
@@ -84,6 +132,12 @@ export function LoginPage() {
         </div>
 
         {error && <p className="error-text">{error}</p>}
+        {notice && <p className="notice-text">{notice}</p>}
+        {unconfirmedEmail && (
+          <button type="button" className="mode-toggle resend-link" onClick={handleResend} disabled={busy}>
+            {t('Login_ResendConfirmation')}
+          </button>
+        )}
 
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {busy ? t('Common_PleaseWait') : mode === 'signin' ? t('Login_SignIn') : t('Login_SignUp')}

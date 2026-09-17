@@ -61,7 +61,7 @@ export function RecurringExpensesPage() {
   if (!group) {
     return (
       <div className="page">
-        <AppHeader title={t('RecurringExpenses_Title')} back />
+        <AppHeader title={t('RecurringExpenses_Title')} backTo={`/groups/${groupId}`} />
         {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
       </div>
     )
@@ -69,7 +69,7 @@ export function RecurringExpensesPage() {
 
   return (
     <div className="page">
-      <AppHeader title={group.name} back />
+      <AppHeader title={group.name} backTo={`/groups/${groupId}`} />
       {error && <p className="error-text">{error}</p>}
 
       <Link to={`/groups/${groupId}/recurring/new`} className="btn btn-primary recurring-add-btn">

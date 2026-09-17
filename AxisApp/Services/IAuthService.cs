@@ -1,6 +1,14 @@
 namespace AxisApp.Services;
 
-public record AuthResult(bool Success, string? ErrorMessage = null);
+/// <summary>NeedsEmailConfirmation: on sign-up, the account was created but has no session until
+/// its email is confirmed (Success is true); on sign-in, the password was right but the email
+/// isn't confirmed yet (Success is false). InvalidCredentials: sign-in rejected for a wrong email or
+/// password.</summary>
+public record AuthResult(
+    bool Success,
+    string? ErrorMessage = null,
+    bool NeedsEmailConfirmation = false,
+    bool InvalidCredentials = false);
 
 /// <summary>
 /// Wraps whatever auth provider backs the app (Supabase Auth today). Nothing outside this
@@ -22,7 +30,11 @@ public interface IAuthService
     /// <summary>Raised after sign-in, sign-up, or sign-out changes the current session.</summary>
     event EventHandler? AuthStateChanged;
 
-    Task<AuthResult> SignUpAsync(string email, string password);
+    /// <summary>displayName/birthDate travel as sign-up metadata and are applied server-side by
+    /// handle_new_user_member() when the member row is provisioned — with email confirmation on
+    /// there's no session yet to update the row from the client. Check NeedsEmailConfirmation on
+    /// the result before assuming the user is signed in.</summary>
+    Task<AuthResult> SignUpAsync(string email, string password, string? displayName = null, DateTime? birthDate = null);
     Task<AuthResult> SignInAsync(string email, string password);
 
     /// <summary>Delegates to the platform-specific IGoogleAuthService — see its remarks for why
@@ -48,6 +60,11 @@ public interface IAuthService
 
     /// <summary>Restores a previously persisted session on app start, if one exists.</summary>
     Task RestoreSessionAsync();
+
+    /// <summary>Refreshes the access token if it expires within a minute (or right away when
+    /// <paramref name="force"/> is set, i.e. the server already rejected it as expired). No-op
+    /// without a session. Concurrent callers share one refresh. Throws on network failure.</summary>
+    Task EnsureFreshSessionAsync(bool force = false);
 
     /// <summary>Permanently deletes the signed-in account via the delete-account Edge Function —
     /// unlinks the account's member row back to a phantom (ledger history stays intact), deletes

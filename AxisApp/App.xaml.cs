@@ -62,8 +62,31 @@ namespace AxisApp
             catch { /* best effort */ }
         }
 
-        protected override Window CreateWindow(IActivationState? activationState) =>
-            new(new AppShell());
+        protected override Window CreateWindow(IActivationState? activationState)
+        {
+            var window = new Window(new AppShell());
+            // The SDK's token refresh timer falls behind while the device sleeps, so an app coming
+            // back after a long background stretch can hold an expired token. No-op without a
+            // session (e.g. before SplashPage restores one) or with a token that isn't near expiry.
+            window.Resumed += (_, _) => _ = RefreshSessionOnResumeAsync(activationState);
+            return window;
+        }
+
+        private static async Task RefreshSessionOnResumeAsync(IActivationState? activationState)
+        {
+            try
+            {
+                var authService = (activationState?.Context.Services ?? IPlatformApplication.Current?.Services)
+                    ?.GetService<Services.IAuthService>();
+                if (authService is not null)
+                    await authService.EnsureFreshSessionAsync();
+            }
+            catch
+            {
+                // Offline or refresh rejected — the next request surfaces its own error, and
+                // RunSafeAsync retries an expired-JWT rejection once more.
+            }
+        }
 
         /// <summary>Entry point for platform code (MainActivity's App Link intent-filter) handing
         /// over the raw incoming URI. Queues it if SplashPage hasn't finished restoring the

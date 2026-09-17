@@ -28,6 +28,23 @@ public abstract partial class BaseViewModel : ObservableObject
             ErrorMessage = "";
             await action();
         }
+        catch (Exception ex) when (IsExpiredJwtRejection(ex))
+        {
+            // The access token expired while the SDK's refresh timer was behind (typically after
+            // the device slept; see SupabaseAuthService.EnsureFreshSessionAsync). Rejected at the
+            // auth check before the query runs, so refresh once and retry once.
+            try
+            {
+                var authService = IPlatformApplication.Current?.Services.GetService<Services.IAuthService>();
+                if (authService is not null)
+                    await authService.EnsureFreshSessionAsync(force: true);
+                await action();
+            }
+            catch (Exception retryEx)
+            {
+                ErrorMessage = retryEx.Message;
+            }
+        }
         catch (Exception ex) when (IsClockSkewRejection(ex))
         {
             // Transient Supabase clock-skew rejection (PGRST303 "JWT issued at future") — a
@@ -52,6 +69,9 @@ public abstract partial class BaseViewModel : ObservableObject
             ErrorMessage = ex.Message;
         }
     }
+
+    private static bool IsExpiredJwtRejection(Exception ex) =>
+        ex.Message.Contains("JWT expired", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsClockSkewRejection(Exception ex) =>
         ex.Message.Contains("JWT issued at future") || ex.Message.Contains("PGRST303");

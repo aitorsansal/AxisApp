@@ -199,6 +199,13 @@ public static class AppConstants
         /// this has to work as a plain browser page regardless of platform.</summary>
         public const string PasswordResetUrl = $"https://{InviteHost}/reset";
 
+        /// <summary>Where Supabase redirects after a sign-up confirmation link is clicked —
+        /// web/confirm/index.html, a static "email confirmed, go back and sign in" page. The
+        /// account is already confirmed by Supabase's own /auth/v1/verify endpoint before this
+        /// redirect happens; the page only reports the outcome. Must be in Supabase Auth's
+        /// redirect allow-list, same as PasswordResetUrl.</summary>
+        public const string EmailConfirmedUrl = $"https://{InviteHost}/confirm/";
+
         /// <summary>Served by the same Cloudflare Worker as everything else under web/ (see
         /// AppUpdateService) — a plain static file, not an API endpoint, so it's just another path
         /// under InviteHost.</summary>

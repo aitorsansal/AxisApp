@@ -35,12 +35,12 @@ export function JoinGroupPage() {
       setError(error.message)
       return
     }
-    navigate(`/groups/${data}`)
+    navigate(`/groups/${data}`, { replace: true })
   }
 
   return (
     <div className="page">
-      <AppHeader title={t('JoinGroup_JoinTitle')} back />
+      <AppHeader title={t('JoinGroup_JoinTitle')} backTo="/" />
 
       <form onSubmit={handleSubmit}>
         <div className="field">

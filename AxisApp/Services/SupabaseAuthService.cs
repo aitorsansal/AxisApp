@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using Supabase;
+using Supabase.Gotrue.Exceptions;
 
 namespace AxisApp.Services;
 
@@ -56,11 +58,30 @@ public class SupabaseAuthService : IAuthService
         client.Auth.AddStateChangedListener((_, _) => AuthStateChanged?.Invoke(this, EventArgs.Empty));
     }
 
-    public async Task<AuthResult> SignUpAsync(string email, string password)
+    /// <summary>With "Confirm email" on in Supabase Auth, SignUp creates the account but doesn't
+    /// sign it in — the package's own doc says CurrentSession stays unchanged in that case, which
+    /// is what's checked here rather than the returned Session's shape. The confirmation link
+    /// lands on AppConstants.Links.EmailConfirmedUrl (web/confirm/index.html), a plain browser
+    /// page for the same reason PasswordResetUrl is one: no deep-link support on Windows.</summary>
+    public async Task<AuthResult> SignUpAsync(string email, string password, string? displayName = null, DateTime? birthDate = null)
     {
         try
         {
-            await client.Auth.SignUp(email, password);
+            var metadata = new Dictionary<string, object>();
+            if (!string.IsNullOrWhiteSpace(displayName))
+                metadata["display_name"] = displayName.Trim();
+            if (birthDate is { } date)
+                metadata["birth_date"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+            await client.Auth.SignUp(email, password, new Supabase.Gotrue.SignUpOptions
+            {
+                RedirectTo = AppConstants.Links.EmailConfirmedUrl,
+                Data = metadata
+            });
+
+            if (client.Auth.CurrentSession is null)
+                return new AuthResult(true, NeedsEmailConfirmation: true);
+
             // Re-running InitializeAsync() after a successful sign-up rewires the client's
             // internal state (including whatever propagates the session to Postgrest request
             // headers) to the freshly-established session — see PokeCards'
@@ -83,6 +104,20 @@ public class SupabaseAuthService : IAuthService
             await client.Auth.SignIn(email, password);
             await client.InitializeAsync();
             return new AuthResult(true);
+        }
+        catch (GotrueException ex) when (ex.Reason == FailureHint.Reason.UserEmailNotConfirmed)
+        {
+            return new AuthResult(false, ex.Message, NeedsEmailConfirmation: true);
+        }
+        // Which Reason the installed Gotrue 6.3.0 maps a wrong password to isn't documented (its
+        // DetectReason works off status code + message text), so the raw error_code in the
+        // response body is checked too.
+        catch (GotrueException ex) when (ex.Reason is FailureHint.Reason.UserBadLogin
+                                             or FailureHint.Reason.UserBadPassword
+                                             or FailureHint.Reason.UserBadMultiple
+                                         || ex.Content?.Contains("invalid_credentials") == true)
+        {
+            return new AuthResult(false, ex.Message, InvalidCredentials: true);
         }
         catch (Exception ex)
         {
@@ -196,6 +231,53 @@ public class SupabaseAuthService : IAuthService
         {
             restoreSessionTask ??= RestoreSessionCoreAsync();
             return restoreSessionTask;
+        }
+    }
+
+    private static readonly TimeSpan RefreshMargin = TimeSpan.FromMinutes(1);
+    private readonly object refreshSessionLock = new();
+    private Task? refreshSessionTask;
+
+    /// <summary>The SDK's own refresh timer (Gotrue TokenRefresh, a System.Threading.Timer at 4/5
+    /// of the token's lifetime) doesn't account for time the device spent suspended, so after a
+    /// long background stretch the app can resume holding an expired access token while that timer
+    /// is still minutes away from firing — every request then fails with "JWT expired" until it
+    /// does. Called on window resume, before notification-action writes, and by
+    /// BaseViewModel.RunSafeAsync after an expired-JWT rejection.
+    ///
+    /// Only refreshes once the token is within a minute of expiry (or already rejected), which the
+    /// SDK timer should have handled 12 minutes earlier if it were running on time — so this
+    /// doesn't normally overlap with it, and never refreshes a healthy session (see
+    /// RestoreSessionAsync's remarks on why two refreshes racing on one refresh token end in a
+    /// full logout). Session.CreatedAt is persisted with the session, so the expiry is correct
+    /// after a cold restore too.</summary>
+    public Task EnsureFreshSessionAsync(bool force = false)
+    {
+        var session = client.Auth.CurrentSession;
+        if (session is null || string.IsNullOrEmpty(session.RefreshToken)) return Task.CompletedTask;
+
+        var expiresAt = session.CreatedAt.AddSeconds(session.ExpiresIn);
+        if (!force && expiresAt - DateTime.UtcNow > RefreshMargin) return Task.CompletedTask;
+
+        lock (refreshSessionLock)
+        {
+            refreshSessionTask ??= RefreshSessionCoreAsync();
+            return refreshSessionTask;
+        }
+    }
+
+    private async Task RefreshSessionCoreAsync()
+    {
+        try
+        {
+            await client.Auth.RefreshToken();
+        }
+        finally
+        {
+            lock (refreshSessionLock)
+            {
+                refreshSessionTask = null;
+            }
         }
     }
 

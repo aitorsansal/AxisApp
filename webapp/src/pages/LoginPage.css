@@ -58,3 +58,15 @@
   margin-top: 16px;
   text-decoration: underline;
 }
+
+/* Scoped here rather than relying on ProfilePage.css's global .notice-text being in the bundle. */
+.login-page .notice-text {
+  color: var(--success);
+  font-size: 0.9rem;
+  margin: 4px 0 12px;
+}
+
+.login-page .resend-link {
+  margin: 0 0 12px;
+  text-align: left;
+}

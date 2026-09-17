@@ -6,13 +6,11 @@ namespace AxisApp.Services;
 public class SupabaseExpensesRepository : IExpensesRepository
 {
     private readonly Supabase.Client client;
-    private readonly IAuthService authService;
     private readonly IWidgetRefreshService widgetRefresh;
 
-    public SupabaseExpensesRepository(Supabase.Client client, IAuthService authService, IWidgetRefreshService widgetRefresh)
+    public SupabaseExpensesRepository(Supabase.Client client, IWidgetRefreshService widgetRefresh)
     {
         this.client = client;
-        this.authService = authService;
         this.widgetRefresh = widgetRefresh;
     }
 
@@ -87,65 +85,52 @@ public class SupabaseExpensesRepository : IExpensesRepository
         return result.Models;
     }
 
-    /// <summary>Inserts the expense, then its shares once the expense id exists to point them at.
-    /// Not wrapped in a database transaction (Postgrest has no client-side transaction API) — if
-    /// the shares insert fails after the expense succeeds, the caller ends up with an expense
-    /// that has no shares yet and should retry the shares insert rather than the whole thing.</summary>
-    public async Task<Expense> AddAsync(Expense expense, List<ExpenseShare> shares)
+    public Task<Expense> AddAsync(Expense expense, List<ExpenseShare> shares) => SaveAsync(expense, shares, isNew: true);
+
+    public Task<Expense> UpdateAsync(Expense expense, List<ExpenseShare> shares) => SaveAsync(expense, shares, isNew: false);
+
+    /// <summary>Writes the expense and its full share list through save_expense() — one Postgres
+    /// transaction, so a failure partway through rolls both back instead of leaving an expense
+    /// with missing shares (PostgREST has no client-side transaction API; see
+    /// supabase/atomic_expense_save.sql). The function also owns created_by/created_at: it sets
+    /// them on insert and never touches them on update, so the "fresh object blanks server-set
+    /// fields" footgun can't happen through this path. It reconciles shares by member_id itself
+    /// and rejects a split that doesn't sum to Amount. Same scalar-uuid Rpc response shape as
+    /// SupabaseGroupsRepository.CreateAsync, followed by a typed re-fetch.</summary>
+    private async Task<Expense> SaveAsync(Expense expense, List<ExpenseShare> shares, bool isNew)
     {
-        expense.CreatedBy = authService.RequireAccountId();
-        var insertedExpense = await client.From<Expense>().Insert(expense);
-        var expenseId = insertedExpense.Model!.Id;
-
-        foreach (var share in shares)
-            share.ExpenseId = expenseId;
-
-        await client.From<ExpenseShare>().Insert(shares);
-
-        widgetRefresh.RequestBalancesRefresh();
-        return insertedExpense.Model!;
-    }
-
-    /// <summary>Updates the expense row, then reconciles expense_shares against the new list:
-    /// updates share_amount for members still included, inserts newly-added participants, deletes
-    /// removed ones. Share updates go through an explicit expense_id+member_id Filter rather than
-    /// Update(model)'s implicit primary-key match — ExpenseShare only marks ExpenseId with
-    /// [PrimaryKey] (matching GroupMember's existing pattern for a composite key), so relying on
-    /// that alone here would match every share row for the expense instead of just this member's.
-    /// Same no-transaction caveat as AddAsync: a failure partway through leaves the expense and
-    /// shares out of sync rather than rolled back together.</summary>
-    public async Task<Expense> UpdateAsync(Expense expense, List<ExpenseShare> shares)
-    {
-        var updatedExpense = await client.From<Expense>().Update(expense);
-
-        var existingShares = await GetSharesAsync(expense.Id);
-        var existingMemberIds = existingShares.Select(s => s.MemberId).ToHashSet();
-        var newMemberIds = shares.Select(s => s.MemberId).ToHashSet();
-
-        foreach (var removed in existingShares.Where(s => !newMemberIds.Contains(s.MemberId)))
-            await client.From<ExpenseShare>()
-                .Filter("expense_id", Constants.Operator.Equals, expense.Id.ToString())
-                .Filter("member_id", Constants.Operator.Equals, removed.MemberId.ToString())
-                .Delete();
-
-        var toInsert = new List<ExpenseShare>();
-        foreach (var share in shares)
+        var response = await client.Rpc("save_expense", new Dictionary<string, object?>
         {
-            share.ExpenseId = expense.Id;
-            if (existingMemberIds.Contains(share.MemberId))
-                await client.From<ExpenseShare>()
-                    .Filter("expense_id", Constants.Operator.Equals, expense.Id.ToString())
-                    .Filter("member_id", Constants.Operator.Equals, share.MemberId.ToString())
-                    .Update(share);
-            else
-                toInsert.Add(share);
-        }
-
-        if (toInsert.Count > 0)
-            await client.From<ExpenseShare>().Insert(toInsert);
+            ["p_expense"] = new Dictionary<string, object?>
+            {
+                ["id"] = isNew ? null : expense.Id.ToString(),
+                ["group_id"] = expense.GroupId?.ToString(),
+                ["paid_by_member_id"] = expense.PaidByMemberId.ToString(),
+                ["amount"] = expense.Amount,
+                ["currency"] = expense.Currency,
+                ["description"] = expense.Description,
+                ["category"] = expense.Category,
+                ["occurred_at"] = expense.OccurredAt,
+                ["receipt_path"] = expense.ReceiptPath,
+                ["is_settlement"] = expense.IsSettlement,
+                ["event_id"] = expense.EventId?.ToString(),
+            },
+            ["p_shares"] = shares
+                .Select(share => new Dictionary<string, object?>
+                {
+                    ["member_id"] = share.MemberId.ToString(),
+                    ["share_amount"] = share.ShareAmount,
+                })
+                .ToList(),
+        });
+        var raw = response.Content?.Trim('"')
+            ?? throw new InvalidOperationException("save_expense returned no expense id.");
+        var expenseId = Guid.Parse(raw);
 
         widgetRefresh.RequestBalancesRefresh();
-        return updatedExpense.Model!;
+
+        return await GetByIdAsync(expenseId)
+            ?? throw new InvalidOperationException("save_expense succeeded but the expense could not be re-fetched.");
     }
 
     public async Task DeleteAsync(Guid expenseId)

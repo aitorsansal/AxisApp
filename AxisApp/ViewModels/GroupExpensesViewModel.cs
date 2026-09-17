@@ -534,6 +534,9 @@ public partial class GroupExpensesViewModel : BaseViewModel
             GroupId = groupId,
             PaidByMemberId = payerId,
             Amount = item.Amount,
+            // Balances are in the group currency; without this the model's "EUR" default would
+            // re-convert the amount in any non-EUR group.
+            Currency = currentGroup?.Currency ?? "EUR",
             Description = LocalizationResourceManager.Instance["GroupDetail_SettleUp"],
             OccurredAt = DateTime.UtcNow,
             IsSettlement = true

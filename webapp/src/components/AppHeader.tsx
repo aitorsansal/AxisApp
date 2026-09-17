@@ -2,12 +2,15 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useLocale } from '../context/LocaleContext'
+import { useGoBackTo } from '../lib/navigation'
 import './AppHeader.css'
 
-export function AppHeader({ title, back }: { title: string; back?: boolean }) {
+// backTo is the page's logical parent, not the previous history entry — see lib/navigation.ts.
+export function AppHeader({ title, backTo }: { title: string; backTo?: string }) {
   const { session } = useAuth()
   const { t } = useLocale()
   const navigate = useNavigate()
+  const goBackTo = useGoBackTo()
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -16,15 +19,15 @@ export function AppHeader({ title, back }: { title: string; back?: boolean }) {
 
   return (
     <div className="app-header">
-      {back ? (
-        <button className="header-back" onClick={() => navigate(-1)} aria-label={t('Common_Back')}>
+      {backTo ? (
+        <button className="header-back" onClick={() => goBackTo(backTo)} aria-label={t('Common_Back')}>
           ←
         </button>
       ) : (
         <span className="header-spacer" />
       )}
       <h1>{title}</h1>
-      {!back ? (
+      {!backTo ? (
         <div className="header-actions">
           <Link to="/profile" className="header-profile" title={session?.user.email ?? ''}>
             {t('Groups_Profile')}

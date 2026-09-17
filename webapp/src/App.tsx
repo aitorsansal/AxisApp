@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext'
 import { LocaleProvider } from './context/LocaleContext'
 import { AliasesProvider } from './context/AliasesContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { NavigationTracker } from './lib/navigation'
 import { LoginPage } from './pages/LoginPage'
 import { GroupsPage } from './pages/GroupsPage'
 import { NewGroupPage } from './pages/NewGroupPage'
@@ -18,6 +19,7 @@ import { EventDetailPage } from './pages/EventDetailPage'
 export default function App() {
   return (
     <BrowserRouter>
+      <NavigationTracker />
       <LocaleProvider>
         <AuthProvider>
           <AliasesProvider>

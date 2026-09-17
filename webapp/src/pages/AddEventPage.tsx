@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useGoBackTo } from '../lib/navigation'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useLocale } from '../context/LocaleContext'
@@ -25,7 +26,8 @@ export function AddEventPage() {
   const { groupId, eventId } = useParams<{ groupId: string; eventId?: string }>()
   const { session } = useAuth()
   const { t } = useLocale()
-  const navigate = useNavigate()
+  const goBackTo = useGoBackTo()
+  const parentPath = eventId ? `/groups/${groupId}/events/${eventId}` : `/groups/${groupId}`
 
   const now = new Date()
   const defaultDate = toLocalDateInput(now.toISOString())
@@ -119,7 +121,7 @@ export function AddEventPage() {
       setBusy(false)
     }
 
-    navigate(eventId ? `/groups/${groupId}/events/${eventId}` : `/groups/${groupId}`)
+    goBackTo(parentPath)
   }
 
   async function handleDelete() {
@@ -128,7 +130,7 @@ export function AddEventPage() {
     const { error } = await supabase.from('events').delete().eq('id', eventId)
     setBusy(false)
     if (error) return setError(error.message)
-    navigate(`/groups/${groupId}`)
+    goBackTo(`/groups/${groupId}`)
   }
 
   const title_ = isEditMode ? t('AddEvent_EditTitle') : t('AddEvent_Title')
@@ -136,7 +138,7 @@ export function AddEventPage() {
   if (!loaded) {
     return (
       <div className="page">
-        <AppHeader title={title_} back />
+        <AppHeader title={title_} backTo={parentPath} />
         {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
       </div>
     )
@@ -144,7 +146,7 @@ export function AddEventPage() {
 
   return (
     <div className="page">
-      <AppHeader title={title_} back />
+      <AppHeader title={title_} backTo={parentPath} />
 
       <form onSubmit={handleSubmit}>
         <div className="field">
