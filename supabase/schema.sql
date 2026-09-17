@@ -796,39 +796,23 @@ create policy "select shares of visible expenses" on public.expense_shares
         )
     )
   );
-create policy "insert shares of your expenses" on public.expense_shares
-  for insert with check (
-    exists (
-      select 1 from expenses e
-      where e.id = expense_shares.expense_id
-        and (
-          (e.group_id is null and e.created_by = auth.uid())
-          or (e.group_id is not null and is_group_member(e.group_id))
-        )
-    )
-  );
-create policy "delete shares of your expenses" on public.expense_shares
-  for delete using (
-    exists (
-      select 1 from expenses e
-      where e.id = expense_shares.expense_id
-        and (
-          (e.group_id is null and e.created_by = auth.uid())
-          or (e.group_id is not null and is_group_member(e.group_id))
-        )
-    )
-  );
-create policy "update shares of your expenses" on public.expense_shares
-  for update using (
-    exists (
-      select 1 from expenses e
-      where e.id = expense_shares.expense_id
-        and (
-          (e.group_id is null and e.created_by = auth.uid())
-          or (e.group_id is not null and is_group_member(e.group_id))
-        )
-    )
-  );
+-- No INSERT/UPDATE/DELETE policies on purpose (2026-09-17,
+-- supabase/share_writes_via_rpc.sql): every share write goes through
+-- save_expense() (security definer, further down this file), never a direct
+-- PostgREST call. The direct policies that used to be here let a group member
+-- PATCH a single share's amount, which moved real money AND left no audit trail
+-- — sync_expense_converted_total propagated the new sum into
+-- expenses.amount_in_group_currency, and that column is exactly the one
+-- record_expense_history's skip condition excludes, so nothing was logged.
+-- Redistributing a split between two members kept the sum intact and was equally
+-- silent, so a sum-check constraint alone would not have closed this.
+--
+-- Funnelling every write through save_expense() is also what makes the audit
+-- trail complete: record_expense_history fires AFTER UPDATE on expenses and
+-- reads expense_shares at that instant, and save_expense always updates the row
+-- BEFORE touching shares — so old_shares is genuinely the pre-edit split. That
+-- property only holds while the funnel is mandatory. Don't re-add a direct write
+-- policy here without also giving expense_shares its own history trigger.
 
 -- ============================================================
 -- fetch-exchange-rates cron (Milestone 2, /MULTI_CURRENCY_PLAN.md) — daily
@@ -952,39 +936,9 @@ create policy "select shares of visible recurring expenses" on public.recurring_
         )
     )
   );
-create policy "insert shares of your recurring expenses" on public.recurring_expense_shares
-  for insert with check (
-    exists (
-      select 1 from recurring_expenses re
-      where re.id = recurring_expense_shares.recurring_expense_id
-        and (
-          (re.group_id is null and re.created_by = auth.uid())
-          or (re.group_id is not null and is_group_member(re.group_id))
-        )
-    )
-  );
-create policy "delete shares of your recurring expenses" on public.recurring_expense_shares
-  for delete using (
-    exists (
-      select 1 from recurring_expenses re
-      where re.id = recurring_expense_shares.recurring_expense_id
-        and (
-          (re.group_id is null and re.created_by = auth.uid())
-          or (re.group_id is not null and is_group_member(re.group_id))
-        )
-    )
-  );
-create policy "update shares of your recurring expenses" on public.recurring_expense_shares
-  for update using (
-    exists (
-      select 1 from recurring_expenses re
-      where re.id = recurring_expense_shares.recurring_expense_id
-        and (
-          (re.group_id is null and re.created_by = auth.uid())
-          or (re.group_id is not null and is_group_member(re.group_id))
-        )
-    )
-  );
+-- No INSERT/UPDATE/DELETE policies, same reasoning as expense_shares above
+-- (2026-09-17, supabase/share_writes_via_rpc.sql): writes go through
+-- save_recurring_expense() only.
 
 -- group_balances: net balance per member per group. A settlement is just an
 -- expense with is_settlement true and one share, so expense_payer_net +
@@ -2928,10 +2882,31 @@ create policy "manage your own calendar subscription" on public.calendar_subscri
 -- non-empty, each > 0, and sum exactly to the row's amount. Previously only
 -- the two client screens enforced that.
 --
--- Not security definer — every step is already permitted by the existing
--- expenses/expense_shares (and recurring_*) RLS policies for a group
--- member, same reasoning as create_group(): the gap is atomicity, not
--- permission.
+-- SECURITY DEFINER since 2026-09-17 (supabase/share_writes_via_rpc.sql). It
+-- used to run as the caller — atomicity was the only gap, since every step was
+-- already permitted by the expense_shares/recurring_expense_shares RLS policies.
+-- Those direct write policies are gone now (see their tables above for why), so
+-- there's no policy left for this to run under, and it genuinely needs to run as
+-- owner.
+--
+-- The catch, and the reason the guards below exist: a security definer caller
+-- has current_user = the function owner, so every trigger keyed on
+-- `current_user in ('authenticated','anon')` now SKIPS this function —
+-- enforce_payer_in_group and enforce_share_member_in_group included. Both are
+-- re-stated explicitly below with identical semantics (membership only checked
+-- for someone being ADDED or CHANGED, so an old expense whose participant has
+-- since left stays editable), as is the dropped RLS policies' own rule.
+-- protect_expense_columns is skipped too, but this function never writes
+-- id/group_id/created_by/created_at on update and sets created_by = auth.uid()
+-- on insert, so its guarantees are unchanged. Triggers that still fire normally:
+-- both *_snapshot_currency_conversion, record_expense_history,
+-- sync_expense_converted_total.
+--
+-- The escalation risk this introduces is the UPDATE path: with RLS bypassed,
+-- `update expenses ... where id = v_id` would let any signed-in account edit ANY
+-- expense in ANY group by id. So the update path re-resolves group_id/created_by/
+-- paid_by_member_id FROM THE STORED ROW and authorizes against that, never
+-- against p_expense's own group_id. Keep it that way.
 --
 -- Update paths never write created_by/created_at (or a template's
 -- last_processed_date/is_active, owned by materialize_recurring_expenses()/
@@ -2951,16 +2926,91 @@ create policy "manage your own calendar subscription" on public.calendar_subscri
 create or replace function public.save_expense(p_expense jsonb, p_shares jsonb)
 returns uuid
 language plpgsql
+security definer
 set search_path = public
 as $$
 declare
   v_id uuid := nullif(p_expense->>'id', '')::uuid;
+  v_sent_group_id uuid := nullif(p_expense->>'group_id', '')::uuid;
+  v_payer uuid := (p_expense->>'paid_by_member_id')::uuid;
+  v_group_id uuid;
+  v_created_by uuid;
+  v_old_payer uuid;
   v_amount numeric;
   v_share_count int;
   v_share_sum numeric;
 begin
+  if auth.uid() is null then
+    raise exception 'Not signed in';
+  end if;
+
   if p_shares is null or jsonb_typeof(p_shares) <> 'array' or jsonb_array_length(p_shares) = 0 then
     raise exception 'An expense needs at least one share';
+  end if;
+
+  if v_id is null then
+    v_group_id := v_sent_group_id;
+    v_created_by := auth.uid();
+  else
+    -- Authorize against the STORED row, never against p_expense — this function
+    -- bypasses RLS, so trusting the caller's group_id here would let anyone edit
+    -- any expense by id.
+    select group_id, created_by, paid_by_member_id
+      into v_group_id, v_created_by, v_old_payer
+      from expenses
+     where id = v_id;
+
+    if not found then
+      raise exception 'Expense % not found', v_id;
+    end if;
+
+    -- Tolerates an omitted group_id (treated as unchanged); rejects a different
+    -- one rather than silently ignoring it. An expense never moves between groups.
+    if v_sent_group_id is not null and v_sent_group_id is distinct from v_group_id then
+      raise exception 'An expense cannot move between groups';
+    end if;
+  end if;
+
+  -- Replaces the dropped "insert/update expenses in your groups" RLS policies,
+  -- including their unscoped (dissolved-group) creator-only branch.
+  if v_group_id is not null then
+    if not is_group_member(v_group_id) then
+      raise exception 'You are not a member of this group';
+    end if;
+  elsif v_created_by is distinct from auth.uid() then
+    raise exception 'You can only edit expenses you created';
+  end if;
+
+  -- Replaces enforce_payer_in_group (skipped now this runs as definer), same
+  -- "only when being set or changed" rule.
+  if v_group_id is not null
+     and (v_id is null or v_payer is distinct from v_old_payer)
+     and not exists (
+       select 1 from group_members
+        where group_id = v_group_id and member_id = v_payer
+     ) then
+    raise exception 'The payer must be a member of this group';
+  end if;
+
+  -- Replaces enforce_share_member_in_group, same rule: only someone being ADDED
+  -- to the split has to be a current member, so an old expense whose participant
+  -- has since left the group stays correctable. A null/garbage member_id also
+  -- lands here rather than reaching the insert.
+  if v_group_id is not null and exists (
+    select 1
+      from jsonb_array_elements(p_shares) s
+     where not exists (
+             select 1 from expense_shares es
+              where es.expense_id = v_id
+                and es.member_id = (s->>'member_id')::uuid
+           )
+       and not exists (
+             select 1 from group_members gm
+              where gm.group_id = v_group_id
+                and gm.member_id = (s->>'member_id')::uuid
+           )
+  ) then
+    raise exception 'Everyone in the split must be a member of this group';
   end if;
 
   if v_id is null then
@@ -2968,8 +3018,8 @@ begin
       group_id, paid_by_member_id, amount, currency, description, category,
       occurred_at, receipt_path, is_settlement, event_id, created_by
     ) values (
-      nullif(p_expense->>'group_id', '')::uuid,
-      (p_expense->>'paid_by_member_id')::uuid,
+      v_group_id,
+      v_payer,
       (p_expense->>'amount')::numeric,
       p_expense->>'currency',
       coalesce(p_expense->>'description', ''),
@@ -2983,7 +3033,7 @@ begin
     returning id into v_id;
   else
     update expenses set
-      paid_by_member_id = (p_expense->>'paid_by_member_id')::uuid,
+      paid_by_member_id = v_payer,
       amount = (p_expense->>'amount')::numeric,
       currency = p_expense->>'currency',
       description = coalesce(p_expense->>'description', ''),
@@ -3026,18 +3076,84 @@ begin
 end;
 $$;
 
+revoke execute on function public.save_expense(jsonb, jsonb) from public, anon;
+grant execute on function public.save_expense(jsonb, jsonb) to authenticated;
+
+-- Same shape, same reasoning as save_expense above.
 create or replace function public.save_recurring_expense(p_template jsonb, p_shares jsonb)
 returns uuid
 language plpgsql
+security definer
 set search_path = public
 as $$
 declare
   v_id uuid := nullif(p_template->>'id', '')::uuid;
+  v_sent_group_id uuid := nullif(p_template->>'group_id', '')::uuid;
+  v_payer uuid := (p_template->>'paid_by_member_id')::uuid;
+  v_group_id uuid;
+  v_created_by uuid;
+  v_old_payer uuid;
   v_amount numeric;
   v_share_sum numeric;
 begin
+  if auth.uid() is null then
+    raise exception 'Not signed in';
+  end if;
+
   if p_shares is null or jsonb_typeof(p_shares) <> 'array' or jsonb_array_length(p_shares) = 0 then
     raise exception 'A repeating expense needs at least one share';
+  end if;
+
+  if v_id is null then
+    v_group_id := v_sent_group_id;
+    v_created_by := auth.uid();
+  else
+    select group_id, created_by, paid_by_member_id
+      into v_group_id, v_created_by, v_old_payer
+      from recurring_expenses
+     where id = v_id;
+
+    if not found then
+      raise exception 'Repeating expense % not found', v_id;
+    end if;
+
+    if v_sent_group_id is not null and v_sent_group_id is distinct from v_group_id then
+      raise exception 'A repeating expense cannot move between groups';
+    end if;
+  end if;
+
+  if v_group_id is not null then
+    if not is_group_member(v_group_id) then
+      raise exception 'You are not a member of this group';
+    end if;
+  elsif v_created_by is distinct from auth.uid() then
+    raise exception 'You can only edit repeating expenses you created';
+  end if;
+
+  if v_group_id is not null
+     and (v_id is null or v_payer is distinct from v_old_payer)
+     and not exists (
+       select 1 from group_members
+        where group_id = v_group_id and member_id = v_payer
+     ) then
+    raise exception 'The payer must be a member of this group';
+  end if;
+
+  if v_group_id is not null and exists (
+    select 1
+      from jsonb_array_elements(p_shares) s
+     where not exists (
+             select 1 from recurring_expense_shares res
+              where res.recurring_expense_id = v_id
+                and res.member_id = (s->>'member_id')::uuid
+           )
+       and not exists (
+             select 1 from group_members gm
+              where gm.group_id = v_group_id
+                and gm.member_id = (s->>'member_id')::uuid
+           )
+  ) then
+    raise exception 'Everyone in the split must be a member of this group';
   end if;
 
   if v_id is null then
@@ -3045,8 +3161,8 @@ begin
       group_id, paid_by_member_id, amount, currency, description, category,
       frequency, start_date, created_by
     ) values (
-      nullif(p_template->>'group_id', '')::uuid,
-      (p_template->>'paid_by_member_id')::uuid,
+      v_group_id,
+      v_payer,
       (p_template->>'amount')::numeric,
       p_template->>'currency',
       coalesce(p_template->>'description', ''),
@@ -3058,7 +3174,7 @@ begin
     returning id into v_id;
   else
     update recurring_expenses set
-      paid_by_member_id = (p_template->>'paid_by_member_id')::uuid,
+      paid_by_member_id = v_payer,
       amount = (p_template->>'amount')::numeric,
       currency = p_template->>'currency',
       description = coalesce(p_template->>'description', ''),
@@ -3095,6 +3211,9 @@ begin
   return v_id;
 end;
 $$;
+
+revoke execute on function public.save_recurring_expense(jsonb, jsonb) from public, anon;
+grant execute on function public.save_recurring_expense(jsonb, jsonb) to authenticated;
 
 -- Expense integrity (2026-09-17)
 -- ============================================================
@@ -3181,7 +3300,10 @@ create trigger protect_expense_columns
   before insert or update on public.recurring_expenses
   for each row execute function public.protect_expense_columns();
 
--- expense_shares: the share's converted amount only changes through share_amount.
+-- expense_shares: the share's converted amount only changes through share_amount,
+-- and neither key can be repointed. Dead code for app requests since 2026-09-17
+-- (there's no direct UPDATE policy on expense_shares anymore), kept as defense in
+-- depth if one is ever re-added.
 create or replace function public.protect_expense_share_columns()
 returns trigger
 language plpgsql
@@ -3192,6 +3314,7 @@ begin
   end if;
 
   new.expense_id := old.expense_id;
+  new.member_id := old.member_id;
   if new.share_amount = old.share_amount then
     new.share_amount_in_group_currency := old.share_amount_in_group_currency;
   end if;

@@ -2259,3 +2259,68 @@ Edge Functions → **Logs** (not Invocations) first on any future "push never
 arrived" report; it'll usually say directly whether the recipient list was
 empty (a DB-side problem) or FCM rejected the send (a token/payload
 problem).
+
+## Share writes funnelled through save_expense (2026-09-18)
+
+A second audit pass over the same RLS surface the 2026-09-17 hardening
+covered (`rls_hardening.sql` / `expense_integrity.sql` /
+`currency_integrity.sql`) turned up one thing those three missed, and it was
+the worst of the lot: `expense_shares` still had open INSERT/UPDATE/DELETE
+policies for any group member.
+
+Every split invariant — shares non-empty, each `> 0`, summing exactly to the
+row's `amount`, a settlement having exactly one share — lives *inside*
+`save_expense()`. Nothing backs them on the table itself. So a plain
+
+    PATCH /rest/v1/expense_shares?expense_id=eq.X&member_id=eq.<someone else>
+    {"share_amount": 500}
+
+moved real money. And it was **silent**: `sync_expense_converted_total`
+propagated the new sum into `expenses.amount_in_group_currency`, and that
+column is exactly the one `record_expense_history`'s skip condition excludes
+(it's there so the rounding-sync update doesn't spam the history), so the
+audit trail recorded nothing at all.
+
+The first fix considered was a deferred constraint trigger re-checking the
+sum. That was dropped once it became clear it wouldn't close the real
+attack: **redistributing** a split (Bob 50 → 80, Carol 50 → 20) keeps the
+sum intact and is equally silent. A sum check would have caught the clumsy
+version and missed the careful one.
+
+So instead the funnel was made mandatory rather than conventional: the six
+direct write policies on `expense_shares` / `recurring_expense_shares` are
+dropped, and `save_expense()` / `save_recurring_expense()` become
+`SECURITY DEFINER` (there's no insert policy left for them to run under as
+the caller). Both clients already wrote exclusively through the RPC and only
+ever SELECT those tables, so nothing legitimate lost access. The payoff:
+with every write going through `save_expense`, the *existing* history
+trigger covers shares for free — `record_expense_history` fires AFTER UPDATE
+on `expenses` and reads `expense_shares` at that instant, and `save_expense`
+always updates the row before touching shares, so `old_shares` is genuinely
+the pre-edit split. That property only holds while the funnel is mandatory,
+which is why there's now a rule about it in SECURITY_AUDIT.md.
+
+**The trap in this change, worth remembering:** a `SECURITY DEFINER` caller
+has `current_user` = the function owner, so every trigger keyed on
+`current_user in ('authenticated','anon')` silently stops firing for it —
+including `enforce_payer_in_group` and `enforce_share_member_in_group`.
+Making these two functions definer therefore *removed* two checks as a side
+effect, and both had to be re-stated inline with identical semantics
+(membership only checked for someone being added or changed, so an old
+expense whose participant has since left stays editable). The bigger hazard
+was the UPDATE path: with RLS bypassed, `update expenses ... where id =
+v_id` would have let any signed-in account edit any expense in any group by
+id. Both functions now re-resolve `group_id`/`created_by`/`paid_by_member_id`
+from the **stored row** and authorize against that, never against the
+caller's JSON.
+
+Verified live as authenticated `Aitor` in `TestGroupForEvents`, in a
+rolled-back transaction that applied the migration first — 9 checks, all
+passing: normal insert works; direct share UPDATE/DELETE affect 0 rows;
+direct share INSERT refused by RLS; a redistribute through the RPC *does*
+log history; non-summing split, non-member payer and non-member share-holder
+all refused; and editing an expense in a group the account isn't in is
+refused ("You are not a member of this group"). That last one is the
+escalation the definer change introduces, so it got a purpose-built fixture
+— live data had no expense outside this account's own groups to test with.
+See SECURITY_AUDIT.md for the full table and the post-apply state.

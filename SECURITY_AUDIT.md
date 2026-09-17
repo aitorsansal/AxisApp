@@ -29,6 +29,17 @@ outside the repo, and what's still open. Update the "Still open" list as items g
   verified the signature. `calendar-feed` is the only function with Verify JWT off (intended).
 - **pg_net triggers/cron authenticate with the legacy `service_role` JWT stored in Vault
   (`service_role_key`).** Don't disable legacy API keys until that Vault secret is migrated.
+- **`expense_shares` / `recurring_expense_shares` have no INSERT/UPDATE/DELETE policies on purpose.**
+  Every share write goes through `save_expense()` / `save_recurring_expense()` (both SECURITY DEFINER).
+  This is what keeps the audit trail complete: `record_expense_history` fires AFTER UPDATE on
+  `expenses` and reads `expense_shares` at that instant, and `save_expense` always updates the row
+  *before* touching shares, so `old_shares` is the pre-edit split. Don't re-add a direct write policy
+  without also giving `expense_shares` its own history trigger.
+- **A SECURITY DEFINER function skips every `current_user`-keyed trigger**, so `save_expense()` /
+  `save_recurring_expense()` re-state `enforce_payer_in_group` and `enforce_share_member_in_group`
+  inline. If either trigger's rule changes, change it in both places. Their UPDATE paths must keep
+  re-resolving `group_id`/`created_by`/`paid_by_member_id` from the **stored row**, never from the
+  caller's JSON — with RLS bypassed, trusting the input would let anyone edit any expense by id.
 - New migrations are applied by hand in the Supabase SQL editor **and** folded into `schema.sql`.
 
 ---
@@ -80,6 +91,54 @@ Verified live in a rolled-back transaction as three real accounts of `TestGroupF
 after a rate change kept the rate; currency edit re-fetched it; forged total restored; 3 history rows
 with the right `changed_by`; non-creator/payer/owner delete refused; owner and payer deletes allowed;
 currency change refused. Live data had no drift and no foreign-currency expenses before applying.
+
+### Share writes — `supabase/share_writes_via_rpc.sql` (applied live 2026-09-18)
+
+Found on a second pass over the same RLS surface, after the three migrations above.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| High | `expense_shares` had open INSERT/UPDATE/DELETE policies, so a group member could `PATCH` a single share's amount directly and skip `save_expense`'s split invariants (which exist only inside that function — nothing backs them on the table) | The three direct write policies dropped on `expense_shares` and `recurring_expense_shares`; `save_expense()` / `save_recurring_expense()` become SECURITY DEFINER with the dropped policies' rule, `enforce_payer_in_group` and `enforce_share_member_in_group` re-stated inline |
+| High | The same direct write left **no audit trail**: `sync_expense_converted_total` propagated the new sum into `expenses.amount_in_group_currency`, and that column is exactly the one `record_expense_history`'s skip condition excludes, so nothing was logged | Closed by the same funnel — with all writes going through `save_expense`, the existing `expenses` history trigger covers shares too |
+| Medium | Redistributing a split between two members (Bob 50→80, Carol 50→20) kept the sum intact, so a sum-check constraint alone would not have closed this | Same funnel |
+| Low | `save_expense` / `save_recurring_expense` were executable by `public`/`anon` (harmless while they ran as the caller and hit RLS; not harmless now they run as owner) | `revoke ... from public, anon` + `grant ... to authenticated`, matching every other mutating RPC |
+| Low | `protect_expense_share_columns` didn't lock `member_id` | Locked (dead code for app requests now, defense in depth) |
+
+Verified in the repo before applying: both clients write exclusively through the RPC
+(`SupabaseExpensesRepository.SaveAsync`, `SupabaseRecurringExpensesRepository.SaveAsync`,
+webapp `AddExpensePage` / `GroupDetailPage` settle) and only ever SELECT the share tables directly;
+both always send `group_id`. `materialize_recurring_expenses` (pg_cron, postgres), `redeem_invite`'s
+phantom merge, `delete_account` and the delete FK cascade all bypass RLS already, so none of them
+relied on the dropped policies. Function bodies in `share_writes_via_rpc.sql` and `schema.sql` are
+byte-identical.
+
+Verified live as authenticated `Aitor` in `TestGroupForEvents`, inside a rolled-back transaction that
+applied the migration first (9 checks, all passed):
+
+| | Check | Result |
+|---|---|---|
+| A | insert via `save_expense` | works |
+| B | direct `update expense_shares set share_amount` | 0 rows, amount unchanged |
+| C | direct `delete from expense_shares` | 0 rows |
+| D | direct `insert into expense_shares` | refused by RLS |
+| E | redistribute via `save_expense` | logs `expense_history` (0 → 1) |
+| F | split that doesn't sum | refused |
+| G | non-member payer | "The payer must be a member of this group" |
+| H | **edit an expense in a group I'm not in, by id** | "You are not a member of this group" |
+| I | non-member share-holder | "Everyone in the split must be a member of this group" |
+
+H is the escalation `SECURITY DEFINER` introduces, so it's the one that matters most. Live data had no
+expense outside this account's own groups, so that fixture was built inside the rolled-back
+transaction rather than left untested.
+
+Post-apply state confirmed: both share tables have SELECT policies only; both RPCs `prosecdef = true`,
+`anon_exec = false`; `expenses_without_shares = 0`, `share_sum_mismatch = 0`,
+`groups_not_summing_to_zero = 0`; no test rows left behind.
+
+Still unverified: an old expense with a *departed* participant staying editable. The inlined
+share-member check only fires for someone being added (`not exists (... expense_shares es where
+es.expense_id = v_id ...)`), which is the same rule `enforce_share_member_in_group` used, but no live
+group currently has a departed participant to exercise it against.
 
 ### Notification Settle action and session refresh (app code)
 
@@ -144,34 +203,63 @@ Ordered by severity. Locations are relative to the repo root.
 
 ### Medium
 
-1. **Windows Google sign-in** (`AxisApp/Platforms/Windows/GoogleAuthService.cs`): implicit flow, fixed
+1. **Leaving strands pairwise debts** (`supabase/schema.sql`, `leave_group` / `remove_group_member`):
+   both gate on the member's `group_balances` net (against the whole pot) being zero, which doesn't
+   imply their *pairwise* debts are zero — and Pairwise is a first-class display mode. Reachable with
+   three members: A pays 100 split A/B; B pays 100 split B/C. B's net is `+100 − 50 − 50 = 0`, so B may
+   leave while owing A 50 and being owed 50 by C. Those rows survive (`pairwise_balances` never joins
+   `group_members`) and become **unsettleable**: a settle-up naming B is refused by
+   `enforce_payer_in_group` / `enforce_share_member_in_group`. Simplified mode recovers (A +50 / C −50);
+   Pairwise shows two dead debts. Fix: check pairwise edges, not just the pot net, in both functions —
+   or allow an ex-member specifically on `is_settlement` rows so stranded debts stay clearable.
+2. **Dissolve loses the audit trail** (`supabase/schema.sql`, `delete own groups` +
+   `select expense history in your groups`): dissolve is owner-only with no balance guard (deliberate,
+   client-side confirm only), but it sets `expenses.group_id = null` while `record_expense_history`
+   stores `old.group_id` and the history SELECT policy requires `group_id is not null` — so the whole
+   group's `expense_history` becomes permanently unreadable at exactly the moment members want it.
+   Fix: widen the history read policy with `is_unscoped_expense_party(expense_id)`, and/or replace the
+   delete policy with a `dissolve_group()` RPC that refuses while any balance is non-zero.
+
+3. **Windows Google sign-in** (`AxisApp/Platforms/Windows/GoogleAuthService.cs`): implicit flow, fixed
    port 48291, no `state` — any open web page can inject its own tokens during the 2-minute window
    (login CSRF). Fix: random `state` round-tripped and checked, `GetUser` before `SetSession`, random port.
-2. **Stale RSVP counts** (`AxisApp/ViewModels/EventDetailViewModel.cs`): loads only on navigation /
+4. **Stale RSVP counts** (`AxisApp/ViewModels/EventDetailViewModel.cs`): loads only on navigation /
    pull-to-refresh; RSVP taps patch a stale cached list. Fix: re-fetch attendees after each write,
    reload on resume if older than ~60s, show "updated X min ago".
 
 ### Low
 
-3. **10 expenses with NULL `created_by`** (web app inserts from 2026-09-12 to 2026-09-16, before
+5. **10 expenses with NULL `created_by`** (web app inserts from 2026-09-12 to 2026-09-16, before
    `save_expense`). No reliable way to know the real creator; left as-is.
-4. **Supabase config leftovers:** `http://localhost:5173/**` still in the production redirect allow-list;
+6. **Supabase config leftovers:** `http://localhost:5173/**` still in the production redirect allow-list;
    minimum password length 6 and leaked-password protection off; legacy JWT API keys still enabled
    (migrate the Vault `service_role_key` to the new secret key first); Vault still holds an unused copy of
    the Firebase service-account key (`firebase_service_account`).
-5. **Android Google sign-in has no nonce** (`AxisApp/Platforms/Android/GoogleAuthService.cs`). Fix: hashed
+7. **Android Google sign-in has no nonce** (`AxisApp/Platforms/Android/GoogleAuthService.cs`). Fix: hashed
     nonce to `GetGoogleIdOption.SetNonce`, raw nonce to `SignInWithIdToken`.
-6. **Long-lived secrets copied to the clipboard** (`ProfileViewModel.cs` calendar feed URL,
+8. **Long-lived secrets copied to the clipboard** (`ProfileViewModel.cs` calendar feed URL,
     `InviteToGroupViewModel.cs` invite URL). Fix: share sheet, or `EXTRA_IS_SENSITIVE` on Android 13+.
-7. **`MainActivity` acts on intent extras from any app** (`AxisApp/Platforms/Android/MainActivity.cs`,
+9. **`MainActivity` acts on intent extras from any app** (`AxisApp/Platforms/Android/MainActivity.cs`,
     `HandleIntent`) — spoofable screen titles, RLS still protects data.
-8. **`android:allowBackup="true"`** (`AxisApp/Platforms/Android/AndroidManifest.xml`) includes the
+10. **`android:allowBackup="true"`** (`AxisApp/Platforms/Android/AndroidManifest.xml`) includes the
     SecureStorage prefs; a restored session can't be decrypted on a new device. Exclude them from backup.
-9. **Password-reset page leaves the recovery token in browser history** (`web/reset/index.html`).
+11. **Password-reset page leaves the recovery token in browser history** (`web/reset/index.html`).
     Fix: `history.replaceState` after `PASSWORD_RECOVERY`.
-10. **RSVP save reads then inserts** (`AxisApp/Services/SupabaseEventsRepository.cs` `UpsertRsvpAsync`):
+12. **RSVP save reads then inserts** (`AxisApp/Services/SupabaseEventsRepository.cs` `UpsertRsvpAsync`):
     concurrent RSVPs can hit a primary-key error. Fix: real upsert through a small RPC.
-11. **Invite App Links for locally installed builds**: add `axisapp.keystore`'s SHA-256
+13. **`is_phantom_in_group()` is anon-executable** (`supabase/schema.sql`): SECURITY DEFINER and, unlike
+    the other `is_*` helpers, never consults `auth.uid()` — so `anon` can use it as an oracle for
+    "is this member id a phantom in this group". Needs both UUIDs, so it's negligible in practice, but
+    it's the one helper the earlier `revoke ... from public, anon` pass didn't cover. Fix: revoke it
+    (and the other helpers, for consistency).
+14. **Signup allow-list is case-sensitive on the stored side** (`supabase/schema.sql`,
+    `restrict_signup_to_allowlist`): compares `email = lower(new.email)` but nothing normalises
+    `allowed_signup_emails.email`, so a row inserted as `Friend@Gmail.com` never matches. Not a bypass
+    (unlisted emails are always rejected) — a lockout footgun. Fix: `check (email = lower(email))`.
+15. **Receipt storage policies cast an unvalidated path segment** (`supabase/schema.sql`):
+    `(storage.foldername(name))[1]::uuid` raises `22P02` from inside policy evaluation when the first
+    path segment isn't a UUID, instead of denying. Error-shape only. Fix: guard the cast.
+16. **Invite App Links for locally installed builds**: add `axisapp.keystore`'s SHA-256
     (`CF:F3:F3:3C:3A:85:9F:1B:36:5A:51:1C:F4:3A:E2:9A:22:5A:9E:17:61:42:B0:2C:FF:1A:8E:29:09:2B:49:F5`)
     to `web/.well-known/assetlinks.json` if direct installs should open invite links in-app.
 
@@ -209,6 +297,17 @@ from pg_proc where pronamespace = 'public'::regnamespace and prosecdef order by 
 -- Audit triggers present
 select c.relname, t.tgname from pg_trigger t join pg_class c on c.oid = t.tgrelid
 where not t.tgisinternal and (t.tgname like 'protect_%' or t.tgname like 'enforce_%') order by 1, 2;
+
+-- Share tables must have SELECT policies only (share_writes_via_rpc.sql) — expect 0 rows
+select tablename, cmd, policyname from pg_policies
+where schemaname = 'public'
+  and tablename in ('expense_shares', 'recurring_expense_shares')
+  and cmd <> 'SELECT';
+
+-- ...and both save RPCs must be SECURITY DEFINER, not anon-executable
+select proname, prosecdef, has_function_privilege('anon', oid, 'EXECUTE') as anon_exec
+from pg_proc where pronamespace = 'public'::regnamespace
+  and proname in ('save_expense', 'save_recurring_expense');
 
 -- Ledger consistency (all should be 0)
 select
