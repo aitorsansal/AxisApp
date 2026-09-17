@@ -136,6 +136,10 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     /// flash back over an already-loaded form on every save tap.</summary>
     [ObservableProperty] private bool isInitialLoading;
     [ObservableProperty] private bool isEditMode;
+    /// <summary>Mirrors the server's enforce_expense_delete_permission (creator, payer or group
+    /// owner) so the button isn't offered to someone the delete would be refused for. Repeating
+    /// templates aren't restricted.</summary>
+    [ObservableProperty] private bool canDelete;
     [ObservableProperty] private string pageTitle = LocalizationResourceManager.Instance["AddExpense_Title"];
 
     /// <summary>Set once, from the loaded Expense, when editing a settle-up — never toggled by the
@@ -235,6 +239,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             : startAsRecurring ? "AddExpense_RecurringTitle"
             : "AddExpense_Title"];
         IsSettlement = false;
+        CanDelete = false;
 
         IsBusy = true;
         IsInitialLoading = true;
@@ -303,12 +308,18 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             if (existingExpense is not null)
             {
                 LoadExistingExpense(existingExpense, loadShares.Result);
+                var myAccountId = authService.CurrentAccountId;
+                CanDelete = myAccountId is not null
+                    && (existingExpense.CreatedBy == myAccountId
+                        || loadGroup.Result.CreatedBy == myAccountId
+                        || loadMembers.Result.Any(m => m.Id == existingExpense.PaidByMemberId && m.AccountId == myAccountId));
                 if (ReceiptPath is not null)
                     ReceiptPreviewUrl = await receiptsRepository.GetSignedUrlAsync(ReceiptPath);
             }
             else if (existingRecurring is not null)
             {
                 LoadExistingRecurringExpense(existingRecurring, loadRecurringShares.Result);
+                CanDelete = true;
             }
             else
             {

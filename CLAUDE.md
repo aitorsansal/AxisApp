@@ -410,6 +410,7 @@ that first) reuses the same Firebase project as Android for push.
 | `events` / `event_attendees` | Group events with 3-state RSVP (`going`/`maybe`/`not_going`) and transport/carpooling fields. `is_birthday` rows are auto-generated, non-RSVPable member birthdays. |
 | `device_tokens` | Per-account push tokens for the notification feature. |
 | `member_aliases` | Private, per-account nickname override for how a member is displayed. |
+| `expense_history` | Previous version of an expense (row + shares as JSON) on every update/delete, trigger-written, read-only for group members. |
 
 No `categories` table (removed 2026-08-28) — categories are a small fixed
 list of keys in `AppConstants.Categories`, localized client-side, not
@@ -446,7 +447,13 @@ since the 2026-09-17 RLS hardening (`supabase/rls_hardening.sql`): there are
 no direct-DELETE policies on `group_members` anymore and its INSERT policy is
 phantom-only, so both genuinely need to run as owner. `save_expense()`/
 `save_recurring_expense()` are the ones that deliberately run as the caller
-(atomicity only). Column locks on `members`/`groups`/`invites`/`events`/
+(atomicity only). `record_expense_history()` (no insert policy on
+`expense_history`) and `sync_expense_converted_total()` (a deferred constraint
+trigger keeping `amount_in_group_currency` equal to the sum of the converted
+shares, which `protect_expense_columns` would otherwise revert) are security
+definer too — see `supabase/currency_integrity.sql`. Expense deletes are
+limited to creator, payer or group owner by a raising trigger, not the RLS
+policy, so a refused delete errors instead of silently affecting 0 rows. Column locks on `members`/`groups`/`invites`/`events`/
 `event_attendees` are `protect_*` BEFORE UPDATE triggers keyed on
 `current_user in ('authenticated','anon')` — so security definer functions,
 cron jobs and service-role Edge Functions can still change those columns;

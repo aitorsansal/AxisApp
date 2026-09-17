@@ -66,6 +66,34 @@ Verified live as an authenticated member of `TestGroupForEvents` inside a rolled
 forged conversion restored, non-member share/payer blocked, spoofed creator pinned, normal
 `save_expense` edit works.
 
+### Currency integrity, expense history, delete rule — `supabase/currency_integrity.sql` (applied live)
+
+| Severity | Finding | Fix |
+|---|---|---|
+| High | Changing an old foreign-currency expense's amount re-converted it at today's rate | `snapshot_expense_currency_conversion` keeps `old.exchange_rate` unless the currency changes |
+| High | No audit trail; any group member could hard-delete any expense | `expense_history` (old row + shares as JSON, `changed_by`, on every update/delete; readable by group members). Delete limited to creator, payer or group owner (`enforce_expense_delete_permission`, raises so clients show an error; both clients hide the button otherwise). Repeating templates aren't restricted |
+| Medium | Per-share rounding left `amount_in_group_currency` a cent off the shares' sum, so group balances didn't sum to zero and leave/remove could get stuck | Deferred constraint trigger `sync_expense_converted_total` sets the total to the sum of converted shares at commit |
+| Medium (new) | Group creator could change `groups.currency` after expenses existed, mixing currencies in balances | `enforce_group_currency_locked` |
+
+Verified live in a rolled-back transaction as three real accounts of `TestGroupForEvents`: USD
+10.00 split 3.33/3.33/3.34 gave total 8.68 = share sum (old logic 8.67), group sum 0; amount edit
+after a rate change kept the rate; currency edit re-fetched it; forged total restored; 3 history rows
+with the right `changed_by`; non-creator/payer/owner delete refused; owner and payer deletes allowed;
+currency change refused. Live data had no drift and no foreign-currency expenses before applying.
+
+### Notification Settle action and session refresh (app code)
+
+- `NotificationActionReceiver.HandleSettleAsync` settles `min(my share in group currency, current
+  pairwise debt)` in the group currency, read from the server at tap time; writes nothing once the
+  debt is gone (repeat taps / second device); in-flight guard against double taps.
+- New: in-app Settle (`GroupExpensesViewModel.Settle`) didn't set the currency, so in a non-EUR group
+  the balance amount was recorded as EUR and re-converted. Now uses the group currency.
+- `IAuthService.EnsureFreshSessionAsync`: refreshes when the token expires within a minute (single
+  flight). Called on `Window.Resumed`, in `WidgetDataAccess` (widgets and notification actions), and
+  by `BaseViewModel.RunSafeAsync` (forced) after a "JWT expired" rejection, then retries once. Before,
+  that rejection matched the clock-skew retry (both are PGRST303) and retried with the same expired
+  token. Not yet verified on a device; see "Pending checks".
+
 ### Ledger atomicity (other session — commit `9ec9289`)
 
 - `save_expense()` / `save_recurring_expense()` (`supabase/atomic_expense_save.sql`): expense + shares
@@ -114,65 +142,46 @@ in `assetlinks.json`, so invite App Links won't auto-verify for those local buil
 
 Ordered by severity. Locations are relative to the repo root.
 
-### High
-
-1. **Changing an expense amount re-converts at today's rate.** Description-only edits are fixed, but an
-   amount edit on an old foreign-currency expense uses the current rate, not the original one.
-   `supabase/schema.sql` → `snapshot_expense_currency_conversion()`. Fix: on UPDATE, keep
-   `old.exchange_rate` when only `amount` changed; re-fetch the rate only when `currency` changed.
-   Latent: no foreign-currency expenses existed at audit time.
-2. **No audit trail; any group member can hard-delete or silently edit any expense.**
-   Fix: `expense_history` table filled by an AFTER UPDATE/DELETE trigger (old row + shares +
-   `auth.uid()`); consider soft delete (`deleted_at`, excluded from the balance views) and limiting
-   delete to creator/payer. Design decision — touches views and both clients.
-
 ### Medium
 
-3. **Currency rounding drift.** `amount_in_group_currency = round(amount*rate)` vs the sum of
-   `round(share*rate)` can differ by 0.01, so group balances don't sum to zero and
-   `leave_group` / `remove_group_member` (exact `<> 0`) can get stuck. Fix: derive the total from the
-   converted shares, or assign the leftover cent to the largest share.
-4. **Notification "Settle" action** (`AxisApp/Platforms/Android/NotificationActionReceiver.cs`,
-   `HandleSettleAsync`) settles that one expense's share regardless of the current pairwise balance,
-   can double-settle on repeated taps / two devices, and re-converts at today's rate. Fix: read
-   `my_pairwise_balances`, settle `min(share, current debt)` in the group currency, make it idempotent.
-5. **Token refresh on resume.** `AxisApp/Services/SupabaseAuthService.cs` `RestoreSessionAsync` is a
-   no-op when a (possibly expired) session exists; no resume hook; `BaseViewModel.RunSafeAsync` doesn't
-   retry PGRST301. Needs device verification (Doze / long background). Fix: on `Window.Resumed` and
-   before widget/notification work, refresh through the existing single-flight lock if expiry < 60s.
-6. **Windows Google sign-in** (`AxisApp/Platforms/Windows/GoogleAuthService.cs`): implicit flow, fixed
+1. **Windows Google sign-in** (`AxisApp/Platforms/Windows/GoogleAuthService.cs`): implicit flow, fixed
    port 48291, no `state` — any open web page can inject its own tokens during the 2-minute window
    (login CSRF). Fix: random `state` round-tripped and checked, `GetUser` before `SetSession`, random port.
-7. **Stale RSVP counts** (`AxisApp/ViewModels/EventDetailViewModel.cs`): loads only on navigation /
+2. **Stale RSVP counts** (`AxisApp/ViewModels/EventDetailViewModel.cs`): loads only on navigation /
    pull-to-refresh; RSVP taps patch a stale cached list. Fix: re-fetch attendees after each write,
    reload on resume if older than ~60s, show "updated X min ago".
 
 ### Low
 
-8. **10 expenses with NULL `created_by`** (web app inserts from 2026-09-12 to 2026-09-16, before
+3. **10 expenses with NULL `created_by`** (web app inserts from 2026-09-12 to 2026-09-16, before
    `save_expense`). No reliable way to know the real creator; left as-is.
-9. **Supabase config leftovers:** `http://localhost:5173/**` still in the production redirect allow-list;
+4. **Supabase config leftovers:** `http://localhost:5173/**` still in the production redirect allow-list;
    minimum password length 6 and leaked-password protection off; legacy JWT API keys still enabled
    (migrate the Vault `service_role_key` to the new secret key first); Vault still holds an unused copy of
    the Firebase service-account key (`firebase_service_account`).
-10. **Android Google sign-in has no nonce** (`AxisApp/Platforms/Android/GoogleAuthService.cs`). Fix: hashed
+5. **Android Google sign-in has no nonce** (`AxisApp/Platforms/Android/GoogleAuthService.cs`). Fix: hashed
     nonce to `GetGoogleIdOption.SetNonce`, raw nonce to `SignInWithIdToken`.
-11. **Long-lived secrets copied to the clipboard** (`ProfileViewModel.cs` calendar feed URL,
+6. **Long-lived secrets copied to the clipboard** (`ProfileViewModel.cs` calendar feed URL,
     `InviteToGroupViewModel.cs` invite URL). Fix: share sheet, or `EXTRA_IS_SENSITIVE` on Android 13+.
-12. **`MainActivity` acts on intent extras from any app** (`AxisApp/Platforms/Android/MainActivity.cs`,
+7. **`MainActivity` acts on intent extras from any app** (`AxisApp/Platforms/Android/MainActivity.cs`,
     `HandleIntent`) — spoofable screen titles, RLS still protects data.
-13. **`android:allowBackup="true"`** (`AxisApp/Platforms/Android/AndroidManifest.xml`) includes the
+8. **`android:allowBackup="true"`** (`AxisApp/Platforms/Android/AndroidManifest.xml`) includes the
     SecureStorage prefs; a restored session can't be decrypted on a new device. Exclude them from backup.
-14. **Password-reset page leaves the recovery token in browser history** (`web/reset/index.html`).
+9. **Password-reset page leaves the recovery token in browser history** (`web/reset/index.html`).
     Fix: `history.replaceState` after `PASSWORD_RECOVERY`.
-15. **RSVP save reads then inserts** (`AxisApp/Services/SupabaseEventsRepository.cs` `UpsertRsvpAsync`):
+10. **RSVP save reads then inserts** (`AxisApp/Services/SupabaseEventsRepository.cs` `UpsertRsvpAsync`):
     concurrent RSVPs can hit a primary-key error. Fix: real upsert through a small RPC.
-16. **Invite App Links for locally installed builds**: add `axisapp.keystore`'s SHA-256
+11. **Invite App Links for locally installed builds**: add `axisapp.keystore`'s SHA-256
     (`CF:F3:F3:3C:3A:85:9F:1B:36:5A:51:1C:F4:3A:E2:9A:22:5A:9E:17:61:42:B0:2C:FF:1A:8E:29:09:2B:49:F5`)
     to `web/.well-known/assetlinks.json` if direct installs should open invite links in-app.
 
 ### Pending checks (no code)
 
+- On the phone: leave the app in the background for over an hour (screen off), reopen it and do
+  something that loads data; it should work without a "JWT expired" error. Same for a notification
+  Settle/RSVP tap after a long idle.
+- Notification Settle: tap Settle on an expense push; the settlement should be min(your share, what
+  you currently owe that person) in the group currency, and a second tap shouldn't add another.
 - Real push test after the key restrictions and the `send-push` redeploy (another account adds an
   expense involving you; web app: toggle notifications off/on in Profile).
 - Billing on `axisapp-ee018` for any cost from the scraped-key Maps traffic.

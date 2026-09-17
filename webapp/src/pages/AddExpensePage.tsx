@@ -64,6 +64,8 @@ export function AddExpensePage() {
   const [busy, setBusy] = useState(false)
 
   const [isEditMode, setIsEditMode] = useState(false)
+  // Server rule (enforce_expense_delete_permission): creator, payer or group owner. Templates aren't restricted.
+  const [canDelete, setCanDelete] = useState(false)
   const [isRecurringMode, setIsRecurringMode] = useState(isRecurringRoute)
   const [canToggleRecurring] = useState(!expenseId && !recurringId)
   const [isSettlement, setIsSettlement] = useState(false)
@@ -109,6 +111,9 @@ export function AddExpensePage() {
         setOccurredOn(expense.occurred_at.slice(0, 10))
         setPaidBy(expense.paid_by_member_id)
         setIsSettlement(expense.is_settlement)
+        const myId = session?.user.id
+        const payerAccount = memberRows.find((m) => m.member_id === expense.paid_by_member_id)?.members.account_id
+        setCanDelete(!!myId && (expense.created_by === myId || payerAccount === myId || groupData.created_by === myId))
         setReceiptPath(expense.receipt_path)
         setLinkedEventId(expense.event_id)
         loadShares(sharesRes.data ?? [])
@@ -122,6 +127,7 @@ export function AddExpensePage() {
         }
       } else if (recurringId) {
         setIsEditMode(true)
+        setCanDelete(true)
         setIsRecurringMode(true)
         const [templateRes, sharesRes] = await Promise.all([
           supabase.from('recurring_expenses').select('*').eq('id', recurringId).single(),
@@ -526,7 +532,7 @@ export function AddExpensePage() {
           {busy ? t('Common_Saving') : t('AddExpense_SaveExpense')}
         </button>
 
-        {isEditMode && (
+        {isEditMode && canDelete && (
           <button type="button" className="btn btn-danger delete-btn" onClick={handleDelete} disabled={busy}>
             {t('AddExpense_DeleteExpense')}
           </button>

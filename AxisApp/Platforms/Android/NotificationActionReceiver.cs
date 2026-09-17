@@ -1,4 +1,3 @@
-using System.Globalization;
 using Android.App;
 using Android.Content;
 using AndroidX.Core.App;
@@ -75,37 +74,79 @@ public class NotificationActionReceiver : BroadcastReceiver
         };
     }
 
+    // Expense ids whose Settle tap is still being written — swallows a double tap on the same
+    // tray action before the notification gets replaced.
+    private static readonly HashSet<string> settlesInFlight = [];
+
+    /// <summary>Settles what the viewer still owes the payer, capped at their share of this
+    /// expense: min(share in group currency, current pairwise debt). Reads both from the server at
+    /// tap time rather than trusting the push's share_amount, which is in the expense's own
+    /// currency and says nothing about what's already been paid back. A second tap (or the same
+    /// push acted on from another device) therefore never settles past zero — once the debt is
+    /// gone there's nothing left to write.</summary>
     private static async Task<bool> HandleSettleAsync(Context context, Intent intent, IServiceProvider services)
     {
         if (!Guid.TryParse(intent.GetStringExtra("payer_member_id"), out var payeeId)) return false;
-        if (!decimal.TryParse(intent.GetStringExtra("share_amount"), NumberStyles.Number, CultureInfo.InvariantCulture, out var amount))
-            return false;
+        if (!Guid.TryParse(intent.GetStringExtra("expense_id"), out var expenseId)) return false;
+        if (!Guid.TryParse(intent.GetStringExtra("group_id"), out var groupId)) return false;
 
-        var membersRepository = services.GetRequiredService<IMembersRepository>();
-        var me = await membersRepository.GetMyMemberAsync();
-        if (me is null) return false;
-
-        Guid? groupId = Guid.TryParse(intent.GetStringExtra("group_id"), out var g) ? g : null;
-        var currency = intent.GetStringExtra("currency") ?? "EUR";
-
-        var expensesRepository = services.GetRequiredService<IExpensesRepository>();
-        var settlement = new Expense
+        var key = expenseId.ToString();
+        lock (settlesInFlight)
         {
-            GroupId = groupId,
-            PaidByMemberId = me.Id,
-            Amount = amount,
-            Currency = currency,
-            Description = LocalizationResourceManager.Instance["GroupDetail_SettleUp"],
-            OccurredAt = DateTime.UtcNow,
-            IsSettlement = true,
-        };
-        var shares = new List<ExpenseShare> { new() { MemberId = payeeId, ShareAmount = amount } };
-        await expensesRepository.AddAsync(settlement, shares);
+            if (!settlesInFlight.Add(key)) return true;
+        }
 
-        UpdateNotification(context,
-            LocalizationResourceManager.Instance["Notification_Settled"],
-            LocalizationResourceManager.Instance["Notification_SettledBody"]);
-        return true;
+        try
+        {
+            var membersRepository = services.GetRequiredService<IMembersRepository>();
+            var me = await membersRepository.GetMyMemberAsync();
+            if (me is null) return false;
+
+            var expensesRepository = services.GetRequiredService<IExpensesRepository>();
+            var groupsRepository = services.GetRequiredService<IGroupsRepository>();
+            var balancesRepository = services.GetRequiredService<IBalancesRepository>();
+
+            var loadShares = expensesRepository.GetSharesAsync(expenseId);
+            var loadGroup = groupsRepository.GetByIdAsync(groupId);
+            var loadPairwise = balancesRepository.GetMyPairwiseForGroupAsync(groupId);
+            await Task.WhenAll(loadShares, loadGroup, loadPairwise);
+
+            // Expense deleted or no longer includes me: let the app open and show the real state.
+            var myShare = loadShares.Result.FirstOrDefault(s => s.MemberId == me.Id);
+            if (myShare is null) return false;
+
+            // my_pairwise_balances: negative = I owe them.
+            var owed = -(loadPairwise.Result.FirstOrDefault(b => b.OtherMemberId == payeeId)?.Balance ?? 0m);
+            var amount = Math.Min(myShare.ShareAmountInGroupCurrency, owed);
+
+            if (amount > 0)
+            {
+                var settlement = new Expense
+                {
+                    GroupId = groupId,
+                    PaidByMemberId = me.Id,
+                    Amount = amount,
+                    Currency = loadGroup.Result.Currency,
+                    Description = LocalizationResourceManager.Instance["GroupDetail_SettleUp"],
+                    OccurredAt = DateTime.UtcNow,
+                    IsSettlement = true,
+                };
+                var shares = new List<ExpenseShare> { new() { MemberId = payeeId, ShareAmount = amount } };
+                await expensesRepository.AddAsync(settlement, shares);
+            }
+
+            UpdateNotification(context,
+                LocalizationResourceManager.Instance["Notification_Settled"],
+                LocalizationResourceManager.Instance["Notification_SettledBody"]);
+            return true;
+        }
+        finally
+        {
+            lock (settlesInFlight)
+            {
+                settlesInFlight.Remove(key);
+            }
+        }
     }
 
     private static async Task<bool> HandleRsvpAsync(Context context, Intent intent, IServiceProvider services, string response)

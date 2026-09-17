@@ -61,6 +61,11 @@ public interface IAuthService
     /// <summary>Restores a previously persisted session on app start, if one exists.</summary>
     Task RestoreSessionAsync();
 
+    /// <summary>Refreshes the access token if it expires within a minute (or right away when
+    /// <paramref name="force"/> is set, i.e. the server already rejected it as expired). No-op
+    /// without a session. Concurrent callers share one refresh. Throws on network failure.</summary>
+    Task EnsureFreshSessionAsync(bool force = false);
+
     /// <summary>Permanently deletes the signed-in account via the delete-account Edge Function —
     /// unlinks the account's member row back to a phantom (ledger history stays intact), deletes
     /// any group the account owns with no other members, and removes the auth user itself. Fails
