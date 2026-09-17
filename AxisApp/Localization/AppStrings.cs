@@ -58,6 +58,7 @@ public static class AppStrings
         ["Register_CheckInboxTitle"] = "Check your inbox",
         ["Register_CheckInboxMessage"] = "We sent a confirmation link to {0}. Open it to activate your account, then sign in.",
         ["Login_EmailNotConfirmed"] = "Confirm your email before signing in. Can't find the email? Create the account again with the same address to get a new link.",
+        ["Login_InvalidCredentials"] = "Wrong email or password. If you just signed up, confirm your email first.",
 
         // Groups
         ["Groups_Title"] = "Groups",
@@ -359,6 +360,7 @@ public static class AppStrings
         ["Register_CheckInboxTitle"] = "Revisa tu correo",
         ["Register_CheckInboxMessage"] = "Hemos enviado un enlace de confirmación a {0}. Ábrelo para activar tu cuenta y después inicia sesión.",
         ["Login_EmailNotConfirmed"] = "Confirma tu correo antes de iniciar sesión. ¿No encuentras el correo? Vuelve a crear la cuenta con la misma dirección para recibir un enlace nuevo.",
+        ["Login_InvalidCredentials"] = "Correo o contraseña incorrectos. Si acabas de crear la cuenta, confirma primero tu correo.",
 
         // Groups
         ["Groups_Title"] = "Grupos",

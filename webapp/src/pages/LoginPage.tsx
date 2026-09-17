@@ -36,6 +36,10 @@ export function LoginPage() {
           setError(t('Login_EmailNotConfirmed'))
           return
         }
+        if (error?.code === 'invalid_credentials') {
+          setError(t('Login_InvalidCredentials'))
+          return
+        }
         if (error) throw error
       } else {
         const { data, error } = await supabase.auth.signUp({
@@ -69,6 +73,9 @@ export function LoginPage() {
       options: { emailRedirectTo: EMAIL_CONFIRMED_URL },
     })
     setBusy(false)
+    // Supabase allows one auth email per address per 60s, counted from the last one sent —
+    // usually the sign-up email itself, so resending right after signing up always hits this.
+    if (error?.code === 'over_email_send_rate_limit') return setError(t('Login_ResendRateLimited'))
     if (error) return setError(error.message)
     setUnconfirmedEmail(null)
     setNotice(t('Login_CheckInbox', unconfirmedEmail))

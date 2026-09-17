@@ -2,8 +2,13 @@ namespace AxisApp.Services;
 
 /// <summary>NeedsEmailConfirmation: on sign-up, the account was created but has no session until
 /// its email is confirmed (Success is true); on sign-in, the password was right but the email
-/// isn't confirmed yet (Success is false).</summary>
-public record AuthResult(bool Success, string? ErrorMessage = null, bool NeedsEmailConfirmation = false);
+/// isn't confirmed yet (Success is false). InvalidCredentials: sign-in rejected for a wrong email or
+/// password.</summary>
+public record AuthResult(
+    bool Success,
+    string? ErrorMessage = null,
+    bool NeedsEmailConfirmation = false,
+    bool InvalidCredentials = false);
 
 /// <summary>
 /// Wraps whatever auth provider backs the app (Supabase Auth today). Nothing outside this

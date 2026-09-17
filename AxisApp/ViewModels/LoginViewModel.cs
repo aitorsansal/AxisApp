@@ -33,6 +33,8 @@ public partial class LoginViewModel : BaseViewModel
             var result = await authService.SignInAsync(Email, Password);
             if (result.NeedsEmailConfirmation)
                 ErrorMessage = LocalizationResourceManager.Instance["Login_EmailNotConfirmed"];
+            else if (result.InvalidCredentials)
+                ErrorMessage = LocalizationResourceManager.Instance["Login_InvalidCredentials"];
             else if (!result.Success)
                 ErrorMessage = result.ErrorMessage ?? LocalizationResourceManager.Instance["Login_SignInFailed"];
             else

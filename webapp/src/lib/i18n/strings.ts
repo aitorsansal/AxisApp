@@ -52,6 +52,8 @@ const en: Dictionary = {
   Login_CheckInbox: 'We sent a confirmation link to {0}. Open it to activate your account, then sign in.',
   Login_EmailNotConfirmed: 'Confirm your email before signing in.',
   Login_ResendConfirmation: 'Resend confirmation email',
+  Login_InvalidCredentials: 'Wrong email or password. If you just signed up, confirm your email first.',
+  Login_ResendRateLimited: 'Wait a minute before requesting another email.',
 
   // App header
   Groups_Profile: 'Profile',
@@ -314,6 +316,8 @@ const es: Dictionary = {
   Login_CheckInbox: 'Hemos enviado un enlace de confirmación a {0}. Ábrelo para activar tu cuenta y después inicia sesión.',
   Login_EmailNotConfirmed: 'Confirma tu correo antes de iniciar sesión.',
   Login_ResendConfirmation: 'Reenviar correo de confirmación',
+  Login_InvalidCredentials: 'Correo o contraseña incorrectos. Si acabas de crear la cuenta, confirma primero tu correo.',
+  Login_ResendRateLimited: 'Espera un minuto antes de pedir otro correo.',
 
   // App header
   Groups_Profile: 'Perfil',

@@ -109,6 +109,16 @@ public class SupabaseAuthService : IAuthService
         {
             return new AuthResult(false, ex.Message, NeedsEmailConfirmation: true);
         }
+        // Which Reason the installed Gotrue 6.3.0 maps a wrong password to isn't documented (its
+        // DetectReason works off status code + message text), so the raw error_code in the
+        // response body is checked too.
+        catch (GotrueException ex) when (ex.Reason is FailureHint.Reason.UserBadLogin
+                                             or FailureHint.Reason.UserBadPassword
+                                             or FailureHint.Reason.UserBadMultiple
+                                         || ex.Content?.Contains("invalid_credentials") == true)
+        {
+            return new AuthResult(false, ex.Message, InvalidCredentials: true);
+        }
         catch (Exception ex)
         {
             return new AuthResult(false, ex.Message);
