@@ -15,8 +15,54 @@
   font-size: 0.95rem;
 }
 
-.participant-item input {
+.participant-item {
+  justify-content: space-between;
+  min-height: 36px;
+}
+
+.participant-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.participant-name input {
   width: auto;
+}
+
+.participant-item .share-input {
+  width: 96px;
+  flex-shrink: 0;
+  text-align: right;
+  padding: 6px 8px;
+}
+
+.split-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.split-equally-btn {
+  width: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.split-remaining {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.split-remaining-off {
+  color: var(--danger);
 }
 
 .amount-row {

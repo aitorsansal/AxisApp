@@ -163,31 +163,21 @@ export function GroupDetailPage() {
     const receiving = balance > 0 ? myMemberId : otherMemberId
     const amount = Math.abs(balance)
 
-    const { data: expense, error: expenseError } = await supabase
-      .from('expenses')
-      .insert({
+    // Atomic row + share write, see supabase/atomic_expense_save.sql.
+    const { error: saveError } = await supabase.rpc('save_expense', {
+      p_expense: {
         group_id: groupId,
         paid_by_member_id: discharging,
         amount,
         currency: group.currency,
         description: t('GroupDetail_SettleUp'),
         is_settlement: true,
-      })
-      .select('id')
-      .single()
-
-    if (expenseError) {
-      setError(expenseError.message)
-      setSettlingId(null)
-      return
-    }
-
-    const { error: shareError } = await supabase
-      .from('expense_shares')
-      .insert({ expense_id: expense.id, member_id: receiving, share_amount: amount })
+      },
+      p_shares: [{ member_id: receiving, share_amount: amount }],
+    })
 
     setSettlingId(null)
-    if (shareError) return setError(shareError.message)
+    if (saveError) return setError(saveError.message)
     load()
   }
 

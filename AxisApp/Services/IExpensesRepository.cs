@@ -29,12 +29,12 @@ public interface IExpensesRepository
     /// call per expense.</summary>
     Task<List<ExpenseShare>> GetSharesForExpensesAsync(IReadOnlyCollection<Guid> expenseIds);
 
-    /// <summary>Creates an expense and its per-member shares together.</summary>
+    /// <summary>Creates an expense and its per-member shares in one transaction.</summary>
     Task<Expense> AddAsync(Expense expense, List<ExpenseShare> shares);
 
-    /// <summary>Updates the expense and reconciles its shares against the new list — updates
+    /// <summary>Updates the expense and reconciles its shares against the new list (updates
     /// share amounts for members still included, inserts newly-added participants, deletes
-    /// removed ones.</summary>
+    /// removed ones) in one transaction. CreatedBy/CreatedAt are server-owned and ignored.</summary>
     Task<Expense> UpdateAsync(Expense expense, List<ExpenseShare> shares);
 
     Task DeleteAsync(Guid expenseId);

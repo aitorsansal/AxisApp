@@ -6,12 +6,10 @@ namespace AxisApp.Services;
 public class SupabaseRecurringExpensesRepository : IRecurringExpensesRepository
 {
     private readonly Supabase.Client client;
-    private readonly IAuthService authService;
 
-    public SupabaseRecurringExpensesRepository(Supabase.Client client, IAuthService authService)
+    public SupabaseRecurringExpensesRepository(Supabase.Client client)
     {
         this.client = client;
-        this.authService = authService;
     }
 
     public async Task<List<RecurringExpense>> GetForGroupAsync(Guid groupId)
@@ -38,59 +36,46 @@ public class SupabaseRecurringExpensesRepository : IRecurringExpensesRepository
         return result.Models;
     }
 
-    /// <summary>Same no-transaction caveat as SupabaseExpensesRepository.AddAsync — if the shares
-    /// insert fails after the template succeeds, the caller ends up with a template that has no
-    /// shares yet and should retry the shares insert rather than the whole thing.</summary>
-    public async Task<RecurringExpense> AddAsync(RecurringExpense recurringExpense, List<RecurringExpenseShare> shares)
+    public Task<RecurringExpense> AddAsync(RecurringExpense recurringExpense, List<RecurringExpenseShare> shares) =>
+        SaveAsync(recurringExpense, shares, isNew: true);
+
+    public Task<RecurringExpense> UpdateAsync(RecurringExpense recurringExpense, List<RecurringExpenseShare> shares) =>
+        SaveAsync(recurringExpense, shares, isNew: false);
+
+    /// <summary>Same atomic shape as SupabaseExpensesRepository.SaveAsync, through
+    /// save_recurring_expense(). The function never writes created_by/created_at/
+    /// last_processed_date/is_active on update — the schedule belongs to
+    /// materialize_recurring_expenses() and pausing to SetActiveAsync, so editing a template's
+    /// amount/split can't reset or reactivate it.</summary>
+    private async Task<RecurringExpense> SaveAsync(RecurringExpense recurringExpense, List<RecurringExpenseShare> shares, bool isNew)
     {
-        recurringExpense.CreatedBy = authService.RequireAccountId();
-        var inserted = await client.From<RecurringExpense>().Insert(recurringExpense);
-        var recurringExpenseId = inserted.Model!.Id;
-
-        foreach (var share in shares)
-            share.RecurringExpenseId = recurringExpenseId;
-
-        await client.From<RecurringExpenseShare>().Insert(shares);
-
-        return inserted.Model!;
-    }
-
-    /// <summary>Same reconcile-by-member_id logic as SupabaseExpensesRepository.UpdateAsync —
-    /// updates share_amount for members still included, inserts newly-added participants, deletes
-    /// removed ones, via an explicit recurring_expense_id+member_id Filter rather than trusting
-    /// Update(model)'s implicit primary-key match (RecurringExpenseShare only marks
-    /// RecurringExpenseId with [PrimaryKey], same composite-key shape as ExpenseShare).</summary>
-    public async Task<RecurringExpense> UpdateAsync(RecurringExpense recurringExpense, List<RecurringExpenseShare> shares)
-    {
-        var updated = await client.From<RecurringExpense>().Update(recurringExpense);
-
-        var existingShares = await GetSharesAsync(recurringExpense.Id);
-        var existingMemberIds = existingShares.Select(s => s.MemberId).ToHashSet();
-        var newMemberIds = shares.Select(s => s.MemberId).ToHashSet();
-
-        foreach (var removed in existingShares.Where(s => !newMemberIds.Contains(s.MemberId)))
-            await client.From<RecurringExpenseShare>()
-                .Filter("recurring_expense_id", Constants.Operator.Equals, recurringExpense.Id.ToString())
-                .Filter("member_id", Constants.Operator.Equals, removed.MemberId.ToString())
-                .Delete();
-
-        var toInsert = new List<RecurringExpenseShare>();
-        foreach (var share in shares)
+        var response = await client.Rpc("save_recurring_expense", new Dictionary<string, object?>
         {
-            share.RecurringExpenseId = recurringExpense.Id;
-            if (existingMemberIds.Contains(share.MemberId))
-                await client.From<RecurringExpenseShare>()
-                    .Filter("recurring_expense_id", Constants.Operator.Equals, recurringExpense.Id.ToString())
-                    .Filter("member_id", Constants.Operator.Equals, share.MemberId.ToString())
-                    .Update(share);
-            else
-                toInsert.Add(share);
-        }
+            ["p_template"] = new Dictionary<string, object?>
+            {
+                ["id"] = isNew ? null : recurringExpense.Id.ToString(),
+                ["group_id"] = recurringExpense.GroupId?.ToString(),
+                ["paid_by_member_id"] = recurringExpense.PaidByMemberId.ToString(),
+                ["amount"] = recurringExpense.Amount,
+                ["currency"] = recurringExpense.Currency,
+                ["description"] = recurringExpense.Description,
+                ["category"] = recurringExpense.Category,
+                ["frequency"] = recurringExpense.Frequency,
+                ["start_date"] = recurringExpense.StartDate.ToString("yyyy-MM-dd"),
+            },
+            ["p_shares"] = shares
+                .Select(share => new Dictionary<string, object?>
+                {
+                    ["member_id"] = share.MemberId.ToString(),
+                    ["share_amount"] = share.ShareAmount,
+                })
+                .ToList(),
+        });
+        var raw = response.Content?.Trim('"')
+            ?? throw new InvalidOperationException("save_recurring_expense returned no id.");
 
-        if (toInsert.Count > 0)
-            await client.From<RecurringExpenseShare>().Insert(toInsert);
-
-        return updated.Model!;
+        return await GetByIdAsync(Guid.Parse(raw))
+            ?? throw new InvalidOperationException("save_recurring_expense succeeded but the template could not be re-fetched.");
     }
 
     /// <summary>No Postgrest fluent partial-update helper exists in this codebase (confirmed —
