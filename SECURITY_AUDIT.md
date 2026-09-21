@@ -245,6 +245,25 @@ hardcoded `password.length < 6` needs to move in step with #6's minimum-length c
 | Google Cloud — Browser key | Website restriction `https://app.axisapp.aitorsansal.com/*`, `http://localhost:5173/*`; APIs limited to FCM Registration, Firebase Cloud Messaging, Firebase Installations (was 25) |
 | Google Cloud — Android key | Android restriction `com.aitorsansal.axisapp` + SHA-1 `23:91:E0:80:CB:18:E2:45:96:E0:37:C2:F7:AC:FF:7E:6D:44:5A:CC` (Play App Signing), `94:66:69:AC:32:92:0B:4F:1E:71:EB:B4:40:B4:6B:36:39:BB:4E:DB` (`axisapp.keystore` upload key), `BE:9C:FC:CC:03:2B:0D:EC:45:39:FF:15:49:F8:61:63:8E:C4:5C:34` (default debug keystore). API list (8 Firebase APIs) unchanged |
 
+Added 2026-09-21:
+
+| Where | Change |
+|---|---|
+| Supabase Auth, URL Configuration | Removed `http://localhost:5173/**` from the redirect allow-list (kept `http://localhost:48291/` for Windows sign-in, the app and confirm URLs). Re-add it temporarily if you run the web app locally and need Google / reset redirects there |
+| Supabase Auth, Email provider | Minimum password length 6 -> 8 (read back after reload). Only applies when a password is set, existing accounts are unaffected. Web `minLength` / reset-page checks moved to 8 in the same change (login page enforces it on sign-up only, so older 6-7 character passwords can still sign in). The MAUI app has no client-side length check and shows the server's message |
+
+Observed, deliberately left off (accepted risk): "Require current password when updating" and "Secure
+password change". A stolen live session can therefore change the password without the old one. Turning
+"Secure password change" on would break Change password for any session older than 24 hours, so it needs a
+two-step flow in both clients first (email a code via `reauthenticate()`, then send code + new password;
+gotrue 6.3.0 supports `Reauthenticate` and a nonce). "Require current password" isn't worth it: the MAUI SDK
+has no `current_password` support, it's redundant once the first is on, and Google-only accounts have no
+password. Revisit if the threat model changes.
+
+Legacy JWT API keys deliberately left enabled too: migrating the Vault `service_role_key` means turning Verify
+JWT off on the three Edge Functions and replacing `isServiceRoleCaller()`'s role-claim check with a shared-secret
+compare, for little risk reduction (the key only lives in Vault and the function env).
+
 Note: both Google keys showed recent traffic to Google Maps APIs (Directions, Geocoding, Places, …)
 that Axis never calls — the keys had been scraped. Now blocked by the restrictions. Check Billing on
 `axisapp-ee018` if not done yet.
@@ -272,10 +291,13 @@ Numbering is kept from the original list, so gaps are items that moved to "Fixed
 
 5. **10 expenses with NULL `created_by`** (web app inserts from 2026-09-12 to 2026-09-16, before
    `save_expense`). No reliable way to know the real creator; left as-is.
-6. **Supabase config leftovers:** `http://localhost:5173/**` still in the production redirect allow-list;
-   minimum password length 6 and leaked-password protection off; legacy JWT API keys still enabled
-   (migrate the Vault `service_role_key` to the new secret key first); Vault still holds an unused copy of
-   the Firebase service-account key (`firebase_service_account`).
+6. **Supabase config leftovers, remaining part** (the rest was done 2026-09-21, see "Changed outside the
+   repo"): legacy JWT API keys still enabled (migrate the Vault `service_role_key` to the new secret key
+   first); leaked-password protection can't be turned on (Pro plan only, project is on Free); the Vault
+   still holds an unused copy of the Firebase service-account key. Verified unused live (no function or
+   cron job references it; `send-push` reads `FIREBASE_SERVICE_ACCOUNT_KEY` from the Edge Function env),
+   but the delete was blocked as a secret-store write and is left for you:
+   `delete from vault.secrets where name = 'firebase_service_account';`
 8. **Long-lived secrets copied to the clipboard** (`ProfileViewModel.cs` calendar feed URL,
     `InviteToGroupViewModel.cs` invite URL). Fix: share sheet, or `EXTRA_IS_SENSITIVE` on Android 13+.
 9. **`MainActivity` acts on intent extras from any app** (`AxisApp/Platforms/Android/MainActivity.cs`,

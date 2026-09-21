@@ -88,8 +88,8 @@
     <p class="msg msg-success" id="successMsg" hidden></p>
 
     <form id="resetForm" hidden>
-      <input type="password" id="password" placeholder="New password" autocomplete="new-password" minlength="6" required>
-      <input type="password" id="confirmPassword" placeholder="Confirm new password" autocomplete="new-password" minlength="6" required>
+      <input type="password" id="password" placeholder="New password" autocomplete="new-password" minlength="8" required>
+      <input type="password" id="confirmPassword" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
       <button class="btn btn-primary" type="submit" id="submitBtn">Set new password</button>
     </form>
   </div>
@@ -143,8 +143,8 @@
     var password = document.getElementById('password').value;
     var confirm = document.getElementById('confirmPassword').value;
 
-    if (password.length < 6) {
-      showError('Password must be at least 6 characters.');
+    if (password.length < 8) {
+      showError('Password must be at least 8 characters.');
       return;
     }
     if (password !== confirm) {
