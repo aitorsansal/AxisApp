@@ -348,6 +348,96 @@ Numbering is kept from the original list, so gaps are items that moved to "Fixed
 - Optional code fixes (below), on a device: RSVP on the event detail page from two accounts and watch the
   other one's count follow; leave the page open past a minute and check the caption; copy the calendar link
   on Android 13+ (no preview shown) and on Windows (not in Win+V history).
+- Android Google sign-in with the nonce (Supabase Google provider: watch "Skip nonce checks").
+- The background-CPU investigation and the widget cold-start session test, both described in the handoff below.
+
+### Handoff: how to run the outstanding phone tests (written 2026-09-21, for a session that has none of the context)
+
+**State of the investigation.** Two things were found on the phone that day and fixed (global sign-out killing other
+devices' sessions, unguarded widget refresh crashing the app — see "Unexpected logouts and widget crash"). One thing
+is **open and not understood**: the app process was killed by Android at 16:05 for
+`excessive cpu 263990 during 3000476 dur=3122153 limit=2` (about 264 s of CPU over 50 minutes while backgrounded,
+against a 2% background limit). The process had been in the background since 14:40 with nothing logged. The session
+survived it. Whether it is a real bug or a Debug-build artefact (JIT, debugger agent) is unknown.
+
+**Baseline already measured** (process `31152`, started about 16:10, device time CEST, app opened once then Home, not
+swiped away, widgets on): total CPU stayed at **1158 ticks = 11.6 s for 9 minutes**, no thread moved. Startup cost
+only (main thread 832 ticks, JIT pool 58, RenderThread 54). So it is *not* a spin from launch; the burn happens later,
+probably tied to something periodic (the ~1 h access-token expiry / auto-refresh timer, or the 30-minute widget tick).
+That is a hypothesis, not an observation.
+
+**Environment.** Physical phone: model 2412DPC0AG (MIUI/HyperOS-class aggressive process killing), connected over
+*wireless* adb, so its serial (`adb-…._adb-tls-connect._tcp`) changes; get it from `adb devices -l`. There is also an
+emulator (`emulator-5554`), ignore it. Package `com.aitorsansal.axisapp`. The installed build is a **Debug** build
+(`dumpsys package` shows `DEBUGGABLE`), which is what makes `run-as` work; a Release build would not allow it. On
+Windows use PowerShell or Git Bash; `Select-Object`, `grep` and `awk` are not available in the other shell. The Chrome
+extension tools were used for the Supabase dashboard (already signed in); a tab with unsaved SQL-editor text blocks
+navigation, so open a fresh tab instead.
+
+**Test A: find the CPU burn (needs the app left alone 60 to 90 minutes).**
+1. Open the app once, press Home, do NOT swipe it away (on MIUI a swipe-clean kills the process and stops widget updates
+   until the next launch, which invalidates the test). Leave the screen off, widgets on.
+2. Later, with `D=<serial from adb devices -l>`:
+   ```
+   adb -s $D shell pidof com.aitorsansal.axisapp        # empty = the process was killed
+   PID=<that>
+   adb -s $D shell "for t in /proc/$PID/task/*; do echo \$(cat \$t/comm | tr ' ' '_') \$(awk '{print \$14+\$15}' \$t/stat) \$(basename \$t); done" | sort -k2 -n -r | head -12
+   adb -s $D shell "awk '{print \$14+\$15}' /proc/$PID/stat"     # process total, in 1/100 s
+   ```
+   Compare with the baseline above. The kernel keeps per-thread totals for the process's whole life, so this works
+   without continuous sampling as long as the process wasn't killed. A thread whose ticks grew by tens of thousands is the
+   culprit; its name says what it is (`.NET ThreadPool`/`Jit thread pool`, `mono`, `RenderThread`, `glide-…`, the main
+   thread `rsansal.axisapp`).
+3. If the process was killed, get the reason and time: `adb -s $D logcat -d -b events | grep am_kill | grep axisapp`
+   (a line ending `excessive cpu … limit=2` means the burn recurred and is sustained). Then write a sampler that starts
+   before the burn (every 1 to 2 minutes, log only when the total moves) and repeat.
+4. Interpretation: if it is JIT or debugger-agent work, retest with a **Release** build before changing any code. If it is
+   a managed thread, look at what runs periodically: `AutoRefreshToken = true` (MauiProgram.cs), the widget providers
+   (`Platforms/Android/Widgets`), and `EventDetailPage`'s caption timer (`IDispatcherTimer`, 30 s; it is unhooked in
+   `OnDisappearing`, but MAUI may not raise that when the whole app goes to the background (not verified), so if the event
+   detail page was the last screen open the timer could keep ticking; a 30 s label update is cheap, but worth ruling out). Realtime is off
+   (`AutoConnectRealtime = false`).
+
+**Test B: does a widget cold start lose the session?** (the original worry). Evidence so far: one widget cold start at
+12:36:56 refreshed fine (Auth log `/token` 200 at 12:36:59) and the session was intact after; an earlier failure was
+traced to a global sign-out, not the widget. To test properly: open the app, press Home (no swipe), leave 1 to 2 hours,
+then confirm widget cold starts happened and the session survived:
+```
+adb -s $D logcat -d -b events | grep am_proc_start | grep BalancesWidgetProvider      # widget-triggered process starts
+adb -s $D shell "run-as com.aitorsansal.axisapp cat shared_prefs/com.aitorsansal.axisapp.microsoft.maui.essentials.preferences.xml" | sed -E 's/>[^<]{12,}</>[masked]</g' | grep -c "<string"
+```
+The prefs file holds the AndroidX crypto keysets plus, when logged in, the encrypted session: **3** `<string>` entries =
+session present, **2** = session gone (that is what a wiped session looks like). Its modification time
+(`adb -s $D shell "run-as com.aitorsansal.axisapp ls -l shared_prefs"`) is when the session was last saved or removed.
+Do NOT log out of the same account anywhere (PC, web) during the test; with the fix a local sign-out no longer affects
+other devices, but any other client's activity muddies the log.
+
+**Reading the server side.** Supabase dashboard, project `foepkovwmwyygulbdahv`: Logs, Auth
+(`/dashboard/project/foepkovwmwyygulbdahv/logs/auth-logs`; the URL accepts `?its=<UTC ISO time>` for the start of the
+range; the free plan keeps about a day). Look for a WARNING `/token | request completed` and open it, Raw tab:
+`error_code` is `refresh_token_not_found` (the token was revoked or the session is gone, usually by a `/logout`) or
+`refresh_token_already_used` (two clients refreshed the same token). Also look for `/logout` and its `remote_addr`. Known
+addresses that day: the PC `188.64.100.162`; the phone on mobile data `31.4.130.53` (on home Wi-Fi the phone shares the
+PC's address, so an address match alone proves nothing; cross-check with `am_proc_start` times on the phone: if the phone
+had no live process at that timestamp it did not send the request). A benign `refresh_token_not_found` was seen at
+13:54:56 from the PC while the phone had no process: a stale web tab or Windows debug client whose token the 11:53
+global logout revoked.
+
+**Other pending tests, quick recipes.**
+- *RSVP freshness*: two accounts on the same group event; RSVP from A on the detail page, B's screen should update
+  within a minute after appear/resume, and the "RSVPs updated X ago" caption should track. `upsert_rsvp()` itself is
+  already verified live in SQL.
+- *Notification Settle / push*: another account adds an expense involving you; tap Settle on the notification; expect
+  one settlement of min(your share, what you currently owe that person), in the group currency; a second tap adds nothing.
+- *Android Google sign-in*: sign out and back in with Google on the phone; if it fails, first check Supabase, Authentication,
+  Sign In / Providers, Google, "Skip nonce checks".
+- *Calendar link copy*: Android 13+ should not show the copied text in the clipboard preview; Windows should not put
+  it in Win+V history.
+
+**Gotchas from the session.** The permission classifier blocks writes to the Vault (secret store); do those by hand in
+the SQL editor. Never use `cd` in shell commands here (the working directory is already the project root). Migrations
+are applied by hand in the Supabase SQL editor and folded into `supabase/schema.sql`; `supabase/audit_followups.sql`
+and `supabase/upsert_rsvp.sql` are already applied live.
 
 ---
 
