@@ -223,6 +223,9 @@ public static class AppStrings
         ["EventDetail_NoExpenses"] = "No expenses linked to this event yet.",
         ["EventDetail_SearchPlaceholder"] = "Search expenses",
         ["EventDetail_NoSearchResults"] = "No expenses match your search.",
+        ["EventDetail_UpdatedJustNow"] = "RSVPs updated just now",
+        ["EventDetail_UpdatedMinutes"] = "RSVPs updated {0} min ago",
+        ["EventDetail_UpdatedHours"] = "RSVPs updated {0} h ago",
 
         // Categories (fixed, key-based — see AppConstants.Categories)
         ["Category_food"] = "Food",
@@ -526,6 +529,9 @@ public static class AppStrings
         ["EventDetail_NoExpenses"] = "Todavía no hay gastos vinculados a este evento.",
         ["EventDetail_SearchPlaceholder"] = "Buscar gastos",
         ["EventDetail_NoSearchResults"] = "Ningún gasto coincide con tu búsqueda.",
+        ["EventDetail_UpdatedJustNow"] = "Respuestas actualizadas ahora mismo",
+        ["EventDetail_UpdatedMinutes"] = "Respuestas actualizadas hace {0} min",
+        ["EventDetail_UpdatedHours"] = "Respuestas actualizadas hace {0} h",
 
         // Categories
         ["Category_food"] = "Comida",

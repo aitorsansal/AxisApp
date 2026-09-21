@@ -26,10 +26,20 @@ public class EventsWidgetRemoteViewsFactory : Java.Lang.Object, RemoteViewsServi
     {
     }
 
+    /// <summary>See BalancesWidgetRemoteViewsFactory.OnDataSetChanged: an exception escaping this
+    /// system-thread callback crashes the whole app process, so a failed refresh keeps the last good
+    /// rows instead.</summary>
     public void OnDataSetChanged()
     {
-        var scope = WidgetGroupScope.Get(context, appWidgetId);
-        rows = EventsWidgetDataProvider.GetSnapshotAsync(scope).GetAwaiter().GetResult();
+        try
+        {
+            var scope = WidgetGroupScope.Get(context, appWidgetId);
+            rows = EventsWidgetDataProvider.GetSnapshotAsync(scope).GetAwaiter().GetResult();
+        }
+        catch (System.Exception ex)
+        {
+            Android.Util.Log.Warn("AxisWidget", $"Events widget refresh failed, keeping last data: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     public void OnDestroy() => rows = [];

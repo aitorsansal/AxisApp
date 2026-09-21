@@ -194,10 +194,46 @@ but the hand-built version signed in successfully on Windows (Debug build, 2026-
 in the SDK's state handling, not server-side. Not tested: a Release build, or an injected `?code=` from
 another page (expected to fail the exchange, since it was issued against a different challenge).
 
+Password-reset link checked in a real browser: the token is still in the email (the link has to carry it)
+but is gone from the address bar once the page loads. The reset page's hardcoded minimum moved to 8 with #6.
+
 Still needs a real run: Android Google sign-in (Supabase's Google provider must not have "Skip nonce
-checks" in a state that rejects a present nonce), and a password-reset link in a real browser (confirm the
-address bar / back-stack no longer carries the token). The reset page's
-hardcoded `password.length < 6` needs to move in step with #6's minimum-length change.
+checks" in a state that rejects a present nonce).
+
+### Optional code fixes (2026-09-21 — `upsert_rsvp` applied live and verified; client builds clean on both targets, not yet run on a device)
+
+Former open items #4, #8 (calendar URL only) and #12.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| Low | RSVP write read the row then inserted or updated it, so two concurrent RSVPs from one member could both see "no row" and the second hit a primary-key violation | `supabase/upsert_rsvp.sql`: `upsert_rsvp()` does `insert ... on conflict do update` in one statement. Deliberately **security invoker**, so the existing insert/update-your-own-RSVP policies and `protect_rsvp_keys` apply exactly as they do to the web app's PostgREST upsert; `not_going` clears car status and seats as the repository always did. `SupabaseEventsRepository.UpsertRsvpAsync` calls it and parses the returned row. Not a client-side `Upsert(model)`: that would send year-1 `created_at`/`updated_at` and overwrite the stored ones on conflict |
+| Low | Attendee counts went stale: loaded on navigation and pull-to-refresh only, and an RSVP tap patched just the viewer's own row into the cache, so everyone else's RSVPs and the transport totals stayed as old as the last full load | Event detail and the group Events tab now follow the instant local patch with a best-effort attendees-only refetch (one query), dropping it if a newer tap overtook it. Event detail also refetches on appearing / app resume when the data is over 60s old, and shows "RSVPs updated X ago" (30s timer, unhooked in `OnDisappearing`). No polling while the page is open |
+| Low | Calendar feed URL (a long-lived secret) copied through the normal clipboard | New `ISecretClipboardService` (per-platform, same convention as `IGoogleAuthService`): Android sets `ClipDescription.ExtraIsSensitive` (API 33+, hides the preview; older versions get a plain copy), Windows uses `SetContentWithOptions` with history and roaming off. The invite URL is left as a plain copy on purpose |
+
+Verified live for `upsert_rsvp`, as the real `TestGroupForEvents` accounts in a rolled-back block: insert, update, one row
+after two upserts, `not_going` coupling, `created_at` preserved, writing another member's RSVP refused by RLS, anon cannot
+execute. Not exercised: the C# side against a real RSVP (the RPC-response parsing in particular), the caption timer, and
+both clipboard implementations.
+
+### Unexpected logouts and widget crash (found 2026-09-21 on the phone, via adb + Supabase Auth logs)
+
+The phone got logged out "without being used", with both home-screen widgets on. Evidence, in order:
+
+- Auth log: `POST /logout` (204) from the **PC's** address at 11:53:25, then the phone's first refresh afterwards (a
+  widget-triggered process start, 12:12:41) got `400 refresh_token_not_found` at 12:12:44 from the **phone's** address.
+  The app's encrypted-prefs file on the device was rewritten 12:12:45 and now holds only the crypto keysets — session gone.
+- Cause: **both clients used the SDK's default sign-out, which is global** (revokes every refresh token the account has).
+  Signing out on the PC (or the web app) logged out every other device; the widget was just the first thing to try a refresh.
+- Fixed: `SupabaseAuthService.SignOutAsync` uses `SignOutScope.Local`; the web app's header logout uses `{ scope: 'local' }`.
+  The two delete-account sign-outs stay as they were (the user no longer exists, so nothing else to protect).
+- Separate real bug, same log: an unhandled `PGRST303 "JWT issued at future"` (a transient Supabase clock-skew rejection)
+  thrown inside `BalancesWidgetRemoteViewsFactory.OnDataSetChanged` — a system-thread callback with no `try/catch` — crashed
+  the whole app process at 11:11:52. Anything failing there (including simply being offline) did the same.
+  Fixed: both widget factories catch, log under tag `AxisWidget`, and keep the last good rows.
+- Not the cause: the widgets' own token handling. The process was started from the widget several times, killed by
+  low-memory each time, and that pattern alone didn't lose the session. Whether widget cold starts can still lose a session
+  when refresh and kill race is not disproven, only unobserved; a local widget cache (SQLite/JSON) would remove that class
+  of risk but was not built.
 
 ### Notification Settle action and session refresh (app code)
 
@@ -252,6 +288,10 @@ Added 2026-09-21:
 | Supabase Auth, URL Configuration | Removed `http://localhost:5173/**` from the redirect allow-list (kept `http://localhost:48291/` for Windows sign-in, the app and confirm URLs). Re-add it temporarily if you run the web app locally and need Google / reset redirects there |
 | Supabase Auth, Email provider | Minimum password length 6 -> 8 (read back after reload). Only applies when a password is set, existing accounts are unaffected. Web `minLength` / reset-page checks moved to 8 in the same change (login page enforces it on sign-up only, so older 6-7 character passwords can still sign in). The MAUI app has no client-side length check and shows the server's message |
 
+Also: the unused Vault secret `firebase_service_account` was deleted by hand (verified first that no function or
+cron job referenced it; `send-push` reads `FIREBASE_SERVICE_ACCOUNT_KEY` from the Edge Function env).
+Leaked-password protection can't be enabled (Pro plan only, project is on Free).
+
 Observed, deliberately left off (accepted risk): "Require current password when updating" and "Secure
 password change". A stolen live session can therefore change the password without the old one. Turning
 "Secure password change" on would break Change password for any session older than 24 hours, so it needs a
@@ -265,8 +305,8 @@ JWT off on the three Edge Functions and replacing `isServiceRoleCaller()`'s role
 compare, for little risk reduction (the key only lives in Vault and the function env).
 
 Note: both Google keys showed recent traffic to Google Maps APIs (Directions, Geocoding, Places, …)
-that Axis never calls — the keys had been scraped. Now blocked by the restrictions. Check Billing on
-`axisapp-ee018` if not done yet.
+that Axis never calls — the keys had been scraped. Now blocked by the restrictions. Billing on
+`axisapp-ee018` checked: no charges.
 
 Signing certificates, for reference: Play Store installs are signed by Google's Play App Signing key
 (SHA-256 `E4:1B:C6:C9:…`), which is what `web/.well-known/assetlinks.json` and Firebase list. Builds
@@ -281,29 +321,17 @@ Ordered by severity. Locations are relative to the repo root.
 
 Numbering is kept from the original list, so gaps are items that moved to "Fixed".
 
-### Medium
-
-4. **Stale RSVP counts** (`AxisApp/ViewModels/EventDetailViewModel.cs`): loads only on navigation /
-   pull-to-refresh; RSVP taps patch a stale cached list. Fix: re-fetch attendees after each write,
-   reload on resume if older than ~60s, show "updated X min ago".
-
 ### Low
 
 5. **10 expenses with NULL `created_by`** (web app inserts from 2026-09-12 to 2026-09-16, before
    `save_expense`). No reliable way to know the real creator; left as-is.
-6. **Supabase config leftovers, remaining part** (the rest was done 2026-09-21, see "Changed outside the
-   repo"): legacy JWT API keys still enabled (migrate the Vault `service_role_key` to the new secret key
-   first); leaked-password protection can't be turned on (Pro plan only, project is on Free); the Vault
-   still holds an unused copy of the Firebase service-account key. Verified unused live (no function or
-   cron job references it; `send-push` reads `FIREBASE_SERVICE_ACCOUNT_KEY` from the Edge Function env),
-   but the delete was blocked as a secret-store write and is left for you:
-   `delete from vault.secrets where name = 'firebase_service_account';`
-8. **Long-lived secrets copied to the clipboard** (`ProfileViewModel.cs` calendar feed URL,
-    `InviteToGroupViewModel.cs` invite URL). Fix: share sheet, or `EXTRA_IS_SENSITIVE` on Android 13+.
+6. *(closed 2026-09-21: redirect allow-list, min password length and the Vault Firebase key are done, legacy
+   JWT keys are accepted risk, leaked-password protection is unavailable on the Free plan — see "Changed
+   outside the repo".)*
+8. *(calendar feed URL done, see "Optional code fixes". The invite URL copy in `InviteToGroupViewModel.cs`
+    is deliberately left as a plain copy: it's short-lived, and it's meant to be pasted into a chat.)*
 9. **`MainActivity` acts on intent extras from any app** (`AxisApp/Platforms/Android/MainActivity.cs`,
     `HandleIntent`) — spoofable screen titles, RLS still protects data.
-12. **RSVP save reads then inserts** (`AxisApp/Services/SupabaseEventsRepository.cs` `UpsertRsvpAsync`):
-    concurrent RSVPs can hit a primary-key error. Fix: real upsert through a small RPC.
 16. **Invite App Links for locally installed builds**: add `axisapp.keystore`'s SHA-256
     (`CF:F3:F3:3C:3A:85:9F:1B:36:5A:51:1C:F4:3A:E2:9A:22:5A:9E:17:61:42:B0:2C:FF:1A:8E:29:09:2B:49:F5`)
     to `web/.well-known/assetlinks.json` if direct installs should open invite links in-app.
@@ -317,8 +345,9 @@ Numbering is kept from the original list, so gaps are items that moved to "Fixed
   you currently owe that person) in the group currency, and a second tap shouldn't add another.
 - Real push test after the key restrictions and the `send-push` redeploy (another account adds an
   expense involving you; web app: toggle notifications off/on in Profile).
-- Billing on `axisapp-ee018` for any cost from the scraped-key Maps traffic.
-- Delete the audit's autosaved "Untitled query" snippets in the Supabase SQL editor.
+- Optional code fixes (below), on a device: RSVP on the event detail page from two accounts and watch the
+  other one's count follow; leave the page open past a minute and check the caption; copy the calendar link
+  on Android 13+ (no preview shown) and on Windows (not in Win+V history).
 
 ---
 

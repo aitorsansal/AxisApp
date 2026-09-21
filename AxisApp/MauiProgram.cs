@@ -82,6 +82,10 @@ public static class MauiProgram
         // is real (Firebase Cloud Messaging), Windows' is a deliberate no-op for now.
         builder.Services.AddSingleton<IPushRegistrationService, PushRegistrationService>();
 
+        // Same per-platform-file convention again — marks a copied secret (the calendar feed URL) as
+        // sensitive so it stays out of clipboard previews/history. See ISecretClipboardService.
+        builder.Services.AddSingleton<ISecretClipboardService, SecretClipboardService>();
+
         builder.Services.AddTransient<SplashPage>();
 
         builder.Services.AddTransient<LoginViewModel>();

@@ -96,6 +96,10 @@ public partial class GroupEventsViewModel : BaseViewModel
     private List<Event> allEvents = [];
     private Dictionary<Guid, List<EventAttendee>> attendeesByEvent = new();
 
+    /// <summary>Bumped by every local RSVP patch; lets ApplyAttendeeUpdateAsync's refetch notice that
+    /// a newer tap landed while it was in flight.</summary>
+    private int attendeeWriteVersion;
+
     [ObservableProperty] private ObservableCollection<EventMonthGroup> groupedEvents = [];
     [ObservableProperty] private bool hasEvents;
     [ObservableProperty] private bool isBusy;
@@ -289,7 +293,7 @@ public partial class GroupEventsViewModel : BaseViewModel
         };
         var carSeats = carStatus == "offering" ? item.CarOfferedSeats : (int?)null;
         var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, response, carStatus, carSeats);
-        ApplyAttendeeUpdate(item.EventId, updated);
+        await ApplyAttendeeUpdateAsync(item.EventId, updated);
     });
 
     /// <summary>Tapping the already-active state toggles it back off ("none") — the same
@@ -304,7 +308,7 @@ public partial class GroupEventsViewModel : BaseViewModel
         var newStatus = item.CarStatus == "offering" ? "none" : "offering";
         var seats = newStatus == "offering" ? myCarExtraSeats ?? 0 : (int?)null;
         var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, newStatus, seats);
-        ApplyAttendeeUpdate(item.EventId, updated);
+        await ApplyAttendeeUpdateAsync(item.EventId, updated);
     });
 
     [RelayCommand]
@@ -313,7 +317,7 @@ public partial class GroupEventsViewModel : BaseViewModel
         if (item is null || myMemberId is not { } me || item.MyResponse is not ("going" or "maybe")) return;
         var newStatus = item.CarStatus == "needs_ride" ? "none" : "needs_ride";
         var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, newStatus);
-        ApplyAttendeeUpdate(item.EventId, updated);
+        await ApplyAttendeeUpdateAsync(item.EventId, updated);
     });
 
     [RelayCommand]
@@ -327,7 +331,7 @@ public partial class GroupEventsViewModel : BaseViewModel
         if (item is null || myMemberId is not { } me || item.CarStatus != "offering") return;
         var newSeats = Math.Max(0, item.CarOfferedSeats + delta);
         var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, "offering", newSeats);
-        ApplyAttendeeUpdate(item.EventId, updated);
+        await ApplyAttendeeUpdateAsync(item.EventId, updated);
     });
 
     /// <summary>Replaces (or inserts) the single (event, member) row UpsertRsvpAsync just returned
@@ -336,6 +340,7 @@ public partial class GroupEventsViewModel : BaseViewModel
     /// full LoadAsync per tap.</summary>
     private void ApplyAttendeeUpdate(Guid eventId, EventAttendee updated)
     {
+        attendeeWriteVersion++;
         if (!attendeesByEvent.TryGetValue(eventId, out var list))
         {
             list = [];
@@ -347,6 +352,27 @@ public partial class GroupEventsViewModel : BaseViewModel
         else list.Add(updated);
 
         Rebuild();
+    }
+
+    /// <summary>The local patch above only ever knew about the viewer's own row, so the other
+    /// members' RSVPs and the transport totals stayed as stale as the last full load. This does the
+    /// instant patch first, then a best-effort refetch of just that event's attendees (one query, not
+    /// LoadAsync's full reload — see SetRsvpAsync's remarks on why that was too slow per tap). The
+    /// write already succeeded, so a failed refetch stays silent. A refetch that a newer tap
+    /// overtook is dropped rather than rolling the UI back (SECURITY_AUDIT.md #4).</summary>
+    private async Task ApplyAttendeeUpdateAsync(Guid eventId, EventAttendee updated)
+    {
+        ApplyAttendeeUpdate(eventId, updated);
+        try
+        {
+            var versionAtStart = attendeeWriteVersion;
+            var fetched = await eventsRepository.GetAttendeesAsync(eventId);
+            if (versionAtStart != attendeeWriteVersion) return;
+
+            attendeesByEvent[eventId] = fetched;
+            Rebuild();
+        }
+        catch { /* keep the local patch */ }
     }
 
     [RelayCommand]

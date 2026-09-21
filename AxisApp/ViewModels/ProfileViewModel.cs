@@ -30,6 +30,7 @@ public partial class ProfileViewModel : BaseViewModel
     private readonly IAvatarsRepository avatarsRepository;
     private readonly IAuthService authService;
     private readonly ICalendarSubscriptionsRepository calendarSubscriptionsRepository;
+    private readonly ISecretClipboardService secretClipboardService;
 
     private Member? myMember;
     private CalendarSubscription? calendarSubscription;
@@ -55,12 +56,14 @@ public partial class ProfileViewModel : BaseViewModel
         IMembersRepository membersRepository,
         IAvatarsRepository avatarsRepository,
         IAuthService authService,
-        ICalendarSubscriptionsRepository calendarSubscriptionsRepository)
+        ICalendarSubscriptionsRepository calendarSubscriptionsRepository,
+        ISecretClipboardService secretClipboardService)
     {
         this.membersRepository = membersRepository;
         this.avatarsRepository = avatarsRepository;
         this.authService = authService;
         this.calendarSubscriptionsRepository = calendarSubscriptionsRepository;
+        this.secretClipboardService = secretClipboardService;
 
         UserEmail = authService.CurrentEmail ?? "";
         selectedLanguageOverride = LocalizationResourceManager.Instance.CurrentOverride;
@@ -213,7 +216,7 @@ public partial class ProfileViewModel : BaseViewModel
     private Task CopyCalendarLink() => RunSafeAsync(async () =>
     {
         if (string.IsNullOrEmpty(CalendarFeedUrl)) return;
-        await Clipboard.Default.SetTextAsync(CalendarFeedUrl);
+        await secretClipboardService.CopyAsync(CalendarFeedUrl);
         await TryShowToast(LocalizationResourceManager.Instance["Profile_CalendarLinkCopied"]);
     });
 

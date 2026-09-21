@@ -13,7 +13,9 @@ export function AppHeader({ title, backTo }: { title: string; backTo?: string })
   const goBackTo = useGoBackTo()
 
   async function handleLogout() {
-    await supabase.auth.signOut()
+    // Local scope: the default ('global') revokes every session the account has, so logging out of the
+    // web app would also log the phone out (see SupabaseAuthService.SignOutAsync).
+    await supabase.auth.signOut({ scope: 'local' })
     navigate('/login')
   }
 

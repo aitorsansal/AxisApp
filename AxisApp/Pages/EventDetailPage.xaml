@@ -58,6 +58,7 @@
                         <!-- Date/location + description -->
                         <VerticalStackLayout Spacing="{StaticResource SpacingXS}">
                             <Label Text="{Binding SubCaption}" Style="{StaticResource LabelTertiary}" />
+                            <Label Text="{Binding UpdatedCaption}" Style="{StaticResource LabelTertiary}" FontSize="{StaticResource TypeCaption}" />
                             <VerticalStackLayout Spacing="{StaticResource SpacingXS}" IsVisible="{Binding HasDescription}">
                                 <Label Text="{loc:Translate EventDetail_Description}" Style="{StaticResource SectionHeaderTertiary}" Margin="0,4,0,0" />
                                 <Label Text="{Binding Description}" />

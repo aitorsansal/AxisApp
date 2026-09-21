@@ -2400,6 +2400,38 @@ create trigger protect_rsvp_keys
   before update on public.event_attendees
   for each row execute function public.protect_rsvp_keys();
 
+-- Atomic RSVP write for the MAUI app (upsert_rsvp.sql, SECURITY_AUDIT.md #12). Security invoker on
+-- purpose: the insert/update-your-own-RSVP policies above apply exactly as they do to the web app's
+-- PostgREST upsert. A "not_going" response clears the car status and seats.
+create or replace function public.upsert_rsvp(
+  p_event_id uuid,
+  p_member_id uuid,
+  p_response text,
+  p_car_status text default 'none',
+  p_car_offered_seats int default null
+)
+returns public.event_attendees
+language sql
+as $$
+  insert into public.event_attendees as ea (event_id, member_id, response, car_status, car_offered_seats)
+  values (
+    p_event_id,
+    p_member_id,
+    p_response,
+    case when p_response = 'not_going' then 'none' else p_car_status end,
+    case when p_response = 'not_going' then null else p_car_offered_seats end
+  )
+  on conflict (event_id, member_id) do update
+    set response = excluded.response,
+        car_status = excluded.car_status,
+        car_offered_seats = excluded.car_offered_seats,
+        updated_at = now()
+  returning ea.*;
+$$;
+
+revoke execute on function public.upsert_rsvp(uuid, uuid, text, text, int) from public, anon;
+grant execute on function public.upsert_rsvp(uuid, uuid, text, text, int) to authenticated;
+
 -- ============================================================
 -- Event notifications — Phase 2, Milestone 5 (2026-09-07, see
 -- /EVENTS_PLAN.md). Creation/change/cancellation are immediate triggers;

@@ -35,10 +35,21 @@ public class BalancesWidgetRemoteViewsFactory : Java.Lang.Object, RemoteViewsSer
     {
     }
 
+    /// <summary>Runs on a system thread pool thread, so an exception escaping here isn't caught by
+    /// anything and takes the whole app process down (seen live: a transient PGRST303 "JWT issued at
+    /// future" from Supabase crashed the app from a background widget refresh — as would simply being
+    /// offline). Any failure keeps the last good rows on screen instead.</summary>
     public void OnDataSetChanged()
     {
-        var scope = WidgetGroupScope.Get(context, appWidgetId);
-        rows = BalancesWidgetDataProvider.GetSnapshotAsync(scope).GetAwaiter().GetResult();
+        try
+        {
+            var scope = WidgetGroupScope.Get(context, appWidgetId);
+            rows = BalancesWidgetDataProvider.GetSnapshotAsync(scope).GetAwaiter().GetResult();
+        }
+        catch (System.Exception ex)
+        {
+            Android.Util.Log.Warn("AxisWidget", $"Balances widget refresh failed, keeping last data: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     public void OnDestroy() => rows = [];

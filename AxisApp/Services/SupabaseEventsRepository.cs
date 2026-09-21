@@ -64,47 +64,42 @@ public class SupabaseEventsRepository : IEventsRepository
         return result.Models;
     }
 
-    /// <summary>Checks for an existing row via an explicit event_id+member_id Filter before
-    /// deciding insert vs. update — never trusts Update(model)'s implicit primary-key match, same
-    /// footgun SupabaseExpensesRepository.UpdateAsync already documents for the identical
-    /// composite-key shape (EventAttendee only marks EventId with [PrimaryKey]).</summary>
+    /// <summary>Single atomic write through the upsert_rsvp() RPC (see supabase/upsert_rsvp.sql). This
+    /// used to SELECT the (event, member) row and then INSERT or UPDATE it, so two concurrent RSVPs
+    /// from one member could both see "no row" and the second INSERT hit the primary-key violation.
+    /// The function runs as the caller, so the RSVP RLS policies apply exactly as before, and it
+    /// applies the "not_going clears the car" coupling itself.
+    ///
+    /// Not a client-side Upsert(model): that would send created_at/updated_at from a model whose
+    /// timestamps default to year 1 and overwrite the stored ones on conflict. The RPC returns the
+    /// stored row as JSON, parsed by hand rather than through the Postgrest serializer.</summary>
     public async Task<EventAttendee> UpsertRsvpAsync(
         Guid eventId, Guid memberId, string response, string carStatus = "none", int? carOfferedSeats = null)
     {
-        if (response == "not_going")
+        var result = await client.Rpc("upsert_rsvp", new Dictionary<string, object?>
         {
-            carStatus = "none";
-            carOfferedSeats = null;
-        }
+            ["p_event_id"] = eventId.ToString(),
+            ["p_member_id"] = memberId.ToString(),
+            ["p_response"] = response,
+            ["p_car_status"] = carStatus,
+            ["p_car_offered_seats"] = carOfferedSeats
+        });
 
-        var existing = await client.From<EventAttendee>()
-            .Filter("event_id", Constants.Operator.Equals, eventId.ToString())
-            .Filter("member_id", Constants.Operator.Equals, memberId.ToString())
-            .Single();
+        using var doc = System.Text.Json.JsonDocument.Parse(
+            result.Content ?? throw new InvalidOperationException("upsert_rsvp returned no row."));
+        var row = doc.RootElement;
+        if (row.ValueKind == System.Text.Json.JsonValueKind.Array) row = row[0];
 
-        if (existing is not null)
+        var seats = row.GetProperty("car_offered_seats");
+        return new EventAttendee
         {
-            existing.Response = response;
-            existing.CarStatus = carStatus;
-            existing.CarOfferedSeats = carOfferedSeats;
-            existing.UpdatedAt = DateTime.UtcNow;
-
-            var updated = await client.From<EventAttendee>()
-                .Filter("event_id", Constants.Operator.Equals, eventId.ToString())
-                .Filter("member_id", Constants.Operator.Equals, memberId.ToString())
-                .Update(existing);
-            return updated.Model!;
-        }
-
-        var attendee = new EventAttendee
-        {
-            EventId = eventId,
-            MemberId = memberId,
-            Response = response,
-            CarStatus = carStatus,
-            CarOfferedSeats = carOfferedSeats
+            EventId = row.GetProperty("event_id").GetGuid(),
+            MemberId = row.GetProperty("member_id").GetGuid(),
+            Response = row.GetProperty("response").GetString()!,
+            CarStatus = row.GetProperty("car_status").GetString()!,
+            CarOfferedSeats = seats.ValueKind == System.Text.Json.JsonValueKind.Null ? null : seats.GetInt32(),
+            CreatedAt = row.GetProperty("created_at").GetDateTimeOffset().UtcDateTime,
+            UpdatedAt = row.GetProperty("updated_at").GetDateTimeOffset().UtcDateTime
         };
-        var inserted = await client.From<EventAttendee>().Insert(attendee);
-        return inserted.Model!;
     }
 }

@@ -134,7 +134,12 @@ public class SupabaseAuthService : IAuthService
         return result;
     }
 
-    public async Task SignOutAsync() => await client.Auth.SignOut();
+    /// <summary>Local scope on purpose: the SDK's default is Global, which revokes every refresh token
+    /// the account has — signing out on the PC silently logged the phone out too (found live: a
+    /// /logout from one device was followed, hours later, by the phone's next background refresh
+    /// failing with refresh_token_not_found and wiping its session). Local ends only this device's
+    /// session server-side.</summary>
+    public async Task SignOutAsync() => await client.Auth.SignOut(Supabase.Gotrue.Constants.SignOutScope.Local);
 
     /// <summary>client.Auth.Update(UserAttributes) — confirmed against a real reflection probe of
     /// the installed Supabase.Gotrue 6.3.0 package (Task&lt;User&gt; Update(UserAttributes), not
