@@ -174,6 +174,31 @@ block that ends in a raised exception (guaranteed rollback; a follow-up query co
 Not exercised live: `remove_group_member`'s new branch (same code shape as `leave_group`, but no phantom
 with pairwise-only debts exists in live data), and the receipt policies against a real non-UUID upload path.
 
+### Client batch (app / web code, 2026-09-21 — builds clean on both targets; Windows sign-in confirmed working in a Debug build, the rest not yet run)
+
+Former open items #3, #7, #10, #11.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| Medium | Windows Google sign-in (implicit flow, fixed port, no state): any web page open in the user's browser could send its own tokens to `localhost:48291` during the 2-minute window and the app adopted that session (login CSRF) | Rewritten as hand-built PKCE (`Platforms/Windows/GoogleAuthService.cs`): random `code_verifier` stays in-process, only its SHA-256 challenge goes in the authorize URL, the `?code=` on the loopback redirect is redeemed at `POST /auth/v1/token?grant_type=pkce`. An injected code was issued against the attacker's challenge, so the exchange fails. The fragment-extractor page is gone. Stray requests (favicon, probes) get a 404 and don't consume the listener |
+| Low | Android Google sign-in had no nonce | Hashed nonce to `GetGoogleIdOption.SetNonce`, raw nonce to `SignInWithIdToken(nonce:)` (the parameter exists in the installed gotrue) |
+| Low | `allowBackup="true"` copied the SecureStorage prefs (the Supabase session) into backups | `allowBackup="false"`. Chosen over an exclude-rules XML because the exact SharedPreferences file name for SecureStorage couldn't be confirmed from the DLL; the only other local state is per-device display prefs that are deliberately not synced |
+| Low | Password-reset page left the recovery token in browser history | `history.replaceState` when `PASSWORD_RECOVERY` fires. Whether the JS client itself already pushed a token-less entry over the top wasn't checked |
+
+**Deviation from the original #3 fix note** ("random `state`, `GetUser` before `SetSession`, random port"):
+none of those works. Supabase's implicit flow doesn't round-trip a client-supplied `state`; a nonce in the
+loopback page doesn't help when an attacker can navigate the browser to the loopback URL with their own
+fragment; a random port needs wildcard `localhost` entries in the redirect allow-list (which #6 wants
+*removed*). PKCE by hand is what the SDK failed at originally (`bad_oauth_state`, see the class remarks),
+but the hand-built version signed in successfully on Windows (Debug build, 2026-09-21), so that failure was
+in the SDK's state handling, not server-side. Not tested: a Release build, or an injected `?code=` from
+another page (expected to fail the exchange, since it was issued against a different challenge).
+
+Still needs a real run: Android Google sign-in (Supabase's Google provider must not have "Skip nonce
+checks" in a state that rejects a present nonce), and a password-reset link in a real browser (confirm the
+address bar / back-stack no longer carries the token). The reset page's
+hardcoded `password.length < 6` needs to move in step with #6's minimum-length change.
+
 ### Notification Settle action and session refresh (app code)
 
 - `NotificationActionReceiver.HandleSettleAsync` settles `min(my share in group currency, current
@@ -239,9 +264,6 @@ Numbering is kept from the original list, so gaps are items that moved to "Fixed
 
 ### Medium
 
-3. **Windows Google sign-in** (`AxisApp/Platforms/Windows/GoogleAuthService.cs`): implicit flow, fixed
-   port 48291, no `state` — any open web page can inject its own tokens during the 2-minute window
-   (login CSRF). Fix: random `state` round-tripped and checked, `GetUser` before `SetSession`, random port.
 4. **Stale RSVP counts** (`AxisApp/ViewModels/EventDetailViewModel.cs`): loads only on navigation /
    pull-to-refresh; RSVP taps patch a stale cached list. Fix: re-fetch attendees after each write,
    reload on resume if older than ~60s, show "updated X min ago".
@@ -254,16 +276,10 @@ Numbering is kept from the original list, so gaps are items that moved to "Fixed
    minimum password length 6 and leaked-password protection off; legacy JWT API keys still enabled
    (migrate the Vault `service_role_key` to the new secret key first); Vault still holds an unused copy of
    the Firebase service-account key (`firebase_service_account`).
-7. **Android Google sign-in has no nonce** (`AxisApp/Platforms/Android/GoogleAuthService.cs`). Fix: hashed
-    nonce to `GetGoogleIdOption.SetNonce`, raw nonce to `SignInWithIdToken`.
 8. **Long-lived secrets copied to the clipboard** (`ProfileViewModel.cs` calendar feed URL,
     `InviteToGroupViewModel.cs` invite URL). Fix: share sheet, or `EXTRA_IS_SENSITIVE` on Android 13+.
 9. **`MainActivity` acts on intent extras from any app** (`AxisApp/Platforms/Android/MainActivity.cs`,
     `HandleIntent`) — spoofable screen titles, RLS still protects data.
-10. **`android:allowBackup="true"`** (`AxisApp/Platforms/Android/AndroidManifest.xml`) includes the
-    SecureStorage prefs; a restored session can't be decrypted on a new device. Exclude them from backup.
-11. **Password-reset page leaves the recovery token in browser history** (`web/reset/index.html`).
-    Fix: `history.replaceState` after `PASSWORD_RECOVERY`.
 12. **RSVP save reads then inserts** (`AxisApp/Services/SupabaseEventsRepository.cs` `UpsertRsvpAsync`):
     concurrent RSVPs can hit a primary-key error. Fix: real upsert through a small RPC.
 16. **Invite App Links for locally installed builds**: add `axisapp.keystore`'s SHA-256

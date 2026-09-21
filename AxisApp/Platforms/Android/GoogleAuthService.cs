@@ -6,6 +6,8 @@ using Google.Android.Libraries.Identity.GoogleId;
 using Java.Lang;
 using Java.Util.Concurrent;
 using Microsoft.Maui.ApplicationModel;
+using System.Security.Cryptography;
+using System.Text;
 using Object = Java.Lang.Object;
 
 namespace AxisApp;
@@ -51,9 +53,17 @@ public class GoogleAuthService : IGoogleAuthService
     {
         var context = Platform.CurrentActivity ?? throw new InvalidOperationException("No current Activity.");
 
+        // Ties the ID token to this sign-in attempt (SECURITY_AUDIT.md #7): Google embeds whatever
+        // is passed to SetNonce as the token's `nonce` claim, and Supabase recomputes
+        // hex(SHA-256(rawNonce)) and compares — so a token minted for some other request, or
+        // replayed from elsewhere, is rejected. The hash goes to Google, the raw value to Supabase.
+        var rawNonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+        var hashedNonce = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(rawNonce))).ToLowerInvariant();
+
         var googleIdOption = new GetGoogleIdOption.Builder()
             .SetFilterByAuthorizedAccounts(false)
             .SetServerClientId(SupabaseConfig.GoogleWebClientId)
+            .SetNonce(hashedNonce)
             .Build();
 
         var request = new GetCredentialRequest.Builder()
@@ -88,7 +98,7 @@ public class GoogleAuthService : IGoogleAuthService
 
         try
         {
-            await client.Auth.SignInWithIdToken(Supabase.Gotrue.Constants.Provider.Google, credential.IdToken!);
+            await client.Auth.SignInWithIdToken(Supabase.Gotrue.Constants.Provider.Google, credential.IdToken!, nonce: rawNonce);
             return new AuthResult(true);
         }
         catch (System.Exception ex)

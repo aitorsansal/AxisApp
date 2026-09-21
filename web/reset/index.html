@@ -126,6 +126,9 @@
     if (event === 'PASSWORD_RECOVERY' && session) {
       recoveryReady = true;
       form.hidden = false;
+      // The token arrived in the URL fragment; the session is already held in memory, so drop it
+      // from this history entry rather than leaving a live recovery link in the browser history.
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* non-fatal */ }
     }
   });
 
