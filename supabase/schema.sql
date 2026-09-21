@@ -309,6 +309,10 @@ as $$
       and gm.group_id = p_group_id
   );
 $$;
+-- Never consults auth.uid(), so unlike the other is_* helpers it would hand anon an oracle
+-- (audit_followups.sql).
+revoke execute on function public.is_phantom_in_group(uuid, uuid) from public, anon;
+grant execute on function public.is_phantom_in_group(uuid, uuid) to authenticated;
 
 create policy "insert invites for your groups" on public.invites
   for insert with check (
@@ -1279,6 +1283,7 @@ as $$
 declare
   v_member_id uuid;
   v_balance numeric;
+  v_counterparties text;
 begin
   if auth.uid() is null then
     raise exception 'Not signed in';
@@ -1306,6 +1311,18 @@ begin
 
   if v_balance <> 0 then
     raise exception 'Settle your balance in this group before leaving';
+  end if;
+
+  -- Net zero against the pot doesn't mean no individual debts (audit_followups.sql):
+  -- otherwise those pairwise edges outlive the member and can never be settled.
+  select string_agg(o.display_name, ', ' order by o.display_name) into v_counterparties
+    from pairwise_balances pb
+    join members o on o.id = case when pb.member_a = v_member_id then pb.member_b else pb.member_a end
+   where pb.group_id = p_group_id
+     and v_member_id in (pb.member_a, pb.member_b);
+
+  if v_counterparties is not null then
+    raise exception 'Your overall balance is zero, but you still have individual debts with: %. Settle them (Detailed view) before leaving', v_counterparties;
   end if;
 
   delete from event_attendees ea
@@ -1399,6 +1416,7 @@ as $$
 declare
   v_target_account uuid;
   v_balance numeric;
+  v_counterparties text;
 begin
   if not is_group_member(p_group_id) then
     raise exception 'You are not a member of this group';
@@ -1424,6 +1442,16 @@ begin
 
   if v_balance <> 0 then
     raise exception 'Settle this member''s balance before removing them';
+  end if;
+
+  select string_agg(o.display_name, ', ' order by o.display_name) into v_counterparties
+    from pairwise_balances pb
+    join members o on o.id = case when pb.member_a = p_member_id then pb.member_b else pb.member_a end
+   where pb.group_id = p_group_id
+     and p_member_id in (pb.member_a, pb.member_b);
+
+  if v_counterparties is not null then
+    raise exception 'This member''s overall balance is zero, but they still have individual debts with: %. Settle them (Detailed view) before removing them', v_counterparties;
   end if;
 
   delete from group_members where group_id = p_group_id and member_id = p_member_id;
@@ -1543,22 +1571,36 @@ alter table public.members add constraint avatar_requires_account
 -- — not a new failure mode this design introduces.
 insert into storage.buckets (id, name, public) values ('receipts', 'receipts', false);
 
+-- Null for a non-UUID first path segment, so the policies below deny instead of raising 22P02
+-- from inside policy evaluation (audit_followups.sql). Default grants on purpose: the policies
+-- run for anon storage requests too.
+create or replace function public.receipt_folder_group_id(p_name text)
+returns uuid
+language sql
+stable
+as $$
+  select case
+    when (storage.foldername(p_name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then (storage.foldername(p_name))[1]::uuid
+  end;
+$$;
+
 create policy "group members can view receipts" on storage.objects
   for select using (
     bucket_id = 'receipts'
-    and is_group_member((storage.foldername(name))[1]::uuid)
+    and is_group_member(receipt_folder_group_id(name))
   );
 
 create policy "group members can upload receipts" on storage.objects
   for insert with check (
     bucket_id = 'receipts'
-    and is_group_member((storage.foldername(name))[1]::uuid)
+    and is_group_member(receipt_folder_group_id(name))
   );
 
 create policy "group members can delete receipts" on storage.objects
   for delete using (
     bucket_id = 'receipts'
-    and is_group_member((storage.foldername(name))[1]::uuid)
+    and is_group_member(receipt_folder_group_id(name))
   );
 
 -- ============================================================
@@ -2080,7 +2122,10 @@ create trigger on_auth_user_created_provision_member
 -- ============================================================
 
 create table public.allowed_signup_emails (
-  email text primary key
+  email text primary key,
+  -- The trigger below compares against lower(new.email); a mixed-case row would never match
+  -- (audit_followups.sql).
+  constraint allowed_signup_emails_email_normalized check (email = lower(btrim(email)))
 );
 
 alter table public.allowed_signup_emails enable row level security;
@@ -3478,9 +3523,15 @@ create index if not exists expense_history_group_id_idx on public.expense_histor
 alter table public.expense_history enable row level security;
 
 -- Read-only for current group members; rows are only ever written by the trigger below.
+-- After a dissolve the group's members are gone and its expenses have group_id null, so the
+-- payer / share-holders of the surviving expense keep read access via is_unscoped_expense_party
+-- (audit_followups.sql). History of an expense deleted before the dissolve stays unreadable.
 drop policy if exists "select expense history in your groups" on public.expense_history;
 create policy "select expense history in your groups" on public.expense_history
-  for select to authenticated using (group_id is not null and is_group_member(group_id));
+  for select to authenticated using (
+    (group_id is not null and is_group_member(group_id))
+    or is_unscoped_expense_party(expense_id)
+  );
 
 -- Security definer: callers have no insert policy on expense_history. auth.uid()
 -- still reads the caller's JWT claims, so changed_by is the real person (null for

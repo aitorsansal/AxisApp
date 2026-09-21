@@ -20,6 +20,10 @@ outside the repo, and what's still open. Update the "Still open" list as items g
   sorting before `protect_expense_columns` (and the share equivalents), or converted amounts break.
 - **`group_members` has no DELETE policy on purpose.** Removal only goes through `leave_group()` /
   `remove_group_member()` (both SECURITY DEFINER). Its INSERT policy is phantom-only.
+- **Leave / remove gates check pairwise edges, not just the pot net** (`leave_group`,
+  `remove_group_member`). A net of zero doesn't mean no individual debts, and an edge naming someone
+  who's no longer a member can't be settled (`enforce_*_in_group`). Keep both checks if either function
+  is rewritten.
 - **Phantom claims:** any member may create a claim invite, but `redeem_invite()` rejects redeemers
   who already belong to any group the phantom is in. One claim still carries over all linked groups
   (by design). Accepted residual risk: a member could pass a claim code to an outside, allowlisted
@@ -140,6 +144,36 @@ share-member check only fires for someone being added (`not exists (... expense_
 es.expense_id = v_id ...)`), which is the same rule `enforce_share_member_in_group` used, but no live
 group currently has a departed participant to exercise it against.
 
+### Audit follow-ups — `supabase/audit_followups.sql` (applied live and verified 2026-09-21, folded into `schema.sql`)
+
+Former open items #1, #2, #13, #14, #15.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| Medium | Leaving / removing a member gated only on the pot net, so a member with net 0 but real pairwise debts (A pays 100 split A/B, B pays 100 split B/C: B nets 0) could leave, stranding two unsettleable edges | `leave_group` / `remove_group_member` also refuse while any `pairwise_balances` edge is non-zero, naming the counterparties in the error (Simplified mode shows no balance, so a bare "settle your balance" would read as a bug) |
+| Medium | Dissolve nulls `expenses.group_id` but the history read policy needed `is_group_member(group_id)`, so the group's whole `expense_history` became unreadable | Policy also allows `is_unscoped_expense_party(expense_id)`. Dissolve stays unguarded on purpose (the app already shows an explicit unsettled-balances confirm); no `dissolve_group()` RPC. Residual: history of an expense deleted *before* the dissolve stays unreadable |
+| Low | `is_phantom_in_group()` anon-executable and never consults `auth.uid()` | Revoked from `public, anon`. The other `is_*` helpers left alone: they resolve through `auth.uid()` and give anon nothing, and revoking would turn anon-hit policies into permission-denied errors |
+| Low | `allowed_signup_emails` could hold mixed-case rows that never match | Existing rows normalised, `check (email = lower(btrim(email)))` |
+| Low | Receipt policies cast a raw path segment to uuid, raising `22P02` inside policy evaluation | `receipt_folder_group_id()` returns null for non-UUIDs; the three policies use it |
+
+Pre-apply on live data: 0 stranded pairwise edges, 0 mixed-case allow-list rows.
+Post-apply state: both RPCs reference `pairwise_balances`, stay SECURITY DEFINER and not anon-executable;
+`is_phantom_in_group` anon = false / authenticated = true; history policy has the party branch; 3
+receipt policies use `receipt_folder_group_id`; email check constraint present; `receipt_folder_group_id('not-a-uuid/x.webp')` is null.
+
+Behavior verified live as the real `TestGroupForEvents` accounts, in a throwaway group inside a `DO`
+block that ends in a raised exception (guaranteed rollback; a follow-up query confirmed nothing persisted):
+
+| Check | Result |
+|---|---|
+| A pays 100 split A/B, B pays 100 split B/C: B's pot net | 0.00, with 2 pairwise edges |
+| B `leave_group` | refused: "Your overall balance is zero, but you still have individual debts with: Aitor, test@gmail.com. Settle them (Detailed view) before leaving" |
+| After both edges settled via settlement expenses, B `leave_group` | allowed, B gone from `group_members` |
+| Group dissolved (expenses go unscoped) | history rows for an edited expense: payer 1, share-holder 1, uninvolved member 0 |
+
+Not exercised live: `remove_group_member`'s new branch (same code shape as `leave_group`, but no phantom
+with pairwise-only debts exists in live data), and the receipt policies against a real non-UUID upload path.
+
 ### Notification Settle action and session refresh (app code)
 
 - `NotificationActionReceiver.HandleSettleAsync` settles `min(my share in group currency, current
@@ -201,24 +235,9 @@ in `assetlinks.json`, so invite App Links won't auto-verify for those local buil
 
 Ordered by severity. Locations are relative to the repo root.
 
-### Medium
+Numbering is kept from the original list, so gaps are items that moved to "Fixed".
 
-1. **Leaving strands pairwise debts** (`supabase/schema.sql`, `leave_group` / `remove_group_member`):
-   both gate on the member's `group_balances` net (against the whole pot) being zero, which doesn't
-   imply their *pairwise* debts are zero — and Pairwise is a first-class display mode. Reachable with
-   three members: A pays 100 split A/B; B pays 100 split B/C. B's net is `+100 − 50 − 50 = 0`, so B may
-   leave while owing A 50 and being owed 50 by C. Those rows survive (`pairwise_balances` never joins
-   `group_members`) and become **unsettleable**: a settle-up naming B is refused by
-   `enforce_payer_in_group` / `enforce_share_member_in_group`. Simplified mode recovers (A +50 / C −50);
-   Pairwise shows two dead debts. Fix: check pairwise edges, not just the pot net, in both functions —
-   or allow an ex-member specifically on `is_settlement` rows so stranded debts stay clearable.
-2. **Dissolve loses the audit trail** (`supabase/schema.sql`, `delete own groups` +
-   `select expense history in your groups`): dissolve is owner-only with no balance guard (deliberate,
-   client-side confirm only), but it sets `expenses.group_id = null` while `record_expense_history`
-   stores `old.group_id` and the history SELECT policy requires `group_id is not null` — so the whole
-   group's `expense_history` becomes permanently unreadable at exactly the moment members want it.
-   Fix: widen the history read policy with `is_unscoped_expense_party(expense_id)`, and/or replace the
-   delete policy with a `dissolve_group()` RPC that refuses while any balance is non-zero.
+### Medium
 
 3. **Windows Google sign-in** (`AxisApp/Platforms/Windows/GoogleAuthService.cs`): implicit flow, fixed
    port 48291, no `state` — any open web page can inject its own tokens during the 2-minute window
@@ -247,18 +266,6 @@ Ordered by severity. Locations are relative to the repo root.
     Fix: `history.replaceState` after `PASSWORD_RECOVERY`.
 12. **RSVP save reads then inserts** (`AxisApp/Services/SupabaseEventsRepository.cs` `UpsertRsvpAsync`):
     concurrent RSVPs can hit a primary-key error. Fix: real upsert through a small RPC.
-13. **`is_phantom_in_group()` is anon-executable** (`supabase/schema.sql`): SECURITY DEFINER and, unlike
-    the other `is_*` helpers, never consults `auth.uid()` — so `anon` can use it as an oracle for
-    "is this member id a phantom in this group". Needs both UUIDs, so it's negligible in practice, but
-    it's the one helper the earlier `revoke ... from public, anon` pass didn't cover. Fix: revoke it
-    (and the other helpers, for consistency).
-14. **Signup allow-list is case-sensitive on the stored side** (`supabase/schema.sql`,
-    `restrict_signup_to_allowlist`): compares `email = lower(new.email)` but nothing normalises
-    `allowed_signup_emails.email`, so a row inserted as `Friend@Gmail.com` never matches. Not a bypass
-    (unlisted emails are always rejected) — a lockout footgun. Fix: `check (email = lower(email))`.
-15. **Receipt storage policies cast an unvalidated path segment** (`supabase/schema.sql`):
-    `(storage.foldername(name))[1]::uuid` raises `22P02` from inside policy evaluation when the first
-    path segment isn't a UUID, instead of denying. Error-shape only. Fix: guard the cast.
 16. **Invite App Links for locally installed builds**: add `axisapp.keystore`'s SHA-256
     (`CF:F3:F3:3C:3A:85:9F:1B:36:5A:51:1C:F4:3A:E2:9A:22:5A:9E:17:61:42:B0:2C:FF:1A:8E:29:09:2B:49:F5`)
     to `web/.well-known/assetlinks.json` if direct installs should open invite links in-app.
