@@ -154,7 +154,7 @@ public partial class GroupExpensesViewModel : BaseViewModel
     public Task LoadAsync(Guid groupId) => RunSafeAsync(async () =>
     {
         this.groupId = groupId;
-        isPairwiseMode = Microsoft.Maui.Storage.Preferences.Default.Get(PreferenceKey, false);
+        isPairwiseMode = Microsoft.Maui.Storage.Preferences.Default.Get(PreferenceKey, true);
         IsBusy = true;
         var isFirstLoad = !hasLoadedOnce;
         IsInitialLoading = isFirstLoad;

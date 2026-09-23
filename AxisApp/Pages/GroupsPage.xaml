@@ -153,7 +153,7 @@
                                         LineBreakMode="TailTruncation"
                                         MaxLines="1" />
 
-                                    <controls:AnimatedValueLabel
+                                    <Label
                                         Grid.Row="0" Grid.Column="2"
                                         Text="{Binding BalanceAmountText}"
                                         FontSize="{StaticResource TypeBody}"
@@ -169,7 +169,7 @@
                                                 <Setter Property="TextColor" Value="{DynamicResource TextTertiary}" />
                                             </DataTrigger>
                                         </Label.Triggers>
-                                    </controls:AnimatedValueLabel>
+                                    </Label>
 
                                     <HorizontalStackLayout
                                         Grid.Row="1" Grid.Column="1"
