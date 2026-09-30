@@ -1,4 +1,5 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useRebuildDeepEntry } from '../lib/navigation'
 
@@ -27,7 +28,18 @@ function writeReturnTo(value: string | null) {
 export function ProtectedRoute() {
   const { session, loading } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   useRebuildDeepEntry(!loading && !!session)
+
+  // Read here, cleared in the effect below — clearing during render would lose the value if React
+  // renders this twice before the navigation commits.
+  const returnTo = !loading && session && location.pathname === '/' ? readReturnTo() : null
+
+  useEffect(() => {
+    if (!returnTo) return
+    writeReturnTo(null)
+    navigate(returnTo, { replace: true })
+  }, [returnTo, navigate])
 
   if (loading) return null
 
@@ -37,13 +49,7 @@ export function ProtectedRoute() {
     return <Navigate to="/login" replace />
   }
 
-  if (location.pathname === '/') {
-    const returnTo = readReturnTo()
-    if (returnTo) {
-      writeReturnTo(null)
-      return <Navigate to={returnTo} replace />
-    }
-  }
+  if (returnTo) return null
 
   return <Outlet />
 }
