@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useLocale } from '../context/LocaleContext'
 import { AppHeader } from '../components/AppHeader'
@@ -18,8 +18,10 @@ function extractCode(input: string): string {
 
 export function JoinGroupPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { t } = useLocale()
-  const [input, setInput] = useState('')
+  // Prefilled from an invite link's ?code= (web/invite's "Continue in the web app" button).
+  const [input, setInput] = useState(searchParams.get('code') ?? '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 

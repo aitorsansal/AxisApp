@@ -58,6 +58,7 @@
     background: var(--accent);
     color: #fff;
   }
+  .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
   .hint { font-size: 0.8rem; color: var(--muted); margin-top: 20px; margin-bottom: 0; }
 </style>
 </head>
@@ -68,12 +69,25 @@
     <p>Someone shared an event from a group on Axis, a shared-expense tracker for households and groups. Open the link in the app to see the details and RSVP.</p>
 
     <a class="btn" id="storeLink" href="#">Get Axis</a>
+    <a class="btn btn-secondary" id="webLink" href="#" style="display:none;">Continue in the web app</a>
 
     <p class="hint">Already have Axis installed? Open this link again from your phone and it'll take you straight to the event. You need to be a member of the group to see it.</p>
   </div>
 
 <script>
   document.getElementById('storeLink').href = 'https://play.google.com/store/apps/details?id=com.aitorsansal.axisapp';
+
+  // The web app (webapp/) has the same event at /groups/:groupId/events/:eventId. Only offered when
+  // both ids look like UUIDs, so a mangled link can't build an arbitrary path.
+  var params = new URLSearchParams(window.location.search);
+  var group = params.get('group');
+  var id = params.get('id');
+  var uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (group && id && uuid.test(group) && uuid.test(id)) {
+    var webLink = document.getElementById('webLink');
+    webLink.href = 'https://app.axisapp.aitorsansal.com/groups/' + group + '/events/' + id;
+    webLink.style.display = 'block';
+  }
 </script>
 </body>
 </html>

@@ -84,6 +84,7 @@
 
     <a class="btn btn-primary" id="storeLink" href="#">Get Axis</a>
     <button class="btn btn-secondary" id="copyBtn" type="button">Copy invite code</button>
+    <a class="btn btn-secondary" id="webLink" href="#" style="display:none;">Continue in the web app</a>
 
     <p class="hint">Already have Axis installed? Open this link again from your phone and it'll take you straight to the group.</p>
   </div>
@@ -95,6 +96,10 @@
 
   if (code) {
     codeBox.textContent = code;
+    // The web app's /join page prefills the code from ?code=.
+    var webLink = document.getElementById('webLink');
+    webLink.href = 'https://app.axisapp.aitorsansal.com/join?code=' + encodeURIComponent(code);
+    webLink.style.display = 'block';
   } else {
     codeBox.style.display = 'none';
     copyBtn.style.display = 'none';
