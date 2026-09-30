@@ -93,6 +93,12 @@ namespace AxisApp
         /// session yet (see isReadyToNavigate's remarks).</summary>
         public static void HandleDeepLink(string uriString)
         {
+            if (AppConstants.Links.TryExtractEvent(uriString) is var (groupId, eventId))
+            {
+                QueueOrNavigate($"{AppConstants.Routes.EventDetail}?groupId={groupId}&eventId={eventId}");
+                return;
+            }
+
             var code = AppConstants.Links.TryExtractCode(uriString);
             if (code is not null)
                 QueueOrNavigate($"{AppConstants.Routes.JoinGroup}?code={Uri.EscapeDataString(code)}");

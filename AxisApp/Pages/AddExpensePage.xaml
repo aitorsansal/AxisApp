@@ -283,6 +283,14 @@
                     </CollectionView>
                 </VerticalStackLayout>
 
+                <!-- Event link: optional; hidden for recurring/settle-up or a group with no events. -->
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding ShowEventPicker}">
+                    <Label Text="{loc:Translate AddExpense_Event}" Style="{StaticResource SectionHeaderTertiary}" />
+                    <Border Style="{StaticResource InputBorderStyle}">
+                        <Picker ItemsSource="{Binding EventOptions}" SelectedIndex="{Binding SelectedEventIndex}" BackgroundColor="Transparent" />
+                    </Border>
+                </VerticalStackLayout>
+
                 <!-- Repeat toggle: only offered in pure-add mode — an existing one-off Expense or
                      an existing RecurringExpense template can't be converted into the other. -->
                 <Border Style="{StaticResource InputBorderStyle}" IsVisible="{Binding CanToggleRecurring}">

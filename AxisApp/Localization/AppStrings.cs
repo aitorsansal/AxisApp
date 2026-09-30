@@ -162,6 +162,8 @@ public static class AppStrings
         ["AddExpense_Manually"] = "Manually",
         ["AddExpense_Remaining"] = "Remaining: {0:0.00}",
         ["AddExpense_Category"] = "Category",
+        ["AddExpense_Event"] = "Event (optional)",
+        ["AddExpense_NoEvent"] = "No event",
         ["AddExpense_Repeat"] = "Repeat",
         ["AddExpense_Frequency"] = "Frequency",
         ["AddExpense_ReceiptPhoto"] = "Add receipt photo (optional)",
@@ -262,6 +264,9 @@ public static class AppStrings
         ["InviteToGroup_NewLinkCopied"] = "New invite link for {0} copied",
         ["InviteToGroup_ShareText"] = "Join my group \"{0}\": {1}",
         ["InviteToGroup_ShareTitle"] = "Invite to Axis",
+        ["EventDetail_ShareText"] = "I've created a new event: \"{0}\". Check it out and RSVP: {1}",
+        ["EventDetail_ShareTitle"] = "Share event",
+        ["EventDetail_NotFound"] = "This event doesn't exist or you're not a member of its group.",
 
         // Members
         ["Members_SectionHeader"] = "Members",
@@ -469,6 +474,8 @@ public static class AppStrings
         ["AddExpense_Manually"] = "Manual",
         ["AddExpense_Remaining"] = "Restante: {0:0.00}",
         ["AddExpense_Category"] = "Categoría",
+        ["AddExpense_Event"] = "Evento (opcional)",
+        ["AddExpense_NoEvent"] = "Sin evento",
         ["AddExpense_Repeat"] = "Repetir",
         ["AddExpense_Frequency"] = "Frecuencia",
         ["AddExpense_ReceiptPhoto"] = "Añadir foto del recibo (opcional)",
@@ -568,6 +575,9 @@ public static class AppStrings
         ["InviteToGroup_NewLinkCopied"] = "Nuevo enlace de invitación para {0} copiado",
         ["InviteToGroup_ShareText"] = "Únete a mi grupo \"{0}\": {1}",
         ["InviteToGroup_ShareTitle"] = "Invitación a Axis",
+        ["EventDetail_ShareText"] = "He creado un nuevo evento: \"{0}\". Échale un vistazo y confirma tu asistencia: {1}",
+        ["EventDetail_ShareTitle"] = "Compartir evento",
+        ["EventDetail_NotFound"] = "Este evento no existe o no eres miembro de su grupo.",
 
         // Members
         ["Members_SectionHeader"] = "Miembros",

@@ -16,6 +16,14 @@ namespace AxisApp
         DataHost = "axisapp.aitorsansal.com",
         DataPathPrefix = "/invite",
         AutoVerify = true)]
+    // Same host/verification as the invite filter above, for AppConstants.Links.BuildEventUrl.
+    [IntentFilter(
+        new[] { Intent.ActionView },
+        Categories = new[] { Intent.CategoryDefault, Intent.CategoryBrowsable },
+        DataScheme = "https",
+        DataHost = "axisapp.aitorsansal.com",
+        DataPathPrefix = "/event",
+        AutoVerify = true)]
     public class MainActivity : MauiAppCompatActivity
     {
         protected override void OnCreate(Bundle? savedInstanceState)

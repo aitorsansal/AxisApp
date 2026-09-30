@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event on Axis</title>
+<style>
+  :root {
+    --bg: #0B1220;
+    --card: #121A2B;
+    --text: #E8ECF4;
+    --muted: #8A93A6;
+    --accent: #3D7EFF;
+    --accent2: #F5A623;
+    --border: #22304A;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px 28px;
+    text-align: center;
+  }
+  .mark {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    margin: 0 auto 20px;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 8px; }
+  p { color: var(--muted); line-height: 1.5; margin: 0 0 24px; font-size: 0.95rem; }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px 20px;
+    border-radius: 12px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: 12px;
+    font-family: inherit;
+    background: var(--accent);
+    color: #fff;
+  }
+  .hint { font-size: 0.8rem; color: var(--muted); margin-top: 20px; margin-bottom: 0; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <img class="mark" src="https://axisapp.aitorsansal.com/email-assets/icon.svg" width="48" height="48" alt="Axis">
+    <h1>You've been invited to an event on Axis</h1>
+    <p>Someone shared an event from a group on Axis, a shared-expense tracker for households and groups. Open the link in the app to see the details and RSVP.</p>
+
+    <a class="btn" id="storeLink" href="#">Get Axis</a>
+
+    <p class="hint">Already have Axis installed? Open this link again from your phone and it'll take you straight to the event. You need to be a member of the group to see it.</p>
+  </div>
+
+<script>
+  document.getElementById('storeLink').href = 'https://play.google.com/store/apps/details?id=com.aitorsansal.axisapp';
+</script>
+</body>
+</html>

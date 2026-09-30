@@ -233,14 +233,35 @@ public static class AppConstants
         /// BuildInviteUrl or the raw URI handed over by the platform's app-link Intent. Returns
         /// null for anything that isn't shaped like one (e.g. a bare code with no URL at all),
         /// so callers can fall back to treating the input as a plain code.</summary>
-        public static string? TryExtractCode(string uriString)
+        public static string? TryExtractCode(string uriString) =>
+            Uri.TryCreate(uriString, UriKind.Absolute, out var uri) ? GetQueryParam(uri, "code") : null;
+
+        /// <summary>Link to one event — https://InviteHost/event?group={groupId}&amp;id={eventId}.
+        /// Unlike an invite it carries no secret and grants nothing: it only navigates, and RLS
+        /// still decides whether the opener can see the event. Handled by MainActivity's "/event"
+        /// intent-filter and App.HandleDeepLink; web/event/index.html is the no-app fallback.</summary>
+        public static string BuildEventUrl(Guid groupId, Guid eventId) =>
+            $"https://{InviteHost}/event?group={groupId}&id={eventId}";
+
+        /// <summary>Parses a link built by BuildEventUrl (or the raw platform URI for one). Returns
+        /// null unless the path is /event and both ids are valid GUIDs.</summary>
+        public static (Guid GroupId, Guid EventId)? TryExtractEvent(string uriString)
         {
             if (!Uri.TryCreate(uriString, UriKind.Absolute, out var uri)) return null;
+            if (!uri.AbsolutePath.TrimEnd('/').Equals("/event", StringComparison.OrdinalIgnoreCase)) return null;
 
+            return Guid.TryParse(GetQueryParam(uri, "group"), out var groupId)
+                && Guid.TryParse(GetQueryParam(uri, "id"), out var eventId)
+                    ? (groupId, eventId)
+                    : null;
+        }
+
+        private static string? GetQueryParam(Uri uri, string key)
+        {
             foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
             {
                 var parts = pair.Split('=', 2);
-                if (parts.Length == 2 && parts[0] == "code")
+                if (parts.Length == 2 && parts[0] == key)
                     return Uri.UnescapeDataString(parts[1]);
             }
 

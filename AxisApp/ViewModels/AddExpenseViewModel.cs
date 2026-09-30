@@ -147,7 +147,60 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     /// "fixed at creation" treatment CanToggleRecurring already gives Recurring vs. one-off).
     /// Category and receipt don't apply to a settlement, so ShowMoneyExtras hides both.</summary>
     [ObservableProperty] private bool isSettlement;
-    [ObservableProperty] private bool showMoneyExtras = true;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEventPicker))]
+    private bool showMoneyExtras = true;
+
+    /// <summary>Picker entries: index 0 is "No event", index i maps to eventChoices[i - 1]. Only
+    /// the reference (editingEventId) changes when the selection does — participants/payer are
+    /// never rebuilt, so switching event never wipes a split the user already set up (the
+    /// "going"-only snapshot only applies when arriving from EventDetailPage's "+ Add expense").</summary>
+    private List<Event> eventChoices = [];
+    private bool syncingEventPicker;
+    [ObservableProperty] private ObservableCollection<string> eventOptions = [];
+    [ObservableProperty] private int selectedEventIndex;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEventPicker))]
+    private bool hasEvents;
+
+    /// <summary>Recurring templates and settle-ups have no event link to offer (ShowMoneyExtras is
+    /// false for both), and a group with no ordinary events has nothing to pick.</summary>
+    public bool ShowEventPicker => HasEvents && ShowMoneyExtras;
+
+    partial void OnSelectedEventIndexChanged(int value)
+    {
+        if (syncingEventPicker) return;
+        editingEventId = value >= 1 && value <= eventChoices.Count ? eventChoices[value - 1].Id : null;
+    }
+
+    /// <summary>Rebuilds the picker from the group's events and selects whichever one
+    /// editingEventId currently points at. Birthday events are skipped (nothing to spend on); an
+    /// already-linked event stays listed regardless, so editing never silently shows "No event"
+    /// for a real link. Newest first — recent events are the likely target.</summary>
+    private void BuildEventPicker(List<Event> events)
+    {
+        eventChoices = events
+            .Where(e => !e.IsBirthday || e.Id == editingEventId)
+            .OrderByDescending(e => e.StartsAt)
+            .ToList();
+
+        syncingEventPicker = true;
+        try
+        {
+            EventOptions = new ObservableCollection<string>(
+                eventChoices
+                    .Select(e => $"{e.Title} · {e.StartsAt.ToLocalTime():d MMM yyyy}")
+                    .Prepend(LocalizationResourceManager.Instance["AddExpense_NoEvent"]));
+
+            var index = editingEventId is { } id ? eventChoices.FindIndex(e => e.Id == id) : -1;
+            SelectedEventIndex = index + 1;
+            HasEvents = eventChoices.Count > 0;
+        }
+        finally
+        {
+            syncingEventPicker = false;
+        }
+    }
     [ObservableProperty] private string? receiptPath;
     [ObservableProperty] private string? receiptPreviewUrl;
     [ObservableProperty] private bool isReceiptBusy;
@@ -255,7 +308,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             var loadAliases = aliasesRepository.GetMyAliasesAsync();
             var loadGroup = groupsRepository.GetByIdAsync(groupId);
             var loadEventAttendees = editingEventId is { } forEvId ? eventsRepository.GetAttendeesAsync(forEvId) : Task.FromResult(new List<EventAttendee>());
-            await Task.WhenAll(loadMembers, loadExpense, loadShares, loadRecurring, loadRecurringShares, loadAliases, loadGroup, loadEventAttendees);
+            var loadEvents = eventsRepository.GetForGroupAsync(groupId);
+            await Task.WhenAll(loadMembers, loadExpense, loadShares, loadRecurring, loadRecurringShares, loadAliases, loadGroup, loadEventAttendees, loadEvents);
 
             var aliases = loadAliases.Result;
 
@@ -331,6 +385,9 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                 SetCurrencyByCode(loadGroup.Result.Currency);
                 RedistributeEqually();
             }
+
+            // After the existing-expense overlay above, so editingEventId is already final.
+            BuildEventPicker(loadEvents.Result);
             });
         }
         finally

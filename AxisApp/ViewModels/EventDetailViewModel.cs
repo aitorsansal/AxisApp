@@ -157,7 +157,13 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
                 await Task.WhenAll(loadEvent, loadAttendees, loadMembers, loadAliases, loadGroup, loadExpenses);
 
                 var ev = loadEvent.Result;
-                if (ev is null) return;
+                if (ev is null)
+                {
+                    // Also what someone outside the group sees from a shared event link — RLS
+                    // returns no row rather than an error.
+                    ErrorMessage = LocalizationResourceManager.Instance["EventDetail_NotFound"];
+                    return;
+                }
 
                 var members = loadMembers.Result;
                 membersById = members.ToDictionary(m => m.Id);
@@ -290,6 +296,18 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
         HasExpenses = allExpenses.Count > 0;
         HasNoSearchResults = trimmed.Length > 0 && filtered.Count == 0;
     }
+
+    [RelayCommand]
+    private Task ShareEvent() => RunSafeAsync(async () =>
+    {
+        if (currentEvent is null) return;
+        await Microsoft.Maui.ApplicationModel.DataTransfer.Share.Default.RequestAsync(new ShareTextRequest
+        {
+            Text = LocalizationResourceManager.Instance.Format(
+                "EventDetail_ShareText", currentEvent.Title, AppConstants.Links.BuildEventUrl(groupId, eventId)),
+            Title = LocalizationResourceManager.Instance["EventDetail_ShareTitle"]
+        });
+    });
 
     [RelayCommand]
     private Task EditEvent() => RunSafeAsync(() =>

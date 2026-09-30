@@ -42,6 +42,29 @@
                 VerticalOptions="Center" />
         </Border>
 
+        <!-- Share trigger: sits just left of the edit button above. -->
+        <Border
+            Grid.Row="0"
+            BackgroundColor="Transparent"
+            StrokeThickness="0"
+            WidthRequest="44" HeightRequest="44"
+            Padding="0"
+            HorizontalOptions="End"
+            VerticalOptions="Start">
+            <Border.Margin>
+                <Thickness Left="0" Top="{StaticResource SpacingXL}" Right="56" Bottom="0" />
+            </Border.Margin>
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding ShareEventCommand}" />
+            </Border.GestureRecognizers>
+            <Label
+                Text="&#128279;"
+                FontSize="{StaticResource TypeTitle}"
+                TextColor="{DynamicResource TextPrimary}"
+                HorizontalOptions="Center"
+                VerticalOptions="Center" />
+        </Border>
+
         <RefreshView Grid.Row="1" IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
             <ScrollView>
                 <VerticalStackLayout Padding="{StaticResource SpacingM}" Spacing="{StaticResource SpacingL}">
