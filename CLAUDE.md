@@ -2,13 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**See `CHANGELOG.md` for the full dated build history** — every feature's
-design rationale, real bugs hit and how they were fixed, and confirmation
-status. This file only holds current-state facts and architecture rules
-that need to be re-loaded every session; anything narrative/historical was
-moved out on 2026-09-10 to keep this file under control (was 150.9k chars).
-If a decision here seems to need more context on *why*, check CHANGELOG.md
-before assuming it's undocumented.
+This file holds current-state facts and architecture rules. `CHANGELOG.md`
+has the dated build history, design rationale and past bugs; check it before
+assuming a decision here is undocumented.
 
 ## Project Overview
 
@@ -56,11 +52,8 @@ What's actually left, in rough order:
    package manager before this causes real lockfile drift — both are kept
    in sync by hand for now); the web app is still missing receipts,
    recurring expenses, and a members roster/add-by-name flow. PWA install +
-   web push are implemented (see "Web app: PWA install + push
-   notifications" below) but **not yet activated** — `public/sw.js` still
-   has `REPLACE_ME` placeholders for the Firebase Web App config, no Web
-   app has been registered in the `axisapp-ee018` Firebase project yet, and
-   `web_push.sql` hasn't been run against the live database.
+   web push are implemented and live (see "Web app: PWA install + push
+   notifications" below).
 4. The merge-on-claim code path in `redeem_invite()` (see "One account, one
    member" below) is still not exercised against real data.
 
@@ -87,9 +80,8 @@ short:
   new account to the *existing* member row — their prior history stays
   attached, nothing is recreated.
 - **One account, one member row — an enforced invariant, not just a
-  convention** (fixed 2026-09-07 after real production data violated it;
-  see CHANGELOG.md's "One-account-one-member invariant fix" for the two
-  bugs and the merge-on-claim logic). `create_group()`/`redeem_invite()`
+  convention** (CHANGELOG.md's "One-account-one-member invariant fix" has
+  the merge-on-claim logic). `create_group()`/`redeem_invite()`
   both look up and reuse an account's existing `members` row rather than
   minting a new one, and a trigger on `auth.users`
   (`handle_new_user_member()`) provisions the row at signup time so it
@@ -124,11 +116,10 @@ bigger than either display mode.
 
 ## Stats tab
 
-Group Detail's third tab (`GroupStatsView`/`GroupStatsViewModel`), added
-2026-09-15 — pure read-only aggregation over a group's whole expense
-history, no new schema/view (see CHANGELOG.md's "Stats tab" entry for the
-full build history and the two real runtime bugs it took to get charts
-actually rendering). Current-state facts worth knowing before touching
+Group Detail's third tab (`GroupStatsView`/`GroupStatsViewModel`) — pure
+read-only aggregation over a group's whole expense history, no new
+schema/view (CHANGELOG.md's "Stats tab" entry has the build history).
+Current-state facts worth knowing before touching
 this area again:
 
 - **`GroupDetailPage`'s tab selector is enum-driven, not bool-driven** —
@@ -151,7 +142,7 @@ this area again:
   `CartesianChart` is instantiated (which happens as soon as `GroupDetailPage`
   loads, regardless of which tab is active — MAUI builds the whole visual
   tree eagerly, `IsVisible="False"` doesn't defer construction). See the
-  NuGet Packages section above for the other real bug this shipped with
+  NuGet Packages section below for the other real bug this shipped with
   (a `SkiaSharp` version split).
 - **One consistent hue (Axis's own Primary accent) for every single-series
   chart**, the validated 8-slot categorical palette
@@ -197,9 +188,6 @@ Every data access interface lives in `Services/` (`IAuthService`,
 `IMembersRepository`, `IGroupsRepository`,
 `IExpensesRepository`, `IBalancesRepository`, `IRecurringExpensesRepository`,
 `IInvitesRepository`, `IDeviceTokensRepository`, `IEventsRepository`).
-`IPaymentsRepository` and `ICategoriesRepository` existed early on and were
-both retired once their tables were (payments 2026-09-04, categories
-2026-08-28) — see CHANGELOG.md for the removal details.
 **ViewModels depend on these interfaces, never on the
 `Supabase.Client` type or the `supabase-csharp` package directly.** The reason:
 if this ever moves off Supabase (self-hosted Supabase on a NAS, or a fully
@@ -268,8 +256,7 @@ notification handler) needs the same guard, not a fresh
 ### Navigation
 
 Uses **MAUI Shell**, routes declared as constants in `AppConstants.Routes`
-(`Splash`, `Login`, `Groups`, `GroupDetails`, `Members`, `JoinGroup`,
-`AddExpense`, `NewGroup`, `AddEvent`, `MemberProfile`) rather than hardcoded
+(e.g. `Splash`, `Groups`, `AddExpense`) rather than hardcoded
 strings — follow that pattern for any new screen. The Events list itself
 has **no** separate route — it lives embedded in `GroupDetailPage`'s Events
 tab (`GroupEventsView`), not as its own navigated page; only `AddEventPage`
@@ -334,8 +321,7 @@ static site, so it's easy to change one side and forget the other:
 
 ### Web app: PWA install + push notifications
 
-Added 2026-09-14, **not yet activated in production** — see the "not yet
-activated" gap above for exactly what's missing. Two purposes at once: makes
+Live in production. Two purposes at once: makes
 `webapp/` installable as a standalone app, and (the reason iOS web push needs
 that first) reuses the same Firebase project as Android for push.
 
@@ -480,8 +466,8 @@ permission grants, `security definer` needs, off-peak scheduling choices).
 | `CommunityToolkit.Maui` | 13.0.0 | UI controls & behaviors |
 | `CommunityToolkit.Mvvm` | 8.4.0 | MVVM source generators |
 | `Supabase` | 1.6.0 | Supabase client (Auth + Postgrest + Realtime + Storage) |
-| `SkiaSharp` | 3.119.0 | Client-side image resize/WebP encode for avatar uploads; PDF export (`SKDocument.CreatePdf`, see "Stats tab" below) |
-| `LiveChartsCore.SkiaSharpView.Maui` | 2.0.5 | Charts on the Stats tab (see "Stats tab" below) |
+| `SkiaSharp` | 3.119.0 | Client-side image resize/WebP encode for avatar uploads; PDF export (`SKDocument.CreatePdf`, see "Stats tab" above) |
+| `LiveChartsCore.SkiaSharpView.Maui` | 2.0.5 | Charts on the Stats tab (see "Stats tab" above) |
 | `Xamarin.AndroidX.Credentials` | 1.6.0.1 | Android-only: Credential Manager for native Google sign-in |
 | `Xamarin.AndroidX.Credentials.PlayServicesAuth` | 1.6.0.1 | Android-only, paired with the above |
 | `Xamarin.Google.Android.Libraries.Identity.GoogleId` | 1.1.0.15 | Android-only: Google ID token credential type |
@@ -517,11 +503,6 @@ DLL (found live: `SkiaSharp.Views.Maui.Controls`' doc names a method
 even the installed package's own doc file as unverified until a build or a
 binary check confirms it.
 
-## Environment
-
-Developed on Windows, same as the previous project. Use Claude's built-in
-Grep/Glob tools or PowerShell equivalents, not Unix-only commands like `grep`.
-
 ## Build Commands
 
 ```bash
@@ -537,7 +518,7 @@ dotnet build AxisApp/AxisApp.csproj -f net10.0-windows10.0.19041.0
 # — Cloudflare's GitHub integration auto-deploys web/ on every push to main,
 # so this manual command is now only needed for previewing before a push,
 # or redeploying without a new commit.
-cd web && npx wrangler deploy
+npx wrangler deploy --config web/wrangler.jsonc
 ```
 
 There are no automated tests in this project yet.
