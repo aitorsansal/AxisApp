@@ -18,12 +18,10 @@
             <Grid.Padding>
                 <Thickness Left="{StaticResource SpacingM}" Top="0" Right="{StaticResource SpacingM}" Bottom="0" />
             </Grid.Padding>
-            <Label
-                Grid.Column="0"
-                Text="Axis"
-                FontSize="{StaticResource TypeWordmark}"
-                FontAttributes="Bold"
-                VerticalOptions="Center" />
+            <HorizontalStackLayout Grid.Column="0" Spacing="{StaticResource SpacingS}" VerticalOptions="Center">
+                <Image Source="axis_mark.png" WidthRequest="{StaticResource BrandMarkSize}" HeightRequest="{StaticResource BrandMarkSize}" />
+                <Label Text="Axis" FontSize="{StaticResource TypeWordmark}" FontAttributes="Bold" VerticalOptions="Center" />
+            </HorizontalStackLayout>
             <Border
                 Grid.Column="1"
                 BackgroundColor="Transparent"

@@ -43,8 +43,8 @@ messaging.onBackgroundMessage((payload) => {
   const data = payload.data ?? {}
   self.registration.showNotification(data.title || 'Axis', {
     body: data.body || '',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/icon-192.png?v=axis-brand-2',
+    badge: '/notification-badge.png?v=axis-brand-2',
     data,
   })
 })

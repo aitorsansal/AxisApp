@@ -5,6 +5,7 @@ import { useGroups } from '../context/useGroups'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import { useGoBackTo } from '../lib/navigation'
+import { BrandMark } from './BrandMark'
 import { Avatar } from './Avatar'
 import { Icon } from './Icon'
 import './AppHeader.css'
@@ -59,7 +60,10 @@ export function AppHeader({
           <Icon name="arrow_left" />
         </button>
       )}
-      <h1>{title}</h1>
+      <h1 className={!backTo ? 'header-brand' : undefined}>
+        {!backTo && <BrandMark />}
+        {title}
+      </h1>
       <div className="header-actions">
         {actions}
         {!backTo && (

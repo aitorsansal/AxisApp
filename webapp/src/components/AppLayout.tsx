@@ -3,6 +3,7 @@ import { GroupsProvider } from '../context/GroupsContext'
 import { useGroups } from '../context/useGroups'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
+import { BrandMark } from './BrandMark'
 import { Avatar } from './Avatar'
 import { GroupIconCircle } from './GroupIconCircle'
 import { Icon } from './Icon'
@@ -20,6 +21,7 @@ function Workspace() {
       </a>
       <aside className="app-sidebar">
         <NavLink to="/" className="sidebar-brand">
+          <BrandMark />
           Axis
         </NavLink>
         <nav className="sidebar-navigation" aria-label={t('Groups_YourGroups')}>

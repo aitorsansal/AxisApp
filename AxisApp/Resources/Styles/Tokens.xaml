@@ -41,6 +41,9 @@
     <x:Double x:Key="TypeAmountPrefix">22</x:Double>
     <x:Double x:Key="TypeAmountHero">36</x:Double>
 
+    <x:Double x:Key="BrandMarkSize">32</x:Double>
+    <x:Double x:Key="BrandHeroSize">64</x:Double>
+
     <!-- ============ AVATAR SIZES ============ -->
     <!-- One scale for every avatar circle: XS mini-stacks, S participant rows, M list/tile rows,
          L selector rows. Initials FontSize should scale with these (XS/S -> TypeLabel,

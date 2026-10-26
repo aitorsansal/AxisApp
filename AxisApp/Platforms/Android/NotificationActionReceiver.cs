@@ -179,7 +179,7 @@ public class NotificationActionReceiver : BroadcastReceiver
         var notification = new NotificationCompat.Builder(context, AxisNotifications.ChannelId)
             .SetContentTitle(title)
             .SetContentText(body)
-            .SetSmallIcon(Resource.Mipmap.appicon)
+            .SetSmallIcon(Resource.Drawable.ic_stat_axis)
             .SetAutoCancel(true)
             .Build()!;
 

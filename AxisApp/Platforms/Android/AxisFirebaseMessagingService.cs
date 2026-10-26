@@ -76,7 +76,7 @@ public class AxisFirebaseMessagingService : FirebaseMessagingService
             .SetContentTitle(title)
             .SetContentText(body ?? "")
             .SetStyle(new NotificationCompat.BigTextStyle().BigText(body ?? ""))
-            .SetSmallIcon(Resource.Mipmap.appicon)
+            .SetSmallIcon(Resource.Drawable.ic_stat_axis)
             .SetAutoCancel(true)
             .SetContentIntent(pendingIntent);
 

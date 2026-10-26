@@ -1,3 +1,4 @@
+import { BrandMark } from '../components/BrandMark'
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
@@ -92,7 +93,10 @@ export function LoginPage() {
 
   return (
     <div className="page login-page">
-      <h1 className="login-title">Axis</h1>
+      <h1 className="login-title">
+        <BrandMark size={64} />
+        Axis
+      </h1>
       <p className="login-subtitle">
         {mode === 'signin' ? t('Login_SigninSubtitle') : t('Login_SignupSubtitle')}
       </p>
@@ -134,13 +138,22 @@ export function LoginPage() {
         {error && <p className="error-text">{error}</p>}
         {notice && <p className="notice-text">{notice}</p>}
         {unconfirmedEmail && (
-          <button type="button" className="mode-toggle resend-link" onClick={handleResend} disabled={busy}>
+          <button
+            type="button"
+            className="mode-toggle resend-link"
+            onClick={handleResend}
+            disabled={busy}
+          >
             {t('Login_ResendConfirmation')}
           </button>
         )}
 
         <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? t('Common_PleaseWait') : mode === 'signin' ? t('Login_SignIn') : t('Login_SignUp')}
+          {busy
+            ? t('Common_PleaseWait')
+            : mode === 'signin'
+              ? t('Login_SignIn')
+              : t('Login_SignUp')}
         </button>
       </form>
 

@@ -12,6 +12,8 @@
             VerticalOptions="Center"
             Spacing="{StaticResource SpacingL}">
 
+            <Image Source="axis_mark.png" WidthRequest="{StaticResource BrandHeroSize}" HeightRequest="{StaticResource BrandHeroSize}" HorizontalOptions="Center" />
+
             <Label
                 Text="Axis"
                 FontSize="{StaticResource TypeDisplay}"
