@@ -1,19 +1,20 @@
 # Axis identity assets
 
-The approved mark has three interlocking shapes: muted blue `#5B72D6`, mint `#38D998`, and muted amber `#CBA257`. Navy `#0B1220` is the tile/background colour. The production SVG uses flat fills and preserves the approved silhouette.
+The approved mark is three stacked coins with transparent gaps between them: muted blue `#5B72D6` at the bottom, muted amber `#CBA257` in the middle, and mint `#38D998` on top. Navy `#0B1220` is the tile/background colour. The production SVG uses flat fills; the gaps are real cut-outs, so the monochrome silhouettes keep them.
 
 ## Source and generation
 
-`axis-mark.svg` is the editable vector master. All copies, raster sizes, and the Android notification drawable are generated from its three paths by `generate-assets.mjs`.
+`build-master.mjs` is the geometry source: it builds the coins with paper.js boolean operations and writes `axis-mark.svg`, the vector master. All copies, raster sizes, and the Android notification drawable are generated from its three paths by `generate-assets.mjs`.
 
-The generator needs Node.js and Sharp as a development tool, not a browser dependency. With Sharp available in `webapp/node_modules`:
+The generator needs Node.js, Sharp and (for `build-master.mjs`) paper.js as development tools, not a browser dependency. With Sharp and paper available in `webapp/node_modules`:
 
 ```powershell
+node branding/build-master.mjs
 node branding/generate-assets.mjs
 node branding/verify-assets.mjs
 ```
 
-For a one-off regeneration without changing the app's dependency files, install it from `webapp/` with `npm install --no-save --package-lock=false sharp`. Alternatively set `AXIS_SHARP_PATH` to an existing Sharp module directory. Run the generator from any working directory. After a Debug Android build, `node branding/verify-assets.mjs --android-build` also checks the actual generated adaptive foreground against the 66dp safe circle. If changing `ForegroundScale`, use a rebuild to refresh MAUI's generated icon cache.
+For a one-off regeneration without changing the app's dependency files, install them from `webapp/` with `npm install --no-save --package-lock=false paper sharp`. Alternatively set `AXIS_SHARP_PATH` or `AXIS_PAPER_PATH` to an existing module path. Run the generator from any working directory. After a Debug Android build, `node branding/verify-assets.mjs --android-build` also checks the actual generated adaptive foreground against the 66dp safe circle. If changing `ForegroundScale`, use a rebuild to refresh MAUI's generated icon cache.
 
 `verify-assets.mjs` checks path parity, colours, PNG/ICO dimensions, transparent white notification pixels, maskable safe areas, and application wiring. Open `preview.html` to review the colour and monochrome variants at their actual small sizes.
 
