@@ -9,6 +9,12 @@ import type { ExpenseWithPayer, Group, MemberRow, PairwiseBalance } from '../lib
 import { AppHeader } from '../components/AppHeader'
 import { GroupEventsTab } from '../components/GroupEventsTab'
 import { GroupAppearancePicker } from '../components/GroupAppearancePicker'
+import { Modal } from '../components/Modal'
+import { Avatar } from '../components/Avatar'
+import { Icon } from '../components/Icon'
+import { categoryIcon } from '../lib/icons'
+import { formatMoney } from '../lib/formatting'
+import { useGroups } from '../context/useGroups'
 import './GroupDetailPage.css'
 
 const ACTIVITY_PAGE_SIZE = 30
@@ -17,7 +23,8 @@ const SEARCH_RESULT_LIMIT = 50
 export function GroupDetailPage() {
   const { groupId } = useParams<{ groupId: string }>()
   const { session } = useAuth()
-  const { displayName } = useAliases()
+  const { displayName, initials, avatarUrl } = useAliases()
+  const { refresh: refreshGroups } = useGroups()
   const { t, language } = useLocale()
   const goBackTo = useGoBackTo()
 
@@ -38,6 +45,7 @@ export function GroupDetailPage() {
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false)
   const [isEventsTab, setIsEventsTab] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
 
   const memberName = (id: string) => {
     const row = members.find((m) => m.member_id === id)
@@ -46,7 +54,9 @@ export function GroupDetailPage() {
 
   const myMemberId = members.find((m) => m.members.account_id === session?.user.id)?.member_id
   const isCreator = group?.created_by === session?.user.id
-  const transferCandidates = members.filter((m) => m.members.account_id && m.member_id !== myMemberId)
+  const transferCandidates = members.filter(
+    (m) => m.members.account_id && m.member_id !== myMemberId,
+  )
 
   const activitySelect =
     'id, group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id'
@@ -56,9 +66,19 @@ export function GroupDetailPage() {
     setError(null)
 
     const [groupRes, membersRes, balancesRes, activityRes] = await Promise.all([
-      supabase.from('groups').select('id, name, currency, created_by, color, icon').eq('id', groupId).single(),
-      supabase.from('group_members').select('member_id, members(id, display_name, account_id, avatar_path)').eq('group_id', groupId),
-      supabase.from('my_pairwise_balances').select('group_id, other_member_id, balance').eq('group_id', groupId),
+      supabase
+        .from('groups')
+        .select('id, name, currency, created_by, color, icon')
+        .eq('id', groupId)
+        .single(),
+      supabase
+        .from('group_members')
+        .select('member_id, members(id, display_name, account_id, avatar_path)')
+        .eq('group_id', groupId),
+      supabase
+        .from('my_pairwise_balances')
+        .select('group_id, other_member_id, balance')
+        .eq('group_id', groupId),
       supabase
         .from('expenses')
         .select(activitySelect)
@@ -129,11 +149,21 @@ export function GroupDetailPage() {
   }, [groupId, searchQuery])
 
   useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape' && menuRef.current?.contains(e.target as Node)) {
+        setIsMenuOpen(false)
+        menuButtonRef.current?.focus()
+      }
+    }
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setIsMenuOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
   }, [])
 
   const [appearanceColor, setAppearanceColor] = useState('Blue')
@@ -149,10 +179,14 @@ export function GroupDetailPage() {
 
   async function handleSaveAppearance() {
     if (!group) return
-    const { error } = await supabase.from('groups').update({ color: appearanceColor, icon: appearanceIcon }).eq('id', group.id)
+    const { error } = await supabase
+      .from('groups')
+      .update({ color: appearanceColor, icon: appearanceIcon })
+      .eq('id', group.id)
     if (error) return setError(error.message)
     setIsAppearanceOpen(false)
     setGroup({ ...group, color: appearanceColor, icon: appearanceIcon })
+    void refreshGroups()
   }
 
   async function handleSettle(otherMemberId: string, balance: number) {
@@ -180,6 +214,7 @@ export function GroupDetailPage() {
     setSettlingId(null)
     if (saveError) return setError(saveError.message)
     load()
+    void refreshGroups()
   }
 
   async function handleRename() {
@@ -189,6 +224,7 @@ export function GroupDetailPage() {
     if (!next || !next.trim() || next.trim() === group.name) return
     const { error } = await supabase.from('groups').update({ name: next.trim() }).eq('id', group.id)
     if (error) return setError(error.message)
+    void refreshGroups()
     load()
   }
 
@@ -232,9 +268,13 @@ export function GroupDetailPage() {
 
   if (!group) {
     return (
-      <div className="page">
+      <div className="page page-wide group-detail-page">
         <AppHeader title={t('GroupDetail_GenericTitle')} backTo="/" />
-        {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
+        {error ? (
+          <p className="error-text">{error}</p>
+        ) : (
+          <div className="spinner">{t('Common_Loading')}</div>
+        )}
       </div>
     )
   }
@@ -242,145 +282,205 @@ export function GroupDetailPage() {
   const dateLocale = language === 'es' ? 'es-ES' : 'en-US'
 
   return (
-    <div className="page">
-      <AppHeader title={group.name} backTo="/" />
+    <div className="page page-wide group-detail-page">
+      <AppHeader
+        title={group.name}
+        backTo="/"
+        actions={
+          <>
+            <Link
+              to={isEventsTab ? `/groups/${groupId}/events/new` : `/groups/${groupId}/add-expense`}
+              className="btn btn-primary add-expense-btn desktop-add"
+            >
+              {isEventsTab ? t('GroupEvents_AddEvent') : t('GroupDetail_AddExpenseButton')}
+            </Link>
+            <div className="group-menu" ref={menuRef}>
+              <button
+                type="button"
+                className="btn btn-outline menu-trigger"
+                ref={menuButtonRef}
+                aria-label={t('GroupDetail_OptionsMenu')}
+                aria-expanded={isMenuOpen}
+                onClick={() => setIsMenuOpen((v) => !v)}
+              >
+                <Icon name="more" />
+              </button>
+              {isMenuOpen && (
+                <div className="menu-dropdown">
+                  <Link to={`/groups/${groupId}/members`} onClick={() => setIsMenuOpen(false)}>
+                    {t('GroupDetail_ViewMembers')}
+                  </Link>
+                  {!isEventsTab && (
+                    <Link to={`/groups/${groupId}/recurring`} onClick={() => setIsMenuOpen(false)}>
+                      {t('GroupDetail_ManageRecurring')}
+                    </Link>
+                  )}
+                  <button type="button" onClick={openAppearance}>
+                    {t('GroupDetail_EditAppearance')}
+                  </button>
+                  {isCreator && (
+                    <>
+                      <button type="button" onClick={handleRename}>
+                        {t('GroupDetail_RenameGroup')}
+                      </button>
+                      <button type="button" onClick={openTransfer}>
+                        {t('GroupDetail_TransferOwnership')}
+                      </button>
+                      <button type="button" className="danger" onClick={handleDissolve}>
+                        {t('GroupDetail_DissolveGroup')}
+                      </button>
+                    </>
+                  )}
+                  {!isCreator && (
+                    <button type="button" className="danger" onClick={handleLeave}>
+                      {t('GroupDetail_LeaveGroup')}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        }
+      />
       {error && <p className="error-text">{error}</p>}
 
-      <div className="tab-pill">
-        <button type="button" className={isEventsTab ? '' : 'active'} onClick={() => setIsEventsTab(false)}>
+      <div className="tab-pill group-tabs" aria-label={t('GroupDetail_GenericTitle')}>
+        <button
+          type="button"
+          className={isEventsTab ? '' : 'active'}
+          aria-pressed={!isEventsTab}
+          onClick={() => setIsEventsTab(false)}
+        >
           {t('GroupDetail_ExpensesTab')}
         </button>
-        <button type="button" className={isEventsTab ? 'active' : ''} onClick={() => setIsEventsTab(true)}>
+        <button
+          type="button"
+          className={isEventsTab ? 'active' : ''}
+          aria-pressed={isEventsTab}
+          onClick={() => setIsEventsTab(true)}
+        >
           {t('GroupDetail_EventsTab')}
         </button>
       </div>
 
-      <div className="group-toolbar">
-        <Link
-          to={isEventsTab ? `/groups/${groupId}/events/new` : `/groups/${groupId}/add-expense`}
-          className="btn btn-primary add-expense-btn"
+      {isTransferOpen && (
+        <Modal
+          returnFocusRef={menuButtonRef}
+          title={t('GroupDetail_TransferOwnershipTitle')}
+          onClose={() => setIsTransferOpen(false)}
         >
-          {isEventsTab ? t('GroupEvents_AddEvent') : t('GroupDetail_AddExpenseButton')}
-        </Link>
-        <div className="group-menu" ref={menuRef}>
+          {transferCandidates.length === 0 ? (
+            <p className="empty-state small">{t('GroupDetail_NoTransferCandidates')}</p>
+          ) : (
+            <ul className="transfer-list">
+              {transferCandidates.map((m) => (
+                <li key={m.member_id}>
+                  <button type="button" onClick={() => handleTransfer(m.member_id)}>
+                    {displayName(m.members)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <button
             type="button"
-            className="btn btn-outline menu-trigger"
-            aria-label={t('GroupDetail_OptionsMenu')}
-            onClick={() => setIsMenuOpen((v) => !v)}
+            className="btn btn-outline"
+            onClick={() => setIsTransferOpen(false)}
           >
-            ⋮
+            {t('Common_Cancel')}
           </button>
-          {isMenuOpen && (
-            <div className="menu-dropdown">
-              <Link to={`/groups/${groupId}/members`} onClick={() => setIsMenuOpen(false)}>
-                {t('GroupDetail_ViewMembers')}
-              </Link>
-              {!isEventsTab && (
-                <Link to={`/groups/${groupId}/recurring`} onClick={() => setIsMenuOpen(false)}>
-                  {t('GroupDetail_ManageRecurring')}
-                </Link>
-              )}
-              <button type="button" onClick={openAppearance}>{t('GroupDetail_EditAppearance')}</button>
-              {isCreator && (
-                <>
-                  <button type="button" onClick={handleRename}>{t('GroupDetail_RenameGroup')}</button>
-                  <button type="button" onClick={openTransfer}>{t('GroupDetail_TransferOwnership')}</button>
-                  <button type="button" className="danger" onClick={handleDissolve}>{t('GroupDetail_DissolveGroup')}</button>
-                </>
-              )}
-              {!isCreator && (
-                <button type="button" className="danger" onClick={handleLeave}>{t('GroupDetail_LeaveGroup')}</button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {isTransferOpen && (
-        <div className="overlay-scrim" onClick={() => setIsTransferOpen(false)}>
-          <div className="overlay-card card" onClick={(e) => e.stopPropagation()}>
-            <h3>{t('GroupDetail_TransferOwnershipTitle')}</h3>
-            {transferCandidates.length === 0 ? (
-              <p className="empty-state small">{t('GroupDetail_NoTransferCandidates')}</p>
-            ) : (
-              <ul className="transfer-list">
-                {transferCandidates.map((m) => (
-                  <li key={m.member_id}>
-                    <button type="button" onClick={() => handleTransfer(m.member_id)}>
-                      {displayName(m.members)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <button type="button" className="btn btn-outline" onClick={() => setIsTransferOpen(false)}>
-              {t('Common_Cancel')}
-            </button>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {isAppearanceOpen && (
-        <div className="overlay-scrim" onClick={() => setIsAppearanceOpen(false)}>
-          <div className="overlay-card card" onClick={(e) => e.stopPropagation()}>
-            <h3>{t('GroupDetail_EditAppearance')}</h3>
-            <GroupAppearancePicker
-              color={appearanceColor}
-              icon={appearanceIcon}
-              onColorChange={setAppearanceColor}
-              onIconChange={setAppearanceIcon}
-            />
-            <div className="appearance-actions">
-              <button type="button" className="btn btn-outline" onClick={() => setIsAppearanceOpen(false)}>
-                {t('Common_Cancel')}
-              </button>
-              <button type="button" className="btn btn-primary" onClick={handleSaveAppearance}>
-                {t('Common_Save')}
-              </button>
-            </div>
+        <Modal
+          returnFocusRef={menuButtonRef}
+          title={t('GroupDetail_EditAppearance')}
+          onClose={() => setIsAppearanceOpen(false)}
+        >
+          <GroupAppearancePicker
+            color={appearanceColor}
+            icon={appearanceIcon}
+            onColorChange={setAppearanceColor}
+            onIconChange={setAppearanceIcon}
+          />
+          <div className="appearance-actions">
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setIsAppearanceOpen(false)}
+            >
+              {t('Common_Cancel')}
+            </button>
+            <button type="button" className="btn btn-primary" onClick={handleSaveAppearance}>
+              {t('Common_Save')}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {isEventsTab ? (
         <GroupEventsTab groupId={groupId!} members={members} />
       ) : (
-        <>
-          <section>
+        <div className="expense-overview">
+          <section className="balances-panel">
             <h2 className="section-title">{t('GroupDetail_Balances')}</h2>
-            {balances.length === 0 && <p className="empty-state small">{t('GroupDetail_BalancesEmpty')}</p>}
+            {balances.length === 0 && (
+              <p className="empty-state small">{t('GroupDetail_BalancesEmpty')}</p>
+            )}
             <div className="balance-list">
-              {balances.map((b) => (
-                <div className="card balance-row" key={b.other_member_id}>
-                  <div>
-                    <div className="balance-name">{memberName(b.other_member_id)}</div>
-                    <div className={b.balance > 0 ? 'balance-positive' : 'balance-negative'}>
-                      {t(
-                        b.balance > 0 ? 'GroupDetail_OwesYouAmount' : 'GroupDetail_YouOweAmount',
-                        Math.abs(b.balance).toFixed(2),
-                        group.currency,
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    className="btn btn-outline settle-btn"
-                    disabled={!myMemberId || settlingId === b.other_member_id}
-                    onClick={() => handleSettle(b.other_member_id, b.balance)}
+              {balances.map((b) => {
+                const member = members.find((row) => row.member_id === b.other_member_id)?.members
+                return (
+                  <div
+                    className={`card balance-row ${b.balance > 0 ? 'balance-receive' : b.balance < 0 ? 'balance-pay' : 'balance-neutral'}`}
+                    key={b.other_member_id}
                   >
-                    {settlingId === b.other_member_id ? t('GroupDetail_Settling') : t('GroupDetail_Settle')}
-                  </button>
-                </div>
-              ))}
+                    <Avatar
+                      url={member ? avatarUrl(member) : null}
+                      initials={member ? initials(member) : '?'}
+                      size={36}
+                    />
+                    <div className="balance-name" title={memberName(b.other_member_id)}>
+                      {memberName(b.other_member_id)}
+                    </div>
+                    <div className="balance-value">
+                      <strong>{formatMoney(b.balance, group.currency, language, true)}</strong>
+                      <span>
+                        {t(
+                          b.balance > 0
+                            ? 'GroupDetail_OwesYou'
+                            : b.balance < 0
+                              ? 'GroupDetail_YouOwe'
+                              : 'Common_SettledUp',
+                        )}
+                      </span>
+                    </div>
+                    {Math.abs(b.balance) >= 0.005 && (
+                      <button
+                        className="btn btn-outline settle-btn"
+                        disabled={!myMemberId || settlingId === b.other_member_id}
+                        onClick={() => handleSettle(b.other_member_id, b.balance)}
+                      >
+                        {settlingId === b.other_member_id
+                          ? t('GroupDetail_Settling')
+                          : t('GroupDetail_Settle')}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
+            <p className="currency-note">{t('GroupDetail_CurrencyNote', group.currency)}</p>
           </section>
 
-          <section>
+          <section className="activity-panel">
             <h2 className="section-title">{t('GroupDetail_RecentActivity')}</h2>
             <input
               type="search"
               className="activity-search"
               placeholder={t('GroupDetail_SearchExpenses')}
+              aria-label={t('GroupDetail_SearchExpenses')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -389,7 +489,9 @@ export function GroupDetailPage() {
               if (shownActivity.length === 0) {
                 return (
                   <p className="empty-state small">
-                    {searchResults !== null ? t('GroupDetail_NoSearchResults') : t('GroupDetail_ActivityEmpty')}
+                    {searchResults !== null
+                      ? t('GroupDetail_NoSearchResults')
+                      : t('GroupDetail_ActivityEmpty')}
                   </p>
                 )
               }
@@ -402,25 +504,53 @@ export function GroupDetailPage() {
                         className="card activity-row"
                         key={exp.id}
                       >
-                        <div>
+                        <span className="activity-icon">
+                          <Icon name={categoryIcon(exp.category, exp.is_settlement)} size={22} />
+                        </span>
+                        <div className="activity-body">
                           <div className="activity-desc">
-                            {exp.is_settlement ? t('GroupDetail_SettleUp') : exp.description || t('GroupDetail_ExpenseFallback')}
-                            {exp.receipt_path && <span className="receipt-badge" title={t('AddExpense_ReceiptPhoto')}>📎</span>}
-                            {exp.event_id && <span className="receipt-badge" title={t('GroupDetail_LinkedToEvent')}>📅</span>}
+                            {exp.is_settlement
+                              ? t('GroupDetail_SettleUp')
+                              : exp.description || t('GroupDetail_ExpenseFallback')}
+                            {exp.receipt_path && (
+                              <span className="receipt-badge" title={t('AddExpense_ReceiptPhoto')}>
+                                📎
+                              </span>
+                            )}
+                            {exp.event_id && (
+                              <span
+                                className="receipt-badge"
+                                title={t('GroupDetail_LinkedToEvent')}
+                              >
+                                📅
+                              </span>
+                            )}
                           </div>
                           <div className="activity-meta">
-                            {memberName(exp.paid_by_member_id)} ·{' '}
-                            {new Date(exp.occurred_at).toLocaleDateString(dateLocale)}
+                            {t('GroupDetail_PaidBy', memberName(exp.paid_by_member_id))}
                           </div>
                         </div>
-                        <div className="activity-amount">
-                          {exp.amount.toFixed(2)} {exp.currency}
+                        <div className="activity-value">
+                          <strong className="activity-amount">
+                            {formatMoney(exp.amount, exp.currency, language)}
+                          </strong>
+                          <span className="activity-date">
+                            {new Date(exp.occurred_at).toLocaleDateString(dateLocale, {
+                              day: 'numeric',
+                              month: 'short',
+                            })}
+                          </span>
                         </div>
                       </Link>
                     ))}
                   </div>
                   {searchResults === null && hasMoreActivity && (
-                    <button type="button" className="btn btn-outline load-more-btn" onClick={loadMoreActivity} disabled={isLoadingMore}>
+                    <button
+                      type="button"
+                      className="btn btn-outline load-more-btn"
+                      onClick={loadMoreActivity}
+                      disabled={isLoadingMore}
+                    >
                       {isLoadingMore ? t('Common_Loading') : t('GroupDetail_LoadMore')}
                     </button>
                   )}
@@ -428,8 +558,15 @@ export function GroupDetailPage() {
               )
             })()}
           </section>
-        </>
+        </div>
       )}
+      <Link
+        to={isEventsTab ? `/groups/${groupId}/events/new` : `/groups/${groupId}/add-expense`}
+        className="floating-add"
+        aria-label={isEventsTab ? t('GroupEvents_AddEvent') : t('GroupDetail_AddExpenseButton')}
+      >
+        <Icon name="plus" size={26} />
+      </Link>
     </div>
   )
 }

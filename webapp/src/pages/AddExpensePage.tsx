@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useGoBackTo } from '../lib/navigation'
 import { supabase } from '../lib/supabaseClient'
@@ -6,8 +6,15 @@ import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import { resizeImageToWebp } from '../lib/imageResize'
-import { CATEGORY_KEYS, CURRENCIES, RECURRING_FREQUENCIES, type Group, type MemberRow } from '../lib/types'
+import {
+  CATEGORY_KEYS,
+  CURRENCIES,
+  RECURRING_FREQUENCIES,
+  type Group,
+  type MemberRow,
+} from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
+import { Avatar } from '../components/Avatar'
 import { DateField } from '../components/DateField'
 import './AddExpensePage.css'
 
@@ -35,12 +42,16 @@ function equalSplitCents(totalCents: number, ids: string[]) {
 }
 
 export function AddExpensePage() {
-  const { groupId, expenseId, recurringId } = useParams<{ groupId: string; expenseId?: string; recurringId?: string }>()
+  const { groupId, expenseId, recurringId } = useParams<{
+    groupId: string
+    expenseId?: string
+    recurringId?: string
+  }>()
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const isRecurringRoute = location.pathname.includes('/recurring/')
   const { session } = useAuth()
-  const { displayName } = useAliases()
+  const { displayName, initials, avatarUrl } = useAliases()
   const { t } = useLocale()
   const goBackTo = useGoBackTo()
 
@@ -70,6 +81,7 @@ export function AddExpensePage() {
   const [canToggleRecurring] = useState(!expenseId && !recurringId)
   const [isSettlement, setIsSettlement] = useState(false)
 
+  const receiptInputRef = useRef<HTMLInputElement>(null)
   const [receiptPath, setReceiptPath] = useState<string | null>(null)
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
   const [receiptBusy, setReceiptBusy] = useState(false)
@@ -86,7 +98,10 @@ export function AddExpensePage() {
     ;(async () => {
       const [groupRes, membersRes] = await Promise.all([
         supabase.from('groups').select('id, name, currency, created_by').eq('id', groupId).single(),
-        supabase.from('group_members').select('member_id, members(id, display_name, account_id, avatar_path)').eq('group_id', groupId),
+        supabase
+          .from('group_members')
+          .select('member_id, members(id, display_name, account_id, avatar_path)')
+          .eq('group_id', groupId),
       ])
       if (groupRes.error) return setError(groupRes.error.message)
       if (membersRes.error) return setError(membersRes.error.message)
@@ -100,7 +115,10 @@ export function AddExpensePage() {
         setIsEditMode(true)
         const [expenseRes, sharesRes] = await Promise.all([
           supabase.from('expenses').select('*').eq('id', expenseId).single(),
-          supabase.from('expense_shares').select('member_id, share_amount').eq('expense_id', expenseId),
+          supabase
+            .from('expense_shares')
+            .select('member_id, share_amount')
+            .eq('expense_id', expenseId),
         ])
         if (expenseRes.error) return setError(expenseRes.error.message)
         const expense = expenseRes.data
@@ -112,8 +130,12 @@ export function AddExpensePage() {
         setPaidBy(expense.paid_by_member_id)
         setIsSettlement(expense.is_settlement)
         const myId = session?.user.id
-        const payerAccount = memberRows.find((m) => m.member_id === expense.paid_by_member_id)?.members.account_id
-        setCanDelete(!!myId && (expense.created_by === myId || payerAccount === myId || groupData.created_by === myId))
+        const payerAccount = memberRows.find((m) => m.member_id === expense.paid_by_member_id)
+          ?.members.account_id
+        setCanDelete(
+          !!myId &&
+            (expense.created_by === myId || payerAccount === myId || groupData.created_by === myId),
+        )
         setReceiptPath(expense.receipt_path)
         setLinkedEventId(expense.event_id)
         loadShares(sharesRes.data ?? [])
@@ -131,7 +153,10 @@ export function AddExpensePage() {
         setIsRecurringMode(true)
         const [templateRes, sharesRes] = await Promise.all([
           supabase.from('recurring_expenses').select('*').eq('id', recurringId).single(),
-          supabase.from('recurring_expense_shares').select('member_id, share_amount').eq('recurring_expense_id', recurringId),
+          supabase
+            .from('recurring_expense_shares')
+            .select('member_id, share_amount')
+            .eq('recurring_expense_id', recurringId),
         ])
         if (templateRes.error) return setError(templateRes.error.message)
         const tpl = templateRes.data
@@ -156,11 +181,17 @@ export function AddExpensePage() {
         if (linkedEventId) {
           const [{ data: eventRow }, { data: goingRows }] = await Promise.all([
             supabase.from('events').select('title').eq('id', linkedEventId).single(),
-            supabase.from('event_attendees').select('member_id').eq('event_id', linkedEventId).eq('response', 'going'),
+            supabase
+              .from('event_attendees')
+              .select('member_id')
+              .eq('event_id', linkedEventId)
+              .eq('response', 'going'),
           ])
           setLinkedEventTitle(eventRow?.title ?? null)
           const goingIds = new Set((goingRows ?? []).map((r: { member_id: string }) => r.member_id))
-          setParticipants(goingIds.size > 0 ? goingIds : new Set(memberRows.map((m) => m.member_id)))
+          setParticipants(
+            goingIds.size > 0 ? goingIds : new Set(memberRows.map((m) => m.member_id)),
+          )
         } else {
           setParticipants(new Set(memberRows.map((m) => m.member_id)))
         }
@@ -171,7 +202,9 @@ export function AddExpensePage() {
 
   function loadShares(rows: { member_id: string; share_amount: number }[]) {
     setParticipants(new Set(rows.map((s) => s.member_id)))
-    setShareInputs(Object.fromEntries(rows.map((s) => [s.member_id, Number(s.share_amount).toFixed(2)])))
+    setShareInputs(
+      Object.fromEntries(rows.map((s) => [s.member_id, Number(s.share_amount).toFixed(2)])),
+    )
   }
 
   // Member-list order, so "last participant" (who absorbs the leftover cent) is stable.
@@ -238,7 +271,9 @@ export function AddExpensePage() {
       if (previousPath) await supabase.storage.from(RECEIPTS_BUCKET).remove([previousPath])
 
       setReceiptPath(path)
-      const { data: signed } = await supabase.storage.from(RECEIPTS_BUCKET).createSignedUrl(path, 3600)
+      const { data: signed } = await supabase.storage
+        .from(RECEIPTS_BUCKET)
+        .createSignedUrl(path, 3600)
       setReceiptUrl(signed?.signedUrl ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('Common_Error'))
@@ -354,29 +389,27 @@ export function AddExpensePage() {
 
   if (!group) {
     return (
-      <div className="page">
+      <div className="page expense-page">
         <AppHeader title={title} backTo={parentPath} />
-        {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
+        {error ? (
+          <p className="error-text">{error}</p>
+        ) : (
+          <div className="spinner">{t('Common_Loading')}</div>
+        )}
       </div>
     )
   }
 
   return (
-    <div className="page">
+    <div className="page expense-page">
       <AppHeader title={title} backTo={parentPath} />
 
-      <form onSubmit={handleSubmit}>
-        {linkedEventId && linkedEventTitle && <p className="field-hint linked-event-hint">{t('AddExpense_LinkedToEvent', linkedEventTitle)}</p>}
-
-        <div className="field">
-          <label htmlFor="description">{t('AddExpense_DescriptionLabel')}</label>
-          <input
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('AddExpense_DescriptionPlaceholder')}
-          />
-        </div>
+      <form onSubmit={handleSubmit} className="expense-form">
+        {linkedEventId && linkedEventTitle && (
+          <p className="field-hint linked-event-hint">
+            {t('AddExpense_LinkedToEvent', linkedEventTitle)}
+          </p>
+        )}
 
         <div className="amount-row">
           <div className="field amount-field">
@@ -384,6 +417,8 @@ export function AddExpensePage() {
             <input
               id="amount"
               type="number"
+              inputMode="decimal"
+              placeholder="0.00"
               step="0.01"
               min="0.01"
               required
@@ -403,10 +438,121 @@ export function AddExpensePage() {
           </div>
         </div>
 
+        <div className="field">
+          <label htmlFor="description">{t('AddExpense_DescriptionLabel')}</label>
+          <input
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('AddExpense_DescriptionPlaceholder')}
+          />
+        </div>
+
+        <fieldset className="payer-picker">
+          <legend>{t('AddExpense_PaidBy')}</legend>
+          <div className="payer-options">
+            {members.map((m) => (
+              <label
+                className={`payer-option${paidBy === m.member_id ? ' selected' : ''}`}
+                key={m.member_id}
+                title={displayName(m.members)}
+              >
+                <input
+                  type="radio"
+                  name="paidBy"
+                  value={m.member_id}
+                  checked={paidBy === m.member_id}
+                  onChange={() => setPaidBy(m.member_id)}
+                />
+                <Avatar url={avatarUrl(m.members)} initials={initials(m.members)} size={44} />
+                <span>{displayName(m.members)}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="field">
+          <div className="split-header">
+            <label>{t('AddExpense_Split')}</label>
+            {!isSettlement && (
+              <div className="split-mode" role="group" aria-label={t('AddExpense_Split')}>
+                <button
+                  type="button"
+                  className={!isManualSplit ? 'active' : ''}
+                  aria-pressed={!isManualSplit}
+                  onClick={handleSplitEqually}
+                >
+                  {t('AddExpense_Equally')}
+                </button>
+                <button
+                  type="button"
+                  className={isManualSplit ? 'active' : ''}
+                  aria-pressed={isManualSplit}
+                  onClick={() => {
+                    if (!isManualSplit)
+                      setShareInputs(
+                        Object.fromEntries(
+                          includedIds.map((id) => [id, formatCents(shareCents[id])]),
+                        ),
+                      )
+                    setIsManualSplit(true)
+                  }}
+                >
+                  {t('AddExpense_Manually')}
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="participant-list">
+            {members.map((m) => {
+              const included = participants.has(m.member_id)
+              return (
+                <div key={m.member_id} className="participant-item">
+                  <label className="participant-name">
+                    <input
+                      type="checkbox"
+                      checked={included}
+                      onChange={() => toggleParticipant(m.member_id)}
+                    />
+                    <Avatar url={avatarUrl(m.members)} initials={initials(m.members)} size={28} />
+                    <span>{displayName(m.members)}</span>
+                  </label>
+                  {!isSettlement && included && (
+                    <input
+                      className="share-input"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      aria-label={displayName(m.members)}
+                      placeholder="0.00"
+                      value={
+                        useEqualSplit
+                          ? formatCents(shareCents[m.member_id])
+                          : (shareInputs[m.member_id] ?? '')
+                      }
+                      onChange={(e) => handleShareChange(m.member_id, e.target.value)}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {!isSettlement && (
+            <p className={`split-remaining${remainingCents !== 0 ? ' split-remaining-off' : ''}`}>
+              {t('AddExpense_Remaining', formatCents(remainingCents), currency)}
+            </p>
+          )}
+        </div>
+
         {!isSettlement && (
           <div className="field">
             <label htmlFor="category">{t('AddExpense_Category')}</label>
-            <select id="category" value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
+            <select
+              id="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as typeof category)}
+            >
               {CATEGORY_KEYS.map((key) => (
                 <option key={key} value={key}>
                   {t(`Category_${key}`)}
@@ -435,7 +581,11 @@ export function AddExpensePage() {
             </div>
             <div className="field">
               <label htmlFor="frequency">{t('AddExpense_Frequency')}</label>
-              <select id="frequency" value={frequency} onChange={(e) => setFrequency(e.target.value as typeof frequency)}>
+              <select
+                id="frequency"
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value as typeof frequency)}
+              >
                 {RECURRING_FREQUENCIES.map((f) => (
                   <option key={f} value={f}>
                     {t(`Recurring_Frequency_${f}`)}
@@ -451,59 +601,6 @@ export function AddExpensePage() {
           </div>
         )}
 
-        <div className="field">
-          <label htmlFor="paidBy">{t('AddExpense_PaidBy')}</label>
-          <select id="paidBy" value={paidBy} onChange={(e) => setPaidBy(e.target.value)}>
-            {members.map((m) => (
-              <option key={m.member_id} value={m.member_id}>
-                {displayName(m.members)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="field">
-          <div className="split-header">
-            <label>{t('AddExpense_Split')}</label>
-            {!isSettlement && isManualSplit && (
-              <button type="button" className="split-equally-btn" onClick={handleSplitEqually}>
-                {t('AddExpense_SplitEqually')}
-              </button>
-            )}
-          </div>
-          <div className="participant-list">
-            {members.map((m) => {
-              const included = participants.has(m.member_id)
-              return (
-                <div key={m.member_id} className="participant-item">
-                  <label className="participant-name">
-                    <input type="checkbox" checked={included} onChange={() => toggleParticipant(m.member_id)} />
-                    {displayName(m.members)}
-                  </label>
-                  {!isSettlement && included && (
-                    <input
-                      className="share-input"
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      aria-label={displayName(m.members)}
-                      placeholder="0.00"
-                      value={useEqualSplit ? formatCents(shareCents[m.member_id]) : (shareInputs[m.member_id] ?? '')}
-                      onChange={(e) => handleShareChange(m.member_id, e.target.value)}
-                    />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-          {!isSettlement && (
-            <p className={`split-remaining${remainingCents !== 0 ? ' split-remaining-off' : ''}`}>
-              {t('AddExpense_Remaining', formatCents(remainingCents), currency)}
-            </p>
-          )}
-        </div>
-
         {!isRecurringMode && !isSettlement && (
           <div className="field">
             <label>{t('AddExpense_ReceiptPhoto')}</label>
@@ -513,12 +610,33 @@ export function AddExpensePage() {
               </a>
             )}
             <div className="receipt-actions">
-              <label className="btn btn-outline receipt-upload-btn">
-                {receiptBusy ? t('Common_Saving') : receiptPath ? t('AddExpense_ChangePhoto') : t('AddExpense_AddPhoto')}
-                <input type="file" accept="image/*" onChange={handleReceiptChange} disabled={receiptBusy} hidden />
-              </label>
+              <button
+                type="button"
+                className="btn btn-outline receipt-upload-btn"
+                disabled={receiptBusy}
+                onClick={() => receiptInputRef.current?.click()}
+              >
+                {receiptBusy
+                  ? t('Common_Saving')
+                  : receiptPath
+                    ? t('AddExpense_ChangePhoto')
+                    : t('AddExpense_AddPhoto')}
+              </button>
+              <input
+                ref={receiptInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleReceiptChange}
+                disabled={receiptBusy}
+                hidden
+              />
               {receiptPath && (
-                <button type="button" className="btn btn-outline" onClick={handleRemoveReceipt} disabled={receiptBusy}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={handleRemoveReceipt}
+                  disabled={receiptBusy}
+                >
                   {t('AddExpense_RemovePhoto')}
                 </button>
               )}
@@ -526,14 +644,23 @@ export function AddExpensePage() {
           </div>
         )}
 
-        {error && <p className="error-text">{error}</p>}
+        {error && (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        )}
 
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {busy ? t('Common_Saving') : t('AddExpense_SaveExpense')}
         </button>
 
         {isEditMode && canDelete && (
-          <button type="button" className="btn btn-danger delete-btn" onClick={handleDelete} disabled={busy}>
+          <button
+            type="button"
+            className="btn btn-danger delete-btn"
+            onClick={handleDelete}
+            disabled={busy}
+          >
             {t('AddExpense_DeleteExpense')}
           </button>
         )}

@@ -2,7 +2,7 @@
   display: flex;
   background: var(--surface-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   padding: 4px;
   margin-bottom: 20px;
 }
@@ -13,14 +13,14 @@
   border: none;
   color: var(--text-secondary);
   padding: 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-weight: 600;
   font-size: 0.9rem;
 }
 
 .events-toggle button.active {
   background: var(--primary);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .event-month-group {
@@ -63,7 +63,7 @@
 
 .event-avatars {
   display: flex;
-  gap: -6px;
+  gap: 0;
 }
 
 .event-avatars > * {
@@ -93,7 +93,7 @@
 
 .rsvp-pill button.active {
   background: var(--primary);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .transport-section {
@@ -129,7 +129,7 @@
 .transport-controls .btn.active {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .seat-stepper {
@@ -155,4 +155,90 @@
   min-width: 16px;
   text-align: center;
   font-weight: 600;
+}
+
+.events-toggle {
+  max-width: 320px;
+  background: var(--surface);
+  border-radius: var(--radius-pill);
+}
+.events-toggle button,
+.rsvp-pill button {
+  min-height: 40px;
+  border-radius: var(--radius-pill);
+}
+.rsvp-pill {
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  margin-bottom: 0;
+}
+.event-month-header {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: none;
+}
+.event-title,
+.event-sub {
+  overflow-wrap: anywhere;
+}
+.event-row .transport-controls .btn {
+  min-height: 44px;
+}
+.seat-stepper button {
+  min-width: 36px;
+  min-height: 36px;
+}
+@media (min-width: 1200px) {
+  .event-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 16px;
+  }
+}
+
+.rsvp-pill button,
+.events-toggle button {
+  min-height: 44px;
+  font-size: 13px;
+}
+.rsvp-pill button:hover:not(.active),
+.events-toggle button:hover:not(.active) {
+  background: var(--surface-emphasis);
+  color: var(--text-primary);
+}
+.seat-stepper {
+  padding: 2px;
+  gap: 4px;
+}
+.seat-stepper button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+}
+.seat-stepper button:hover {
+  background: var(--surface-emphasis);
+}
+.attendee-row {
+  min-height: 64px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.attendee-row > div {
+  min-width: 0;
+}
+.attendee-name,
+.attendee-car,
+.event-subcaption,
+.event-description {
+  overflow-wrap: anywhere;
+}
+.attendee-car,
+.attendee-group-header {
+  font-size: 12px;
 }

@@ -22,3 +22,13 @@
 .delete-btn {
   margin-top: 12px;
 }
+
+.datetime-row .field {
+  min-width: 0;
+}
+@media (max-width: 420px) {
+  .datetime-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}

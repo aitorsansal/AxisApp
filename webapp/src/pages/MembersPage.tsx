@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
@@ -40,6 +40,7 @@ export function MembersPage() {
   const [busy, setBusy] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameInput, setRenameInput] = useState('')
+  const renameButtonsRef = useRef(new Map<string, HTMLButtonElement>())
 
   const load = useCallback(async () => {
     if (!groupId) return
@@ -135,7 +136,9 @@ export function MembersPage() {
     setBusy(true)
     setError(null)
     setNotice(null)
-    const { error } = await supabase.from('group_members').insert({ group_id: groupId, member_id: member.id })
+    const { error } = await supabase
+      .from('group_members')
+      .insert({ group_id: groupId, member_id: member.id })
     setBusy(false)
     if (error) return setError(error.message)
     setNameInput('')
@@ -155,6 +158,14 @@ export function MembersPage() {
     await load()
   }
 
+  function closeRename() {
+    const targetId = renamingId
+    setRenamingId(null)
+    requestAnimationFrame(() => {
+      if (targetId) renameButtonsRef.current.get(targetId)?.focus({ preventScroll: true })
+    })
+  }
+
   function openRename(row: MemberRow) {
     setRenamingId(row.member_id)
     setRenameInput(displayName(row.members))
@@ -164,7 +175,7 @@ export function MembersPage() {
     if (!renamingId) return
     const member = members.find((m) => m.member_id === renamingId)?.members
     const trimmed = renameInput.trim()
-    setRenamingId(null)
+    closeRename()
     if (!member) return
 
     if (!trimmed || trimmed === member.display_name) {
@@ -172,7 +183,10 @@ export function MembersPage() {
     } else {
       await supabase
         .from('member_aliases')
-        .upsert({ member_id: member.id, alias: trimmed, owner_id: session?.user.id }, { onConflict: 'owner_id,member_id' })
+        .upsert(
+          { member_id: member.id, alias: trimmed, owner_id: session?.user.id },
+          { onConflict: 'owner_id,member_id' },
+        )
     }
     await refreshAliases()
   }
@@ -181,7 +195,15 @@ export function MembersPage() {
     return (
       <div className="page">
         <AppHeader title={t('Members_Title')} backTo={`/groups/${groupId}`} />
-        {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
+        {error ? (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        ) : (
+          <div className="spinner" role="status">
+            {t('Common_Loading')}
+          </div>
+        )}
       </div>
     )
   }
@@ -190,9 +212,18 @@ export function MembersPage() {
 
   return (
     <div className="page">
-      <AppHeader title={group.name} backTo={`/groups/${groupId}`} />
-      {error && <p className="error-text">{error}</p>}
-      {notice && <p className="notice-text">{notice}</p>}
+      <AppHeader title={t('Members_Title')} backTo={`/groups/${groupId}`} />
+      <p className="page-context">{group.name}</p>
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="notice-text" role="status">
+          {notice}
+        </p>
+      )}
 
       <section className="card members-section">
         <h2 className="section-title">{t('Members_InvitePeople')}</h2>
@@ -220,7 +251,12 @@ export function MembersPage() {
                 {m.account_id ? (
                   <span className="match-hint">{t('Members_AlreadyOnAxis')}</span>
                 ) : (
-                  <button type="button" className="btn btn-outline match-btn" disabled={busy} onClick={() => handleLinkExisting(m)}>
+                  <button
+                    type="button"
+                    className="btn btn-outline match-btn"
+                    disabled={busy}
+                    onClick={() => handleLinkExisting(m)}
+                  >
                     {t('Members_Link')}
                   </button>
                 )}
@@ -230,7 +266,12 @@ export function MembersPage() {
         )}
 
         {nameInput.trim().length >= 2 && matches.every((m) => m.account_id) && (
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={handleAddPhantom}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy}
+            onClick={handleAddPhantom}
+          >
             {busy ? t('Common_Saving') : t('Common_Add')}
           </button>
         )}
@@ -243,7 +284,11 @@ export function MembersPage() {
                 <li key={row.member_id} className="pending-row">
                   <Avatar url={null} initials={initials(row.members)} size={32} />
                   <span className="match-name">{displayName(row.members)}</span>
-                  <button type="button" className="btn btn-outline match-btn" onClick={() => copyInvite(row.member_id)}>
+                  <button
+                    type="button"
+                    className="btn btn-outline match-btn"
+                    onClick={() => copyInvite(row.member_id)}
+                  >
                     {t('Members_Resend')}
                   </button>
                 </li>
@@ -267,18 +312,35 @@ export function MembersPage() {
                     <div className="rename-row">
                       <input
                         autoFocus
+                        aria-label={t('Members_RenamePrompt')}
                         value={renameInput}
                         onChange={(e) => setRenameInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && confirmRename()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') confirmRename()
+                          if (e.key === 'Escape') closeRename()
+                        }}
                       />
-                      <button type="button" className="link-btn" onClick={confirmRename}>{t('Common_Save')}</button>
-                      <button type="button" className="link-btn" onClick={() => setRenamingId(null)}>{t('Common_Cancel')}</button>
+                      <button type="button" className="link-btn" onClick={confirmRename}>
+                        {t('Common_Save')}
+                      </button>
+                      <button type="button" className="link-btn" onClick={() => closeRename()}>
+                        {t('Common_Cancel')}
+                      </button>
                     </div>
                   ) : (
                     <>
-                      <div className="roster-name" onClick={() => openRename(row)} title={t('Members_RenamePrompt')}>
+                      <button
+                        type="button"
+                        className="roster-name"
+                        ref={(element) => {
+                          if (element) renameButtonsRef.current.set(row.member_id, element)
+                          else renameButtonsRef.current.delete(row.member_id)
+                        }}
+                        onClick={() => openRename(row)}
+                        aria-label={`${t('Members_RenamePrompt')}: ${displayName(row.members)}`}
+                      >
                         {displayName(row.members)}
-                      </div>
+                      </button>
                       <div className="roster-caption">
                         {isYou ? t('Members_You') : isPhantom ? t('Members_Phantom') : ''}
                       </div>
@@ -286,7 +348,11 @@ export function MembersPage() {
                   )}
                 </div>
                 {isPhantom && (
-                  <button type="button" className="btn btn-outline remove-btn" onClick={() => handleRemove(row)}>
+                  <button
+                    type="button"
+                    className="btn btn-outline remove-btn"
+                    onClick={() => handleRemove(row)}
+                  >
                     {t('Members_Remove')}
                   </button>
                 )}

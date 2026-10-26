@@ -1,9 +1,6 @@
-// Mirrors AxisApp/Services/AccentPalettes.cs's 8 named presets (color) and
-// AppConstants.GroupIcons' fixed key list (icon) — groups.color/icon's DB check
-// constraints (supabase/group_appearance.sql) are the source of truth for both lists;
-// keep these in sync with it. Icons are rendered as emoji here rather than pulling in an
-// icon library/Lucide font just for this — same stable, language-independent keys as the
-// MAUI app, just a different glyph source.
+import { iconGlyphs, type IconName } from './icons'
+
+// Group appearance keys and glyphs match the Android client's curated Lucide set.
 
 export const GROUP_COLORS = [
   { key: 'Blue', hex: '#5B72D6', textOnAccent: '#08101F' },
@@ -27,34 +24,34 @@ export function textOnAccent(key: string | null | undefined): string {
 }
 
 export const GROUP_ICONS = [
-  { key: 'home', glyph: '🏠' },
-  { key: 'users', glyph: '👥' },
-  { key: 'heart', glyph: '❤️' },
-  { key: 'baby', glyph: '👶' },
-  { key: 'dog', glyph: '🐶' },
-  { key: 'plane', glyph: '✈️' },
-  { key: 'car', glyph: '🚗' },
-  { key: 'ship', glyph: '🚢' },
-  { key: 'bike', glyph: '🚲' },
-  { key: 'tent', glyph: '⛺' },
-  { key: 'map_pin', glyph: '📍' },
-  { key: 'mountain', glyph: '⛰️' },
-  { key: 'utensils_crossed', glyph: '🍴' },
-  { key: 'coffee', glyph: '☕' },
-  { key: 'beer', glyph: '🍺' },
-  { key: 'party_popper', glyph: '🎉' },
-  { key: 'gift', glyph: '🎁' },
-  { key: 'wallet', glyph: '👛' },
-  { key: 'piggy_bank', glyph: '🐷' },
-  { key: 'briefcase', glyph: '💼' },
-  { key: 'dumbbell', glyph: '🏋️' },
-  { key: 'graduation_cap', glyph: '🎓' },
-  { key: 'gamepad', glyph: '🎮' },
-  { key: 'film', glyph: '🎬' },
-  { key: 'music', glyph: '🎵' },
-  { key: 'book', glyph: '📖' },
-  { key: 'shopping_cart', glyph: '🛒' },
-  { key: 'star', glyph: '⭐' },
+  { key: 'home', glyph: iconGlyphs['home' as IconName] },
+  { key: 'users', glyph: iconGlyphs['users' as IconName] },
+  { key: 'heart', glyph: iconGlyphs['heart' as IconName] },
+  { key: 'baby', glyph: iconGlyphs['baby' as IconName] },
+  { key: 'dog', glyph: iconGlyphs['dog' as IconName] },
+  { key: 'plane', glyph: iconGlyphs['plane' as IconName] },
+  { key: 'car', glyph: iconGlyphs['car' as IconName] },
+  { key: 'ship', glyph: iconGlyphs['ship' as IconName] },
+  { key: 'bike', glyph: iconGlyphs['bike' as IconName] },
+  { key: 'tent', glyph: iconGlyphs['tent' as IconName] },
+  { key: 'map_pin', glyph: iconGlyphs['map_pin' as IconName] },
+  { key: 'mountain', glyph: iconGlyphs['mountain' as IconName] },
+  { key: 'utensils_crossed', glyph: iconGlyphs['utensils_crossed' as IconName] },
+  { key: 'coffee', glyph: iconGlyphs['coffee' as IconName] },
+  { key: 'beer', glyph: iconGlyphs['beer' as IconName] },
+  { key: 'party_popper', glyph: iconGlyphs['party_popper' as IconName] },
+  { key: 'gift', glyph: iconGlyphs['gift' as IconName] },
+  { key: 'wallet', glyph: iconGlyphs['wallet' as IconName] },
+  { key: 'piggy_bank', glyph: iconGlyphs['piggy_bank' as IconName] },
+  { key: 'briefcase', glyph: iconGlyphs['briefcase' as IconName] },
+  { key: 'dumbbell', glyph: iconGlyphs['dumbbell' as IconName] },
+  { key: 'graduation_cap', glyph: iconGlyphs['graduation_cap' as IconName] },
+  { key: 'gamepad', glyph: iconGlyphs['gamepad' as IconName] },
+  { key: 'film', glyph: iconGlyphs['film' as IconName] },
+  { key: 'music', glyph: iconGlyphs['music' as IconName] },
+  { key: 'book', glyph: iconGlyphs['book' as IconName] },
+  { key: 'shopping_cart', glyph: iconGlyphs['shopping_cart' as IconName] },
+  { key: 'star', glyph: iconGlyphs['star' as IconName] },
 ] as const
 
 export function iconGlyph(key: string | null | undefined): string | null {

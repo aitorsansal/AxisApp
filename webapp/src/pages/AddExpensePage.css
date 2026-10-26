@@ -125,3 +125,185 @@
   font-size: 0.85rem;
   margin: 0 0 16px;
 }
+
+.expense-form {
+  padding-top: 8px;
+}
+.expense-page .amount-row {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 340px;
+  margin: 0 auto 32px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--primary);
+}
+.expense-page .amount-field {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.expense-page .currency-field {
+  flex: 0 0 90px;
+  margin: 0;
+}
+.expense-page .amount-field label,
+.expense-page .currency-field label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.expense-page .amount-field input {
+  background: transparent;
+  border-color: transparent;
+  font-size: 40px;
+  font-weight: 700;
+  padding: 0;
+  line-height: 1.2;
+  height: 60px;
+  font-variant-numeric: tabular-nums;
+}
+.expense-page .currency-field select {
+  background: transparent;
+  border-color: transparent;
+  height: 60px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0;
+}
+.payer-picker {
+  min-width: 0;
+  border: 0;
+  margin: 24px 0;
+  padding: 0;
+}
+.payer-picker legend {
+  color: var(--text-tertiary);
+  font-size: 13px;
+  padding: 0;
+  margin-bottom: 12px;
+}
+.payer-options {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 4px 12px;
+}
+.payer-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 80px;
+  flex: 0 0 80px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+.payer-option > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.payer-option > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.payer-option.selected {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.payer-option.selected .avatar {
+  box-shadow:
+    0 0 0 2px var(--bg-primary),
+    0 0 0 4px var(--primary);
+}
+.payer-option:has(input:focus-visible) .avatar {
+  outline: 2px solid var(--focus);
+  outline-offset: 5px;
+}
+.expense-page .split-header {
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.split-mode {
+  display: flex;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+.split-mode button {
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 8px 12px;
+  min-height: 36px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.split-mode button.active {
+  background: var(--primary);
+  color: var(--text-on-accent);
+}
+.expense-page .participant-list {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  gap: 8px;
+}
+.expense-page .participant-item {
+  min-height: 52px;
+  gap: 12px;
+}
+.expense-page .participant-name {
+  cursor: pointer;
+  min-height: 48px;
+  gap: 10px;
+}
+.expense-page .participant-name > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.expense-page .participant-item .share-input {
+  width: 96px;
+  min-height: 44px;
+  font-size: 14px;
+  padding: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.expense-page .repeat-toggle {
+  min-height: 44px;
+}
+.expense-page .split-remaining {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 360px) {
+  .expense-page .participant-name .avatar {
+    display: none;
+  }
+  .expense-page .participant-item .share-input {
+    width: 82px;
+  }
+}
+@media (min-width: 1000px) {
+  .expense-form {
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+  }
+  .payer-option.selected .avatar {
+    box-shadow:
+      0 0 0 2px var(--surface),
+      0 0 0 4px var(--primary);
+  }
+}

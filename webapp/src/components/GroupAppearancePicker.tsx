@@ -1,4 +1,5 @@
 import { GROUP_COLORS, GROUP_ICONS } from '../lib/groupAppearance'
+import { useLocale } from '../context/LocaleContext'
 import './GroupAppearancePicker.css'
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function GroupAppearancePicker({ color, icon, onColorChange, onIconChange }: Props) {
+  const { t } = useLocale()
   return (
     <div className="appearance-picker">
       <div className="appearance-swatches">
@@ -18,7 +20,8 @@ export function GroupAppearancePicker({ color, icon, onColorChange, onIconChange
             type="button"
             className={`appearance-swatch${color === c.key ? ' selected' : ''}`}
             style={{ background: c.hex }}
-            aria-label={c.key}
+            aria-label={t(`GroupColor_${c.key}`)}
+            aria-pressed={color === c.key}
             onClick={() => onColorChange(c.key)}
           />
         ))}
@@ -27,6 +30,8 @@ export function GroupAppearancePicker({ color, icon, onColorChange, onIconChange
         <button
           type="button"
           className={`appearance-icon${icon === null ? ' selected' : ''}`}
+          aria-label={t('NewGroup_NoIcon')}
+          aria-pressed={icon === null}
           onClick={() => onIconChange(null)}
         >
           ∅
@@ -36,9 +41,13 @@ export function GroupAppearancePicker({ color, icon, onColorChange, onIconChange
             key={i.key}
             type="button"
             className={`appearance-icon${icon === i.key ? ' selected' : ''}`}
+            aria-label={t(`GroupIcon_${i.key}`)}
+            aria-pressed={icon === i.key}
             onClick={() => onIconChange(i.key)}
           >
-            {i.glyph}
+            <span className="icon" aria-hidden="true">
+              {i.glyph}
+            </span>
           </button>
         ))}
       </div>

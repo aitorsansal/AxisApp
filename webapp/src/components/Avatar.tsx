@@ -12,7 +12,11 @@ export function Avatar({
   size?: number
 }) {
   return (
-    <div className="avatar" style={{ width: size, height: size, fontSize: size * 0.4 }}>
+    <div
+      className="avatar"
+      aria-hidden="true"
+      style={{ width: size, height: size, fontSize: size * 0.4 }}
+    >
       {url ? <img src={url} alt="" /> : <span>{initials}</span>}
     </div>
   )

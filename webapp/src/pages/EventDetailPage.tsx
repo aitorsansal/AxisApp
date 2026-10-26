@@ -1,10 +1,21 @@
+import { Icon } from '../components/Icon'
+import { categoryIcon } from '../lib/icons'
+import { formatMoney } from '../lib/formatting'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
-import type { CarStatus, EventAttendee, EventRow, ExpenseWithPayer, Group, MemberRow, RsvpResponse } from '../lib/types'
+import type {
+  CarStatus,
+  EventAttendee,
+  EventRow,
+  ExpenseWithPayer,
+  Group,
+  MemberRow,
+  RsvpResponse,
+} from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
 import { Avatar } from '../components/Avatar'
 import './EventDetailPage.css'
@@ -30,13 +41,25 @@ export function EventDetailPage() {
     if (!groupId || !eventId) return
     setError(null)
     const [groupRes, eventRes, membersRes, attendeesRes, expensesRes] = await Promise.all([
-      supabase.from('groups').select('id, name, currency, created_by, color, icon').eq('id', groupId).single(),
+      supabase
+        .from('groups')
+        .select('id, name, currency, created_by, color, icon')
+        .eq('id', groupId)
+        .single(),
       supabase.from('events').select('*').eq('id', eventId).single(),
-      supabase.from('group_members').select('member_id, members(id, display_name, account_id, avatar_path)').eq('group_id', groupId),
-      supabase.from('event_attendees').select('event_id, member_id, response, car_status, car_offered_seats').eq('event_id', eventId),
+      supabase
+        .from('group_members')
+        .select('member_id, members(id, display_name, account_id, avatar_path)')
+        .eq('group_id', groupId),
+      supabase
+        .from('event_attendees')
+        .select('event_id, member_id, response, car_status, car_offered_seats')
+        .eq('event_id', eventId),
       supabase
         .from('expenses')
-        .select('id, group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id')
+        .select(
+          'id, group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id',
+        )
         .eq('event_id', eventId)
         .order('occurred_at', { ascending: false }),
     ])
@@ -59,10 +82,20 @@ export function EventDetailPage() {
     load()
   }, [load])
 
-  async function upsertRsvp(response: RsvpResponse, carStatus: CarStatus, carOfferedSeats: number | null) {
+  async function upsertRsvp(
+    response: RsvpResponse,
+    carStatus: CarStatus,
+    carOfferedSeats: number | null,
+  ) {
     if (!myMemberId || !eventId) return
     const { error } = await supabase.from('event_attendees').upsert(
-      { event_id: eventId, member_id: myMemberId, response, car_status: carStatus, car_offered_seats: carStatus === 'offering' ? carOfferedSeats : null },
+      {
+        event_id: eventId,
+        member_id: myMemberId,
+        response,
+        car_status: carStatus,
+        car_offered_seats: carStatus === 'offering' ? carOfferedSeats : null,
+      },
       { onConflict: 'event_id,member_id' },
     )
     if (error) return setError(error.message)
@@ -74,7 +107,11 @@ export function EventDetailPage() {
 
   function setRsvp(response: RsvpResponse) {
     const carStatus: CarStatus =
-      response === 'not_going' ? 'none' : response === 'maybe' && mine?.car_status === 'offering' ? 'none' : (mine?.car_status ?? 'none')
+      response === 'not_going'
+        ? 'none'
+        : response === 'maybe' && mine?.car_status === 'offering'
+          ? 'none'
+          : (mine?.car_status ?? 'none')
     const seats = carStatus === 'offering' ? (mine?.car_offered_seats ?? 0) : null
     upsertRsvp(response, carStatus, seats)
   }
@@ -100,16 +137,32 @@ export function EventDetailPage() {
     return (
       <div className="page">
         <AppHeader title={t('EventDetail_GenericTitle')} backTo={`/groups/${groupId}`} />
-        {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
+        {error ? (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        ) : (
+          <div className="spinner">{t('Common_Loading')}</div>
+        )}
       </div>
     )
   }
 
   const dateLocale = language === 'es' ? 'es-ES' : 'en-US'
-  const subParts = [new Date(event.starts_at).toLocaleString(dateLocale, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })]
+  const subParts = [
+    new Date(event.starts_at).toLocaleString(dateLocale, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+  ]
   if (event.location) subParts.push(event.location)
 
-  const seatsOffered = attendees.filter((a) => a.car_status === 'offering').reduce((sum, a) => sum + (a.car_offered_seats ?? 0), 0)
+  const seatsOffered = attendees
+    .filter((a) => a.car_status === 'offering')
+    .reduce((sum, a) => sum + (a.car_offered_seats ?? 0), 0)
   const ridersNeeded = attendees.filter((a) => a.car_status === 'needs_ride').length
   const showTransportControls = myResponse === 'going' || myResponse === 'maybe'
   const canOfferCar = myResponse === 'going'
@@ -128,7 +181,10 @@ export function EventDetailPage() {
         <Avatar url={avatarUrl(memberInfo)} initials={initials(memberInfo)} size={30} />
         <div>
           <div className="attendee-name">
-            {displayName(memberInfo)} {a.member_id === myMemberId && <span className="attendee-you">({t('Members_You')})</span>}
+            {displayName(memberInfo)}{' '}
+            {a.member_id === myMemberId && (
+              <span className="attendee-you">({t('Members_You')})</span>
+            )}
           </div>
           {carCaption && <div className="attendee-car">{carCaption}</div>}
         </div>
@@ -145,17 +201,31 @@ export function EventDetailPage() {
     ? expenses.filter(
         (e) =>
           (e.description || '').toLowerCase().includes(searchTrimmed) ||
-          displayName(members.find((m) => m.member_id === e.paid_by_member_id)?.members ?? { id: '', display_name: '' }).toLowerCase().includes(searchTrimmed),
+          displayName(
+            members.find((m) => m.member_id === e.paid_by_member_id)?.members ?? {
+              id: '',
+              display_name: '',
+            },
+          )
+            .toLowerCase()
+            .includes(searchTrimmed),
       )
     : expenses
 
   return (
     <div className="page">
       <AppHeader title={event.title} backTo={`/groups/${groupId}`} />
-      {error && <p className="error-text">{error}</p>}
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
 
       {!event.is_birthday && (
-        <Link to={`/groups/${groupId}/events/${eventId}/edit`} className="btn btn-outline edit-event-btn">
+        <Link
+          to={`/groups/${groupId}/events/${eventId}/edit`}
+          className="btn btn-outline edit-event-btn"
+        >
           {t('EventDetail_EditEvent')}
         </Link>
       )}
@@ -165,13 +235,28 @@ export function EventDetailPage() {
 
       {!event.is_birthday && (
         <div className="rsvp-pill">
-          <button type="button" className={myResponse === 'going' ? 'active' : ''} onClick={() => setRsvp('going')}>
+          <button
+            type="button"
+            className={myResponse === 'going' ? 'active' : ''}
+            aria-pressed={myResponse === 'going'}
+            onClick={() => setRsvp('going')}
+          >
             {t('GroupEvents_Going')}
           </button>
-          <button type="button" className={myResponse === 'maybe' ? 'active' : ''} onClick={() => setRsvp('maybe')}>
+          <button
+            type="button"
+            className={myResponse === 'maybe' ? 'active' : ''}
+            aria-pressed={myResponse === 'maybe'}
+            onClick={() => setRsvp('maybe')}
+          >
             {t('GroupEvents_Maybe')}
           </button>
-          <button type="button" className={myResponse === 'not_going' ? 'active' : ''} onClick={() => setRsvp('not_going')}>
+          <button
+            type="button"
+            className={myResponse === 'not_going' ? 'active' : ''}
+            aria-pressed={myResponse === 'not_going'}
+            onClick={() => setRsvp('not_going')}
+          >
             {t('GroupEvents_NotGoing')}
           </button>
         </div>
@@ -185,18 +270,42 @@ export function EventDetailPage() {
           {showTransportControls && (
             <div className="transport-controls">
               {canOfferCar && (
-                <button type="button" className={mine?.car_status === 'offering' ? 'btn btn-outline active' : 'btn btn-outline'} onClick={toggleCarOffering}>
+                <button
+                  type="button"
+                  className={
+                    mine?.car_status === 'offering' ? 'btn btn-outline active' : 'btn btn-outline'
+                  }
+                  onClick={toggleCarOffering}
+                >
                   {t('GroupEvents_HaveCar')}
                 </button>
               )}
-              <button type="button" className={mine?.car_status === 'needs_ride' ? 'btn btn-outline active' : 'btn btn-outline'} onClick={toggleCarNeedsRide}>
+              <button
+                type="button"
+                className={
+                  mine?.car_status === 'needs_ride' ? 'btn btn-outline active' : 'btn btn-outline'
+                }
+                onClick={toggleCarNeedsRide}
+              >
                 {t('GroupEvents_NeedRide')}
               </button>
               {mine?.car_status === 'offering' && (
                 <div className="seat-stepper">
-                  <button type="button" onClick={() => adjustSeats(-1)}>−</button>
+                  <button
+                    type="button"
+                    aria-label={t('GroupEvents_FewerSeats')}
+                    onClick={() => adjustSeats(-1)}
+                  >
+                    −
+                  </button>
                   <span>{mine.car_offered_seats ?? 0}</span>
-                  <button type="button" onClick={() => adjustSeats(1)}>+</button>
+                  <button
+                    type="button"
+                    aria-label={t('GroupEvents_MoreSeats')}
+                    onClick={() => adjustSeats(1)}
+                  >
+                    +
+                  </button>
                 </div>
               )}
             </div>
@@ -206,7 +315,9 @@ export function EventDetailPage() {
 
       <section>
         <h2 className="section-title">{t('EventDetail_Attendees')}</h2>
-        {goingAttendees.length === 0 && maybeAttendees.length === 0 && notGoingAttendees.length === 0 ? (
+        {goingAttendees.length === 0 &&
+        maybeAttendees.length === 0 &&
+        notGoingAttendees.length === 0 ? (
           <p className="empty-state small">{t('EventDetail_NoAttendees')}</p>
         ) : (
           <>
@@ -235,7 +346,10 @@ export function EventDetailPage() {
       <section>
         <div className="event-expenses-header">
           <h2 className="section-title">{t('EventDetail_Expenses')}</h2>
-          <Link to={`/groups/${groupId}/add-expense?eventId=${eventId}`} className="btn btn-outline add-event-expense-btn">
+          <Link
+            to={`/groups/${groupId}/add-expense?eventId=${eventId}`}
+            className="btn btn-outline add-event-expense-btn"
+          >
             {t('EventDetail_AddExpense')}
           </Link>
         </div>
@@ -244,6 +358,7 @@ export function EventDetailPage() {
             type="search"
             className="activity-search"
             placeholder={t('GroupDetail_SearchExpenses')}
+            aria-label={t('GroupDetail_SearchExpenses')}
             value={expenseSearch}
             onChange={(e) => setExpenseSearch(e.target.value)}
           />
@@ -255,19 +370,37 @@ export function EventDetailPage() {
         ) : (
           <div className="activity-list">
             {shownExpenses.map((exp) => (
-              <Link to={`/groups/${groupId}/expenses/${exp.id}`} className="card activity-row" key={exp.id}>
-                <div>
+              <Link
+                to={`/groups/${groupId}/expenses/${exp.id}`}
+                className="card activity-row"
+                key={exp.id}
+              >
+                <span className="activity-icon">
+                  <Icon name={categoryIcon(exp.category, exp.is_settlement)} size={22} />
+                </span>
+                <div className="activity-body">
                   <div className="activity-desc">
-                    {exp.is_settlement ? t('GroupDetail_SettleUp') : exp.description || t('GroupDetail_ExpenseFallback')}
-                    {exp.receipt_path && <span className="receipt-badge" title={t('AddExpense_ReceiptPhoto')}>📎</span>}
+                    {exp.is_settlement
+                      ? t('GroupDetail_SettleUp')
+                      : exp.description || t('GroupDetail_ExpenseFallback')}
+                    {exp.receipt_path && (
+                      <span className="receipt-badge" title={t('AddExpense_ReceiptPhoto')}>
+                        📎
+                      </span>
+                    )}
                   </div>
                   <div className="activity-meta">
-                    {displayName(members.find((m) => m.member_id === exp.paid_by_member_id)?.members ?? { id: '', display_name: t('GroupDetail_SomeoneCapitalized') })} ·{' '}
-                    {new Date(exp.occurred_at).toLocaleDateString(dateLocale)}
+                    {displayName(
+                      members.find((m) => m.member_id === exp.paid_by_member_id)?.members ?? {
+                        id: '',
+                        display_name: t('GroupDetail_SomeoneCapitalized'),
+                      },
+                    )}{' '}
+                    · {new Date(exp.occurred_at).toLocaleDateString(dateLocale)}
                   </div>
                 </div>
                 <div className="activity-amount">
-                  {exp.amount.toFixed(2)} {exp.currency}
+                  {formatMoney(exp.amount, exp.currency, language)}
                 </div>
               </Link>
             ))}

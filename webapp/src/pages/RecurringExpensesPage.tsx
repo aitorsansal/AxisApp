@@ -1,3 +1,4 @@
+import { formatMoney } from '../lib/formatting'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
@@ -5,12 +6,14 @@ import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import type { Group, MemberRow, RecurringExpense } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
+import { Icon } from '../components/Icon'
+import { categoryIcon } from '../lib/icons'
 import './RecurringExpensesPage.css'
 
 export function RecurringExpensesPage() {
   const { groupId } = useParams<{ groupId: string }>()
   const { displayName } = useAliases()
-  const { t } = useLocale()
+  const { t, language } = useLocale()
 
   const [group, setGroup] = useState<Group | null>(null)
   const [members, setMembers] = useState<MemberRow[]>([])
@@ -22,8 +25,15 @@ export function RecurringExpensesPage() {
     setError(null)
     const [groupRes, membersRes, templatesRes] = await Promise.all([
       supabase.from('groups').select('id, name, currency, created_by').eq('id', groupId).single(),
-      supabase.from('group_members').select('member_id, members(id, display_name, account_id, avatar_path)').eq('group_id', groupId),
-      supabase.from('recurring_expenses').select('*').eq('group_id', groupId).order('created_at', { ascending: false }),
+      supabase
+        .from('group_members')
+        .select('member_id, members(id, display_name, account_id, avatar_path)')
+        .eq('group_id', groupId),
+      supabase
+        .from('recurring_expenses')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: false }),
     ])
     if (groupRes.error) return setError(groupRes.error.message)
     if (membersRes.error) return setError(membersRes.error.message)
@@ -62,37 +72,56 @@ export function RecurringExpensesPage() {
     return (
       <div className="page">
         <AppHeader title={t('RecurringExpenses_Title')} backTo={`/groups/${groupId}`} />
-        {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
+        {error ? (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        ) : (
+          <div className="spinner" role="status">
+            {t('Common_Loading')}
+          </div>
+        )}
       </div>
     )
   }
 
   return (
     <div className="page">
-      <AppHeader title={group.name} backTo={`/groups/${groupId}`} />
-      {error && <p className="error-text">{error}</p>}
+      <AppHeader title={t('RecurringExpenses_Title')} backTo={`/groups/${groupId}`} />
+      <p className="page-context">{group.name}</p>
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
 
       <Link to={`/groups/${groupId}/recurring/new`} className="btn btn-primary recurring-add-btn">
         {t('RecurringExpenses_Add')}
       </Link>
 
-      {templates.length === 0 && <p className="empty-state small">{t('RecurringExpenses_Empty')}</p>}
+      {templates.length === 0 && (
+        <p className="empty-state small">{t('RecurringExpenses_Empty')}</p>
+      )}
 
       <ul className="recurring-list">
         {templates.map((tpl) => (
           <li key={tpl.id} className="card recurring-row">
+            <span className="activity-icon recurring-icon">
+              <Icon name={categoryIcon(tpl.category)} size={22} />
+            </span>
             <Link to={`/groups/${groupId}/recurring/${tpl.id}`} className="recurring-info">
               <div className="recurring-desc">
-                {tpl.description || (tpl.category ? t(`Category_${tpl.category}`) : t('GroupDetail_ExpenseFallback'))}
+                {tpl.description ||
+                  (tpl.category ? t(`Category_${tpl.category}`) : t('GroupDetail_ExpenseFallback'))}
               </div>
               <div className="recurring-meta">
                 {payerName(tpl.paid_by_member_id)} · {t(`Recurring_Frequency_${tpl.frequency}`)}
               </div>
             </Link>
+            <strong className="recurring-amount">
+              {formatMoney(tpl.amount, tpl.currency, language)}
+            </strong>
             <div className="recurring-actions">
-              <div className="recurring-amount">
-                {tpl.amount.toFixed(2)} {tpl.currency}
-              </div>
               <button type="button" className="link-btn" onClick={() => toggleActive(tpl)}>
                 {tpl.is_active ? t('RecurringExpenses_Pause') : t('RecurringExpenses_Resume')}
               </button>

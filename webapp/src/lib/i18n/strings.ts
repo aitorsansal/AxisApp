@@ -13,6 +13,56 @@ export const SUPPORTED_LANGUAGES: readonly Language[] = ['en', 'es']
 type Dictionary = Record<string, string>
 
 const en: Dictionary = {
+  Common_SkipToContent: 'Skip to content',
+  Common_Retry: 'Try again',
+  GroupEvents_FewerSeats: 'Fewer available seats',
+  GroupEvents_MoreSeats: 'More available seats',
+  Groups_MemberCount: '{0} members',
+  Groups_YoureOwed: "you're owed",
+  Groups_YouOwe: 'you owe',
+  GroupDetail_OwesYou: 'owes you',
+  GroupDetail_YouOwe: 'you owe',
+  GroupDetail_CurrencyNote: 'All balances in {0}',
+  GroupDetail_PaidBy: '{0} paid',
+  AddExpense_Equally: 'Equally',
+  AddExpense_Manually: 'Manual',
+  NewGroup_NoIcon: 'No icon',
+  GroupIcon_home: 'Home',
+  GroupIcon_users: 'People',
+  GroupIcon_heart: 'Heart',
+  GroupIcon_baby: 'Baby',
+  GroupIcon_dog: 'Dog',
+  GroupIcon_plane: 'Plane',
+  GroupIcon_car: 'Car',
+  GroupIcon_ship: 'Ship',
+  GroupIcon_bike: 'Bike',
+  GroupIcon_tent: 'Tent',
+  GroupIcon_map_pin: 'Map pin',
+  GroupIcon_mountain: 'Mountain',
+  GroupIcon_utensils_crossed: 'Cutlery',
+  GroupIcon_coffee: 'Coffee',
+  GroupIcon_beer: 'Beer',
+  GroupIcon_party_popper: 'Party',
+  GroupIcon_gift: 'Gift',
+  GroupIcon_wallet: 'Wallet',
+  GroupIcon_piggy_bank: 'Piggy bank',
+  GroupIcon_briefcase: 'Briefcase',
+  GroupIcon_dumbbell: 'Dumbbell',
+  GroupIcon_graduation_cap: 'Graduation cap',
+  GroupIcon_gamepad: 'Gamepad',
+  GroupIcon_film: 'Film',
+  GroupIcon_music: 'Music',
+  GroupIcon_book: 'Book',
+  GroupIcon_shopping_cart: 'Shopping cart',
+  GroupIcon_star: 'Star',
+  GroupColor_Blue: 'Blue',
+  GroupColor_Green: 'Green',
+  GroupColor_Red: 'Red',
+  GroupColor_Purple: 'Purple',
+  GroupColor_Pink: 'Pink',
+  GroupColor_Amber: 'Amber',
+  GroupColor_Orange: 'Orange',
+  GroupColor_Navy: 'Navy',
   // Common
   Common_Cancel: 'Cancel',
   Common_OK: 'OK',
@@ -32,6 +82,10 @@ const en: Dictionary = {
 
   // Categories
   Category_food: 'Food',
+  Category_drinks: 'Drinks',
+  Category_travel: 'Travel',
+  Category_shopping: 'Shopping',
+  Category_subscriptions: 'Subscriptions',
   Category_transport: 'Transport',
   Category_rent: 'Rent',
   Category_utilities: 'Utilities',
@@ -49,10 +103,12 @@ const en: Dictionary = {
   Login_SignUp: 'Sign up',
   Login_ToggleToSignup: "Don't have an account? Sign up",
   Login_ToggleToSignin: 'Already have an account? Sign in',
-  Login_CheckInbox: 'We sent a confirmation link to {0}. Open it to activate your account, then sign in.',
+  Login_CheckInbox:
+    'We sent a confirmation link to {0}. Open it to activate your account, then sign in.',
   Login_EmailNotConfirmed: 'Confirm your email before signing in.',
   Login_ResendConfirmation: 'Resend confirmation email',
-  Login_InvalidCredentials: 'Wrong email or password. If you just signed up, confirm your email first.',
+  Login_InvalidCredentials:
+    'Wrong email or password. If you just signed up, confirm your email first.',
   Login_ResendRateLimited: 'Wait a minute before requesting another email.',
 
   // App header
@@ -105,7 +161,8 @@ const en: Dictionary = {
   GroupDetail_LeaveGroup: 'Leave group',
   GroupDetail_TransferOwnership: 'Transfer ownership',
   GroupDetail_DissolveGroup: 'Dissolve group',
-  GroupDetail_LeaveGroupConfirm: "You'll lose access to this group's balances and activity. This can't be undone.",
+  GroupDetail_LeaveGroupConfirm:
+    "You'll lose access to this group's balances and activity. This can't be undone.",
   GroupDetail_DissolveGroupConfirm:
     'Everyone will lose this group. Past expenses and payments stay in each person’s own history, but this group can’t be undone.',
   GroupDetail_DissolveGroupConfirmWithBalances:
@@ -138,7 +195,8 @@ const en: Dictionary = {
   AddExpense_Split: 'Split',
   AddExpense_SplitEqually: 'Split equally',
   AddExpense_Remaining: 'Remaining: {0} {1}',
-  AddExpense_SplitInvalid: "Every participant needs a share above 0, and shares must add up to the total",
+  AddExpense_SplitInvalid:
+    'Every participant needs a share above 0, and shares must add up to the total',
   AddExpense_ReceiptPhoto: 'Receipt photo (optional)',
   AddExpense_AddPhoto: 'Add photo',
   AddExpense_ChangePhoto: 'Change photo',
@@ -171,7 +229,8 @@ const en: Dictionary = {
   Members_AlreadyOnAxis: 'Already on Axis — send them the invite code instead',
   Members_Link: 'Link',
   Members_Remove: 'Remove',
-  Members_RemoveConfirm: "They'll lose access to this group. Past expenses and payments stay in their history. This can't be undone.",
+  Members_RemoveConfirm:
+    "They'll lose access to this group. Past expenses and payments stay in their history. This can't be undone.",
   Members_RenamePrompt: 'Display name for this member',
 
   // Recurring expenses list
@@ -183,7 +242,8 @@ const en: Dictionary = {
   RecurringExpenses_Resume: 'Resume',
   RecurringExpenses_Pause: 'Pause',
   RecurringExpenses_Delete: 'Delete',
-  RecurringExpenses_DeleteConfirm: 'This stops future occurrences. Expenses already created from it are not affected.',
+  RecurringExpenses_DeleteConfirm:
+    'This stops future occurrences. Expenses already created from it are not affected.',
 
   // Group events
   GroupEvents_Upcoming: 'Upcoming',
@@ -235,16 +295,21 @@ const en: Dictionary = {
   Profile_Birthday: 'Birthday',
   Profile_CarSeats: 'Car seats available',
   Profile_CarSeatsPlaceholder: 'e.g. 3',
-  Profile_CarSeatsHint: 'Extra seats beyond yourself — how many other people your car can fit. Used for event carpooling.',
+  Profile_CarSeatsHint:
+    'Extra seats beyond yourself — how many other people your car can fit. Used for event carpooling.',
   Profile_ChangePhoto: 'Change photo',
   Profile_RemovePhoto: 'Remove photo',
   Profile_InstallAppSection: 'Install app',
-  Profile_InstallAppHint: 'Install Axis on this device for a faster, full-screen experience — and to receive push notifications.',
-  Profile_InstallAppIosHint: 'Tap the Share button, then "Add to Home Screen" — installing is required on iOS to receive push notifications.',
+  Profile_InstallAppHint:
+    'Install Axis on this device for a faster, full-screen experience — and to receive push notifications.',
+  Profile_InstallAppIosHint:
+    'Tap the Share button, then "Add to Home Screen" — installing is required on iOS to receive push notifications.',
   Profile_InstallAppButton: 'Install',
   Profile_NotificationsSection: 'Notifications',
-  Profile_NotificationsHint: 'Get notified about new expenses, settlements, and events in your groups.',
-  Profile_PushDenied: 'Notifications are blocked for this site — re-enable them in your browser settings.',
+  Profile_NotificationsHint:
+    'Get notified about new expenses, settlements, and events in your groups.',
+  Profile_PushDenied:
+    'Notifications are blocked for this site — re-enable them in your browser settings.',
   Profile_EnableNotifications: 'Enable notifications',
   Profile_DisableNotifications: 'Disable notifications',
   Profile_CalendarFeedSection: 'Calendar feed',
@@ -253,7 +318,8 @@ const en: Dictionary = {
   Profile_CopyCalendarLink: 'Copy link',
   Profile_ShareCalendarLink: 'Share',
   Profile_RegenerateCalendarLink: 'Regenerate link',
-  Profile_RegenerateCalendarLinkConfirm: 'The old link will stop working immediately. This can’t be undone.',
+  Profile_RegenerateCalendarLinkConfirm:
+    'The old link will stop working immediately. This can’t be undone.',
   Profile_CalendarLinkCopied: 'Link copied.',
   Profile_Language: 'Language',
   Profile_LanguageSystem: 'System',
@@ -277,6 +343,56 @@ const en: Dictionary = {
 }
 
 const es: Dictionary = {
+  Common_SkipToContent: 'Saltar al contenido',
+  Common_Retry: 'Volver a intentar',
+  GroupEvents_FewerSeats: 'Menos plazas disponibles',
+  GroupEvents_MoreSeats: 'Más plazas disponibles',
+  Groups_MemberCount: '{0} miembros',
+  Groups_YoureOwed: 'te deben',
+  Groups_YouOwe: 'debes',
+  GroupDetail_OwesYou: 'te debe',
+  GroupDetail_YouOwe: 'le debes',
+  GroupDetail_CurrencyNote: 'Todos los saldos en {0}',
+  GroupDetail_PaidBy: '{0} pagó',
+  AddExpense_Equally: 'A partes iguales',
+  AddExpense_Manually: 'Manual',
+  NewGroup_NoIcon: 'Sin icono',
+  GroupIcon_home: 'Casa',
+  GroupIcon_users: 'Personas',
+  GroupIcon_heart: 'Corazón',
+  GroupIcon_baby: 'Bebé',
+  GroupIcon_dog: 'Perro',
+  GroupIcon_plane: 'Avión',
+  GroupIcon_car: 'Coche',
+  GroupIcon_ship: 'Barco',
+  GroupIcon_bike: 'Bicicleta',
+  GroupIcon_tent: 'Tienda de campaña',
+  GroupIcon_map_pin: 'Ubicación',
+  GroupIcon_mountain: 'Montaña',
+  GroupIcon_utensils_crossed: 'Cubiertos',
+  GroupIcon_coffee: 'Café',
+  GroupIcon_beer: 'Cerveza',
+  GroupIcon_party_popper: 'Fiesta',
+  GroupIcon_gift: 'Regalo',
+  GroupIcon_wallet: 'Cartera',
+  GroupIcon_piggy_bank: 'Hucha',
+  GroupIcon_briefcase: 'Maletín',
+  GroupIcon_dumbbell: 'Pesa',
+  GroupIcon_graduation_cap: 'Birrete',
+  GroupIcon_gamepad: 'Mando',
+  GroupIcon_film: 'Película',
+  GroupIcon_music: 'Música',
+  GroupIcon_book: 'Libro',
+  GroupIcon_shopping_cart: 'Carrito',
+  GroupIcon_star: 'Estrella',
+  GroupColor_Blue: 'Azul',
+  GroupColor_Green: 'Verde',
+  GroupColor_Red: 'Rojo',
+  GroupColor_Purple: 'Morado',
+  GroupColor_Pink: 'Rosa',
+  GroupColor_Amber: 'Ámbar',
+  GroupColor_Orange: 'Naranja',
+  GroupColor_Navy: 'Azul marino',
   // Common
   Common_Cancel: 'Cancelar',
   Common_OK: 'Aceptar',
@@ -296,6 +412,10 @@ const es: Dictionary = {
 
   // Categories
   Category_food: 'Comida',
+  Category_drinks: 'Bebidas',
+  Category_travel: 'Viajes',
+  Category_shopping: 'Compras',
+  Category_subscriptions: 'Suscripciones',
   Category_transport: 'Transporte',
   Category_rent: 'Alquiler',
   Category_utilities: 'Suministros',
@@ -313,10 +433,12 @@ const es: Dictionary = {
   Login_SignUp: 'Crear cuenta',
   Login_ToggleToSignup: '¿No tienes cuenta? Regístrate',
   Login_ToggleToSignin: '¿Ya tienes cuenta? Inicia sesión',
-  Login_CheckInbox: 'Hemos enviado un enlace de confirmación a {0}. Ábrelo para activar tu cuenta y después inicia sesión.',
+  Login_CheckInbox:
+    'Hemos enviado un enlace de confirmación a {0}. Ábrelo para activar tu cuenta y después inicia sesión.',
   Login_EmailNotConfirmed: 'Confirma tu correo antes de iniciar sesión.',
   Login_ResendConfirmation: 'Reenviar correo de confirmación',
-  Login_InvalidCredentials: 'Correo o contraseña incorrectos. Si acabas de crear la cuenta, confirma primero tu correo.',
+  Login_InvalidCredentials:
+    'Correo o contraseña incorrectos. Si acabas de crear la cuenta, confirma primero tu correo.',
   Login_ResendRateLimited: 'Espera un minuto antes de pedir otro correo.',
 
   // App header
@@ -369,14 +491,16 @@ const es: Dictionary = {
   GroupDetail_LeaveGroup: 'Salir del grupo',
   GroupDetail_TransferOwnership: 'Transferir propiedad',
   GroupDetail_DissolveGroup: 'Disolver grupo',
-  GroupDetail_LeaveGroupConfirm: 'Perderás el acceso a los saldos y la actividad de este grupo. Esto no se puede deshacer.',
+  GroupDetail_LeaveGroupConfirm:
+    'Perderás el acceso a los saldos y la actividad de este grupo. Esto no se puede deshacer.',
   GroupDetail_DissolveGroupConfirm:
     'Todos perderán este grupo. Los gastos y pagos pasados se conservan en el historial de cada persona, pero esto no se puede deshacer.',
   GroupDetail_DissolveGroupConfirmWithBalances:
     'Este grupo tiene saldos sin liquidar — al disolverlo dejarán de rastrearse. Los gastos y pagos pasados se conservan en el historial de cada persona, pero esto no se puede deshacer.',
   GroupDetail_TransferOwnershipTitle: 'Transferir propiedad a',
   GroupDetail_RenamePrompt: 'Nuevo nombre del grupo',
-  GroupDetail_NoTransferCandidates: 'Todavía no hay otro miembro con cuenta de Axis al que transferir.',
+  GroupDetail_NoTransferCandidates:
+    'Todavía no hay otro miembro con cuenta de Axis al que transferir.',
   GroupDetail_EditAppearance: 'Editar color e icono',
   GroupDetail_SearchExpenses: 'Buscar gastos…',
   GroupDetail_NoSearchResults: 'Ningún gasto coincide con tu búsqueda.',
@@ -402,7 +526,8 @@ const es: Dictionary = {
   AddExpense_Split: 'Reparto',
   AddExpense_SplitEqually: 'Repartir a partes iguales',
   AddExpense_Remaining: 'Restante: {0} {1}',
-  AddExpense_SplitInvalid: 'Cada participante necesita una parte mayor que 0, y las partes deben sumar el total',
+  AddExpense_SplitInvalid:
+    'Cada participante necesita una parte mayor que 0, y las partes deben sumar el total',
   AddExpense_ReceiptPhoto: 'Foto del recibo (opcional)',
   AddExpense_AddPhoto: 'Añadir foto',
   AddExpense_ChangePhoto: 'Cambiar foto',
@@ -435,7 +560,8 @@ const es: Dictionary = {
   Members_AlreadyOnAxis: 'Ya tiene cuenta en Axis — envíale el código de invitación',
   Members_Link: 'Vincular',
   Members_Remove: 'Eliminar',
-  Members_RemoveConfirm: 'Perderá el acceso a este grupo. Los gastos y pagos pasados se conservan en su historial. Esto no se puede deshacer.',
+  Members_RemoveConfirm:
+    'Perderá el acceso a este grupo. Los gastos y pagos pasados se conservan en su historial. Esto no se puede deshacer.',
   Members_RenamePrompt: 'Nombre visible para este miembro',
 
   // Recurring expenses list
@@ -447,7 +573,8 @@ const es: Dictionary = {
   RecurringExpenses_Resume: 'Reanudar',
   RecurringExpenses_Pause: 'Pausar',
   RecurringExpenses_Delete: 'Eliminar',
-  RecurringExpenses_DeleteConfirm: 'Esto detiene futuras repeticiones. Los gastos ya creados a partir de él no se ven afectados.',
+  RecurringExpenses_DeleteConfirm:
+    'Esto detiene futuras repeticiones. Los gastos ya creados a partir de él no se ven afectados.',
 
   // Group events
   GroupEvents_Upcoming: 'Próximos',
@@ -499,16 +626,20 @@ const es: Dictionary = {
   Profile_Birthday: 'Fecha de nacimiento',
   Profile_CarSeats: 'Plazas de coche disponibles',
   Profile_CarSeatsPlaceholder: 'ej. 3',
-  Profile_CarSeatsHint: 'Plazas extra además de ti — cuántas personas más caben en tu coche. Se usa para compartir coche en eventos.',
+  Profile_CarSeatsHint:
+    'Plazas extra además de ti — cuántas personas más caben en tu coche. Se usa para compartir coche en eventos.',
   Profile_ChangePhoto: 'Cambiar foto',
   Profile_RemovePhoto: 'Eliminar foto',
   Profile_InstallAppSection: 'Instalar aplicación',
-  Profile_InstallAppHint: 'Instala Axis en este dispositivo para una experiencia más rápida a pantalla completa — y para recibir notificaciones push.',
-  Profile_InstallAppIosHint: 'Toca el botón Compartir y luego "Añadir a pantalla de inicio" — instalarla es necesario en iOS para recibir notificaciones push.',
+  Profile_InstallAppHint:
+    'Instala Axis en este dispositivo para una experiencia más rápida a pantalla completa — y para recibir notificaciones push.',
+  Profile_InstallAppIosHint:
+    'Toca el botón Compartir y luego "Añadir a pantalla de inicio" — instalarla es necesario en iOS para recibir notificaciones push.',
   Profile_InstallAppButton: 'Instalar',
   Profile_NotificationsSection: 'Notificaciones',
   Profile_NotificationsHint: 'Recibe avisos de nuevos gastos, pagos y eventos en tus grupos.',
-  Profile_PushDenied: 'Las notificaciones están bloqueadas para este sitio — actívalas en los ajustes de tu navegador.',
+  Profile_PushDenied:
+    'Las notificaciones están bloqueadas para este sitio — actívalas en los ajustes de tu navegador.',
   Profile_EnableNotifications: 'Activar notificaciones',
   Profile_DisableNotifications: 'Desactivar notificaciones',
   Profile_CalendarFeedSection: 'Suscripción de calendario',
@@ -517,7 +648,8 @@ const es: Dictionary = {
   Profile_CopyCalendarLink: 'Copiar enlace',
   Profile_ShareCalendarLink: 'Compartir',
   Profile_RegenerateCalendarLink: 'Regenerar enlace',
-  Profile_RegenerateCalendarLinkConfirm: 'El enlace anterior dejará de funcionar de inmediato. Esto no se puede deshacer.',
+  Profile_RegenerateCalendarLinkConfirm:
+    'El enlace anterior dejará de funcionar de inmediato. Esto no se puede deshacer.',
   Profile_CalendarLinkCopied: 'Enlace copiado.',
   Profile_Language: 'Idioma',
   Profile_LanguageSystem: 'Sistema',

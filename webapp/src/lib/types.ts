@@ -84,7 +84,19 @@ export const RECURRING_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as
 // the MAUI app. Labels are resolved per-viewer via Category_<key> in the i18n
 // dictionary (lib/i18n/strings.ts), never stored as text — same reasoning
 // AppConstants.Categories' own doc comment gives.
-export const CATEGORY_KEYS = ['food', 'transport', 'rent', 'utilities', 'entertainment', 'other'] as const
+// Legacy rent/utilities keys remain selectable so existing expenses can be edited safely.
+export const CATEGORY_KEYS = [
+  'food',
+  'drinks',
+  'transport',
+  'travel',
+  'entertainment',
+  'shopping',
+  'subscriptions',
+  'other',
+  'rent',
+  'utilities',
+] as const
 
 export interface MyMember {
   id: string
@@ -129,7 +141,34 @@ export interface CalendarSubscription {
 }
 
 export const CURRENCIES = [
-  'EUR', 'USD', 'GBP', 'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'CZK', 'DKK',
-  'HKD', 'HUF', 'IDR', 'ILS', 'INR', 'ISK', 'JPY', 'KRW', 'MXN', 'MYR',
-  'NOK', 'NZD', 'PHP', 'PLN', 'RON', 'SEK', 'SGD', 'THB', 'TRY', 'ZAR',
+  'EUR',
+  'USD',
+  'GBP',
+  'AUD',
+  'BRL',
+  'CAD',
+  'CHF',
+  'CNY',
+  'CZK',
+  'DKK',
+  'HKD',
+  'HUF',
+  'IDR',
+  'ILS',
+  'INR',
+  'ISK',
+  'JPY',
+  'KRW',
+  'MXN',
+  'MYR',
+  'NOK',
+  'NZD',
+  'PHP',
+  'PLN',
+  'RON',
+  'SEK',
+  'SGD',
+  'THB',
+  'TRY',
+  'ZAR',
 ]

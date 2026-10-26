@@ -46,3 +46,15 @@
   border-color: var(--primary);
   background: var(--surface-emphasis);
 }
+
+.appearance-swatch {
+  width: 44px;
+  height: 44px;
+}
+.appearance-icon {
+  min-height: 44px;
+}
+.appearance-icons {
+  grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+  gap: 8px;
+}

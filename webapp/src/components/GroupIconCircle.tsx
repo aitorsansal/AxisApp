@@ -1,4 +1,4 @@
-import { colorHex, iconGlyph } from '../lib/groupAppearance'
+import { colorHex, iconGlyph, textOnAccent } from '../lib/groupAppearance'
 import './GroupIconCircle.css'
 
 interface Props {
@@ -18,9 +18,16 @@ export function GroupIconCircle({ color, icon, name, size = 40 }: Props) {
         height: size,
         fontSize: size * 0.5,
         background: colorHex(color),
+        color: textOnAccent(color),
       }}
     >
-      {glyph ?? (name.slice(0, 1).toUpperCase() || '?')}
+      {glyph ? (
+        <span className="icon" aria-hidden="true">
+          {glyph}
+        </span>
+      ) : (
+        name.slice(0, 1).toUpperCase() || '?'
+      )}
     </div>
   )
 }

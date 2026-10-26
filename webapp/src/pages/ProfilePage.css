@@ -93,3 +93,17 @@
 .danger-zone {
   border-color: var(--danger);
 }
+
+.profile-section .section-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.language-option {
+  min-height: 44px;
+}
+.calendar-feed-actions {
+  flex-wrap: wrap;
+}
+.field-hint {
+  overflow-wrap: anywhere;
+}

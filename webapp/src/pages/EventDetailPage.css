@@ -18,7 +18,7 @@
   display: flex;
   background: var(--surface-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   padding: 4px;
   margin-bottom: 16px;
 }
@@ -29,14 +29,14 @@
   border: none;
   color: var(--text-secondary);
   padding: 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-weight: 600;
   font-size: 0.9rem;
 }
 
 .rsvp-pill button.active {
   background: var(--primary);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .transport-section {
@@ -68,7 +68,7 @@
 
 .transport-controls .btn.active {
   background: var(--primary);
-  color: #fff;
+  color: var(--text-on-accent);
   border-color: var(--primary);
 }
 
@@ -139,4 +139,60 @@
   text-decoration: none;
   padding: 6px 12px;
   font-size: 0.85rem;
+}
+
+.rsvp-pill {
+  border-radius: var(--radius-pill);
+}
+.rsvp-pill button {
+  min-height: 40px;
+  border-radius: var(--radius-pill);
+}
+.event-expenses-header {
+  flex-wrap: wrap;
+}
+
+.rsvp-pill button,
+.events-toggle button {
+  min-height: 44px;
+  font-size: 13px;
+}
+.rsvp-pill button:hover:not(.active),
+.events-toggle button:hover:not(.active) {
+  background: var(--surface-emphasis);
+  color: var(--text-primary);
+}
+.seat-stepper {
+  padding: 2px;
+  gap: 4px;
+}
+.seat-stepper button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+}
+.seat-stepper button:hover {
+  background: var(--surface-emphasis);
+}
+.attendee-row {
+  min-height: 64px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.attendee-row > div {
+  min-width: 0;
+}
+.attendee-name,
+.attendee-car,
+.event-subcaption,
+.event-description {
+  overflow-wrap: anywhere;
+}
+.attendee-car,
+.attendee-group-header {
+  font-size: 12px;
 }
