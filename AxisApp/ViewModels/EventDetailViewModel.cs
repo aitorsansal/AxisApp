@@ -202,7 +202,7 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
     private void BuildHeader(Event ev)
     {
         Title = ev.Title;
-        var subParts = new List<string> { ev.StartsAt.ToLocalTime().ToString("ddd, MMM d · HH:mm") };
+        var subParts = new List<string> { EventTimes.FormatRange(ev.StartsAt, ev.EndsAt) };
         if (!string.IsNullOrWhiteSpace(ev.Location)) subParts.Add(ev.Location!);
         SubCaption = string.Join(" · ", subParts);
         Description = ev.Description ?? "";

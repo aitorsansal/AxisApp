@@ -109,6 +109,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     /// LoadExistingExpense). Carried through unchanged on Save, same "fresh object silently drops a
     /// field" footgun class as editingCreatedBy/editingIsSettlement above.</summary>
     private Guid? editingEventId;
+    private DateTime? editingOccurredAt;
     private Guid? editingRecurringExpenseId;
     private Guid? editingRecurringCreatedBy;
     private DateTime editingRecurringCreatedAt;
@@ -435,7 +436,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         }
 
         Description = expense.Description;
-        OccurredOn = expense.OccurredAt;
+        editingOccurredAt = expense.OccurredAt;
+        OccurredOn = expense.OccurredAt.ToLocalTime().Date;
         AmountText = FormatAmount(expense.Amount);
         ReceiptPath = expense.ReceiptPath;
         SetCurrencyByCode(expense.Currency);
@@ -646,10 +648,9 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                 return;
             }
 
-            var share = decimal.Round(Amount / included.Count, 2);
-            for (var i = 0; i < included.Count - 1; i++)
-                included[i].Owes = share;
-            included[^1].Owes = decimal.Round(Amount - share * (included.Count - 1), 2);
+            var shares = ExpenseMath.SplitEqually(Amount, included.Count);
+            for (var i = 0; i < included.Count; i++)
+                included[i].Owes = shares[i];
 
             RecalcRemaining();
         }
@@ -681,7 +682,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [RelayCommand]
     private Task Save() => RunSafeAsync(async () =>
     {
-        if (!CanSave || SelectedPayer is null) return;
+        if (!CanSave || SelectedPayer is null || IsReceiptBusy || IsBusy) return;
 
         var currency = SelectedCurrencyIndex >= 0 ? AppConstants.Currencies.All[SelectedCurrencyIndex].Code : "EUR";
 
@@ -731,7 +732,9 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                     Currency = currency,
                     Description = Description,
                     Category = SelectedCategory,
-                    OccurredAt = OccurredOn.ToUniversalTime(),
+                    OccurredAt = editingOccurredAt is { } original && original.ToLocalTime().Date == OccurredOn.Date
+                        ? original
+                        : OccurredOn.Date.ToUniversalTime(),
                     ReceiptPath = ReceiptPath,
                     EventId = editingEventId
                 };
@@ -852,7 +855,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         IsReceiptBusy = true;
         try
         {
-            var newPath = await receiptsRepository.UploadAsync(groupId, webp, ReceiptPath);
+            var newPath = await receiptsRepository.UploadAsync(groupId, webp);
             ReceiptPath = newPath;
             ReceiptPreviewUrl = await receiptsRepository.GetSignedUrlAsync(newPath);
         }
@@ -862,13 +865,11 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         }
     }
 
-    private async Task RemoveReceiptAsync()
+    private Task RemoveReceiptAsync()
     {
-        if (ReceiptPath is null) return;
-
-        await receiptsRepository.RemoveAsync(ReceiptPath);
         ReceiptPath = null;
         ReceiptPreviewUrl = null;
+        return Task.CompletedTask;
     }
 
     [RelayCommand]

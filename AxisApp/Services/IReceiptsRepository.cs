@@ -8,11 +8,9 @@ namespace AxisApp.Services;
 public interface IReceiptsRepository
 {
     /// <summary>Uploads webpData under a new, never-reused path scoped to groupId, returning the
-    /// storage path to set on Expense.ReceiptPath. If previousPath is given (replacing an existing
-    /// receipt), best-effort deletes it after the new upload succeeds — a leftover orphan if that
-    /// delete fails is harmless, same "cleanup isn't critical" class SCOPE.md already put receipts
-    /// in.</summary>
-    Task<string> UploadAsync(Guid groupId, byte[] webpData, string? previousPath = null);
+    /// storage path to set on Expense.ReceiptPath. Unreferenced files are removed by the scheduled
+    /// orphan cleanup so cancelled edits and concurrent saves cannot destroy saved receipts.</summary>
+    Task<string> UploadAsync(Guid groupId, byte[] webpData);
 
     /// <summary>Best-effort delete; a leftover file is a harmless orphan.</summary>
     Task RemoveAsync(string path);

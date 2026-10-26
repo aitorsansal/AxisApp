@@ -165,6 +165,9 @@ public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
     {
         if (!CanSave) return;
 
+        if (HasEndTime && EndDate.Date.Add(EndTime) <= StartDate.Date.Add(StartTime))
+            throw new InvalidOperationException(LocalizationResourceManager.Instance["AddEvent_EndAfterStart"]);
+
         IsBusy = true;
         try
         {

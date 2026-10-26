@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import { resizeImageToWebp } from '../lib/imageResize'
+import { equalSplitCents } from '../lib/expenseMath'
+import { expenseTimestamp, localDateInput } from '../lib/dates'
 import {
   CATEGORY_KEYS,
   CURRENCIES,
@@ -29,18 +31,6 @@ function parseCents(text: string) {
 
 const formatCents = (cents: number) => (cents / 100).toFixed(2)
 
-// Same penny-rounding fix as AddExpenseViewModel.RedistributeEqually: equal
-// rounded share for everyone, leftover onto the last participant.
-function equalSplitCents(totalCents: number, ids: string[]) {
-  const result: Record<string, number> = {}
-  if (ids.length === 0) return result
-  const share = Math.round(totalCents / ids.length)
-  ids.forEach((id, i) => {
-    result[id] = i === ids.length - 1 ? totalCents - share * (ids.length - 1) : share
-  })
-  return result
-}
-
 export function AddExpensePage() {
   const { groupId, expenseId, recurringId } = useParams<{
     groupId: string
@@ -61,8 +51,9 @@ export function AddExpensePage() {
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('EUR')
   const [category, setCategory] = useState<(typeof CATEGORY_KEYS)[number] | ''>('food')
-  const [occurredOn, setOccurredOn] = useState(() => new Date().toISOString().slice(0, 10))
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [occurredOn, setOccurredOn] = useState(() => localDateInput())
+  const [startDate, setStartDate] = useState(() => localDateInput())
+  const originalOccurredAt = useRef<string | null>(null)
   const [frequency, setFrequency] = useState<(typeof RECURRING_FREQUENCIES)[number]>('monthly')
   const [paidBy, setPaidBy] = useState('')
   const [participants, setParticipants] = useState<Set<string>>(new Set())
@@ -96,6 +87,7 @@ export function AddExpensePage() {
   useEffect(() => {
     if (!groupId) return
     ;(async () => {
+      originalOccurredAt.current = null;
       const [groupRes, membersRes] = await Promise.all([
         supabase.from('groups').select('id, name, currency, created_by').eq('id', groupId).single(),
         supabase
@@ -126,7 +118,8 @@ export function AddExpensePage() {
         setAmount(String(expense.amount))
         setCurrency(expense.currency)
         setCategory((expense.category || '') as typeof category)
-        setOccurredOn(expense.occurred_at.slice(0, 10))
+        originalOccurredAt.current = expense.occurred_at
+        setOccurredOn(localDateInput(expense.occurred_at))
         setPaidBy(expense.paid_by_member_id)
         setIsSettlement(expense.is_settlement)
         const myId = session?.user.id
@@ -267,9 +260,6 @@ export function AddExpensePage() {
         .upload(path, blob, { contentType: 'image/webp' })
       if (uploadError) throw uploadError
 
-      const previousPath = receiptPath
-      if (previousPath) await supabase.storage.from(RECEIPTS_BUCKET).remove([previousPath])
-
       setReceiptPath(path)
       const { data: signed } = await supabase.storage
         .from(RECEIPTS_BUCKET)
@@ -284,7 +274,6 @@ export function AddExpensePage() {
 
   async function handleRemoveReceipt() {
     if (!receiptPath) return
-    await supabase.storage.from(RECEIPTS_BUCKET).remove([receiptPath])
     setReceiptPath(null)
     setReceiptUrl(null)
   }
@@ -347,7 +336,7 @@ export function AddExpensePage() {
         currency,
         description,
         category: isSettlement ? '' : category,
-        occurred_at: new Date(occurredOn).toISOString(),
+        occurred_at: expenseTimestamp(occurredOn, originalOccurredAt.current),
         receipt_path: receiptPath,
         is_settlement: isSettlement,
         event_id: linkedEventId,
@@ -650,7 +639,7 @@ export function AddExpensePage() {
           </p>
         )}
 
-        <button type="submit" className="btn btn-primary" disabled={busy}>
+        <button type="submit" className="btn btn-primary" disabled={busy || receiptBusy}>
           {busy ? t('Common_Saving') : t('AddExpense_SaveExpense')}
         </button>
 

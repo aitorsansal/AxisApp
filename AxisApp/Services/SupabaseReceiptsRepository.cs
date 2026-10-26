@@ -17,14 +17,11 @@ public class SupabaseReceiptsRepository : IReceiptsRepository
         this.client = client;
     }
 
-    public async Task<string> UploadAsync(Guid groupId, byte[] webpData, string? previousPath = null)
+    public async Task<string> UploadAsync(Guid groupId, byte[] webpData)
     {
         var path = $"{groupId}/{Guid.NewGuid()}.webp";
 
         await client.Storage.From(Bucket).Upload(webpData, path, new Supabase.Storage.FileOptions { ContentType = "image/webp" });
-
-        if (!string.IsNullOrEmpty(previousPath))
-            await TryRemoveAsync(previousPath);
 
         return path;
     }

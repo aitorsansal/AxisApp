@@ -177,8 +177,8 @@ public partial class GroupEventsViewModel : BaseViewModel
     {
         var now = DateTime.UtcNow;
         var relevant = IsPastSelected
-            ? allEvents.Where(e => e.StartsAt < now).OrderByDescending(e => e.StartsAt)
-            : allEvents.Where(e => e.StartsAt >= now).OrderBy(e => e.StartsAt);
+            ? allEvents.Where(e => EventTimes.IsPast(e.StartsAt, now)).OrderByDescending(e => e.StartsAt)
+            : allEvents.Where(e => !EventTimes.IsPast(e.StartsAt, now)).OrderBy(e => e.StartsAt);
 
         var groups = new List<EventMonthGroup>();
         EventMonthGroup? current = null;
@@ -211,7 +211,7 @@ public partial class GroupEventsViewModel : BaseViewModel
             .Where(m => m is not null)
             .Select(m => new EventAttendeeAvatar { Initials = MemberDisplay.Initials(m!, aliases), AvatarUrl = MemberDisplay.AvatarUrl(m!) });
 
-        var subParts = new List<string> { ev.StartsAt.ToLocalTime().ToString("ddd, MMM d · HH:mm") };
+        var subParts = new List<string> { EventTimes.FormatRange(ev.StartsAt, ev.EndsAt) };
         if (!string.IsNullOrWhiteSpace(ev.Location)) subParts.Add(ev.Location!);
 
         var myResponse = mine?.Response ?? "";

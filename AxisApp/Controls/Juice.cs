@@ -36,12 +36,16 @@ public static class Juice
         if (bindable is not VisualElement element) return;
         if (newValue is not double scale || scale <= 0 || scale >= 1) return;
 
+#if ANDROID
+        element.Behaviors.Add(new PressScaleBehavior(scale));
+#else
         element.Behaviors.Add(new TouchBehavior
         {
             PressedScale = scale,
             DefaultAnimationDuration = 120,
             PressedAnimationDuration = 80,
         });
+#endif
     }
 
     /// <summary>Peak scale for the Selected bounce below — override per-element when the default

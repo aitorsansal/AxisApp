@@ -88,7 +88,11 @@ export function GroupDetailPage() {
         .range(0, ACTIVITY_PAGE_SIZE - 1),
     ])
 
-    if (groupRes.error) return setError(groupRes.error.message)
+    if (groupRes.error) {
+      setGroup(null)
+      return setError(groupRes.error.code === 'PGRST116' || groupRes.error.code === '22P02'
+        ? t('GroupDetail_Unavailable') : groupRes.error.message)
+    }
     if (membersRes.error) return setError(membersRes.error.message)
     if (balancesRes.error) return setError(balancesRes.error.message)
     if (activityRes.error) return setError(activityRes.error.message)
@@ -99,7 +103,7 @@ export function GroupDetailPage() {
     const page = (activityRes.data as unknown as ExpenseWithPayer[]) ?? []
     setActivity(page)
     setHasMoreActivity(page.length === ACTIVITY_PAGE_SIZE)
-  }, [groupId])
+  }, [groupId, t])
 
   useEffect(() => {
     load()

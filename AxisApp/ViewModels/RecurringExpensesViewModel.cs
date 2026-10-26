@@ -98,21 +98,11 @@ public partial class RecurringExpensesViewModel : BaseViewModel, IQueryAttributa
     private static string CapitalizeFirst(string value) =>
         value.Length == 0 ? value : char.ToUpperInvariant(value[0]) + value[1..];
 
-    /// <summary>Purely informational client-side estimate (no cron consumes this yet) — the day
-    /// after LastProcessedDate stepped by Frequency once, or StartDate itself if nothing has ever
-    /// materialized.</summary>
+    /// <summary>Matches the server materializer: first occurrence on StartDate, then one period
+    /// after LastProcessedDate.</summary>
     private static string FormatNextDue(RecurringExpense template)
     {
-        var basis = template.LastProcessedDate ?? template.StartDate.AddDays(-1);
-        var next = template.Frequency switch
-        {
-            "daily" => basis.AddDays(1),
-            "weekly" => basis.AddDays(7),
-            "monthly" => basis.AddMonths(1),
-            "yearly" => basis.AddYears(1),
-            _ => basis
-        };
-        if (next < template.StartDate) next = template.StartDate;
+        var next = RecurringSchedule.NextDue(template.StartDate, template.LastProcessedDate, template.Frequency);
         return next.ToString("MMM d, yyyy");
     }
 

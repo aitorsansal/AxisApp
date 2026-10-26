@@ -81,6 +81,10 @@ export function AddEventPage() {
       return
     }
     setError(null)
+    if (hasEndTime && new Date(`${endDate}T${endTime}`) <= new Date(`${startDate}T${startTime}`)) {
+      setError(t('AddEvent_EndAfterStart'))
+      return
+    }
     setBusy(true)
 
     const payload = {

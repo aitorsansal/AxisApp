@@ -13,6 +13,11 @@ export const SUPPORTED_LANGUAGES: readonly Language[] = ['en', 'es']
 type Dictionary = Record<string, string>
 
 const en: Dictionary = {
+  AddEvent_EndAfterStart: 'End time must be after the start time.',
+  NotFound_Title: 'Page not found',
+  NotFound_Message: 'This page does not exist.',
+  NotFound_Home: 'Go to your groups',
+  GroupDetail_Unavailable: 'This group is unavailable. It may have been removed or you may no longer have access.',
   Common_SkipToContent: 'Skip to content',
   Common_Retry: 'Try again',
   GroupEvents_FewerSeats: 'Fewer available seats',
@@ -343,6 +348,11 @@ const en: Dictionary = {
 }
 
 const es: Dictionary = {
+  AddEvent_EndAfterStart: 'La hora de fin debe ser posterior a la de inicio.',
+  NotFound_Title: 'Página no encontrada',
+  NotFound_Message: 'Esta página no existe.',
+  NotFound_Home: 'Ir a tus grupos',
+  GroupDetail_Unavailable: 'Este grupo no está disponible. Puede que se haya eliminado o que ya no tengas acceso.',
   Common_SkipToContent: 'Saltar al contenido',
   Common_Retry: 'Volver a intentar',
   GroupEvents_FewerSeats: 'Menos plazas disponibles',

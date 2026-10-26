@@ -1,9 +1,11 @@
 import { Icon } from '../components/Icon'
 import { categoryIcon } from '../lib/icons'
 import { formatMoney } from '../lib/formatting'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { SerializedUpdates } from '../lib/serializedUpdates'
+import { formatEventRange } from '../lib/dates'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
@@ -34,13 +36,15 @@ export function EventDetailPage() {
   const [expenseSearch, setExpenseSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [myCarExtraSeats, setMyCarExtraSeats] = useState<number | null>(null)
+  const rsvpUpdates = useRef(new SerializedUpdates<EventAttendee>())
 
   const myMemberId = members.find((m) => m.members.account_id === session?.user.id)?.member_id
 
   const load = useCallback(async () => {
     if (!groupId || !eventId) return
     setError(null)
-    const [groupRes, eventRes, membersRes, attendeesRes, expensesRes] = await Promise.all([
+    const [groupRes, eventRes, membersRes, attendeesRes, expensesRes, myMemberRes] = await Promise.all([
       supabase
         .from('groups')
         .select('id, name, currency, created_by, color, icon')
@@ -62,6 +66,9 @@ export function EventDetailPage() {
         )
         .eq('event_id', eventId)
         .order('occurred_at', { ascending: false }),
+      session ? supabase.from('members').select('car_extra_seats')
+        .eq('account_id', session.user.id).limit(1).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
     ])
 
     if (groupRes.error) return setError(groupRes.error.message)
@@ -75,62 +82,57 @@ export function EventDetailPage() {
     setMembers((membersRes.data as unknown as MemberRow[]) ?? [])
     setAttendees((attendeesRes.data as EventAttendee[]) ?? [])
     setExpenses((expensesRes.data as unknown as ExpenseWithPayer[]) ?? [])
+    setMyCarExtraSeats(myMemberRes.data?.car_extra_seats ?? null)
     setLoaded(true)
-  }, [groupId, eventId])
+  }, [groupId, eventId, session])
 
   useEffect(() => {
     load()
   }, [load])
 
-  async function upsertRsvp(
-    response: RsvpResponse,
-    carStatus: CarStatus,
-    carOfferedSeats: number | null,
-  ) {
-    if (!myMemberId || !eventId) return
-    const { error } = await supabase.from('event_attendees').upsert(
-      {
-        event_id: eventId,
-        member_id: myMemberId,
-        response,
-        car_status: carStatus,
-        car_offered_seats: carStatus === 'offering' ? carOfferedSeats : null,
-      },
-      { onConflict: 'event_id,member_id' },
-    )
-    if (error) return setError(error.message)
-    await load()
-  }
-
   const mine = attendees.find((a) => a.member_id === myMemberId)
   const myResponse = mine?.response ?? ''
 
+  function queueRsvp(update: (current: EventAttendee) => EventAttendee) {
+    if (!myMemberId || !eventId) return
+    const initial = mine ?? {
+      event_id: eventId, member_id: myMemberId, response: 'not_going' as const,
+      car_status: 'none' as const, car_offered_seats: null,
+    }
+    void rsvpUpdates.current.run(eventId, initial, update, async (next) => {
+      const { error } = await supabase.from('event_attendees').upsert(next, { onConflict: 'event_id,member_id' })
+      if (error) throw error
+      await load()
+    }).catch((err) => setError(err.message ?? t('Common_Error')))
+  }
+
   function setRsvp(response: RsvpResponse) {
-    const carStatus: CarStatus =
-      response === 'not_going'
-        ? 'none'
-        : response === 'maybe' && mine?.car_status === 'offering'
-          ? 'none'
-          : (mine?.car_status ?? 'none')
-    const seats = carStatus === 'offering' ? (mine?.car_offered_seats ?? 0) : null
-    upsertRsvp(response, carStatus, seats)
+    queueRsvp((current) => {
+      const carStatus: CarStatus = response === 'not_going' || (response === 'maybe' && current.car_status === 'offering')
+        ? 'none' : current.car_status
+      return { ...current, response, car_status: carStatus, car_offered_seats: carStatus === 'offering' ? current.car_offered_seats : null }
+    })
   }
 
   function toggleCarOffering() {
-    if (!mine || mine.response !== 'going') return
-    const newStatus: CarStatus = mine.car_status === 'offering' ? 'none' : 'offering'
-    upsertRsvp(mine.response, newStatus, newStatus === 'offering' ? 0 : null)
+    queueRsvp((current) => {
+      if (current.response !== 'going') return current
+      const offering = current.car_status !== 'offering'
+      return { ...current, car_status: offering ? 'offering' : 'none', car_offered_seats: offering ? (myCarExtraSeats ?? 0) : null }
+    })
   }
 
   function toggleCarNeedsRide() {
-    if (!mine || (mine.response !== 'going' && mine.response !== 'maybe')) return
-    const newStatus: CarStatus = mine.car_status === 'needs_ride' ? 'none' : 'needs_ride'
-    upsertRsvp(mine.response, newStatus, null)
+    queueRsvp((current) => {
+      if (current.response === 'not_going') return current
+      return { ...current, car_status: current.car_status === 'needs_ride' ? 'none' : 'needs_ride', car_offered_seats: null }
+    })
   }
 
   function adjustSeats(delta: number) {
-    if (!mine || mine.car_status !== 'offering') return
-    upsertRsvp(mine.response, 'offering', Math.max(0, (mine.car_offered_seats ?? 0) + delta))
+    queueRsvp((current) => current.car_status !== 'offering' ? current : {
+      ...current, car_offered_seats: Math.max(0, (current.car_offered_seats ?? 0) + delta),
+    })
   }
 
   if (!loaded || !event || !group) {
@@ -149,15 +151,7 @@ export function EventDetailPage() {
   }
 
   const dateLocale = language === 'es' ? 'es-ES' : 'en-US'
-  const subParts = [
-    new Date(event.starts_at).toLocaleString(dateLocale, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
-  ]
+  const subParts = [formatEventRange(event.starts_at, event.ends_at, language)]
   if (event.location) subParts.push(event.location)
 
   const seatsOffered = attendees

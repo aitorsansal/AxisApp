@@ -2200,7 +2200,7 @@ create table public.events (
   description text,
   location text,
   starts_at timestamptz not null,
-  ends_at timestamptz,
+  ends_at timestamptz constraint events_end_after_start check (ends_at is null or ends_at > starts_at),
   needs_transport boolean not null default false,
   reminder_sent_at timestamptz,
   created_by uuid references auth.users(id) on delete set null,
