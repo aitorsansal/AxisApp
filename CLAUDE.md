@@ -208,7 +208,11 @@ this area again:
 Every data access interface lives in `Services/` (`IAuthService`,
 `IMembersRepository`, `IGroupsRepository`,
 `IExpensesRepository`, `IBalancesRepository`, `IRecurringExpensesRepository`,
-`IInvitesRepository`, `IDeviceTokensRepository`, `IEventsRepository`).
+`IInvitesRepository`, `IDeviceTokensRepository`, `IEventsRepository`,
+`IAliasesRepository`, `IAvatarsRepository`, `IReceiptsRepository`,
+`ICalendarSubscriptionsRepository`). The other `I*` services there
+(`IGoogleAuthService`, `IPushRegistrationService`, `ISecretClipboardService`,
+`IWidgetRefreshService`) wrap platform features, not data access.
 **ViewModels depend on these interfaces, never on the
 `Supabase.Client` type or the `supabase-csharp` package directly.** The reason:
 if this ever moves off Supabase (self-hosted Supabase on a NAS, or a fully
@@ -292,8 +296,11 @@ documented in CHANGELOG).
 Avoid `Shell.Current.DisplayPromptAsync` entirely — a known WinUI fail-fast
 crash on Windows (microsoft/microsoft-ui-xaml#10897). Use a dedicated page
 or an inline overlay instead. `DisplayAlert`/`DisplayActionSheet` are
-confirmed safe standard MAUI primitives; so is `Toast.Make(...).Show()`
-**not** — it throws `COMException` on this unpackaged Win32 build.
+confirmed safe standard MAUI primitives; `Toast.Make(...).Show()` is
+**not** — it throws `COMException` on this unpackaged Win32 build. The
+existing callers (`ProfileViewModel`, `InviteToGroupViewModel`,
+`JoinGroupViewModel`) wrap it in a try/catch `TryShowToast` helper so it
+works on Android and is a silent no-op on Windows; never call it bare.
 
 ### Deep linking (invites and events) — one domain
 
@@ -432,6 +439,8 @@ that first) reuses the same Firebase project as Android for push.
 | `device_tokens` | Per-account push tokens for the notification feature. |
 | `member_aliases` | Private, per-account nickname override for how a member is displayed. |
 | `expense_history` | Previous version of an expense (row + shares as JSON) on every update/delete, trigger-written, read-only for group members. |
+| `calendar_subscriptions` | One per member: the secret token behind that member's ICS calendar feed URL. Regenerating rotates the token. |
+| `allowed_signup_emails` | **Signup is invite-only**: a trigger on `auth.users` aborts any signup (every auth path) whose email isn't in this table. RLS on with no policies, so the app can't read it; add people with a manual `insert`. |
 
 No `categories` table (removed 2026-08-28) — categories are a small fixed
 list of keys in `AppConstants.Categories`, localized client-side, not
@@ -507,6 +516,8 @@ permission grants, `security definer` needs, off-peak scheduling choices).
 | `Xamarin.AndroidX.Credentials.PlayServicesAuth` | 1.6.0.1 | Android-only, paired with the above |
 | `Xamarin.Google.Android.Libraries.Identity.GoogleId` | 1.1.0.15 | Android-only: Google ID token credential type |
 | `Xamarin.Firebase.Messaging` | 125.1.1.1 | Android-only: FCM push notifications |
+| `Xamarin.AndroidX.Fragment.Ktx` | 1.9.0 | Android-only pin, not used directly: aligns Credential Manager's Fragment.Ktx with Firebase's transitive Fragment 1.9.0. Without it, R8/dex fails on a duplicate `FragmentKt.class`. Don't remove it as unused. |
+| `QRCoder` | 1.8.0 | Invite QR codes (`InviteToGroupViewModel`) |
 
 **`SkiaSharp` is pinned to 3.119.0, not the newer 4.151.1 it briefly was** —
 `LiveChartsCore.SkiaSharpView.Maui` 2.0.5's own dependency chain
@@ -556,8 +567,9 @@ npm run deploy --prefix webapp
 
 ```bash
 # Regression tests (no MAUI dependency — the test project links the pure
-# domain files Models/ExpenseMath.cs, EventTimes.cs, RecurringSchedule.cs
-# directly via <Compile Include>, so it builds as plain net10.0)
+# domain files Models/ExpenseMath.cs, EventTimes.cs, DateFormats.cs,
+# PairBreakdown.cs, RecurringSchedule.cs directly via <Compile Include>, so
+# it builds as plain net10.0)
 dotnet run --project tests/AxisApp.RegressionTests
 
 # Web app regression tests (node:test, mirrors the C# checks against
