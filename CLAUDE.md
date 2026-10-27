@@ -49,10 +49,7 @@ What's actually left, in rough order:
    build/test against).
 3. Small known gaps: a live RLS-enforcement pass on the `events`/
    `event_attendees` policies (structurally verified, not yet exercised
-   under a real adversarial session); the stray `pnpm-lock.yaml` in
-   `webapp/` next to `package-lock.json` (worth standardizing on one
-   package manager before this causes real lockfile drift — both are kept
-   in sync by hand for now). The web app has receipts, recurring expenses,
+   under a real adversarial session). The web app has receipts, recurring expenses,
    the members roster/add-by-name flow, calendar feeds and group appearance;
    it has no remaining feature-parity gaps vs. Android (the list from
    `review-artifacts/APP_REVIEW.md` was closed 2026-10-27). PWA install + web push are implemented and live
@@ -561,7 +558,12 @@ dotnet build AxisApp/AxisApp.csproj -f net10.0-windows10.0.19041.0
 
 ```bash
 # Deploy the web app, which also serves assetlinks.json, version.json and the
-# static reset/confirm/privacy pages (see "Deep linking" above)
+# static reset/confirm/privacy pages (see "Deep linking" above).
+# Always use this script: it builds first, while a bare `npx wrangler deploy`
+# re-uploads the stale dist/. Use npm, not pnpm (webapp/ is npm-only; its
+# pnpm files were removed 2026-10-27). Build locally: VITE_* values live in
+# the gitignored webapp/.env.local, so a Cloudflare Git-connected build ships
+# a blank page unless they are set as Cloudflare *build* variables.
 npm run deploy --prefix webapp
 ```
 
