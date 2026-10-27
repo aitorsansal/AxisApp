@@ -5,6 +5,7 @@ import { equalSplitCents } from '../src/lib/expenseMath.ts'
 import { SerializedUpdates } from '../src/lib/serializedUpdates.ts'
 import { CoalescedWrites } from '../src/lib/coalescedWrites.ts'
 import { nextDue } from '../src/lib/recurringSchedule.ts'
+import { categoryColor, categoryFrequency, categoryTrend, expensesCsv, filterByRange, rangeCutoff, settlementsByMonth, spendByCategory, spendByMember } from '../src/lib/stats.ts'
 import { formatEventRange } from '../src/lib/dates.ts'
 
 test('equal splits conserve every cent and differ by at most one cent', () => {
@@ -92,4 +93,53 @@ test('recurring next-due matches the server materializer and RecurringSchedule.c
   assert.equal(nextDue('2026-01-31', '2026-03-28', 'monthly'), '2026-04-30')
   assert.equal(nextDue('2024-02-29', '2024-02-29', 'yearly'), '2025-02-28')
   assert.equal(nextDue('2024-02-29', '2027-02-28', 'yearly'), '2028-02-29')
+})
+test('stats aggregations mirror GroupStatsViewModel', () => {
+  const e = (id, payer, amount, category, occurred, settlement = false) => ({
+    id, paid_by_member_id: payer, amount, currency: 'EUR', amount_in_group_currency: amount,
+    description: id, category, occurred_at: occurred, is_settlement: settlement,
+  })
+  const expenses = [
+    e('a', 'm1', 9, 'food', '2026-09-10T12:00:00Z'),
+    e('b', 'm1', 10, 'drinks', '2026-09-11T12:00:00Z'),
+    e('c', 'm2', 4, 'food', '2026-10-01T12:00:00Z'),
+    e('d', 'm2', 50, null, '2026-10-02T12:00:00Z', true),
+  ]
+  const shares = [
+    { expense_id: 'a', member_id: 'm2', share_amount_in_group_currency: 9 },
+    { expense_id: 'b', member_id: 'm1', share_amount_in_group_currency: 5 },
+    { expense_id: 'b', member_id: 'm2', share_amount_in_group_currency: 5 },
+    { expense_id: 'c', member_id: 'm1', share_amount_in_group_currency: 4 },
+    { expense_id: 'd', member_id: 'm1', share_amount_in_group_currency: 50 },
+  ]
+
+  // Numeric sort (13 before 10), settlements excluded.
+  assert.deepEqual(spendByCategory(expenses), [{ key: 'food', value: 13 }, { key: 'drinks', value: 10 }])
+  assert.deepEqual(categoryFrequency(expenses), [{ key: 'food', value: 2 }, { key: 'drinks', value: 1 }])
+  assert.deepEqual(spendByMember(expenses, shares, 'paid'), [{ key: 'm1', value: 19 }, { key: 'm2', value: 4 }])
+  assert.deepEqual(spendByMember(expenses, shares, 'share'), [{ key: 'm2', value: 14 }, { key: 'm1', value: 9 }])
+  assert.deepEqual(settlementsByMonth(expenses), [{ key: '2026-10', value: 1 }])
+
+  const trend = categoryTrend(expenses)
+  assert.deepEqual(trend.months, ['2026-09', '2026-10'])
+  assert.deepEqual(trend.series, [{ key: 'food', values: [9, 4] }, { key: 'drinks', values: [10, 0] }])
+
+  // Colour follows the category's fixed slot; null category is "other"; legacy keys fall to slot 0.
+  assert.equal(categoryColor('drinks'), '#D95926')
+  assert.equal(categoryColor(null), '#E66767')
+  assert.equal(categoryColor('rent'), '#3987E5')
+
+  // AddMonths(-n) clamps the day instead of overflowing.
+  assert.equal(rangeCutoff('3m', new Date('2026-05-31T10:00:00Z')).toISOString(), '2026-02-28T10:00:00.000Z')
+  assert.equal(rangeCutoff('all', new Date()), null)
+  assert.deepEqual(filterByRange(expenses, '3m', new Date('2026-12-15T00:00:00Z')).map((x) => x.id), ['c', 'd'])
+
+  const csv = expensesCsv(
+    [e('x', 'm1', 1.5, 'food', '2026-09-10T12:00:00Z'), { ...e('y', 'm2', 2, null, '2026-09-11T12:00:00Z', true), description: 'Dinner, "late"' }],
+    (id) => (id === 'm1' ? 'Ana' : 'Luis'),
+    (key) => key.toUpperCase(),
+  ).split('\n')
+  assert.equal(csv[0], 'Date,Description,Category,Amount,Currency,Paid By,Settlement')
+  assert.equal(csv[1], '2026-09-11,"Dinner, ""late""",OTHER,2.00,EUR,Luis,Yes')
+  assert.equal(csv[2], '2026-09-10,x,FOOD,1.50,EUR,Ana,No')
 })

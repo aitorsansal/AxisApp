@@ -138,7 +138,9 @@
                             <lvc:CartesianChart
                                 HeightRequest="220"
                                 Series="{Binding CategorySpendSeries}"
-                                YAxes="{Binding CategorySpendYAxes}" />
+                                YAxes="{Binding CategorySpendYAxes}"
+                                XAxes="{Binding CategorySpendXAxes}"
+                                TooltipPosition="Hidden" />
                         </VerticalStackLayout>
 
                         <!-- The one multi-series chart on this tab — a legend is mandatory here
@@ -150,6 +152,8 @@
                                 HeightRequest="260"
                                 Series="{Binding CategoryTrendSeries}"
                                 XAxes="{Binding CategoryTrendXAxes}"
+                                YAxes="{Binding CategoryTrendYAxes}"
+                                TooltipPosition="Hidden"
                                 LegendPosition="Bottom" />
                         </VerticalStackLayout>
 
@@ -158,7 +162,9 @@
                             <lvc:CartesianChart
                                 HeightRequest="220"
                                 Series="{Binding CategoryFrequencySeries}"
-                                YAxes="{Binding CategoryFrequencyYAxes}" />
+                                YAxes="{Binding CategoryFrequencyYAxes}"
+                                XAxes="{Binding CategoryFrequencyXAxes}"
+                                TooltipPosition="Hidden" />
                         </VerticalStackLayout>
 
                         <VerticalStackLayout Spacing="{StaticResource SpacingS}">
@@ -181,7 +187,9 @@
                             <lvc:CartesianChart
                                 HeightRequest="220"
                                 Series="{Binding MemberSpendSeries}"
-                                YAxes="{Binding MemberSpendYAxes}" />
+                                YAxes="{Binding MemberSpendYAxes}"
+                                XAxes="{Binding MemberSpendXAxes}"
+                                TooltipPosition="Hidden" />
                         </VerticalStackLayout>
 
                         <VerticalStackLayout Spacing="{StaticResource SpacingS}">
@@ -189,7 +197,9 @@
                             <lvc:CartesianChart
                                 HeightRequest="200"
                                 Series="{Binding SettlementCadenceSeries}"
-                                XAxes="{Binding SettlementCadenceXAxes}" />
+                                XAxes="{Binding SettlementCadenceXAxes}"
+                                YAxes="{Binding SettlementCadenceYAxes}"
+                                TooltipPosition="Hidden" />
                         </VerticalStackLayout>
 
                     </VerticalStackLayout>

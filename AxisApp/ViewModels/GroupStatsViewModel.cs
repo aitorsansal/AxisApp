@@ -57,6 +57,55 @@ public partial class GroupStatsViewModel : BaseViewModel
         new(0xD5, 0x51, 0x81), new(0x00, 0x83, 0x00), new(0x90, 0x85, 0xE9), new(0xE6, 0x67, 0x67)
     ];
 
+    /// <summary>TextSecondary (Colors.xaml) for the value printed at each bar's end.</summary>
+    private static readonly SKColor ValueLabelColor = new(0xC3, 0xCC, 0xDA);
+
+    /// <summary>Tooltips are hidden (TooltipPosition="Hidden" in GroupStatsView.xaml): LiveCharts'
+    /// default tooltip showed only the row label, never the value, and on the top row it rendered
+    /// empty (real bug, 2026-10-27). Every bar prints its own value instead.</summary>
+    private static RowSeries<double> Bars(double[] values, Func<double, string> format) => new()
+    {
+        Values = values,
+        Fill = new SolidColorPaint(PrimaryColor),
+        DataLabelsPaint = new SolidColorPaint(ValueLabelColor),
+        DataLabelsSize = 12,
+        DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End,
+        DataLabelsFormatter = point => format(point.Model)
+    };
+
+    private static ColumnSeries<double> Columns(double[] values, Func<double, string> format) => new()
+    {
+        Values = values,
+        Fill = new SolidColorPaint(PrimaryColor),
+        DataLabelsPaint = new SolidColorPaint(ValueLabelColor),
+        DataLabelsSize = 12,
+        DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End,
+        DataLabelsFormatter = point => format(point.Model)
+    };
+
+    private string Money(double value) => $"{groupSymbol}{value:0.00}";
+
+    private static string Count(double value) => value.ToString("0", CultureInfo.CurrentCulture);
+
+    /// <summary>Value axis for a bar chart: always starts at 0 (a bar's length is its value — the
+    /// auto range started the frequency chart at 0.6), whole-number steps for counts.</summary>
+    private static ObservableCollection<Axis> ValueAxis(bool isCount) =>
+    [
+        isCount
+            ? new Axis { MinLimit = 0, MinStep = 1, Labeler = Count }
+            : new Axis { MinLimit = 0 }
+    ];
+
+    /// <summary>Leaves room past the longest bar for its end label — with the auto range the
+    /// axis ended exactly at the largest value and clipped its label.</summary>
+    private static void FitValueAxis(ObservableCollection<Axis> axes, IReadOnlyCollection<double> values) =>
+        axes[0].MaxLimit = values.Count > 0 && values.Max() > 0 ? values.Max() * 1.3 : null;
+
+    /// <summary>Category/member/month axis: labels only, no gridlines — on a bar chart they ran
+    /// straight through the bars' value labels.</summary>
+    private static ObservableCollection<Axis> LabelAxis(string[] labels) =>
+        [new Axis { Labels = labels, ShowSeparatorLines = false }];
+
     private static SKColor CategoryColor(string key)
     {
         var index = Array.IndexOf(AppConstants.Categories.Keys.ToArray(), string.IsNullOrEmpty(key) ? "other" : key);
@@ -88,6 +137,13 @@ public partial class GroupStatsViewModel : BaseViewModel
     [ObservableProperty] private ObservableCollection<Axis> settlementCadenceXAxes = [];
     [ObservableProperty] private ObservableCollection<ISeries> categoryTrendSeries = [];
     [ObservableProperty] private ObservableCollection<Axis> categoryTrendXAxes = [];
+
+    // One Axis instance per chart — LiveCharts binds an axis to a single chart.
+    public ObservableCollection<Axis> CategorySpendXAxes { get; } = ValueAxis(isCount: false);
+    public ObservableCollection<Axis> CategoryFrequencyXAxes { get; } = ValueAxis(isCount: true);
+    public ObservableCollection<Axis> MemberSpendXAxes { get; } = ValueAxis(isCount: false);
+    public ObservableCollection<Axis> SettlementCadenceYAxes { get; } = ValueAxis(isCount: true);
+    public ObservableCollection<Axis> CategoryTrendYAxes { get; } = ValueAxis(isCount: false);
 
     /// <summary>Page-level filter feeding every chart on this tab. All-time by default — matches
     /// v1's original scope, still the right default for a group whose history fits on one screen
@@ -266,11 +322,10 @@ public partial class GroupStatsViewModel : BaseViewModel
             .OrderBy(x => x.Amount)
             .ToList();
 
-        CategorySpendYAxes = new ObservableCollection<Axis> { new() { Labels = byCategory.Select(x => x.Label).ToArray() } };
-        CategorySpendSeries = new ObservableCollection<ISeries>
-        {
-            new RowSeries<double> { Values = byCategory.Select(x => x.Amount).ToArray(), Fill = new SolidColorPaint(PrimaryColor) }
-        };
+        var amounts = byCategory.Select(x => x.Amount).ToArray();
+        FitValueAxis(CategorySpendXAxes, amounts);
+        CategorySpendYAxes = LabelAxis(byCategory.Select(x => x.Label).ToArray());
+        CategorySpendSeries = new ObservableCollection<ISeries> { Bars(amounts, Money) };
     }
 
     private void RebuildCategoryFrequency()
@@ -281,11 +336,10 @@ public partial class GroupStatsViewModel : BaseViewModel
             .OrderBy(x => x.Count)
             .ToList();
 
-        CategoryFrequencyYAxes = new ObservableCollection<Axis> { new() { Labels = byCategory.Select(x => x.Label).ToArray() } };
-        CategoryFrequencySeries = new ObservableCollection<ISeries>
-        {
-            new RowSeries<double> { Values = byCategory.Select(x => x.Count).ToArray(), Fill = new SolidColorPaint(PrimaryColor) }
-        };
+        var counts = byCategory.Select(x => x.Count).ToArray();
+        FitValueAxis(CategoryFrequencyXAxes, counts);
+        CategoryFrequencyYAxes = LabelAxis(byCategory.Select(x => x.Label).ToArray());
+        CategoryFrequencySeries = new ObservableCollection<ISeries> { Bars(counts, Count) };
     }
 
     private void RebuildMemberSpend()
@@ -311,11 +365,10 @@ public partial class GroupStatsViewModel : BaseViewModel
                 .ToList();
         }
 
-        MemberSpendYAxes = new ObservableCollection<Axis> { new() { Labels = byMember.Select(x => x.Label).ToArray() } };
-        MemberSpendSeries = new ObservableCollection<ISeries>
-        {
-            new RowSeries<double> { Values = byMember.Select(x => x.Value).ToArray(), Fill = new SolidColorPaint(PrimaryColor) }
-        };
+        var values = byMember.Select(x => x.Value).ToArray();
+        FitValueAxis(MemberSpendXAxes, values);
+        MemberSpendYAxes = LabelAxis(byMember.Select(x => x.Label).ToArray());
+        MemberSpendSeries = new ObservableCollection<ISeries> { Bars(values, Money) };
     }
 
     /// <summary>Chart axis labels have no room for a long name — a member added by their email
@@ -339,11 +392,10 @@ public partial class GroupStatsViewModel : BaseViewModel
             .Select(g => new { Label = g.Key.ToString("MMM yyyy", CultureInfo.CurrentUICulture), Count = (double)g.Count() })
             .ToList();
 
-        SettlementCadenceXAxes = new ObservableCollection<Axis> { new() { Labels = byMonth.Select(x => x.Label).ToArray() } };
-        SettlementCadenceSeries = new ObservableCollection<ISeries>
-        {
-            new ColumnSeries<double> { Values = byMonth.Select(x => x.Count).ToArray(), Fill = new SolidColorPaint(PrimaryColor) }
-        };
+        var monthCounts = byMonth.Select(x => x.Count).ToArray();
+        FitValueAxis(SettlementCadenceYAxes, monthCounts);
+        SettlementCadenceXAxes = LabelAxis(byMonth.Select(x => x.Label).ToArray());
+        SettlementCadenceSeries = new ObservableCollection<ISeries> { Columns(monthCounts, Count) };
     }
 
     /// <summary>Spend by category, per month — the one genuinely multi-series chart on this tab

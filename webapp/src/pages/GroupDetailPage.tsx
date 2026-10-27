@@ -8,6 +8,7 @@ import { useLocale } from '../context/LocaleContext'
 import type { ExpenseWithPayer, Group, MemberRow, PairwiseBalance } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
 import { GroupEventsTab } from '../components/GroupEventsTab'
+import { GroupStatsTab } from '../components/GroupStatsTab'
 import { GroupAppearancePicker } from '../components/GroupAppearancePicker'
 import { Modal } from '../components/Modal'
 import { Avatar } from '../components/Avatar'
@@ -43,7 +44,11 @@ export function GroupDetailPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isTransferOpen, setIsTransferOpen] = useState(false)
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false)
-  const [isEventsTab, setIsEventsTab] = useState(false)
+  // Same three tabs as Android's GroupDetailTab enum. Stats mounts on its first selection and
+  // then stays mounted (hidden), so it doesn't refetch the whole history on every switch.
+  const [tab, setTab] = useState<'expenses' | 'events' | 'stats'>('expenses')
+  const [hasOpenedStats, setHasOpenedStats] = useState(false)
+  const isEventsTab = tab === 'events'
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -349,22 +354,24 @@ export function GroupDetailPage() {
       {error && <p className="error-text">{error}</p>}
 
       <div className="tab-pill group-tabs" aria-label={t('GroupDetail_GenericTitle')}>
-        <button
-          type="button"
-          className={isEventsTab ? '' : 'active'}
-          aria-pressed={!isEventsTab}
-          onClick={() => setIsEventsTab(false)}
-        >
-          {t('GroupDetail_ExpensesTab')}
-        </button>
-        <button
-          type="button"
-          className={isEventsTab ? 'active' : ''}
-          aria-pressed={isEventsTab}
-          onClick={() => setIsEventsTab(true)}
-        >
-          {t('GroupDetail_EventsTab')}
-        </button>
+        {([
+          ['expenses', 'GroupDetail_ExpensesTab'],
+          ['events', 'GroupDetail_EventsTab'],
+          ['stats', 'GroupDetail_StatsTab'],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={tab === key ? 'active' : ''}
+            aria-pressed={tab === key}
+            onClick={() => {
+              setTab(key)
+              if (key === 'stats') setHasOpenedStats(true)
+            }}
+          >
+            {t(label)}
+          </button>
+        ))}
       </div>
 
       {isTransferOpen && (
@@ -423,7 +430,13 @@ export function GroupDetailPage() {
         </Modal>
       )}
 
-      {isEventsTab ? (
+      {hasOpenedStats && (
+        <div hidden={tab !== 'stats'}>
+          <GroupStatsTab group={group} members={members} />
+        </div>
+      )}
+
+      {tab === 'stats' ? null : isEventsTab ? (
         <GroupEventsTab groupId={groupId!} members={members} />
       ) : (
         <div className="expense-overview">

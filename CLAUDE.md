@@ -54,8 +54,8 @@ What's actually left, in rough order:
    package manager before this causes real lockfile drift — both are kept
    in sync by hand for now). The web app has receipts, recurring expenses,
    the members roster/add-by-name flow, calendar feeds and group appearance;
-   its remaining parity gaps vs. Android are Stats/export and
-   accent/converted-amount preferences (`review-artifacts/APP_REVIEW.md`, to be discussed one by one). PWA install + web push are implemented and live
+   its remaining parity gaps vs. Android are accent/converted-amount
+   preferences and the "you and X" `MemberProfilePage` (`review-artifacts/APP_REVIEW.md`, to be discussed one by one). PWA install + web push are implemented and live
    (see "Web app: PWA install + push notifications" below). Web push still
    fails silently when Firebase config is missing (`getPushState` has no
    rejection handler). The Android events widget
@@ -182,6 +182,16 @@ this area again:
   sheet via `Share.Default.RequestAsync(ShareFileRequest)`, the same API
   `ProfileViewModel`/`InviteToGroupViewModel` already use for a text share
   — this was the app's first *file* share.
+- **Charts show their values, not tooltips.** LiveCharts' default tooltip only
+  showed the row label and rendered empty on the top row, so every chart has
+  `TooltipPosition="Hidden"` and bars/columns print their value at the tip
+  (`Bars`/`Columns` in `GroupStatsViewModel`). Value axes start at 0 with 30%
+  headroom for the end label; count axes step by 1.
+- **Web** (`components/GroupStatsTab.tsx`, aggregations in `lib/stats.ts`,
+  covered by the node tests): same tab, filters and charts, hand-drawn in
+  HTML/SVG — no chart library. Fetches the whole history in 1000-row pages.
+  CSV downloads in the browser with Android's exact columns; "PDF" is the
+  browser print dialog over a print-only layout of the same four tables.
 
 ## Architecture
 
@@ -538,7 +548,7 @@ dotnet run --project tests/AxisApp.RegressionTests
 
 # Web app regression tests (node:test, mirrors the C# checks against
 # webapp/src/lib/expenseMath.ts, dates.ts, serializedUpdates.ts,
-# coalescedWrites.ts, recurringSchedule.ts)
+# coalescedWrites.ts, recurringSchedule.ts, stats.ts)
 npm test --prefix webapp
 ```
 

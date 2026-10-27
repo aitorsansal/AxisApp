@@ -1,0 +1,365 @@
+.stats-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stats-ranges,
+.stats-mode {
+  display: flex;
+  gap: 6px;
+}
+
+.stats-ranges button,
+.stats-mode button {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 13px;
+  min-height: 36px;
+}
+
+.stats-mode button {
+  padding: 4px 10px;
+  min-height: 30px;
+  font-size: 12px;
+}
+
+.stats-ranges button.active,
+.stats-mode button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-on-accent);
+}
+
+.stats-export {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stats-export .btn {
+  width: auto;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 760px) {
+  .stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.stats-wide {
+  grid-column: 1 / -1;
+}
+
+.stats-card .section-title {
+  margin: 0 0 12px;
+}
+
+.stats-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.stats-card-header .section-title {
+  margin: 0;
+}
+
+/* Horizontal bars: label column, then the bar with its value at the tip. Bars cap at 20px
+   thick with a 4px rounded data-end and a square baseline (dataviz mark spec). */
+.bar-chart {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bar-chart li {
+  display: grid;
+  grid-template-columns: minmax(70px, 30%) 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.bar-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  /* Room for the value label so the longest bar never pushes it out of the card. */
+  padding-right: 84px;
+}
+
+.bar {
+  height: 20px;
+  min-width: 3px;
+  background: var(--primary);
+  border-radius: 0 4px 4px 0;
+  flex-shrink: 0;
+}
+
+.bar-value,
+.column-value {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Columns: value on the cap, month below, all growing from one baseline. */
+.column-chart {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-end;
+  height: 200px;
+  overflow-x: auto;
+}
+
+.column-chart li {
+  flex: 1 0 44px;
+  max-width: 80px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.column-area {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  padding-top: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.column {
+  width: 20px;
+  min-height: 3px;
+  background: var(--primary);
+  border-radius: 4px 4px 0 0;
+}
+
+.column-label {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  white-space: nowrap;
+  padding-top: 6px;
+}
+
+/* Trend: legend above, SVG plot, crosshair tooltip, and a table fallback. */
+.trend-legend {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.trend-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.trend-plot {
+  position: relative;
+}
+
+.trend-plot svg {
+  display: block;
+  overflow: visible;
+}
+
+.trend-plot .grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.trend-plot .tick {
+  fill: var(--text-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-plot .crosshair {
+  stroke: var(--text-tertiary);
+  stroke-width: 1;
+}
+
+.trend-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.trend-dot {
+  fill: currentColor;
+  stroke: var(--surface-elevated);
+  stroke-width: 2;
+}
+
+.trend-plot .hit {
+  fill: transparent;
+}
+
+.trend-tooltip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  background: var(--surface-emphasis);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 12px;
+  pointer-events: none;
+  box-shadow: 0 8px 24px #0006;
+  min-width: 140px;
+  z-index: 2;
+}
+
+.tooltip-title {
+  color: var(--text-tertiary);
+  margin-bottom: 4px;
+}
+
+.tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.tooltip-row strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-table {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.trend-table summary {
+  cursor: pointer;
+  color: var(--text-tertiary);
+}
+
+.trend-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-table th,
+.trend-table td {
+  text-align: right;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.trend-table th:first-child,
+.trend-table td:first-child {
+  text-align: left;
+}
+
+/* Print layout ("Print / save as PDF"): the same four tables as Android's StatsExporter PDF.
+   Hidden on screen; while printing, everything else on the page is hidden instead. */
+.stats-print {
+  display: none;
+}
+
+@media print {
+  body.printing-stats > *:not(.stats-print) {
+    display: none !important;
+  }
+
+  body.printing-stats {
+    background: #fff;
+  }
+
+  body.printing-stats .stats-print {
+    display: block;
+    color: #000;
+    font-size: 11pt;
+  }
+
+  .stats-print h1 {
+    font-size: 18pt;
+    margin: 0 0 4pt;
+  }
+
+  .stats-print > p {
+    margin: 0 0 12pt;
+  }
+
+  .stats-print h2 {
+    font-size: 13pt;
+    margin: 14pt 0 4pt;
+  }
+
+  .stats-print table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .stats-print td {
+    padding: 3pt 0;
+    border-bottom: 0.5pt solid #ccc;
+  }
+
+  .stats-print td:last-child {
+    text-align: right;
+  }
+
+  .stats-print section {
+    break-inside: avoid;
+  }
+}

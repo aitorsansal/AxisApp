@@ -77,23 +77,28 @@ public static class StatsExporter
         writer.Subtitle(rangeLabel);
         writer.Spacer();
 
+        // Sort on the number, then format: sorting the formatted text ranked "€9.00" above
+        // "€10.00" (real bug, fixed 2026-10-27).
         writer.SectionHeader(loc["Stats_SpendByCategory"]);
         writer.Table(
             nonSettlement.GroupBy(e => e.Category)
-                .Select(g => (CategoryDisplay.Label(g.Key), $"{groupSymbol}{g.Sum(e => e.AmountInGroupCurrency):0.00}"))
-                .OrderByDescending(x => x.Item2));
+                .Select(g => (Label: CategoryDisplay.Label(g.Key), Total: g.Sum(e => e.AmountInGroupCurrency)))
+                .OrderByDescending(x => x.Total)
+                .Select(x => (x.Label, $"{groupSymbol}{x.Total:0.00}")));
 
         writer.SectionHeader(loc["Stats_CategoryFrequency"]);
         writer.Table(
             nonSettlement.GroupBy(e => e.Category)
-                .Select(g => (CategoryDisplay.Label(g.Key), g.Count().ToString(CultureInfo.InvariantCulture)))
-                .OrderByDescending(x => x.Item2));
+                .Select(g => (Label: CategoryDisplay.Label(g.Key), Count: g.Count()))
+                .OrderByDescending(x => x.Count)
+                .Select(x => (x.Label, x.Count.ToString(CultureInfo.InvariantCulture))));
 
         writer.SectionHeader(loc["Stats_SpendByMember"]);
         writer.Table(
             nonSettlement.GroupBy(e => e.PaidByMemberId)
-                .Select(g => (MemberName(g.Key, membersById, aliases), $"{groupSymbol}{g.Sum(e => e.AmountInGroupCurrency):0.00}"))
-                .OrderByDescending(x => x.Item2));
+                .Select(g => (Label: MemberName(g.Key, membersById, aliases), Total: g.Sum(e => e.AmountInGroupCurrency)))
+                .OrderByDescending(x => x.Total)
+                .Select(x => (x.Label, $"{groupSymbol}{x.Total:0.00}")));
 
         writer.SectionHeader(loc["Stats_SettleUpCadence"]);
         writer.Table(
