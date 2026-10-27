@@ -1,12 +1,14 @@
 # Axis QA: a guide to both reports
 
-Prepared 27 October 2026. This document compares the two supplied reports; it does not reproduce their tests or independently verify their source-code claims. The original reports remain the evidence record.
+Prepared 27 October 2026 and extended with the later production web user review. Sections 1–8 compare the two original reports; section 9 records the later session and product direction. Original source-code claims have not all been independently verified. The combined HTML merges repeated observations and labels later evidence separately.
 
 Read this guide first, then open the original finding when you need reproduction steps or screenshots:
 
 - [Claude's report](REPORT_CLAUDE.html): broader exploratory coverage, with some source-code investigation.
 - [Codex's report](REPORT_CODEX.html): narrower controlled scenarios, explicit balance reconciliation and confidence limits.
 - [Codex's working notes](CODEX_REVIEW_NOTES.md): additional detail and the sequence of observations.
+- [Production web user review](REPORT_WEB_USER.md): later user verdict, direct production observations, confidence limits and isolated test-data inventory.
+- [Combined report](REPORT_COMBINED.html): all findings, user perspective and dashboard direction in one interface.
 
 ## 1. What the combined review tells us
 
@@ -191,3 +193,45 @@ No current-build reproduction or source verification was performed for this comp
 Coverage remains incomplete: offline recovery, concurrent conflicting edits, broad authorization boundaries and recurring scheduled execution are not established by these reports. Codex did not verify CSV contents or printed output. Claude covers some areas Codex skipped, such as receipts and group dissolution; a limitation in one report does not erase coverage in the other.
 
 Both sessions modified retained test data, including a shared group. Their screenshots and balances are checkpoints, not expected final balances for the app today. Claude's invalid-date test left an expense in March, and its accidental settlement test left repayments recorded. Account for those records when reproducing or comparing statistics.
+
+## 9. Later production web user review
+
+The later session reviewed the signed-in Brave app at `app.axisapp.aitorsansal.com`, read the earlier reports first, and created an isolated review group. A temporary deployment configuration failure produced a blank page; the user restored deployment and testing resumed successfully. Read-only supplementary checks on the already-open alternate deployment used a different account and are not production acceptance results.
+
+### New evidence and scope decisions
+
+| Reference | Result | Interpretation |
+|---|---|---|
+| U01 | Production became blank after reload; Supabase configuration was missing. Recovery was verified in a fresh tab. | Recovered incident, not a claim of an ongoing outage. Add release/startup checks. |
+| U02 | Guest creation saved but did not refresh the current list in two automated attempts. | Manual confirmation remains necessary because a later tooling clipboard-bridge error complicates attribution. No data loss established. |
+| U03 | Recovered session logged Firebase missing `projectId`. | Investigate configuration; notification delivery was not tested. |
+| U04 | A longer group name caused horizontal overflow in the desktop sidebar. | Observed layout issue; phone cards wrapped readably. |
+| U05 | Downloaded CSV records were correct, but lacked participants and individual shares. | Export scope limitation for independent debt reconciliation, not a broken download. |
+| U06 | Home offers group cards and balances but little combined agenda/action context. | Product judgment. The user agrees that desktop centre space should provide an immediate overview. |
+
+### Later reproductions merged into existing entries
+
+| New reference | Existing reference | Later evidence |
+|---|---|---|
+| U07 | Claude W4/A2; Codex F07 | Settle immediately recorded the full EUR20 repayment. |
+| U08 | Codex F02 | Going/Maybe attendance stayed inconsistent between two production web tabs until reload. |
+| U09 | Claude W11; Codex F06 | Creating an event returned to Expenses. |
+| U10 | Claude W12 | Invalid invitation displayed English error text within Spanish UI. |
+
+These are four source additions, not four extra defects. Historical agreement labels retain their original meaning; the new source details and session-result badges identify later observations. Existing comparison IDs remain stable.
+
+### Positive results and retained records
+
+The person-to-person explanation reconciled EUR30 paid for Alex minus EUR10 Alex paid for self to EUR20 owed. Statistics excluded the EUR20 repayment from the EUR120 spending checkpoint. The CSV contents were inspected, extending the original Codex report's export coverage; the retained CSV predates the later EUR6 snacks expense.
+
+The phone dashboard/event layout, keyboard group reordering, localised unknown-page recovery and downloaded CSV all worked in the exercised paths. Small-group saves and navigation felt responsive after recovery; no numerical performance benchmark was run.
+
+The new group `cf7c5504-6a30-42e0-bcbb-d81058ae9dbc` retains three members, three expenses, one repayment and one event. Final observed balance: self is owed EUR34, comprising Bea EUR32 and Alex EUR2. The [full session inventory](REPORT_WEB_USER.md#retained-test-data-and-reconciliation) gives record IDs and the sequence. Earlier groups were not edited in this later session.
+
+### Dashboard direction
+
+Use the sidebar for desktop group navigation and put an actionable overview in the centre: explicit group/currency scope, separate amounts owed and owing, actions needing attention, upcoming plans, recent changes, and optional spending analysis below. Mobile still needs an obvious group switcher.
+
+The Power BI analogy is useful for seeing the whole picture; a dense wall of charts would compete with the decisions users need to make. Proposed cards must not invent overdue/unread/confirmed statuses or imply that unreliable refresh is current. Some actions require new workflow state. This is product direction, not implemented behaviour.
+
+See [User perspective](REPORT_COMBINED.html#user) and [Dashboard direction](REPORT_COMBINED.html#dashboard) in the combined report. Offline recovery, conflicting edits, notification delivery, recurring scheduled execution, print output and destructive lifecycle actions remain unverified by this later session.

@@ -326,7 +326,8 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
     {
         if (item?.ExpenseId is not { } expenseId) return;
         await Task.Delay(Controls.Juice.PressReleaseSettleMs);
-        await Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={groupId}&expenseId={expenseId}");
+        var route = item.IsSettlement ? AppConstants.Routes.Settlement : AppConstants.Routes.AddExpense;
+        await Shell.Current.GoToAsync($"{route}?groupId={groupId}&expenseId={expenseId}");
     });
 
     [RelayCommand]

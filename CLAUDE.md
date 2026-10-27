@@ -114,6 +114,48 @@ pairwise balances are all zero, their `group_balances` net is zero too.
 `group_balances`/`my_group_balances` stay — the Groups list total and
 Group Detail still read them.
 
+## Repayment review
+
+Android repayments now use `SettlementPage`/`SettlementViewModel` at
+`AppConstants.Routes.Settlement`, for both balance-action creation and
+activity editing. Creation shows a payer/recipient summary, full debt by
+default, editable partial amount/date and an optional note; editing has
+one payer and one recipient instead of expense split controls. Empty notes
+save "Settlement with {person}" / "Saldar deuda con {person}" in the
+creator's language. These are deliberately stored descriptions, just like
+custom notes; editing the payment direction does not regenerate existing
+text. Web uses the same description policy and its own dedicated form.
+
+`SettlementRules` preserves unchanged date timestamps and delegates money
+validation to `Models/AmountInput.cs`. The same parser is used for ordinary
+expense totals, manual shares, recurring forms and settlements. Input may
+contain one dot or comma decimal separator, with at most two decimal
+places; grouped, mixed-separator, non-positive and overflowing values are
+rejected without stripping punctuation or rounding. Whitespace at the
+edges is trimmed for parsing, while the field retains its raw text.
+
+`Controls/DecimalInput` is the native attached behaviour for these entries:
+it keeps a text key listener and requests the decimal IME through
+`SetRawInputType`, so punctuation reaches validation unchanged. New expense
+totals start empty instead of an editable zero. Generated editable amounts
+use the app language without grouping. Invalid totals hide derived split
+previews; invalid manual shares replace the numerical remainder with a
+validation hint. Both the UI and save commands enforce validity.
+
+Web uses `lib/amountInput.ts` with the same contract, text inputs with
+`inputMode="decimal"`, and integer cents. Its expense, share and settlement
+parsers no longer diverge. Both domain suites consume the same 40-case
+fixture at `tests/amount-input-cases.json`. See
+`reports/AMOUNT_INPUT_REVIEW.md` for browser and physical-phone checks.
+
+The repayment screen checks balance freshness before creation, but does
+not lock against concurrent clients. After a confirmed save it disables
+further saves and shows the remaining debt. `SupabaseExpensesRepository`
+raises `ExpenseSaveCommittedException` if the transaction succeeded but
+its subsequent typed re-fetch failed; the repayment screen treats that
+as saved and never invites a duplicate retry. See
+`reports/ANDROID_SETTLEMENT_REVIEW.md` for physical-device verification.
+
 ## Stats tab
 
 Group Detail's third tab (`GroupStatsView`/`GroupStatsViewModel`) — pure

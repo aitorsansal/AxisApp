@@ -176,6 +176,7 @@ public static class AppConstants
         public const string JoinGroup = "JoinGroup";
         public const string InviteToGroup = "InviteToGroup";
         public const string AddExpense = "AddExpense";
+        public const string Settlement = "Settlement";
         public const string RecurringExpenses = "RecurringExpenses";
         public const string AddEvent = "AddEvent";
         public const string EventDetail = "EventDetail";

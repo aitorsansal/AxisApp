@@ -18,16 +18,12 @@ import {
 import { AppHeader } from '../components/AppHeader'
 import { Avatar } from '../components/Avatar'
 import { DateField } from '../components/DateField'
+import { SettlementForm } from '../components/SettlementForm'
+import type { SettlementDraft } from '../lib/settlements'
+import { amountErrorKey, parseAmountInput } from '../lib/amountInput'
 import './AddExpensePage.css'
 
 const RECEIPTS_BUCKET = 'receipts'
-
-// All split math runs in integer cents so shares always sum to exactly the
-// total — float `+=` on a leftover cent produced values like 3.3400000000000003.
-function parseCents(text: string) {
-  const n = Number(text.replace(',', '.'))
-  return Number.isFinite(n) ? Math.round(n * 100) : 0
-}
 
 const formatCents = (cents: number) => (cents / 100).toFixed(2)
 
@@ -42,13 +38,15 @@ export function AddExpensePage() {
   const isRecurringRoute = location.pathname.includes('/recurring/')
   const { session } = useAuth()
   const { displayName, initials, avatarUrl } = useAliases()
-  const { t } = useLocale()
+  const { t, language } = useLocale()
   const goBackTo = useGoBackTo()
 
   const [group, setGroup] = useState<Group | null>(null)
   const [members, setMembers] = useState<MemberRow[]>([])
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
+  const [showAmountError, setShowAmountError] = useState(false)
+  const [shareTouched, setShareTouched] = useState<Record<string, boolean>>({})
   const [currency, setCurrency] = useState('EUR')
   const [category, setCategory] = useState<(typeof CATEGORY_KEYS)[number] | ''>('food')
   const [occurredOn, setOccurredOn] = useState(() => localDateInput())
@@ -71,6 +69,8 @@ export function AddExpensePage() {
   const [isRecurringMode, setIsRecurringMode] = useState(isRecurringRoute)
   const [canToggleRecurring] = useState(!expenseId && !recurringId)
   const [isSettlement, setIsSettlement] = useState(false)
+  const [settlementDraft, setSettlementDraft] = useState<SettlementDraft | null>(null)
+  const [expenseLoaded, setExpenseLoaded] = useState(false)
 
   const receiptInputRef = useRef<HTMLInputElement>(null)
   const [receiptPath, setReceiptPath] = useState<string | null>(null)
@@ -87,6 +87,7 @@ export function AddExpensePage() {
   useEffect(() => {
     if (!groupId) return
     ;(async () => {
+      setExpenseLoaded(false)
       originalOccurredAt.current = null;
       const [groupRes, membersRes] = await Promise.all([
         supabase.from('groups').select('id, name, currency, created_by').eq('id', groupId).single(),
@@ -113,7 +114,20 @@ export function AddExpensePage() {
             .eq('expense_id', expenseId),
         ])
         if (expenseRes.error) return setError(expenseRes.error.message)
+        if (sharesRes.error) return setError(sharesRes.error.message)
         const expense = expenseRes.data
+        if (expense.is_settlement) setSettlementDraft({
+          id: expense.id,
+          payerId: expense.paid_by_member_id,
+          recipientId: sharesRes.data?.[0]?.member_id ?? '',
+          amount: String(expense.amount),
+          currency: expense.currency,
+          note: expense.description ?? '',
+          date: localDateInput(expense.occurred_at),
+          originalOccurredAt: expense.occurred_at,
+          receiptPath: expense.receipt_path,
+          eventId: expense.event_id,
+        })
         setDescription(expense.description ?? '')
         setAmount(String(expense.amount))
         setCurrency(expense.currency)
@@ -134,6 +148,7 @@ export function AddExpensePage() {
         loadShares(sharesRes.data ?? [])
         // A settlement is always one share for the full amount — keep it derived.
         setIsManualSplit(!expense.is_settlement)
+        setExpenseLoaded(true)
         if (expense.receipt_path) {
           const { data: signed } = await supabase.storage
             .from(RECEIPTS_BUCKET)
@@ -196,19 +211,26 @@ export function AddExpensePage() {
   function loadShares(rows: { member_id: string; share_amount: number }[]) {
     setParticipants(new Set(rows.map((s) => s.member_id)))
     setShareInputs(
-      Object.fromEntries(rows.map((s) => [s.member_id, Number(s.share_amount).toFixed(2)])),
+      Object.fromEntries(rows.map((s) => [s.member_id, Number(s.share_amount).toLocaleString(language === 'es' ? 'es-ES' : 'en-US', {
+        useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2,
+      })])),
     )
   }
 
   // Member-list order, so "last participant" (who absorbs the leftover cent) is stable.
   const includedIds = members.map((m) => m.member_id).filter((id) => participants.has(id))
-  const totalCents = parseCents(amount)
+  const parsedAmount = parseAmountInput(amount)
+  const totalCents = parsedAmount.cents ?? 0
   const useEqualSplit = !isManualSplit || isSettlement
+  const parsedShares = Object.fromEntries(includedIds.map((id) => [id, parseAmountInput(shareInputs[id] ?? '')]))
   const shareCents: Record<string, number> = useEqualSplit
     ? equalSplitCents(totalCents, includedIds)
-    : Object.fromEntries(includedIds.map((id) => [id, parseCents(shareInputs[id] ?? '')]))
+    : Object.fromEntries(includedIds.map((id) => [id, parsedShares[id].cents ?? 0]))
   const remainingCents = totalCents - includedIds.reduce((sum, id) => sum + shareCents[id], 0)
-  const isSplitValid = remainingCents === 0 && includedIds.every((id) => shareCents[id] > 0)
+  const shareInputsValid = useEqualSplit || includedIds.every((id) => parsedShares[id].cents !== null)
+  const isSplitValid = parsedAmount.cents !== null && shareInputsValid && remainingCents === 0
+    && includedIds.every((id) => shareCents[id] > 0)
+  const displayCents = (cents: number) => formatCents(cents).replace('.', language === 'es' ? ',' : '.')
 
   function toggleParticipant(memberId: string) {
     setParticipants((prev) => {
@@ -228,16 +250,19 @@ export function AddExpensePage() {
   }
 
   function handleShareChange(memberId: string, value: string) {
+    setError(null)
+    setShareTouched((previous) => ({ ...previous, [memberId]: false }))
     // First manual edit snapshots the current equal split so the other
     // participants keep their amounts instead of dropping to empty.
     const base = isManualSplit
       ? shareInputs
-      : Object.fromEntries(includedIds.map((id) => [id, formatCents(shareCents[id])]))
+      : Object.fromEntries(includedIds.map((id) => [id, displayCents(shareCents[id])]))
     setShareInputs({ ...base, [memberId]: value })
     setIsManualSplit(true)
   }
 
   function handleSplitEqually() {
+    setError(null)
     setIsManualSplit(false)
     setShareInputs({})
   }
@@ -283,11 +308,12 @@ export function AddExpensePage() {
     if (!group || !groupId) return
     setError(null)
 
-    const total = Number(amount)
-    if (!total || total <= 0) {
-      setError(t('AddExpense_InvalidAmount'))
+    if (parsedAmount.cents === null) {
+      setShowAmountError(true)
+      setError(t(amountErrorKey(parsedAmount.error)))
       return
     }
+    const total = parsedAmount.cents / 100
     if (participants.size === 0) {
       setError(t('AddExpense_PickParticipant'))
       return
@@ -297,6 +323,7 @@ export function AddExpensePage() {
       return
     }
     if (!isSplitValid) {
+      setShareTouched(Object.fromEntries(includedIds.map((id) => [id, true])))
       setError(t('AddExpense_SplitInvalid'))
       return
     }
@@ -376,7 +403,7 @@ export function AddExpensePage() {
           ? t('AddExpense_RecurringTitle')
           : t('AddExpense_Title')
 
-  if (!group) {
+  if (!group || (expenseId && !expenseLoaded)) {
     return (
       <div className="page expense-page">
         <AppHeader title={title} backTo={parentPath} />
@@ -385,6 +412,25 @@ export function AddExpensePage() {
         ) : (
           <div className="spinner">{t('Common_Loading')}</div>
         )}
+      </div>
+    )
+  }
+
+  if (isSettlement && settlementDraft) {
+    return (
+      <div className="page">
+        <AppHeader title={t('AddExpense_EditSettlementTitle')} backTo={parentPath} />
+        <SettlementForm
+          key={settlementDraft.id}
+          initial={settlementDraft}
+          groupId={group.id}
+          members={members}
+          myMemberId={members.find((m) => m.members.account_id === session?.user.id)?.member_id}
+          canDelete={canDelete}
+          onCancel={() => goBackTo(parentPath)}
+          onSaved={() => goBackTo(parentPath)}
+          onDeleted={() => goBackTo(parentPath)}
+        />
       </div>
     )
   }
@@ -405,14 +451,15 @@ export function AddExpensePage() {
             <label htmlFor="amount">{t('AddExpense_AmountLabel')}</label>
             <input
               id="amount"
-              type="number"
+              type="text"
               inputMode="decimal"
               placeholder="0.00"
-              step="0.01"
-              min="0.01"
               required
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              aria-invalid={showAmountError && parsedAmount.cents === null}
+              aria-describedby="amount-format-hint amount-error"
+              onBlur={() => setShowAmountError(true)}
+              onChange={(e) => { setAmount(e.target.value); setShowAmountError(false); setError(null) }}
             />
           </div>
           <div className="field currency-field">
@@ -426,6 +473,11 @@ export function AddExpensePage() {
             </select>
           </div>
         </div>
+
+        <p id="amount-format-hint" className="amount-format-hint">{t('AmountInput_FormatHint')}</p>
+        <p id="amount-error" className="error-text" role="status">
+          {showAmountError && parsedAmount.cents === null ? t(amountErrorKey(parsedAmount.error)) : ''}
+        </p>
 
         <div className="field">
           <label htmlFor="description">{t('AddExpense_DescriptionLabel')}</label>
@@ -460,7 +512,7 @@ export function AddExpensePage() {
           </div>
         </fieldset>
 
-        <div className="field">
+        {parsedAmount.cents !== null && <div className="field">
           <div className="split-header">
             <label>{t('AddExpense_Split')}</label>
             {!isSettlement && (
@@ -481,7 +533,7 @@ export function AddExpensePage() {
                     if (!isManualSplit)
                       setShareInputs(
                         Object.fromEntries(
-                          includedIds.map((id) => [id, formatCents(shareCents[id])]),
+                          includedIds.map((id) => [id, displayCents(shareCents[id])]),
                         ),
                       )
                     setIsManualSplit(true)
@@ -509,30 +561,36 @@ export function AddExpensePage() {
                   {!isSettlement && included && (
                     <input
                       className="share-input"
-                      type="number"
+                      type="text"
                       inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      aria-label={displayName(m.members)}
+                      aria-label={t('AmountInput_ShareLabel', displayName(m.members))}
+                      aria-invalid={!useEqualSplit && !!shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null}
+                      aria-describedby={`share-error-${m.member_id}`}
                       placeholder="0.00"
                       value={
                         useEqualSplit
-                          ? formatCents(shareCents[m.member_id])
+                          ? displayCents(shareCents[m.member_id])
                           : (shareInputs[m.member_id] ?? '')
                       }
                       onChange={(e) => handleShareChange(m.member_id, e.target.value)}
+                      onBlur={() => setShareTouched((previous) => ({ ...previous, [m.member_id]: true }))}
                     />
+                  )}
+                  {!useEqualSplit && included && shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null && (
+                    <p id={`share-error-${m.member_id}`} className="error-text share-error" role="status">
+                      {t(amountErrorKey(parsedShares[m.member_id].error))}
+                    </p>
                   )}
                 </div>
               )
             })}
           </div>
           {!isSettlement && (
-            <p className={`split-remaining${remainingCents !== 0 ? ' split-remaining-off' : ''}`}>
-              {t('AddExpense_Remaining', formatCents(remainingCents), currency)}
+            <p className={`split-remaining${!shareInputsValid || remainingCents !== 0 ? ' split-remaining-off' : ''}`}>
+              {shareInputsValid ? t('AddExpense_Remaining', displayCents(remainingCents), currency) : t('AmountInput_IncompleteSplit')}
             </p>
           )}
-        </div>
+        </div>}
 
         {!isSettlement && (
           <div className="field">
@@ -639,7 +697,7 @@ export function AddExpensePage() {
           </p>
         )}
 
-        <button type="submit" className="btn btn-primary" disabled={busy || receiptBusy}>
+        <button type="submit" className="btn btn-primary" disabled={busy || receiptBusy || !isSplitValid}>
           {busy ? t('Common_Saving') : t('AddExpense_SaveExpense')}
         </button>
 

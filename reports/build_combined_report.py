@@ -121,9 +121,18 @@ for fig in claude.find('figure'):
  for issue in issues:
   if (issue['key']=='A1' and caption.startswith('A1:')) or (issue['key']=='W4 / A2' and caption.startswith('A2:')) or (issue['key'] in ('W5 / A3','A9') and caption.startswith('A3/')) or (issue['key']=='W7 / A8' and caption.startswith('A8:')):
    issue['sources'][0]['images']=[{'src':x.a['src'],'alt':caption} for x in imgs]
-order={'A1':0,'W1':1,'W2':2,'W4 / A2':3,'W3':4,'F02':5,'F03':6,'W10':7}
-issues.sort(key=lambda x:(0,order[x['key']]) if x['key'] in order else (1 if x['priority']=='next' else 2, x['id']))
 import json
+web_review=json.loads((ROOT/'WEB_USER_REVIEW_DATA.json').read_text(encoding='utf-8'))
+def web_source(item):
+ return {'author':'Codex web user review','ref':item['ref'] if 'ref' in item else item['key'],'url':web_review['source'],'session':web_review['session'],'priority':item.get('result',item.get('status')),'parts':[{'label':item.get('result',item.get('status')),'text':item.get('observed',item.get('summary'))}],'images':[{'src':'web-user-review-2026-10-27/'+im['src'],'alt':im['alt']} for im in item.get('images',[])]}
+for retest in web_review['retests']:
+ issue=next(x for x in issues if x['key']==retest['key'])
+ issue['sources'].append(web_source(retest))
+ issue['status']=retest['result']
+for addition in web_review['additions']:
+ issues.append(dict(id='R'+str(len(issues)+1).zfill(2),key=addition['key'],journey=addition['journey'],priority=addition['priority'],title=addition['title'],summary=addition['summary'],verify=addition['verify'],platform='Web',agreement='Web user review',status=addition['status'],sources=[web_source(addition)]))
+order={'U01':-1,'A1':0,'W1':1,'W2':2,'W4 / A2':3,'W3':4,'F02':5,'F03':6,'W10':7}
+issues.sort(key=lambda x:(0,order[x['key']]) if x['key'] in order else (1 if x['priority']=='next' else 2, x['id']))
 payload=json.dumps(issues,ensure_ascii=False).replace('</','<\\/')
 template=(ROOT/'review_template.html').read_text(encoding='utf-8')
 (ROOT/'REPORT_COMBINED.html').write_text(template.replace('__ISSUES__',payload),encoding='utf-8')

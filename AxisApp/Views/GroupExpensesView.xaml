@@ -98,7 +98,7 @@
                                         </VerticalStackLayout>
                                         <Button
                                             Grid.Column="3"
-                                            Text="{loc:Translate GroupDetail_Settle}"
+                                            Text="{loc:Translate Settlement_Record}"
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupExpensesViewModel}}, Path=SettleCommand}"
                                             CommandParameter="{Binding .}"
                                             Style="{StaticResource BtnOutlinePrimary}"

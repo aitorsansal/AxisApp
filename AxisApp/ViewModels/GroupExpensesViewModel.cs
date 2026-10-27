@@ -387,61 +387,20 @@ public partial class GroupExpensesViewModel : BaseViewModel
     private Task AddExpense() => RunSafeAsync(() =>
         Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={groupId}"));
 
-    /// <summary>Tapping any activity row opens it for editing via AddExpensePage — a settlement is
-    /// just an Expense with IsSettlement true, so this needs no special-casing; the page itself
-    /// hides category/receipt for that case (see AddExpenseViewModel.ShowMoneyExtras).</summary>
     [RelayCommand]
     private Task OpenActivity(ActivityItem? item) => RunSafeAsync(async () =>
     {
         if (item?.ExpenseId is not { } expenseId) return;
         await Task.Delay(Controls.Juice.PressReleaseSettleMs);
-        await Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={groupId}&expenseId={expenseId}");
+        var route = item.IsSettlement ? AppConstants.Routes.Settlement : AppConstants.Routes.AddExpense;
+        await Shell.Current.GoToAsync($"{route}?groupId={groupId}&expenseId={expenseId}");
     });
 
-    /// <summary>Records a settlement — an Expense with IsSettlement true, paid_by = the discharging
-    /// party, and one ExpenseShare for the party being paid back (see Models/Expense.cs and
-    /// CLAUDE.md's "Merge payments into expenses" remarks for why this replaced a dedicated
-    /// Payment table). Always between the viewer and the row's member, for that pairwise debt.
-    /// A settled row is a no-op.</summary>
     [RelayCommand]
     private Task Settle(MemberBalanceItem? item) => RunSafeAsync(async () =>
     {
-        if (item is null) return;
-
-        Guid payerId, payeeId;
-        if (item.IsOwing)
-        {
-            if (myMemberId is not { } me) return;
-            payerId = me;
-            payeeId = item.Member.Id;
-        }
-        else if (item.IsOwed)
-        {
-            if (myMemberId is not { } me) return;
-            payerId = item.Member.Id;
-            payeeId = me;
-        }
-        else
-        {
-            return;
-        }
-
-        var settlement = new Expense
-        {
-            GroupId = groupId,
-            PaidByMemberId = payerId,
-            Amount = item.Amount,
-            // Balances are in the group currency; without this the model's "EUR" default would
-            // re-convert the amount in any non-EUR group.
-            Currency = currentGroup?.Currency ?? "EUR",
-            Description = LocalizationResourceManager.Instance["GroupDetail_SettleUp"],
-            OccurredAt = DateTime.UtcNow,
-            IsSettlement = true
-        };
-        var shares = new List<ExpenseShare> { new() { MemberId = payeeId, ShareAmount = item.Amount } };
-        await expensesRepository.AddAsync(settlement, shares);
-
-        await LoadAsync(groupId);
+        if (item is null || myMemberId is null || (!item.IsOwed && !item.IsOwing)) return;
+        await Shell.Current.GoToAsync($"{AppConstants.Routes.Settlement}?groupId={groupId}&otherMemberId={item.Member.Id}");
     });
 
     [RelayCommand]

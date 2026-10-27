@@ -18,9 +18,18 @@ public partial class ExpenseParticipant : ObservableObject
     public string Initials { get; init; } = "";
     public string? AvatarUrl { get; init; }
 
-    [ObservableProperty] private bool isIncluded = true;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(AmountValidationMessage))]
+    private bool isIncluded = true;
     [ObservableProperty] private decimal owes;
     [ObservableProperty] private string owesText = "0,00";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(AmountValidationMessage))]
+    private bool showAmountError;
+
+    public bool HasValidAmount => AmountInput.TryParse(OwesText, out _);
+    public string AmountValidationMessage => ShowAmountError && IsIncluded && !HasValidAmount
+        ? LocalizationResourceManager.Instance[AmountInput.MessageKey(OwesText)] : "";
+
+    public void ValidateAmount() => ShowAmountError = !HasValidAmount;
 
     private bool syncing;
 
@@ -30,10 +39,11 @@ public partial class ExpenseParticipant : ObservableObject
     partial void OnOwesTextChanged(string value)
     {
         if (syncing) return;
+        ShowAmountError = false;
         syncing = true;
         try
         {
-            Owes = decimal.TryParse(value.Replace(',', '.'), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var parsed)
+            Owes = AmountInput.TryParse(value, out var parsed)
                 ? parsed
                 : 0;
         }
@@ -43,6 +53,7 @@ public partial class ExpenseParticipant : ObservableObject
     partial void OnOwesChanged(decimal value)
     {
         if (syncing) return;
+        ShowAmountError = false;
         syncing = true;
         try { OwesText = AddExpenseViewModel.FormatAmount(value); }
         finally { syncing = false; }
@@ -122,7 +133,15 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private ObservableCollection<CategoryChip> categoryChips = [];
     [ObservableProperty] private Member? selectedPayer;
     [ObservableProperty] private decimal amount;
-    [ObservableProperty] private string amountText = "0,00";
+    [ObservableProperty] private string amountText = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(AmountValidationMessage))]
+    private bool showAmountError;
+
+    public bool IsAmountInputValid => AmountInput.TryParse(AmountText, out _);
+    public string AmountValidationMessage => ShowAmountError && !IsAmountInputValid
+        ? LocalizationResourceManager.Instance[AmountInput.MessageKey(AmountText)] : "";
+
+    public void ValidateAmount() => ShowAmountError = !IsAmountInputValid;
     [ObservableProperty] private decimal remaining;
     [ObservableProperty] private string remainingText = "";
     [ObservableProperty] private bool canSave;
@@ -527,10 +546,14 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         }
     }
 
-    partial void OnAmountTextChanged(string value) =>
-        Amount = decimal.TryParse(value.Replace(',', '.'), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var parsed)
-            ? parsed
-            : 0;
+    partial void OnAmountTextChanged(string value)
+    {
+        ShowAmountError = false;
+        Amount = AmountInput.TryParse(value, out var parsed) ? parsed : 0;
+        OnPropertyChanged(nameof(IsAmountInputValid));
+        OnPropertyChanged(nameof(AmountValidationMessage));
+        RecalcRemaining();
+    }
 
     partial void OnAmountChanged(decimal value)
     {
@@ -660,20 +683,20 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         }
     }
 
-    /// <summary>Displays amounts with "," as the decimal separator, matching the numeric keyboard's
-    /// decimal key on this device's locale — typing "." is never guaranteed to work, so showing "."
-    /// back on automatic splits/remaining reads as inconsistent. Parsing (OnAmountTextChanged/
-    /// OnOwesTextChanged) still accepts both "," and "."; only the round-trip display format changed.</summary>
-    internal static string FormatAmount(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture).Replace('.', ',');
+    internal static string FormatAmount(decimal value) => value.ToString("0.00", CultureInfo.GetCultureInfo(
+        LocalizationResourceManager.Instance.CurrentLanguage == "es" ? "es-ES" : "en-US"));
 
     private void RecalcRemaining()
     {
         var included = Participants.Where(p => p.IsIncluded).ToList();
         var sum = included.Sum(p => p.Owes);
         Remaining = decimal.Round(Amount - sum, 2);
-        RemainingText = LocalizationResourceManager.Instance.Format("AddExpense_Remaining", Remaining).Replace('.', ',');
+        var inputsValid = IsAmountInputValid && included.All(p => p.HasValidAmount);
+        RemainingText = inputsValid
+            ? LocalizationResourceManager.Instance.Format("AddExpense_Remaining", FormatAmount(Remaining))
+            : LocalizationResourceManager.Instance["AmountInput_IncompleteSplit"];
         CanSave = SelectedPayer is not null
-                  && Amount > 0
+                  && inputsValid && Amount > 0
                   && included.Count > 0
                   && Remaining == 0
                   && included.All(p => p.Owes > 0);
@@ -682,7 +705,21 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [RelayCommand]
     private Task Save() => RunSafeAsync(async () =>
     {
-        if (!CanSave || SelectedPayer is null || IsReceiptBusy || IsBusy) return;
+        if (IsReceiptBusy || IsBusy) return;
+        if (!AmountInput.TryParse(AmountText, out var validatedAmount))
+        {
+            ShowAmountError = true;
+            ErrorMessage = LocalizationResourceManager.Instance[AmountInput.MessageKey(AmountText)];
+            return;
+        }
+        var invalidShare = Participants.FirstOrDefault(p => p.IsIncluded && !p.HasValidAmount);
+        if (invalidShare is not null)
+        {
+            invalidShare.ValidateAmount();
+            ErrorMessage = $"{invalidShare.Name}: {LocalizationResourceManager.Instance[AmountInput.MessageKey(invalidShare.OwesText)]}";
+            return;
+        }
+        if (!CanSave || SelectedPayer is null || validatedAmount != Amount) return;
 
         var currency = SelectedCurrencyIndex >= 0 ? AppConstants.Currencies.All[SelectedCurrencyIndex].Code : "EUR";
 

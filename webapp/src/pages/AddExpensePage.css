@@ -18,6 +18,18 @@
 .participant-item {
   justify-content: space-between;
   min-height: 36px;
+  flex-wrap: wrap;
+}
+
+.participant-item .share-error {
+  flex: 1 1 100%;
+  margin: 0 0 8px;
+}
+
+.amount-format-hint {
+  margin: -12px 0 12px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
 }
 
 .participant-name {

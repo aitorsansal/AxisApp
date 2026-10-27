@@ -91,7 +91,12 @@
                             HorizontalOptions="Start" />
                         <Entry
                             Text="{Binding AmountText}"
-                            Keyboard="Numeric"
+                            Keyboard="Text"
+                            controls:DecimalInput.IsEnabled="True"
+                            Unfocused="OnAmountUnfocused"
+                            AutomationId="ExpenseAmount"
+                            Placeholder="0.00"
+                            SemanticProperties.Description="{loc:Translate AddExpense_AmountLabel}"
                             FontSize="{StaticResource TypeAmountHero}"
                             FontAttributes="Bold"
                             TextColor="{DynamicResource TextPrimary}"
@@ -101,6 +106,10 @@
                     </HorizontalStackLayout>
                     <BoxView HeightRequest="2" WidthRequest="120" Color="{DynamicResource Primary}" HorizontalOptions="Center" />
                 </VerticalStackLayout>
+
+                <Label Text="{loc:Translate AmountInput_FormatHint}" Style="{StaticResource LabelSecondary}" />
+                <Label Text="{Binding AmountValidationMessage}" TextColor="{DynamicResource Danger}"
+                       IsVisible="{Binding AmountValidationMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 
                 <!-- Description -->
                 <Border Style="{StaticResource InputBorderStyle}">
@@ -147,7 +156,7 @@
                 </VerticalStackLayout>
 
                 <!-- Split -->
-                <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsAmountInputValid}">
                     <Grid ColumnDefinitions="*,Auto">
                         <Label Grid.Column="0" Text="{loc:Translate AddExpense_Split}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" />
                         <Border Grid.Column="1" Style="{StaticResource SegmentPillContainer}" WidthRequest="200">
@@ -192,7 +201,7 @@
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding Participants}" Spacing="{StaticResource SpacingXS}">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:ExpenseParticipant">
-                                <Grid ColumnDefinitions="Auto,Auto,*,90" ColumnSpacing="{StaticResource SpacingS}">
+                                <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,Auto,*,90" ColumnSpacing="{StaticResource SpacingS}">
                                     <Grid.Padding>
                                         <Thickness Left="0" Top="{StaticResource SpacingXS}" Right="0" Bottom="{StaticResource SpacingXS}" />
                                     </Grid.Padding>
@@ -235,11 +244,18 @@
                                     <Border Grid.Column="3" Style="{StaticResource InputBorderStyle}" Padding="8,4">
                                         <Entry
                                             Text="{Binding OwesText}"
-                                            Keyboard="Numeric"
+                                            Keyboard="Text"
+                                            controls:DecimalInput.IsEnabled="True"
+                                            Unfocused="OnShareUnfocused"
+                                            AutomationId="ExpenseShare"
+                                            SemanticProperties.Description="{Binding Name}"
                                             FontFamily="{StaticResource MonoFontFamily}"
                                             HorizontalTextAlignment="End"
                                             FontSize="{StaticResource TypeCaption}" />
                                     </Border>
+                                    <Label Grid.Row="1" Grid.ColumnSpan="4" Text="{Binding AmountValidationMessage}"
+                                           TextColor="{DynamicResource Danger}" FontSize="{StaticResource TypeCaption}"
+                                           IsVisible="{Binding AmountValidationMessage, Converter={StaticResource StringNotEmptyConverter}}" />
                                 </Grid>
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>

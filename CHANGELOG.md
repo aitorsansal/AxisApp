@@ -2324,3 +2324,131 @@ refused ("You are not a member of this group"). That last one is the
 escalation the definer change introduces, so it got a purpose-built fixture
 — live data had no expense outside this account's own groups to test with.
 See SECURITY_AUDIT.md for the full table and the post-apply state.
+
+## Web repayment review and dedicated editor (2026-10-27)
+
+The balance action now opens a review form before recording a settlement.
+It shows who paid whom, defaults to the full debt, accepts partial amounts,
+defaults the date to today, and supports an optional note. An empty or
+whitespace-only note saves the displayed placeholder: "Settlement with
+{person}" or "Saldar deuda con {person}" in the creator's language. The
+description remains stored text, including its original language. Custom
+descriptions now appear in the web activity list instead of being hidden
+behind a generic settlement label.
+
+Existing settlements use the same form with one payer and one different
+recipient. Edits preserve the original timestamp when the date is unchanged,
+along with any existing receipt/event link. Amount validation accepts dot or
+comma decimals, rejects excess precision and database overflow, and creation
+rejects amounts greater than the displayed debt. Before creation, the form
+rechecks the pairwise balance and requests a new review if it changed.
+This is a freshness check, not a database lock against concurrent clients.
+In-flight submissions are guarded, and post-save refresh failures cannot
+enable another save of the same form.
+
+Validation: production build and lint passed (existing lint warnings and
+bundle-size advisory remain); all 14 Node regressions passed. Isolated
+Brave browser checks with mocked API responses covered cancel without
+writes, full/partial repayment, both default-description languages, custom
+notes, duplicate submissions, invalid and stale balances, save failures,
+edit metadata, and a failed refresh after a successful save. The mobile
+form was visually inspected at 390px. No live ledger records were written.
+Android parity and deployment are still pending.
+
+The repayment modal now ignores backdrop clicks, including releasing a
+text-selection drag outside the dialog. Cancel and Escape still dismiss
+it when idle. Verified those gestures in an isolated Brave check and
+rebuilt the web app successfully.
+
+Following desktop review, the repayment modal now grows to 620px while
+retaining a stacked layout below 640px. Creation shows payer and recipient
+as a summary rather than read-only input controls; desktop places amount
+and date beside each other, keeps the note full-width, and aligns actions
+to the right. Editing retains its payer and recipient selectors.
+
+This replaces the blanket backdrop-dismissal restriction above: a
+deliberate outside click or tap dismisses the modal again, but only if the
+press also started outside. The shared Modal now distinguishes those
+gestures from text-selection drags. Browser checks covered both drag
+directions, dialog padding, outside mouse clicks and touch taps, Cancel,
+Escape, initial amount focus, desktop alignment, mobile stacking at 390px
+and 320px, long names, and the Spanish editor. Desktop and mobile previews
+were visually inspected. Build, lint and the existing 14 regressions pass;
+the existing lint warnings and bundle-size advisory remain.
+
+## Android repayment review and physical-device verification (2026-10-27)
+
+Added the native Settlement route, page and view model for creating and
+editing repayments. Balance actions now open review instead of writing
+immediately. Creation defaults to the full current pairwise debt and
+today's date, supports partial amounts and custom notes, and persists the
+agreed English/Spanish placeholder when the note is empty. Activity links
+open a dedicated editor with one payer and one recipient. Existing
+timestamps, receipt/event links and creation metadata are preserved.
+
+Amount parsing accepts exact dot/comma decimals, rejects non-positive,
+over-precise and overflowing values, and caps new repayments at the
+displayed debt. The Android entry requests a decimal keyboard without
+installing the locale-specific numeric input filter. The screen checks
+balance freshness before a new write and stays in a saved state after
+success, displaying the remaining debt. A committed-write exception now
+distinguishes a failed post-save re-fetch from an uncommitted save.
+
+Two builds started with fresh app bin/obj folders. Automated review blocked
+recursive cleanup, so the verified build folders were moved to a temporary
+backup outside the source tree before each build. The final build passed
+with zero errors; its signed APK contains 382 embedded managed assemblies
+and the required ARM64 Mono and SkiaSharp libraries. Installed with adb on
+M2007J3SY (f54f4285), version 1.1.0 (10), updated at 21:26:44 Europe/Madrid.
+Launch and sustained app operation were verified.
+
+Domain regressions passed. Physical checks covered cancel, dot/comma
+amounts, partial repayment and editing, full repayment, both stored default
+languages, custom notes, a reversed payer/recipient edit, deletion, zero
+and excessive amounts, and visible validation feedback. Three temporary
+repayment records were deleted after testing. The user's concurrent EUR5
+repayment was preserved, leaving EUR32.51 owed by the test account to Aitor.
+The original system-language preference was restored.
+
+A separate extra-empty-group-screen issue reproduced while backing out
+through both the new settlement flow and the unchanged expense editor.
+It is recorded as a shared navigation follow-up, not counted as fixed by
+this change. Full evidence and coverage limits are in
+`reports/ANDROID_SETTLEMENT_REVIEW.md`.
+
+## Consistent amount input on web and Android (2026-10-27)
+
+Expense totals, manual shares, recurring forms and settlements now share
+one money-input parser per client. Both accept plain dot/comma decimals,
+reject repeated or mixed punctuation, grouping, internal spaces, excess
+precision, non-positive values and amounts beyond numeric(12,2), and
+preserve raw input while typing/pasting. No invalid value is silently
+rounded or stripped. The normal shorthand `.50` / `,50` remains supported.
+
+Web replaces numeric amount/share inputs with text decimal inputs, removing
+wheel-driven value changes. Inline errors appear on blur; invalid input
+blocks submission and derived previews. Manual-share corrections clear
+outdated errors, and generated editable shares follow the UI language.
+Android uses the shared DecimalInput attached behaviour to request a
+decimal keyboard without installing a punctuation-dropping numeric filter.
+New expense totals start empty, and invalid amounts/shares cannot enable
+Save or reach repository writes.
+
+Both clients passed the same 40 amount-input fixtures. All 15 web
+regressions and the native domain suite passed. Isolated browser tests
+covered actual clipboard paste, wheel input, manual splits, invalid
+submission guards, recurring RPC payloads and Spanish mobile layouts.
+The web production build passed; existing lint warnings and bundle-size
+advisory remain.
+
+The clean Android build passed with zero errors. Its signed APK contains
+382 embedded managed assemblies and the required ARM64 Mono/SkiaSharp
+libraries. Installed on M2007J3SY (f54f4285), version 1.1.0 (10), updated
+at 22:06:52 Europe/Madrid. The app remained running during phone tests.
+Physical checks confirmed typed dot/comma values, native clipboard paste
+of grouped text, blocked invalid totals/shares, saved EUR8.50 with EUR4.25
+shares, and the same saved values on reopening. The temporary test expense
+was deleted; the debt returned to EUR32.51 and the user's EUR5 repayment
+was preserved. No recurring template was created on the live backend.
+
+Full evidence and coverage are in `reports/AMOUNT_INPUT_REVIEW.md`.

@@ -7,9 +7,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../AxisApp/Models/ExpenseMath.cs" Link="ExpenseMath.cs" />
+    <Compile Include="../../AxisApp/Models/SettlementRules.cs" Link="SettlementRules.cs" />
+    <Compile Include="../../AxisApp/Models/AmountInput.cs" Link="AmountInput.cs" />
     <Compile Include="../../AxisApp/Models/EventTimes.cs" Link="EventTimes.cs" />
     <Compile Include="../../AxisApp/Models/DateFormats.cs" Link="DateFormats.cs" />
     <Compile Include="../../AxisApp/Models/PairBreakdown.cs" Link="PairBreakdown.cs" />
     <Compile Include="../../AxisApp/Models/RecurringSchedule.cs" Link="RecurringSchedule.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="../amount-input-cases.json" Link="amount-input-cases.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

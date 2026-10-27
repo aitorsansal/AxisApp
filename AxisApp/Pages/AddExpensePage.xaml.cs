@@ -9,4 +9,14 @@ public partial class AddExpensePage : ContentPage
         InitializeComponent();
         BindingContext = vm;
     }
+
+    private void OnAmountUnfocused(object? sender, FocusEventArgs e)
+    {
+        if (BindingContext is AddExpenseViewModel vm) vm.ValidateAmount();
+    }
+
+    private void OnShareUnfocused(object? sender, FocusEventArgs e)
+    {
+        if (sender is Entry { BindingContext: ExpenseParticipant participant }) participant.ValidateAmount();
+    }
 }

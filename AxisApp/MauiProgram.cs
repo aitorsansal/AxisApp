@@ -106,6 +106,8 @@ public static class MauiProgram
         builder.Services.AddTransient<MemberProfilePage>();
         builder.Services.AddTransient<AddExpenseViewModel>();
         builder.Services.AddTransient<AddExpensePage>();
+        builder.Services.AddTransient<SettlementViewModel>();
+        builder.Services.AddTransient<SettlementPage>();
         builder.Services.AddTransient<RecurringExpensesViewModel>();
         builder.Services.AddTransient<RecurringExpensesPage>();
         builder.Services.AddTransient<AddEventViewModel>();

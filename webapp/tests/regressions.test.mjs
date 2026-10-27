@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { amountCents, parseAmountInput } from '../src/lib/amountInput.ts'
 import { equalSplitCents } from '../src/lib/expenseMath.ts'
 import { SerializedUpdates } from '../src/lib/serializedUpdates.ts'
 import { CoalescedWrites } from '../src/lib/coalescedWrites.ts'
@@ -9,6 +11,78 @@ import { formatExpenseAmount } from '../src/lib/amountDisplay.ts'
 import { pairBreakdown } from '../src/lib/pairBreakdown.ts'
 import { categoryColor, categoryFrequency, categoryTrend, expensesCsv, filterByRange, rangeCutoff, settlementsByMonth, spendByCategory, spendByMember } from '../src/lib/stats.ts'
 import { formatEventRange } from '../src/lib/dates.ts'
+import { isSettlementDate, settlementCents, settlementParties, settlementPayload } from '../src/lib/settlements.ts'
+import { strings } from '../src/lib/i18n/strings.ts'
+
+test('expense, share and settlement amounts follow the same cross-client input contract', () => {
+  const cases = JSON.parse(readFileSync(new URL('../../tests/amount-input-cases.json', import.meta.url), 'utf8'))
+  for (const sample of cases) {
+    const parsed = parseAmountInput(sample.text)
+    assert.equal(parsed.cents, sample.cents, JSON.stringify(sample.text))
+    assert.equal(parsed.error, sample.error ?? null, JSON.stringify(sample.text))
+    assert.equal(amountCents(sample.text), sample.cents)
+    assert.equal(settlementCents(sample.text), sample.cents)
+  }
+  const total = amountCents('8,50')
+  assert.equal(amountCents('4.25') + amountCents('4,25'), total)
+  assert.equal(amountCents('4.251'), null)
+  assert.equal(amountCents('4,25.0'), null)
+})
+
+test('settlements accept exact positive cents and reject ambiguous or overflowing amounts', () => {
+  for (const [input, cents] of [['8.50', 850], ['8,50', 850], [' 0,01 ', 1], ['12', 1200], ['9999999999.99', 999999999999]]) {
+    assert.equal(settlementCents(input), cents)
+  }
+  for (const invalid of ['', ' ', '0', '-1', '1.001', '1,234.56', '1.234,56', '1e3', 'Infinity', '10000000000']) {
+    assert.equal(settlementCents(invalid), null, invalid)
+  }
+})
+
+test('settlement dates reject rollover and preserve leap days', () => {
+  for (const date of ['2026-02-31', '2026-02-29', '2026-13-01', '2026-00-01', '', '0000-01-01'])
+    assert.equal(isSettlementDate(date), false, date)
+  assert.equal(isSettlementDate('2028-02-29'), true)
+  assert.equal(isSettlementDate('2026-10-27'), true)
+})
+
+test('full and partial repayments reduce the correct pairwise debt in either direction', () => {
+  for (const balance of [20, -20]) {
+    const parties = settlementParties('me', 'alex', balance)
+    for (const amount of ['20', '7,50']) {
+      const payload = settlementPayload({ ...parties, amount, currency: 'EUR', note: '', date: '2026-10-27' }, 'group', 'Settlement with Alex', '2026-10-27T00:00:00Z')
+      assert.equal(payload.p_shares.length, 1)
+      assert.equal(payload.p_shares[0].share_amount, payload.p_expense.amount)
+      const basePayer = balance > 0 ? 'me' : 'alex'
+      const baseRecipient = balance > 0 ? 'alex' : 'me'
+      const result = pairBreakdown([
+        { id: 'debt', paid_by_member_id: basePayer, is_settlement: false, occurred_at: '2026-10-26' },
+        { ...payload.p_expense, id: 'repayment' },
+      ], [
+        { expense_id: 'debt', member_id: baseRecipient, share_amount_in_group_currency: 20 },
+        { expense_id: 'repayment', member_id: payload.p_shares[0].member_id, share_amount_in_group_currency: payload.p_expense.amount },
+      ], 'me', 'alex')
+      assert.equal(result.balance, ((balance > 0 ? 1 : -1) * (20 - payload.p_expense.amount)) || 0)
+    }
+  }
+})
+
+test('settlements persist the displayed default or a custom note and retain edit metadata', () => {
+  const draft = { id: 'saved', payerId: 'me', recipientId: 'alex', amount: '4.20', currency: 'EUR', date: '2026-10-27', note: '   ', receiptPath: 'receipt.webp', eventId: 'event' }
+  for (const language of ['en', 'es']) {
+    const fallback = strings[language].Settlement_DefaultDescription.replace('{0}', 'Alex')
+    const payload = settlementPayload(draft, 'group', fallback, 'original-timestamp')
+    assert.equal(payload.p_expense.description, language === 'en' ? 'Settlement with Alex' : 'Saldar deuda con Alex')
+    assert.equal(payload.p_expense.id, 'saved')
+    assert.equal(payload.p_expense.receipt_path, 'receipt.webp')
+    assert.equal(payload.p_expense.event_id, 'event')
+    assert.equal(payload.p_expense.occurred_at, 'original-timestamp')
+    assert.equal(payload.p_expense.is_settlement, true)
+    assert.equal(payload.p_expense.created_at, undefined)
+    assert.equal(payload.p_expense.created_by, undefined)
+  }
+  assert.equal(settlementPayload({ ...draft, note: '  Bank transfer  ' }, 'group', 'fallback', 'timestamp').p_expense.description, 'Bank transfer')
+  assert.throws(() => settlementPayload({ ...draft, recipientId: 'me' }, 'group', 'fallback', 'timestamp'))
+})
 
 test('equal splits conserve every cent and differ by at most one cent', () => {
   for (let count = 1; count <= 30; count++) {

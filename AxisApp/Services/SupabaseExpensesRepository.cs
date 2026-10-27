@@ -129,8 +129,15 @@ public class SupabaseExpensesRepository : IExpensesRepository
 
         widgetRefresh.RequestBalancesRefresh();
 
-        return await GetByIdAsync(expenseId)
-            ?? throw new InvalidOperationException("save_expense succeeded but the expense could not be re-fetched.");
+        try
+        {
+            return await GetByIdAsync(expenseId)
+                ?? throw new InvalidOperationException("The saved expense could not be re-fetched.");
+        }
+        catch (Exception ex)
+        {
+            throw new ExpenseSaveCommittedException(expenseId, ex);
+        }
     }
 
     public async Task DeleteAsync(Guid expenseId)

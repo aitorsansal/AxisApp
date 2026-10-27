@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AxisApp.ViewModels"
+             xmlns:loc="clr-namespace:AxisApp.Localization"
+             xmlns:controls="clr-namespace:AxisApp.Controls"
+             x:Class="AxisApp.Pages.SettlementPage"
+             x:DataType="vm:SettlementViewModel"
+             Shell.NavBarIsVisible="False" Title="{Binding PageTitle}">
+    <Grid RowDefinitions="Auto,*">
+        <Grid Padding="16,12" ColumnDefinitions="Auto,*" ColumnSpacing="16">
+            <Button Text="{Binding CloseLabel}" Command="{Binding CancelCommand}"
+                    IsEnabled="{Binding CanCancel}" Style="{StaticResource BtnTextStyle}" TextColor="{DynamicResource TextSecondary}" />
+            <Label Grid.Column="1" Text="{Binding PageTitle}" Style="{StaticResource SectionHeader}"
+                   VerticalOptions="Center" Margin="0" />
+        </Grid>
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="16,16,16,36" Spacing="20" MaximumWidthRequest="620" HorizontalOptions="Fill">
+                <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource Primary}" />
+                <VerticalStackLayout IsVisible="{Binding ShowForm}" IsEnabled="{Binding CanInteract}" Spacing="20">
+                    <Label Text="{loc:Translate Settlement_Hint}" Style="{StaticResource LabelSecondary}" />
+                    <Border Style="{StaticResource SurfaceFrame}" IsVisible="{Binding ShowSummary}">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="{loc:Translate Settlement_From}" Style="{StaticResource LabelSecondary}" />
+                            <Label Text="{Binding PayerName}" FontAttributes="Bold" />
+                            <Label Text="↓" TextColor="{DynamicResource TextSecondary}" />
+                            <Label Text="{loc:Translate Settlement_To}" Style="{StaticResource LabelSecondary}" />
+                            <Label Text="{Binding RecipientName}" FontAttributes="Bold" />
+                        </VerticalStackLayout>
+                    </Border>
+                    <VerticalStackLayout IsVisible="{Binding IsEditMode}" Spacing="16">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="{loc:Translate Settlement_From}" Style="{StaticResource LabelSecondary}" />
+                            <Border Style="{StaticResource InputBorderStyle}">
+                                <Picker ItemsSource="{Binding MemberOptions}" ItemDisplayBinding="{Binding Name, x:DataType=vm:SettlementMemberOption}"
+                                        SelectedItem="{Binding SelectedPayer}" Title="{loc:Translate Settlement_From}" AutomationId="SettlementPayer" />
+                            </Border>
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="{loc:Translate Settlement_To}" Style="{StaticResource LabelSecondary}" />
+                            <Border Style="{StaticResource InputBorderStyle}">
+                                <Picker ItemsSource="{Binding RecipientOptions}" ItemDisplayBinding="{Binding Name, x:DataType=vm:SettlementMemberOption}"
+                                        SelectedItem="{Binding SelectedRecipient}" Title="{loc:Translate Settlement_ChooseRecipient}" AutomationId="SettlementRecipient" />
+                            </Border>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{Binding AmountLabel}" Style="{StaticResource LabelSecondary}" />
+                        <Border Style="{StaticResource InputBorderStyle}">
+                            <Entry Text="{Binding AmountText}" Keyboard="Text" controls:DecimalInput.IsEnabled="True"
+                                   SemanticProperties.Description="{Binding AmountLabel}" AutomationId="SettlementAmount" />
+                        </Border>
+                        <Label Text="{loc:Translate Settlement_PartialHint}" Style="{StaticResource LabelSecondary}" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Spacing="6" IsVisible="{Binding IsEditMode}">
+                        <Label Text="{loc:Translate AddExpense_Currency}" Style="{StaticResource LabelSecondary}" />
+                        <Border Style="{StaticResource InputBorderStyle}">
+                            <Picker ItemsSource="{Binding CurrencyOptions}" SelectedIndex="{Binding SelectedCurrencyIndex}"
+                                    Title="{loc:Translate AddExpense_Currency}" AutomationId="SettlementCurrency" />
+                        </Border>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{loc:Translate AddExpense_DateLabel}" Style="{StaticResource LabelSecondary}" />
+                        <Border Style="{StaticResource InputBorderStyle}">
+                            <DatePicker Date="{Binding OccurredOn}" Format="dd/MM/yyyy" AutomationId="SettlementDate"
+                                        SemanticProperties.Description="{loc:Translate AddExpense_DateLabel}" />
+                        </Border>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{loc:Translate Settlement_Note}" Style="{StaticResource LabelSecondary}" />
+                        <Border Style="{StaticResource InputBorderStyle}">
+                            <Entry Text="{Binding Note}" Placeholder="{Binding NotePlaceholder}" AutomationId="SettlementNote"
+                                   SemanticProperties.Description="{loc:Translate Settlement_Note}" SemanticProperties.Hint="{Binding NotePlaceholder}" />
+                        </Border>
+                    </VerticalStackLayout>
+                    <Label Text="{Binding OutstandingText}" Style="{StaticResource LabelSecondary}" IsVisible="{Binding ShowSummary}" />
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                        <Button Text="{loc:Translate Common_Cancel}" Command="{Binding CancelCommand}" Style="{StaticResource BtnSecondaryStyle}" />
+                        <Button Grid.Column="1" Text="{Binding SaveLabel}" Command="{Binding SaveCommand}" Style="{StaticResource BtnPrimaryStyle}" AutomationId="SettlementSave" />
+                    </Grid>
+                    <Button Text="{loc:Translate Settlement_Delete}" Command="{Binding DeleteCommand}" IsVisible="{Binding CanDelete}"
+                            Style="{StaticResource BtnDangerStyle}" AutomationId="SettlementDelete" />
+                </VerticalStackLayout>
+                <VerticalStackLayout IsVisible="{Binding HasSaved}" Spacing="20">
+                    <Label Text="{Binding SuccessMessage}" Style="{StaticResource SectionHeader}" />
+                    <Label Text="{Binding RemainingMessage}" />
+                    <Button Text="{loc:Translate Settlement_Done}" Command="{Binding CancelCommand}" IsEnabled="{Binding CanCancel}"
+                            Style="{StaticResource BtnPrimaryStyle}" AutomationId="SettlementDone" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </ScrollView>
+        <controls:ErrorPopup Grid.RowSpan="2" Message="{Binding ErrorMessage}" />
+        <controls:UpdateBanner Grid.RowSpan="2" />
+    </Grid>
+</ContentPage>

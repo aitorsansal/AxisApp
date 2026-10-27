@@ -11,6 +11,9 @@ import { GroupEventsTab } from '../components/GroupEventsTab'
 import { GroupStatsTab } from '../components/GroupStatsTab'
 import { GroupAppearancePicker } from '../components/GroupAppearancePicker'
 import { Modal } from '../components/Modal'
+import { SettlementForm } from '../components/SettlementForm'
+import { localDateInput } from '../lib/dates'
+import { settlementParties } from '../lib/settlements'
 import { Avatar } from '../components/Avatar'
 import { Icon } from '../components/Icon'
 import { categoryIcon } from '../lib/icons'
@@ -37,7 +40,10 @@ export function GroupDetailPage() {
   const [hasMoreActivity, setHasMoreActivity] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [settlingId, setSettlingId] = useState<string | null>(null)
+  const [settlement, setSettlement] = useState<PairwiseBalance | null>(null)
+  const [settlementBusy, setSettlementBusy] = useState(false)
+  const [settlementNotice, setSettlementNotice] = useState<string | null>(null)
+  const settlementTriggerRef = useRef<HTMLButtonElement | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<ExpenseWithPayer[] | null>(null)
@@ -199,34 +205,6 @@ export function GroupDetailPage() {
     void refreshGroups()
   }
 
-  async function handleSettle(otherMemberId: string, balance: number) {
-    if (!group || !myMemberId || !groupId) return
-    setSettlingId(otherMemberId)
-    setError(null)
-
-    const discharging = balance > 0 ? otherMemberId : myMemberId
-    const receiving = balance > 0 ? myMemberId : otherMemberId
-    const amount = Math.abs(balance)
-
-    // Atomic row + share write, see supabase/atomic_expense_save.sql.
-    const { error: saveError } = await supabase.rpc('save_expense', {
-      p_expense: {
-        group_id: groupId,
-        paid_by_member_id: discharging,
-        amount,
-        currency: group.currency,
-        description: t('GroupDetail_SettleUp'),
-        is_settlement: true,
-      },
-      p_shares: [{ member_id: receiving, share_amount: amount }],
-    })
-
-    setSettlingId(null)
-    if (saveError) return setError(saveError.message)
-    load()
-    void refreshGroups()
-  }
-
   async function handleRename() {
     if (!group) return
     setIsMenuOpen(false)
@@ -354,6 +332,43 @@ export function GroupDetailPage() {
         }
       />
       {error && <p className="error-text">{error}</p>}
+      {settlementNotice && <p role="status">{settlementNotice}</p>}
+
+      {settlement && myMemberId && (
+        <Modal title={t('Settlement_Record')} returnFocusRef={settlementTriggerRef} className="settlement-modal"
+          onClose={() => {
+            if (settlementBusy) return
+            setSettlement(null)
+            void load()
+          }}>
+          <SettlementForm
+            initial={{
+              ...settlementParties(myMemberId, settlement.other_member_id, settlement.balance),
+              amount: Math.abs(settlement.balance).toFixed(2),
+              currency: group.currency,
+              date: localDateInput(),
+              note: '',
+            }}
+            groupId={group.id}
+            members={members}
+            myMemberId={myMemberId}
+            otherMemberId={settlement.other_member_id}
+            expectedBalance={settlement.balance}
+            onBusyChange={setSettlementBusy}
+            onCancel={() => { setSettlement(null); void load() }}
+            onSaved={(remaining) => {
+              setSettlementNotice(remaining === null ? t('Settlement_Recorded')
+                : t('Settlement_Remaining', memberName(settlement.other_member_id), formatMoney(Math.abs(remaining), group.currency, language)))
+              setSettlement(null)
+              setSettlementBusy(false)
+              setSearchQuery('')
+              setSearchResults(null)
+              void load()
+              void refreshGroups()
+            }}
+          />
+        </Modal>
+      )}
 
       <div className="tab-pill group-tabs" aria-label={t('GroupDetail_GenericTitle')}>
         {([
@@ -478,12 +493,15 @@ export function GroupDetailPage() {
                     {Math.abs(b.balance) >= 0.005 && (
                       <button
                         className="btn btn-outline settle-btn"
-                        disabled={!myMemberId || settlingId === b.other_member_id}
-                        onClick={() => handleSettle(b.other_member_id, b.balance)}
+                        disabled={!myMemberId}
+                        onClick={(event) => {
+                          settlementTriggerRef.current = event.currentTarget
+                          setSettlementNotice(null)
+                          setSettlementBusy(false)
+                          setSettlement(b)
+                        }}
                       >
-                        {settlingId === b.other_member_id
-                          ? t('GroupDetail_Settling')
-                          : t('GroupDetail_Settle')}
+                        {t('Settlement_Record')}
                       </button>
                     )}
                   </div>
@@ -528,9 +546,7 @@ export function GroupDetailPage() {
                         </span>
                         <div className="activity-body">
                           <div className="activity-desc">
-                            {exp.is_settlement
-                              ? t('GroupDetail_SettleUp')
-                              : exp.description || t('GroupDetail_ExpenseFallback')}
+                            {exp.description || t(exp.is_settlement ? 'GroupDetail_SettleUp' : 'GroupDetail_ExpenseFallback')}
                             {exp.receipt_path && (
                               <span className="receipt-badge" title={t('AddExpense_ReceiptPhoto')}>
                                 📎
