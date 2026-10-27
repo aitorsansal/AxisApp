@@ -19,6 +19,8 @@ they invite each other into.
   (iOS/MacCatalyst targets exist in the platform folders but aren't in the
   active `TargetFrameworks` list yet — add them back when there's a Mac to
   build/test against)
+- **Android minimum SDK 24** (`SupportedOSPlatformVersion`) — Play's
+  automatic protection rejects bundles below 24, don't lower it
 - **Single project** structure (`AxisApp/AxisApp.csproj`)
 - **Solution file**: `AxisApp.slnx`
 - **Backend**: Supabase (Postgres + Auth + Row Level Security). See
@@ -50,10 +52,20 @@ What's actually left, in rough order:
    under a real adversarial session); the stray `pnpm-lock.yaml` in
    `webapp/` next to `package-lock.json` (worth standardizing on one
    package manager before this causes real lockfile drift — both are kept
-   in sync by hand for now); the web app is still missing receipts,
-   recurring expenses, and a members roster/add-by-name flow. PWA install +
-   web push are implemented and live (see "Web app: PWA install + push
-   notifications" below).
+   in sync by hand for now). The web app has receipts, recurring expenses,
+   the members roster/add-by-name flow, calendar feeds and group appearance;
+   its remaining parity gaps vs. Android are forgot-password, Stats/export,
+   the Detailed (pairwise) balance toggle, accent/converted-amount
+   preferences, an event share-link action, recurring next-due display and
+   a password visibility toggle (`review-artifacts/APP_REVIEW.md`, to be
+   discussed one by one). PWA install + web push are implemented and live
+   (see "Web app: PWA install + push notifications" below). Web push still
+   fails silently when Firebase config is missing (`getPushState` has no
+   rejection handler). Paused recurring templates still show a next-due date
+   on Android. The Android events widget
+   (`EventsWidgetDataProvider`) still compares `StartsAt` against
+   `DateTime.UtcNow` without normalizing Kind, the bug `EventTimes.IsPast`
+   fixed for the events list — deferred pending a wider widget discussion.
 4. The merge-on-claim code path in `redeem_invite()` (see "One account, one
    member" below) is still not exercised against real data.
 
@@ -393,7 +405,7 @@ that first) reuses the same Firebase project as Android for push.
 | `expenses` / `expense_shares` | N-way split expenses. `is_settlement` marks a settle-up (exactly one share). `currency`/`amount_in_group_currency`/`exchange_rate` (and the share-level equivalent) support multi-currency groups. |
 | `recurring_expenses` / `recurring_expense_shares` | Templates for periodically auto-generated N-way split expenses. |
 | `exchange_rates` | Singleton (`id boolean primary key default true`) cache of currency conversion rates, refreshed daily from Frankfurter. |
-| `events` / `event_attendees` | Group events with 3-state RSVP (`going`/`maybe`/`not_going`) and transport/carpooling fields. `is_birthday` rows are auto-generated, non-RSVPable member birthdays. |
+| `events` / `event_attendees` | Group events with 3-state RSVP (`going`/`maybe`/`not_going`) and transport/carpooling fields. `is_birthday` rows are auto-generated, non-RSVPable member birthdays. `events_end_after_start` check (`ends_at is null or ends_at > starts_at`) — applied to the live DB via `supabase/event_time_validation.sql` and validated against all historical rows. |
 | `device_tokens` | Per-account push tokens for the notification feature. |
 | `member_aliases` | Private, per-account nickname override for how a member is displayed. |
 | `expense_history` | Previous version of an expense (row + shares as JSON) on every update/delete, trigger-written, read-only for group members. |
@@ -521,4 +533,19 @@ dotnet build AxisApp/AxisApp.csproj -f net10.0-windows10.0.19041.0
 npx wrangler deploy --config web/wrangler.jsonc
 ```
 
-There are no automated tests in this project yet.
+```bash
+# Regression tests (no MAUI dependency — the test project links the pure
+# domain files Models/ExpenseMath.cs, EventTimes.cs, RecurringSchedule.cs
+# directly via <Compile Include>, so it builds as plain net10.0)
+dotnet run --project tests/AxisApp.RegressionTests
+
+# Web app regression tests (node:test, mirrors the C# checks against
+# webapp/src/lib/expenseMath.ts, dates.ts, serializedUpdates.ts,
+# coalescedWrites.ts)
+npm test --prefix webapp
+```
+
+These are plain assertion runners, not an xUnit/NUnit suite, and the test
+project isn't in `AxisApp.slnx`. Any logic you want covered there has to stay
+free of MAUI/Supabase types, since the test project compiles those files on
+their own.

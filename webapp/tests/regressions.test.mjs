@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { equalSplitCents } from '../src/lib/expenseMath.ts'
 import { SerializedUpdates } from '../src/lib/serializedUpdates.ts'
+import { CoalescedWrites } from '../src/lib/coalescedWrites.ts'
 import { formatEventRange } from '../src/lib/dates.ts'
 
 test('equal splits conserve every cent and differ by at most one cent', () => {
@@ -59,4 +60,21 @@ test('event captions include both endpoints for multi-day events', () => {
   assert.match(caption, /26/)
   assert.match(caption, /27/)
   assert.match(caption, / – /)
+})
+
+test('rapid seat taps collapse into one write of the final value; flush sends immediately', async () => {
+  const writes = []
+  const coalesced = new CoalescedWrites(10, (key, value) => writes.push([key, value]))
+  coalesced.set('event', 1)
+  coalesced.set('event', 2)
+  coalesced.set('event', 3)
+  await new Promise((resolve) => setTimeout(resolve, 40))
+  assert.deepEqual(writes, [['event', 3]])
+
+  coalesced.set('a', 5)
+  coalesced.set('b', 7)
+  coalesced.flushAll()
+  coalesced.flush('a')
+  await new Promise((resolve) => setTimeout(resolve, 40))
+  assert.deepEqual(writes.slice(1), [['a', 5], ['b', 7]])
 })

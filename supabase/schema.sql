@@ -1620,15 +1620,14 @@ create policy "group members can delete receipts" on storage.objects
 -- "anchor + one period" from a null last_processed_date would land a weekly
 -- template's first occurrence 6 days late.
 --
--- Monthly/yearly stepping uses Postgres's native `date + interval`
--- arithmetic, which does NOT clamp to end-of-month — `date '2026-01-31' +
--- interval '1 month'` overflows to 2026-03-03, not 2026-02-28. A template
--- anchored on day 29-31 will drift forward a few days whenever it crosses a
--- shorter month, and never land back on day 31. Deliberately not fixed with
--- extra end-of-month clamping logic — a wrong date on the materialized
--- expense is just as editable as any other expense field, and building real
--- clamping (LEAST(...) against end-of-month) is real complexity for an edge
--- case that's cheap to correct after the fact.
+-- Monthly/yearly occurrences are anchored on start_date (start_date + N
+-- months/years), not chained from the previous occurrence. Postgres's
+-- `date + interval` clamps to end-of-month (2026-01-31 + 1 month =
+-- 2026-02-28), so chaining made a day-29..31 template drift permanently
+-- (31 -> 28 -> 28 ...). N is recovered from last_processed_date's
+-- year/month, which clamping never changes, so templates that already
+-- drifted self-heal on their next run (supabase/recurring_month_anchor.sql,
+-- 2026-10-27). RecurringSchedule.NextDue mirrors this client-side.
 --
 -- Never security definer: pg_cron runs a scheduled job as whichever role
 -- called cron.schedule() (the SQL editor's role, effectively postgres),
@@ -1692,8 +1691,11 @@ begin
         when v_occurrence is null then v_template.start_date
         when v_template.frequency = 'daily' then v_occurrence + 1
         when v_template.frequency = 'weekly' then v_occurrence + 7
-        when v_template.frequency = 'monthly' then (v_occurrence + interval '1 month')::date
-        when v_template.frequency = 'yearly' then (v_occurrence + interval '1 year')::date
+        when v_template.frequency = 'monthly' then (v_template.start_date + make_interval(months =>
+          ((extract(year from v_occurrence) - extract(year from v_template.start_date)) * 12
+           + extract(month from v_occurrence) - extract(month from v_template.start_date))::int + 1))::date
+        when v_template.frequency = 'yearly' then (v_template.start_date + make_interval(years =>
+          (extract(year from v_occurrence) - extract(year from v_template.start_date))::int + 1))::date
       end;
 
       exit when v_occurrence > current_date or v_count >= 24;

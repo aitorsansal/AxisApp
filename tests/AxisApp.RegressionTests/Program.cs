@@ -19,7 +19,10 @@ foreach (var frequency in new[] { "daily", "weekly", "monthly", "yearly" })
     Check(RecurringSchedule.NextDue(start, null, frequency) == start, "First occurrence must be the start date");
 Check(RecurringSchedule.NextDue(start, start, "monthly") == start.AddMonths(1), "Monthly recurrence");
 Check(RecurringSchedule.NextDue(new DateTime(2026, 1, 31), new DateTime(2026, 1, 31), "monthly") == new DateTime(2026, 2, 28), "Month boundary");
+Check(RecurringSchedule.NextDue(new DateTime(2026, 1, 31), new DateTime(2026, 2, 28), "monthly") == new DateTime(2026, 3, 31), "Month-end anchor survives February");
+Check(RecurringSchedule.NextDue(new DateTime(2026, 1, 31), new DateTime(2026, 3, 28), "monthly") == new DateTime(2026, 4, 30), "Drifted template self-heals");
 Check(RecurringSchedule.NextDue(new DateTime(2024, 2, 29), new DateTime(2024, 2, 29), "yearly") == new DateTime(2025, 2, 28), "Leap year");
+Check(RecurringSchedule.NextDue(new DateTime(2024, 2, 29), new DateTime(2027, 2, 28), "yearly") == new DateTime(2028, 2, 29), "Leap anchor returns");
 
 var utcStart = new DateTime(2026, 10, 26, 22, 4, 0, DateTimeKind.Utc);
 var now = utcStart.AddMinutes(1);

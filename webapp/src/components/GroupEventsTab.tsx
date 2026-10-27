@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { SerializedUpdates } from '../lib/serializedUpdates'
+import { useCoalescedWrites } from '../lib/useCoalescedWrites'
 import { formatEventRange } from '../lib/dates'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
@@ -82,8 +83,13 @@ export function GroupEventsTab({ groupId, members }: Props) {
     return attendeesByEvent[eventId]?.find((a) => a.member_id === myMemberId)
   }
 
+  const seatWrites = useCoalescedWrites<number>(400, (eventId, seats) =>
+    queueRsvp(eventId, (current) => current.car_status !== 'offering' ? current : { ...current, car_offered_seats: seats }))
+
   function queueRsvp(eventId: string, update: (current: EventAttendee) => EventAttendee) {
     if (!myMemberId) return
+    // Pending seat taps go first so a later toggle composes on top of them.
+    seatWrites.flush(eventId)
     const initial = mine(eventId) ?? {
       event_id: eventId, member_id: myMemberId, response: 'not_going' as const,
       car_status: 'none' as const, car_offered_seats: null,
@@ -119,9 +125,14 @@ export function GroupEventsTab({ groupId, members }: Props) {
   }
 
   function adjustSeats(eventId: string, delta: number) {
-    queueRsvp(eventId, (current) => current.car_status !== 'offering' ? current : {
-      ...current, car_offered_seats: Math.max(0, (current.car_offered_seats ?? 0) + delta),
-    })
+    const current = mine(eventId)
+    if (current?.car_status !== 'offering') return
+    const seats = Math.max(0, (current.car_offered_seats ?? 0) + delta)
+    setAttendeesByEvent((prev) => ({
+      ...prev,
+      [eventId]: (prev[eventId] ?? []).map((a) => a.member_id === myMemberId ? { ...a, car_offered_seats: seats } : a),
+    }))
+    seatWrites.set(eventId, seats)
   }
 
   if (!loaded) {
