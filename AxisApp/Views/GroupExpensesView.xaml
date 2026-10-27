@@ -43,15 +43,7 @@
                 </VerticalStackLayout>
 
                 <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsInitialLoading, Converter={StaticResource InverseBoolConverter}}">
-                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{StaticResource SpacingS}">
-                        <Label Grid.Column="0" Text="{loc:Translate GroupDetail_Balances}" Style="{StaticResource SectionHeaderTertiary}" VerticalOptions="Center" Margin="0" />
-                        <Label
-                            Grid.Column="1"
-                            Text="{loc:Translate GroupDetail_Detailed}"
-                            Style="{StaticResource LabelTertiary}"
-                            VerticalOptions="Center" />
-                        <Switch Grid.Column="2" IsToggled="{Binding IsPairwiseMode}" VerticalOptions="Center" />
-                    </Grid>
+                    <Label Text="{loc:Translate GroupDetail_Balances}" Style="{StaticResource SectionHeaderTertiary}" Margin="0" />
 
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding Balances}" Spacing="{StaticResource SpacingS}">
                         <BindableLayout.ItemTemplate>

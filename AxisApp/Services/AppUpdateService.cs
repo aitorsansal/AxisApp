@@ -3,8 +3,8 @@ using Newtonsoft.Json.Linq;
 
 namespace AxisApp.Services;
 
-/// <summary>Checks web/version.json (deployed alongside every other static file under
-/// AppConstants.Links.InviteHost) against the running app's own version, and drives the
+/// <summary>Checks webapp/public/version.json (AppConstants.Links.VersionCheckUrl, deployed with the
+/// web app) against the running app's own version, and drives the
 /// update-available banner shown on every page. Plain INotifyPropertyChanged singleton, same
 /// shape as ThemeService/LocalizationResourceManager — not DI-registered, since it holds
 /// app-global UI state every page's XAML binds to directly via the shared instance, not a

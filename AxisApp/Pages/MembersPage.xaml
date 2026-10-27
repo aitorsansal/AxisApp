@@ -2,6 +2,7 @@
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:AxisApp"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
     xmlns:controls="clr-namespace:AxisApp.Controls"
     xmlns:loc="clr-namespace:AxisApp.Localization"
@@ -77,7 +78,7 @@
                                                     Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MembersViewModel}}, Path=OpenRenameOverlayCommand}"
                                                     CommandParameter="{Binding .}" />
                                             </Border.GestureRecognizers>
-                                            <Label Text="&#9998;" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{DynamicResource TextTertiary}" />
+                                            <Label Text="{x:Static local:AppConstants+Icons.Pencil}" FontFamily="Lucide" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{DynamicResource TextTertiary}" />
                                         </Border>
                                         <Button
                                             Grid.Column="3"

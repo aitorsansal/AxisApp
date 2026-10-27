@@ -9,8 +9,10 @@ import { AppHeader } from '../components/AppHeader'
 import { Avatar } from '../components/Avatar'
 import './MembersPage.css'
 
+// Same URL as AppConstants.Links.BuildInviteUrl: this app's own /join page, which the Android app
+// also claims as an App Link. Absolute so links copied from a localhost dev build still work.
 function buildInviteUrl(code: string): string {
-  return `https://axisapp.aitorsansal.com/invite?code=${encodeURIComponent(code)}`
+  return `https://app.axisapp.aitorsansal.com/join?code=${encodeURIComponent(code)}`
 }
 
 // Same token shape as AxisApp/Services/SupabaseInvitesRepository.cs's

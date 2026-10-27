@@ -23,6 +23,12 @@ import { AppHeader } from '../components/AppHeader'
 import { Avatar } from '../components/Avatar'
 import './EventDetailPage.css'
 
+// Same URL as AppConstants.Links.BuildEventUrl, which the Android app claims as an App Link.
+// Absolute so links shared from a localhost dev build still work.
+function buildEventUrl(groupId: string, eventId: string): string {
+  return `https://app.axisapp.aitorsansal.com/groups/${groupId}/events/${eventId}`
+}
+
 export function EventDetailPage() {
   const { groupId, eventId } = useParams<{ groupId: string; eventId: string }>()
   const { session } = useAuth()
@@ -36,6 +42,7 @@ export function EventDetailPage() {
   const [expenses, setExpenses] = useState<ExpenseWithPayer[]>([])
   const [expenseSearch, setExpenseSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [myCarExtraSeats, setMyCarExtraSeats] = useState<number | null>(null)
   const rsvpUpdates = useRef(new SerializedUpdates<EventAttendee>())
@@ -142,6 +149,23 @@ export function EventDetailPage() {
     seatWrites.set(eventId, seats)
   }
 
+  async function handleShare() {
+    if (!event || !groupId || !eventId) return
+    const text = t('EventDetail_ShareText', event.title,
+      formatEventRange(event.starts_at, event.ends_at, language), buildEventUrl(groupId, eventId))
+    if (navigator.share) {
+      try {
+        await navigator.share({ text })
+      } catch {
+        // Share sheet dismissed — no error to surface.
+      }
+      return
+    }
+    await navigator.clipboard.writeText(text)
+    setNotice(t('EventDetail_LinkCopied'))
+    setTimeout(() => setNotice(null), 2000)
+  }
+
   if (!loaded || !event || !group) {
     return (
       <div className="page">
@@ -222,14 +246,25 @@ export function EventDetailPage() {
         </p>
       )}
 
-      {!event.is_birthday && (
-        <Link
-          to={`/groups/${groupId}/events/${eventId}/edit`}
-          className="btn btn-outline edit-event-btn"
-        >
-          {t('EventDetail_EditEvent')}
-        </Link>
+      {notice && (
+        <p className="notice-text" role="status">
+          {notice}
+        </p>
       )}
+
+      <div className="event-actions">
+        {!event.is_birthday && (
+          <Link
+            to={`/groups/${groupId}/events/${eventId}/edit`}
+            className="btn btn-outline"
+          >
+            {t('EventDetail_EditEvent')}
+          </Link>
+        )}
+        <button type="button" className="btn btn-outline" onClick={handleShare}>
+          {t('EventDetail_Share')}
+        </button>
+      </div>
 
       <p className="event-subcaption">{subParts.join(' · ')}</p>
       {event.description && <p className="event-description">{event.description}</p>}

@@ -2846,7 +2846,8 @@ begin
       insert into events (group_id, title, starts_at, is_birthday, member_id, needs_transport, created_by)
       values (
         v_row.group_id,
-        '🎂 ' || v_row.display_name || '''s Birthday',
+        -- Spanish since 2026-10-27 (supabase/birthday_titles_es.sql renamed existing rows).
+        '🎂 Cumpleaños de ' || v_row.display_name,
         v_target_date + time '12:00',
         true,
         v_row.member_id,

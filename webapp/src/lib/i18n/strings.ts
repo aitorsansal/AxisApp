@@ -20,6 +20,8 @@ const en: Dictionary = {
   GroupDetail_Unavailable: 'This group is unavailable. It may have been removed or you may no longer have access.',
   Common_SkipToContent: 'Skip to content',
   Common_Retry: 'Try again',
+  Common_ShowPassword: 'Show password',
+  Common_HidePassword: 'Hide password',
   GroupEvents_FewerSeats: 'Fewer available seats',
   GroupEvents_MoreSeats: 'More available seats',
   Groups_MemberCount: '{0} members',
@@ -115,6 +117,10 @@ const en: Dictionary = {
   Login_InvalidCredentials:
     'Wrong email or password. If you just signed up, confirm your email first.',
   Login_ResendRateLimited: 'Wait a minute before requesting another email.',
+  Login_ForgotPassword: 'Forgot your password?',
+  Login_ForgotPasswordNeedsEmail: 'Enter your email above first.',
+  Login_ForgotPasswordFailed: "Couldn't send the reset email.",
+  Login_ForgotPasswordSent: 'Check your email for a password reset link.',
 
   // App header
   Groups_Profile: 'Profile',
@@ -244,6 +250,7 @@ const en: Dictionary = {
   RecurringExpenses_Empty: 'No repeating expenses yet.',
   RecurringExpenses_Active: 'Active',
   RecurringExpenses_Paused: 'Paused',
+  RecurringExpenses_NextDue: 'Next: {0}',
   RecurringExpenses_Resume: 'Resume',
   RecurringExpenses_Pause: 'Pause',
   RecurringExpenses_Delete: 'Delete',
@@ -286,6 +293,9 @@ const en: Dictionary = {
   // Event detail
   EventDetail_GenericTitle: 'Event',
   EventDetail_EditEvent: 'Edit event',
+  EventDetail_Share: 'Share',
+  EventDetail_ShareText: '"{0}" · {1}\nRSVP on Axis: {2}',
+  EventDetail_LinkCopied: 'Event link copied',
   EventDetail_Attendees: 'Attendees',
   EventDetail_NoAttendees: 'No one has RSVP’d yet.',
   EventDetail_Expenses: 'Expenses',
@@ -355,6 +365,8 @@ const es: Dictionary = {
   GroupDetail_Unavailable: 'Este grupo no está disponible. Puede que se haya eliminado o que ya no tengas acceso.',
   Common_SkipToContent: 'Saltar al contenido',
   Common_Retry: 'Volver a intentar',
+  Common_ShowPassword: 'Mostrar contraseña',
+  Common_HidePassword: 'Ocultar contraseña',
   GroupEvents_FewerSeats: 'Menos plazas disponibles',
   GroupEvents_MoreSeats: 'Más plazas disponibles',
   Groups_MemberCount: '{0} miembros',
@@ -450,6 +462,10 @@ const es: Dictionary = {
   Login_InvalidCredentials:
     'Correo o contraseña incorrectos. Si acabas de crear la cuenta, confirma primero tu correo.',
   Login_ResendRateLimited: 'Espera un minuto antes de pedir otro correo.',
+  Login_ForgotPassword: '¿Olvidaste tu contraseña?',
+  Login_ForgotPasswordNeedsEmail: 'Introduce tu correo electrónico primero.',
+  Login_ForgotPasswordFailed: 'No se pudo enviar el correo de recuperación.',
+  Login_ForgotPasswordSent: 'Revisa tu correo para restablecer la contraseña.',
 
   // App header
   Groups_Profile: 'Perfil',
@@ -580,6 +596,7 @@ const es: Dictionary = {
   RecurringExpenses_Empty: 'Todavía no hay gastos recurrentes.',
   RecurringExpenses_Active: 'Activo',
   RecurringExpenses_Paused: 'Pausado',
+  RecurringExpenses_NextDue: 'Próximo: {0}',
   RecurringExpenses_Resume: 'Reanudar',
   RecurringExpenses_Pause: 'Pausar',
   RecurringExpenses_Delete: 'Eliminar',
@@ -622,6 +639,9 @@ const es: Dictionary = {
   // Event detail
   EventDetail_GenericTitle: 'Evento',
   EventDetail_EditEvent: 'Editar evento',
+  EventDetail_Share: 'Compartir',
+  EventDetail_ShareText: '"{0}" · {1}\nConfirma tu asistencia en Axis: {2}',
+  EventDetail_LinkCopied: 'Enlace del evento copiado',
   EventDetail_Attendees: 'Asistentes',
   EventDetail_NoAttendees: 'Todavía nadie ha confirmado asistencia.',
   EventDetail_Expenses: 'Gastos',

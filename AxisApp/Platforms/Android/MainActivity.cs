@@ -6,23 +6,24 @@ using Android.OS;
 namespace AxisApp
 {
     [Activity(Theme = "@style/Maui.SplashTheme", MainLauncher = true, LaunchMode = LaunchMode.SingleTop, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
-    // App Link for AppConstants.Links.InviteHost — AutoVerify makes Android confirm ownership via
-    // https://axisapp.aitorsansal.com/.well-known/assetlinks.json before it'll open the link
-    // directly in-app instead of a browser; see AppConstants.Links' remarks for what else that needs.
+    // App Links for AppConstants.Links.AppHost (the web app's domain) — AutoVerify makes Android
+    // confirm ownership via https://app.axisapp.aitorsansal.com/.well-known/assetlinks.json before
+    // it'll open the link directly in-app instead of the browser. Only invites and event pages are
+    // claimed: matching all of /groups/ would hijack every web app URL someone copies.
     [IntentFilter(
         new[] { Intent.ActionView },
         Categories = new[] { Intent.CategoryDefault, Intent.CategoryBrowsable },
         DataScheme = "https",
-        DataHost = "axisapp.aitorsansal.com",
-        DataPathPrefix = "/invite",
+        DataHost = "app.axisapp.aitorsansal.com",
+        DataPath = "/join",
         AutoVerify = true)]
-    // Same host/verification as the invite filter above, for AppConstants.Links.BuildEventUrl.
+    // AppConstants.Links.BuildEventUrl. DataPathPattern is Android's simple glob ('.*' = any run).
     [IntentFilter(
         new[] { Intent.ActionView },
         Categories = new[] { Intent.CategoryDefault, Intent.CategoryBrowsable },
         DataScheme = "https",
-        DataHost = "axisapp.aitorsansal.com",
-        DataPathPrefix = "/event",
+        DataHost = "app.axisapp.aitorsansal.com",
+        DataPathPattern = "/groups/.*/events/.*",
         AutoVerify = true)]
     public class MainActivity : MauiAppCompatActivity
     {

@@ -31,4 +31,11 @@ Check(EventTimes.IsPast(utcStart.ToLocalTime(), now), "Local and UTC representat
 Check(!EventTimes.IsPast(utcStart.ToLocalTime(), utcStart.AddMinutes(-1)), "Future event must remain upcoming");
 Check(!EventTimes.IsPast(utcStart, utcStart), "Start instant is the upcoming boundary");
 Check(EventTimes.FormatRange(utcStart, utcStart.AddDays(1)).Contains(" – "), "End time must be visible");
+var localNoon = new DateTime(2026, 9, 8, 12, 0, 0, DateTimeKind.Local);
+var spanishRange = EventTimes.FormatRange(localNoon, null, new System.Globalization.CultureInfo("es-ES"));
+Check(spanishRange.Contains(" 8 sept") && spanishRange.EndsWith("2026 · 12:00"), $"Spanish dates are day-first: {spanishRange}");
+var englishRange = EventTimes.FormatRange(localNoon, null, new System.Globalization.CultureInfo("en-US"));
+Check(englishRange == "Tue, Sep 8, 2026 · 12:00", $"English dates are month-first: {englishRange}");
+var spanishShort = localNoon.ToString(DateFormats.ShortDatePattern(new System.Globalization.CultureInfo("es-ES"), includeYear: false), new System.Globalization.CultureInfo("es-ES"));
+Check(spanishShort.StartsWith("8 sept"), $"Spanish short dates are day-first: {spanishShort}");
 Console.WriteLine("Android domain regressions passed: 30,030 split scenarios, schedule boundaries, event instants and ranges.");

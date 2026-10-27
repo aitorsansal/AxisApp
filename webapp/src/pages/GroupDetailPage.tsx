@@ -526,7 +526,7 @@ export function GroupDetailPage() {
                                 className="receipt-badge"
                                 title={t('GroupDetail_LinkedToEvent')}
                               >
-                                📅
+                                <Icon name="calendar" size={14} />
                               </span>
                             )}
                           </div>

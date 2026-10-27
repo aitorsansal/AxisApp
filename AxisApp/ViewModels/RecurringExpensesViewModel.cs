@@ -7,10 +7,9 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AxisApp.ViewModels;
 
-/// <summary>One row in the repeating-expenses list. NextDueText is simple client-side date math
-/// off StartDate/LastProcessedDate/Frequency — informational only, since nothing materializes a
-/// template yet (the pg_cron job is a deliberate follow-up, not built as part of this feature —
-/// see CLAUDE.md's "Recurring expenses" remarks).</summary>
+/// <summary>One row in the repeating-expenses list. DueDateText is RecurringSchedule.NextDue, the
+/// same date materialize_recurring_expenses() will use. A paused template never materializes, so
+/// NextDueText shows "Paused" instead of a date it won't keep, and follows the pause toggle.</summary>
 public partial class RecurringExpenseRowItem : ObservableObject
 {
     public RecurringExpense Template { get; init; } = null!;
@@ -18,9 +17,15 @@ public partial class RecurringExpenseRowItem : ObservableObject
     public string AmountText { get; init; } = "";
     public string PayerName { get; init; } = "";
     public string FrequencyLabel { get; init; } = "";
-    public string NextDueText { get; init; } = "";
+    public string DueDateText { get; init; } = "";
 
-    [ObservableProperty] private bool isActive;
+    public string NextDueText => IsActive
+        ? string.Format(LocalizationResourceManager.Instance["RecurringExpenses_NextDue"], DueDateText)
+        : LocalizationResourceManager.Instance["RecurringExpenses_Paused"];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NextDueText))]
+    private bool isActive;
 }
 
 public partial class RecurringExpensesViewModel : BaseViewModel, IQueryAttributable
@@ -83,7 +88,7 @@ public partial class RecurringExpensesViewModel : BaseViewModel, IQueryAttributa
                     PayerName = membersById.TryGetValue(t.PaidByMemberId, out var payer)
                         ? MemberDisplay.Name(payer, aliases) : "",
                     FrequencyLabel = loc[$"Recurring_Frequency_{CapitalizeFirst(t.Frequency)}"],
-                    NextDueText = FormatNextDue(t),
+                    DueDateText = FormatNextDue(t),
                     IsActive = t.IsActive
                 }));
 
@@ -103,7 +108,7 @@ public partial class RecurringExpensesViewModel : BaseViewModel, IQueryAttributa
     private static string FormatNextDue(RecurringExpense template)
     {
         var next = RecurringSchedule.NextDue(template.StartDate, template.LastProcessedDate, template.Frequency);
-        return next.ToString("MMM d, yyyy");
+        return DateFormats.ShortDate(next);
     }
 
     [RelayCommand]

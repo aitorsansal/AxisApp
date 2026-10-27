@@ -140,7 +140,7 @@ public partial class ProfileViewModel : BaseViewModel
     partial void OnBirthdayChanged(DateTime value) => RefreshBirthdayDisplay();
 
     /// <summary>Persisted immediately on toggle, same "no explicit Save button" treatment
-    /// BalanceDisplayModePrefix/LanguageOverride/AccentPreset already get — this is a device
+    /// LanguageOverride/AccentPreset already get — this is a device
     /// setting, not part of the Save Profile form above.</summary>
     partial void OnAmountDisplayConvertedChanged(bool value) =>
         Microsoft.Maui.Storage.Preferences.Default.Set(AppConstants.Preferences.AmountDisplayConverted, value);

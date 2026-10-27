@@ -309,6 +309,8 @@
   font-size: 12px;
   white-space: nowrap;
 }
+/* The emoji font keeps the paperclip's eyed Windows rendering; the calendar badge's Icon
+   span sets its own font. */
 .receipt-badge {
   font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
   font-weight: 400;

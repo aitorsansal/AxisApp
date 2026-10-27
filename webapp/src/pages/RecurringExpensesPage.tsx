@@ -8,6 +8,7 @@ import type { Group, MemberRow, RecurringExpense } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
 import { Icon } from '../components/Icon'
 import { categoryIcon } from '../lib/icons'
+import { nextDue } from '../lib/recurringSchedule'
 import './RecurringExpensesPage.css'
 
 export function RecurringExpensesPage() {
@@ -46,6 +47,18 @@ export function RecurringExpensesPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  // Paused templates never materialize, so a date there would read as a promise the cron won't keep.
+  function scheduleLabel(tpl: RecurringExpense) {
+    if (!tpl.is_active) return t('RecurringExpenses_Paused')
+    const [y, m, d] = nextDue(tpl.start_date, tpl.last_processed_date, tpl.frequency).split('-').map(Number)
+    const date = new Date(y, m - 1, d).toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+    return t('RecurringExpenses_NextDue', date)
+  }
 
   function payerName(id: string) {
     const row = members.find((m) => m.member_id === id)
@@ -115,7 +128,8 @@ export function RecurringExpensesPage() {
                   (tpl.category ? t(`Category_${tpl.category}`) : t('GroupDetail_ExpenseFallback'))}
               </div>
               <div className="recurring-meta">
-                {payerName(tpl.paid_by_member_id)} · {t(`Recurring_Frequency_${tpl.frequency}`)}
+                {payerName(tpl.paid_by_member_id)} · {t(`Recurring_Frequency_${tpl.frequency}`)} ·{' '}
+                {scheduleLabel(tpl)}
               </div>
             </Link>
             <strong className="recurring-amount">

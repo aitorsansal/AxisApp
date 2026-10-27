@@ -1,4 +1,5 @@
 import { BrandMark } from '../components/BrandMark'
+import { PasswordInput } from '../components/PasswordInput'
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
@@ -6,9 +7,14 @@ import { useAuth } from '../context/AuthContext'
 import { useLocale } from '../context/LocaleContext'
 import './LoginPage.css'
 
-// Static "email confirmed" page under web/confirm/ — same page the MAUI app's sign-up points at
-// (AppConstants.Links.EmailConfirmedUrl). Must be in Supabase Auth's redirect allow-list.
-const EMAIL_CONFIRMED_URL = 'https://axisapp.aitorsansal.com/confirm/'
+// Static "email confirmed" page, public/confirm/ — same page the MAUI app's sign-up points at
+// (AppConstants.Links.EmailConfirmedUrl). Must be in Supabase Auth's redirect allow-list. Absolute
+// (not this origin) so links requested from a localhost dev build still land on the real page.
+const EMAIL_CONFIRMED_URL = 'https://app.axisapp.aitorsansal.com/confirm/'
+// Static reset page, public/reset/, shared with the MAUI app (AppConstants.Links.PasswordResetUrl).
+// Works because this client uses the default implicit flow: the recovery token travels in the link
+// itself, while PKCE would leave the verifier in this origin's storage where the reset page can't read it.
+const PASSWORD_RESET_URL = 'https://app.axisapp.aitorsansal.com/reset'
 
 export function LoginPage() {
   const { session } = useAuth()
@@ -82,6 +88,19 @@ export function LoginPage() {
     setNotice(t('Login_CheckInbox', unconfirmedEmail))
   }
 
+  async function handleForgotPassword() {
+    setError(null)
+    setNotice(null)
+    const trimmed = email.trim()
+    if (!trimmed) return setError(t('Login_ForgotPasswordNeedsEmail'))
+    setBusy(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmed, { redirectTo: PASSWORD_RESET_URL })
+    setBusy(false)
+    if (error?.code === 'over_email_send_rate_limit') return setError(t('Login_ResendRateLimited'))
+    if (error) return setError(error.message || t('Login_ForgotPasswordFailed'))
+    setNotice(t('Login_ForgotPasswordSent'))
+  }
+
   async function handleGoogle() {
     setError(null)
     const { error } = await supabase.auth.signInWithOAuth({
@@ -124,9 +143,8 @@ export function LoginPage() {
         </div>
         <div className="field">
           <label htmlFor="password">{t('Login_Password')}</label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             required
             minLength={mode === 'signup' ? 8 : undefined}
             value={password}
@@ -134,6 +152,16 @@ export function LoginPage() {
             autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
           />
         </div>
+        {mode === 'signin' && (
+          <button
+            type="button"
+            className="mode-toggle resend-link"
+            onClick={handleForgotPassword}
+            disabled={busy}
+          >
+            {t('Login_ForgotPassword')}
+          </button>
+        )}
 
         {error && <p className="error-text">{error}</p>}
         {notice && <p className="notice-text">{notice}</p>}

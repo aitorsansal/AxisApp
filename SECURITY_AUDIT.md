@@ -277,7 +277,7 @@ The phone got logged out "without being used", with both home-screen widgets on.
 
 | Where | Change |
 |---|---|
-| Supabase Auth | Confirm email ON; `site_url` → `https://axisapp.aitorsansal.com/confirm/`; `https://axisapp.aitorsansal.com/confirm/` added to redirect allow-list; "Confirm signup" template + subject set |
+| Supabase Auth | Confirm email ON; `site_url` → `https://app.axisapp.aitorsansal.com/confirm/`; `/confirm/` and `/reset` on that host in the redirect allow-list (moved from the retired `axisapp.aitorsansal.com` 2026-10-27); "Confirm signup" template + subject set |
 | Google Cloud — Browser key | Website restriction `https://app.axisapp.aitorsansal.com/*`, `http://localhost:5173/*`; APIs limited to FCM Registration, Firebase Cloud Messaging, Firebase Installations (was 25) |
 | Google Cloud — Android key | Android restriction `com.aitorsansal.axisapp` + SHA-1 `23:91:E0:80:CB:18:E2:45:96:E0:37:C2:F7:AC:FF:7E:6D:44:5A:CC` (Play App Signing), `94:66:69:AC:32:92:0B:4F:1E:71:EB:B4:40:B4:6B:36:39:BB:4E:DB` (`axisapp.keystore` upload key), `BE:9C:FC:CC:03:2B:0D:EC:45:39:FF:15:49:F8:61:63:8E:C4:5C:34` (default debug keystore). API list (8 Firebase APIs) unchanged |
 
@@ -309,9 +309,9 @@ that Axis never calls — the keys had been scraped. Now blocked by the restrict
 `axisapp-ee018` checked: no charges.
 
 Signing certificates, for reference: Play Store installs are signed by Google's Play App Signing key
-(SHA-256 `E4:1B:C6:C9:…`), which is what `web/.well-known/assetlinks.json` and Firebase list. Builds
-installed straight from this machine use `axisapp.keystore` (SHA-256 `CF:F3:F3:3C:…`), which is **not**
-in `assetlinks.json`, so invite App Links won't auto-verify for those local builds.
+(SHA-256 `E4:1B:C6:C9:…`), which is what `webapp/public/.well-known/assetlinks.json` and Firebase list.
+Builds installed straight from this machine use `axisapp.keystore` (SHA-256 `CF:F3:F3:3C:…`), which is
+also listed there, so App Links verify for local Release builds too.
 
 ---
 
@@ -332,9 +332,7 @@ Numbering is kept from the original list, so gaps are items that moved to "Fixed
     is deliberately left as a plain copy: it's short-lived, and it's meant to be pasted into a chat.)*
 9. **`MainActivity` acts on intent extras from any app** (`AxisApp/Platforms/Android/MainActivity.cs`,
     `HandleIntent`) — spoofable screen titles, RLS still protects data.
-16. **Invite App Links for locally installed builds**: add `axisapp.keystore`'s SHA-256
-    (`CF:F3:F3:3C:3A:85:9F:1B:36:5A:51:1C:F4:3A:E2:9A:22:5A:9E:17:61:42:B0:2C:FF:1A:8E:29:09:2B:49:F5`)
-    to `web/.well-known/assetlinks.json` if direct installs should open invite links in-app.
+16. *(closed: `axisapp.keystore`'s SHA-256 is in `webapp/public/.well-known/assetlinks.json`.)*
 
 ### Pending checks (no code)
 

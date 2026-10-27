@@ -32,12 +32,12 @@ For a one-off regeneration without changing the app's dependency files, install 
 | Web push illustration | Full-colour `icon-192.png` |
 | Android browser/PWA notification badge | `notification-badge.png`: 96px white-on-transparent glyph |
 | Web login, sidebar and home wordmarks | `webapp/public/axis-mark.svg` through `BrandMark` |
-| Hosted invite, event, auth, legal and email graphics | `web/email-assets/`, referenced by the hosted pages and existing email templates |
+| Static auth/legal page and email graphics | `webapp/public/email-assets/`, referenced by the static pages and `supabase/email-templates/` |
 | Store artwork | `exports/google-play-512.png`, ready for a separate Google Play listing update |
 | Reusable transparent exports | `exports/axis-mark-512.png`, `exports/axis-notification-96.png` |
 
 ## Delivery
 
-Web assets reach the SPA through the normal `webapp` build/deployment. Hosted link/email assets belong to the separate `web` deployment. Android launcher and notification resources require an updated installed app; changing hosted files does not update an existing native APK. Store artwork is provided here; this task does not publish a Play Store release or alter store metadata.
+Web assets, including the hosted link/email assets in `webapp/public/email-assets/`, ship with the normal `webapp` build/deployment. Android launcher and notification resources require an updated installed app; changing hosted files does not update an existing native APK. Store artwork is provided here; this task does not publish a Play Store release or alter store metadata.
 
 References: [Android adaptive icons](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive), [.NET MAUI app icons](https://learn.microsoft.com/en-us/dotnet/maui/user-interface/images/app-icons?view=net-maui-10.0), and [Firebase default notification icons](https://firebase.google.com/docs/cloud-messaging/android/receive-messages).

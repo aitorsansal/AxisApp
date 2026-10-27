@@ -110,9 +110,16 @@ namespace AxisApp
         /// exactly which route it wants.</summary>
         public static void HandleNotificationTap(string route) => QueueOrNavigate(route);
 
+        // Real bug, found 2026-10-27: a link opened while signed out was replayed right after
+        // SplashPage landed on Login, so the event page queried with no session ("Group not
+        // found"). Routes now stay pending until there's a session, and Login/Register replay them
+        // after signing in — same idea as the web app's ProtectedRoute returnTo.
+        private static bool IsSignedIn() =>
+            IPlatformApplication.Current?.Services.GetService<Services.IAuthService>()?.IsAuthenticated == true;
+
         private static void QueueOrNavigate(string route)
         {
-            if (!isReadyToNavigate)
+            if (!isReadyToNavigate || !IsSignedIn())
             {
                 pendingRoute = route;
                 return;
@@ -121,11 +128,12 @@ namespace AxisApp
             _ = Shell.Current.GoToAsync(route);
         }
 
-        /// <summary>Called by SplashPage once it's decided where to land, to replay a deep link or
-        /// notification tap that arrived before the window (and Shell) existed.</summary>
+        /// <summary>Called by SplashPage once it's decided where to land, and by Login/Register
+        /// after signing in, to replay a deep link or notification tap that arrived before the app
+        /// was ready or while signed out. A no-op while still signed out — the route stays queued.</summary>
         public static Task ReplayPendingDeepLinkAsync()
         {
-            if (pendingRoute is not { } route) return Task.CompletedTask;
+            if (pendingRoute is not { } route || !IsSignedIn()) return Task.CompletedTask;
             pendingRoute = null;
             return Shell.Current.GoToAsync(route);
         }

@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
     groupId = ev?.group_id ?? "";
 
     if (event_type === "birthday") {
-      // eventTitle is already "🎂 {name}'s Birthday" (see materialize_birthday_events in
+      // eventTitle is already "🎂 Cumpleaños de {name}" (see materialize_birthday_events in
       // schema.sql) — used directly as the body, no "New event:"/whenText prefix, since this
       // isn't a generic event notification.
       body = eventTitle;

@@ -61,6 +61,26 @@
     font-family: inherit;
   }
   input:focus { outline: none; border-color: var(--accent); }
+  .pw { position: relative; margin-bottom: 12px; }
+  .pw input { margin-bottom: 0; padding-right: 48px; }
+  .pw-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .pw-toggle:hover { color: var(--text); }
+  .pw-toggle svg { width: 18px; height: 18px; }
+  .pw-toggle .eye-off, .pw-toggle[aria-pressed="true"] .eye { display: none; }
+  .pw-toggle[aria-pressed="true"] .eye-off { display: block; }
   .btn {
     display: block;
     width: 100%;
@@ -79,12 +99,12 @@
   .msg { font-size: 0.85rem; margin: 0 0 16px; text-align: left; }
   .msg-error { color: var(--danger); }
   .msg-success { color: var(--accent); }
-  form[hidden], .msg[hidden] { display: none; }
+  form[hidden], .msg[hidden], .btn[hidden] { display: none; }
 </style>
 </head>
 <body>
   <div class="card">
-    <img class="mark" src="https://axisapp.aitorsansal.com/email-assets/icon.svg" width="48" height="48" alt="Axis">
+    <img class="mark" src="/email-assets/icon.svg" width="48" height="48" alt="Axis">
     <h1 id="title">Reset your password</h1>
     <p id="subtitle">Choose a new password for your Axis account.</p>
 
@@ -92,10 +112,18 @@
     <p class="msg msg-success" id="successMsg" hidden></p>
 
     <form id="resetForm" hidden>
-      <input type="password" id="password" placeholder="New password" autocomplete="new-password" minlength="8" required>
-      <input type="password" id="confirmPassword" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
+      <div class="pw">
+        <input type="password" id="password" placeholder="New password" autocomplete="new-password" minlength="8" required>
+        <button type="button" class="pw-toggle" data-target="password" aria-label="Show password" aria-pressed="false"></button>
+      </div>
+      <div class="pw">
+        <input type="password" id="confirmPassword" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
+        <button type="button" class="pw-toggle" data-target="confirmPassword" aria-label="Show password" aria-pressed="false"></button>
+      </div>
       <button class="btn btn-primary" type="submit" id="submitBtn">Set new password</button>
     </form>
+
+    <a class="btn btn-primary" id="webLink" href="/" hidden>Open Axis on the web</a>
   </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -111,6 +139,26 @@
   var submitBtn = document.getElementById('submitBtn');
   var title = document.getElementById('title');
   var subtitle = document.getElementById('subtitle');
+  var webLink = document.getElementById('webLink');
+
+  // Lucide eye / eye-off (ISC), same glyphs the apps use for their password toggles.
+  var EYE_ICONS =
+    '<svg class="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>' +
+    '<svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/>' +
+    '<path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>';
+
+  Array.prototype.forEach.call(document.querySelectorAll('.pw-toggle'), function (toggle) {
+    toggle.innerHTML = EYE_ICONS;
+    toggle.addEventListener('click', function () {
+      var input = document.getElementById(toggle.getAttribute('data-target'));
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      toggle.setAttribute('aria-pressed', show ? 'true' : 'false');
+      toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
+  });
 
   function showError(text) {
     errorMsg.textContent = text;
@@ -120,6 +168,7 @@
   function invalidLink() {
     title.textContent = 'This link is invalid or expired';
     subtitle.textContent = 'Password reset links only work once and expire after a while. Go back to Axis and request a new one from the login screen.';
+    webLink.hidden = false;
   }
 
   // The Supabase JS client auto-parses the recovery token out of the URL on load
@@ -170,8 +219,9 @@
       form.hidden = true;
       title.textContent = 'Password updated';
       subtitle.hidden = true;
-      successMsg.textContent = 'You can close this tab and sign in with your new password in Axis.';
+      successMsg.textContent = 'Sign in with your new password in the Axis app, or on the web.';
       successMsg.hidden = false;
+      webLink.hidden = false;
     });
   });
 </script>

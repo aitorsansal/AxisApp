@@ -61,7 +61,7 @@ public class SupabaseAuthService : IAuthService
     /// <summary>With "Confirm email" on in Supabase Auth, SignUp creates the account but doesn't
     /// sign it in — the package's own doc says CurrentSession stays unchanged in that case, which
     /// is what's checked here rather than the returned Session's shape. The confirmation link
-    /// lands on AppConstants.Links.EmailConfirmedUrl (web/confirm/index.html), a plain browser
+    /// lands on AppConstants.Links.EmailConfirmedUrl (webapp/public/confirm/index.html), a plain browser
     /// page for the same reason PasswordResetUrl is one: no deep-link support on Windows.</summary>
     public async Task<AuthResult> SignUpAsync(string email, string password, string? displayName = null, DateTime? birthDate = null)
     {

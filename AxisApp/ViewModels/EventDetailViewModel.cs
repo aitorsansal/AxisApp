@@ -301,10 +301,14 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
     private Task ShareEvent() => RunSafeAsync(async () =>
     {
         if (currentEvent is null) return;
+        // Neutral wording: anyone in the group can share, not just the event's creator.
         await Microsoft.Maui.ApplicationModel.DataTransfer.Share.Default.RequestAsync(new ShareTextRequest
         {
             Text = LocalizationResourceManager.Instance.Format(
-                "EventDetail_ShareText", currentEvent.Title, AppConstants.Links.BuildEventUrl(groupId, eventId)),
+                "EventDetail_ShareText",
+                currentEvent.Title,
+                EventTimes.FormatRange(currentEvent.StartsAt, currentEvent.EndsAt),
+                AppConstants.Links.BuildEventUrl(groupId, eventId)),
             Title = LocalizationResourceManager.Instance["EventDetail_ShareTitle"]
         });
     });

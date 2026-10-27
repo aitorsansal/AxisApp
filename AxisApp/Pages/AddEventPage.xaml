@@ -2,6 +2,7 @@
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:AxisApp"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
     xmlns:controls="clr-namespace:AxisApp.Controls"
     xmlns:loc="clr-namespace:AxisApp.Localization"
@@ -85,7 +86,7 @@
                         <Border Grid.Column="0" Style="{StaticResource InputBorderStyle}">
                             <Grid>
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                                    <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
+                                    <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                                     <Label Grid.Column="1" Text="{Binding StartDateDisplay}" VerticalOptions="Center" LineBreakMode="TailTruncation" />
                                 </Grid>
                                 <DatePicker Date="{Binding StartDate}" Opacity="0" />
@@ -94,7 +95,7 @@
                         <Border Grid.Column="1" Style="{StaticResource InputBorderStyle}">
                             <Grid>
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                                    <Label Grid.Column="0" Text="&#128336;" VerticalOptions="Center" />
+                                    <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Clock}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                                     <Label Grid.Column="1" Text="{Binding StartTimeDisplay}" VerticalOptions="Center" />
                                 </Grid>
                                 <TimePicker Time="{Binding StartTime}" Opacity="0" />
@@ -115,7 +116,7 @@
                     <Border Grid.Column="0" Style="{StaticResource InputBorderStyle}">
                         <Grid>
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                                <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
+                                <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                                 <Label Grid.Column="1" Text="{Binding EndDateDisplay}" VerticalOptions="Center" LineBreakMode="TailTruncation" />
                             </Grid>
                             <DatePicker Date="{Binding EndDate}" Opacity="0" />
@@ -124,7 +125,7 @@
                     <Border Grid.Column="1" Style="{StaticResource InputBorderStyle}">
                         <Grid>
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                                <Label Grid.Column="0" Text="&#128336;" VerticalOptions="Center" />
+                                <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Clock}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                                 <Label Grid.Column="1" Text="{Binding EndTimeDisplay}" VerticalOptions="Center" />
                             </Grid>
                             <TimePicker Time="{Binding EndTime}" Opacity="0" />

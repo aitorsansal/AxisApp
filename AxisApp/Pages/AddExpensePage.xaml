@@ -2,6 +2,7 @@
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:AxisApp"
     xmlns:vm="clr-namespace:AxisApp.ViewModels"
     xmlns:controls="clr-namespace:AxisApp.Controls"
     xmlns:loc="clr-namespace:AxisApp.Localization"
@@ -305,7 +306,7 @@
                 <Border Style="{StaticResource InputBorderStyle}" IsVisible="{Binding IsRecurringMode, Converter={StaticResource InverseBoolConverter}}">
                     <Grid>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                            <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
+                            <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                             <Label Grid.Column="1" Text="{Binding OccurredOnDisplay}" VerticalOptions="Center" />
                             <Label Grid.Column="2" Text="&#8250;" TextColor="{DynamicResource TextTertiary}" VerticalOptions="Center" />
                         </Grid>
@@ -318,7 +319,7 @@
                     <Border Style="{StaticResource InputBorderStyle}">
                         <Grid>
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                                <Label Grid.Column="0" Text="&#128197;" VerticalOptions="Center" />
+                                <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                                 <Label Grid.Column="1" Text="{Binding StartDateDisplay}" VerticalOptions="Center" />
                                 <Label Grid.Column="2" Text="&#8250;" TextColor="{DynamicResource TextTertiary}" VerticalOptions="Center" />
                             </Grid>
@@ -373,7 +374,7 @@
                     </Border.GestureRecognizers>
                     <Grid>
                         <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="{StaticResource SpacingXS}">
-                            <Label Text="&#128247;" HorizontalOptions="Center" FontSize="{StaticResource TypeEmojiLg}" />
+                            <Label Text="{x:Static local:AppConstants+Icons.Camera}" FontFamily="Lucide" TextColor="{DynamicResource TextTertiary}" HorizontalOptions="Center" FontSize="{StaticResource TypeEmojiLg}" />
                             <Label
                                 Text="{loc:Translate AddExpense_ReceiptPhoto}"
                                 Style="{StaticResource LabelTertiary}"

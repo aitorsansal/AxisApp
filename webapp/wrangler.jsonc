@@ -1,7 +1,9 @@
 {
-  // Serves the Vite build output (dist/) as a Cloudflare Worker/Pages project,
-  // separate from the axisapp Worker in /web (that one serves fixed static
-  // pages — /invite, /privacy, /.well-known — this one is a client-routed SPA).
+  // Serves the Vite build output (dist/) as a Cloudflare Worker/Pages project —
+  // the only Axis domain (app.axisapp.aitorsansal.com). Real files from
+  // public/ (/.well-known/assetlinks.json, /version.json, /reset, /confirm,
+  // /privacy, /termsofservice, /delete-account, /email-assets) are served as-is
+  // ahead of the SPA fallback, so they're reachable without signing in.
   //
   // Run "npm run build" first (or "npm run deploy" which does both), then
   // "npx wrangler dev" to preview locally, or "npx wrangler deploy" to publish.

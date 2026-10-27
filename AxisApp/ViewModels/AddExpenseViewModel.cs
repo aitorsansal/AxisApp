@@ -541,12 +541,12 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     partial void OnOccurredOnChanged(DateTime value) =>
         OccurredOnDisplay = value.Date == DateTime.Today
             ? LocalizationResourceManager.Instance["Common_Today"]
-            : value.ToString("MMM d, yyyy");
+            : DateFormats.ShortDate(value);
 
     partial void OnStartDateChanged(DateTime value) =>
         StartDateDisplay = value.Date == DateTime.Today
             ? LocalizationResourceManager.Instance["Common_Today"]
-            : value.ToString("MMM d, yyyy");
+            : DateFormats.ShortDate(value);
 
     partial void OnIsRecurringModeChanged(bool value) => ShowMoneyExtras = !value && !IsSettlement;
     partial void OnIsSettlementChanged(bool value) => ShowMoneyExtras = !IsRecurringMode && !value;

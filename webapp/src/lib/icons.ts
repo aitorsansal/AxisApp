@@ -35,6 +35,9 @@ export const iconGlyphs = {
   music: '\uE122',
   book: '\uE05E',
   star: '\uE176',
+  eye: '\uE0BA',
+  eye_off: '\uE0BB',
+  calendar: '\uE063',
 } as const
 
 export type IconName = keyof typeof iconGlyphs

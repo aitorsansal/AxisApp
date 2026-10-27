@@ -1,6 +1,6 @@
 # Axis web UI
 
-The responsive web client follows the Android client's visual language. The receipt attachment marker remains the original `📎` emoji (including its eyed rendering on Windows).
+The responsive web client follows the Android client's visual language. The receipt attachment marker remains the original `📎` emoji (including its eyed rendering on Windows); the linked-event marker is the Lucide calendar glyph.
 
 ## Layout
 

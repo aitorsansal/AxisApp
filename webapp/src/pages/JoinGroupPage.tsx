@@ -20,7 +20,7 @@ export function JoinGroupPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { t } = useLocale()
-  // Prefilled from an invite link's ?code= (web/invite's "Continue in the web app" button).
+  // Prefilled from an invite link (/join?code=, see MembersPage's buildInviteUrl).
   const [input, setInput] = useState(searchParams.get('code') ?? '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

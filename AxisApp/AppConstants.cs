@@ -6,19 +6,12 @@ public static class AppConstants
     {
         public const string SupabaseSession = "supabase_session";
 
-        /// <summary>Per-device, per-account, per-group choice of Group Detail's balance display
-        /// mode (simplified settle-up vs. real pairwise) — see GroupDetailViewModel. Deliberately
-        /// local only, never synced: it's a personal viewing preference, not group state, so
-        /// nothing requires every member of a group to see it the same way.</summary>
-        public const string BalanceDisplayModePrefix = "balance_display_pairwise_";
-
         /// <summary>Per-device language override ("en"/"es"), empty string means "follow the
         /// device's OS locale" — see LocalizationResourceManager.</summary>
         public const string LanguageOverride = "language_override";
 
         /// <summary>Per-device accent color choice (an AccentPreset name) — see ThemeService.
-        /// Local only, same "personal viewing preference, not group state" reasoning as
-        /// BalanceDisplayModePrefix.</summary>
+        /// Local only: a personal viewing preference, not group state.</summary>
         public const string AccentPreset = "accent_preset";
 
         /// <summary>Per-device (not per-group — see MULTI_CURRENCY_PLAN.md's Milestone 5) toggle for
@@ -102,6 +95,15 @@ public static class AppConstants
         public const string Plane = "";
         public const string Eye = "";
         public const string EyeOff = "";
+
+        // Replacements for the color emoji the app used as inline icons (2026-10-27), checked
+        // against the vendored lucide.ttf's cmap by glyph name.
+        public const string Share = "";    // share-2
+        public const string Pencil = "";
+        public const string Calendar = "";
+        public const string Clock = "";    // clock-3
+        public const string Camera = "";
+        public const string Copy = "";
     }
 
     /// <summary>Added for group appearance (AppConstants.GroupIcons below) - verified present in
@@ -182,44 +184,43 @@ public static class AppConstants
         public const string MemberProfile = "MemberProfile";
     }
 
-    /// <summary>Web-facing invite links (Android App Links today; iOS Universal Links whenever that
-    /// target is back in the active TargetFrameworks). InviteHost is a Cloudflare-hosted subdomain
-    /// (axisapp.aitorsansal.com) separate from the personal site at the apex domain — it needs its
-    /// own /.well-known/assetlinks.json there plus the matching Android intent-filter in
-    /// MainActivity.cs before real devices will treat the link as app-openable instead of just a
-    /// web page.</summary>
+    /// <summary>Web-facing links (Android App Links today; iOS Universal Links whenever that target
+    /// is back in the active TargetFrameworks). AppHost is the web app's own domain: a shared link is
+    /// the real web app page, so it opens in the Android app when installed (App Link, verified via
+    /// webapp/public/.well-known/assetlinks.json + MainActivity's intent-filters) and in the web app
+    /// otherwise. The static pages (reset, confirm, privacy, version.json) are plain files in
+    /// webapp/public served ahead of the SPA fallback, so they're reachable without signing in.</summary>
     public static class Links
     {
-        public const string InviteHost = "axisapp.aitorsansal.com";
+        public const string AppHost = "app.axisapp.aitorsansal.com";
 
         /// <summary>Where Supabase redirects after a password-recovery link is clicked — a
-        /// standalone page (web/reset/index.html) that reads the recovery session straight out of
-        /// the URL via the Supabase JS SDK and lets the user set a new password there. Not an App
-        /// Link/deep-link target like BuildInviteUrl: Windows has no deep-link support at all, so
-        /// this has to work as a plain browser page regardless of platform.</summary>
-        public const string PasswordResetUrl = $"https://{InviteHost}/reset";
+        /// standalone page (webapp/public/reset/index.html) that reads the recovery session straight
+        /// out of the URL via the Supabase JS SDK and lets the user set a new password there. Not an
+        /// App Link target: Windows has no deep-link support at all, so this has to work as a plain
+        /// browser page regardless of platform.</summary>
+        public const string PasswordResetUrl = $"https://{AppHost}/reset";
 
         /// <summary>Where Supabase redirects after a sign-up confirmation link is clicked —
-        /// web/confirm/index.html, a static "email confirmed, go back and sign in" page. The
-        /// account is already confirmed by Supabase's own /auth/v1/verify endpoint before this
+        /// webapp/public/confirm/index.html, a static "email confirmed, go back and sign in" page.
+        /// The account is already confirmed by Supabase's own /auth/v1/verify endpoint before this
         /// redirect happens; the page only reports the outcome. Must be in Supabase Auth's
         /// redirect allow-list, same as PasswordResetUrl.</summary>
-        public const string EmailConfirmedUrl = $"https://{InviteHost}/confirm/";
+        public const string EmailConfirmedUrl = $"https://{AppHost}/confirm/";
 
-        /// <summary>Served by the same Cloudflare Worker as everything else under web/ (see
-        /// AppUpdateService) — a plain static file, not an API endpoint, so it's just another path
-        /// under InviteHost.</summary>
-        public const string VersionCheckUrl = $"https://{InviteHost}/version.json";
+        /// <summary>A plain static file in webapp/public (see AppUpdateService), not an API
+        /// endpoint.</summary>
+        public const string VersionCheckUrl = $"https://{AppHost}/version.json";
 
         public const string PlayStoreUrl = "https://play.google.com/store/apps/details?id=com.aitorsansal.axisapp";
 
+        /// <summary>The web app's own join page (/join?code=), also an App Link target.</summary>
         public static string BuildInviteUrl(string code) =>
-            $"https://{InviteHost}/invite?code={Uri.EscapeDataString(code)}";
+            $"https://{AppHost}/join?code={Uri.EscapeDataString(code)}";
 
         /// <summary>The public, unauthenticated .ics feed backing CalendarSubscription — see
         /// schema.sql's "Calendar subscription feed" remarks. Built off SupabaseConfig.Url (not a
-        /// constant here) since the Edge Function lives on the Supabase project itself, not
-        /// InviteHost's Cloudflare Worker.</summary>
+        /// constant here) since the Edge Function lives on the Supabase project itself.</summary>
         public static string BuildCalendarFeedUrl(string token) =>
             $"{SupabaseConfig.Url}/functions/v1/calendar-feed/{Uri.EscapeDataString(token)}.ics";
 
@@ -236,24 +237,28 @@ public static class AppConstants
         public static string? TryExtractCode(string uriString) =>
             Uri.TryCreate(uriString, UriKind.Absolute, out var uri) ? GetQueryParam(uri, "code") : null;
 
-        /// <summary>Link to one event — https://InviteHost/event?group={groupId}&amp;id={eventId}.
-        /// Unlike an invite it carries no secret and grants nothing: it only navigates, and RLS
-        /// still decides whether the opener can see the event. Handled by MainActivity's "/event"
-        /// intent-filter and App.HandleDeepLink; web/event/index.html is the no-app fallback.</summary>
+        /// <summary>Link to one event — the web app's own event page,
+        /// https://AppHost/groups/{groupId}/events/{eventId}. Unlike an invite it carries no secret
+        /// and grants nothing: it only navigates, and RLS still decides whether the opener can see
+        /// the event. Handled by MainActivity's events intent-filter and App.HandleDeepLink.</summary>
         public static string BuildEventUrl(Guid groupId, Guid eventId) =>
-            $"https://{InviteHost}/event?group={groupId}&id={eventId}";
+            $"https://{AppHost}/groups/{groupId}/events/{eventId}";
 
         /// <summary>Parses a link built by BuildEventUrl (or the raw platform URI for one). Returns
-        /// null unless the path is /event and both ids are valid GUIDs.</summary>
+        /// null unless the path is exactly /groups/{guid}/events/{guid} — the intent-filter's
+        /// pattern also matches e.g. .../events/{id}/edit, which just opens the app normally.</summary>
         public static (Guid GroupId, Guid EventId)? TryExtractEvent(string uriString)
         {
             if (!Uri.TryCreate(uriString, UriKind.Absolute, out var uri)) return null;
-            if (!uri.AbsolutePath.TrimEnd('/').Equals("/event", StringComparison.OrdinalIgnoreCase)) return null;
+            var segments = uri.AbsolutePath.Trim('/').Split('/');
+            if (segments.Length != 4
+                || !segments[0].Equals("groups", StringComparison.OrdinalIgnoreCase)
+                || !segments[2].Equals("events", StringComparison.OrdinalIgnoreCase))
+                return null;
 
-            return Guid.TryParse(GetQueryParam(uri, "group"), out var groupId)
-                && Guid.TryParse(GetQueryParam(uri, "id"), out var eventId)
-                    ? (groupId, eventId)
-                    : null;
+            return Guid.TryParse(segments[1], out var groupId) && Guid.TryParse(segments[3], out var eventId)
+                ? (groupId, eventId)
+                : null;
         }
 
         private static string? GetQueryParam(Uri uri, string key)

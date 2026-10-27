@@ -107,6 +107,7 @@ public partial class RegisterViewModel : BaseViewModel
             // row only exists once this account creates or joins a group, both reachable from
             // the (empty) Groups list — same as LoginViewModel's plain-signup path used to do.
             await Shell.Current.GoToAsync(AppConstants.Routes.Groups);
+            await App.ReplayPendingDeepLinkAsync();
         }
         finally
         {

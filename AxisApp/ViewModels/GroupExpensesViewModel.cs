@@ -7,20 +7,14 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AxisApp.ViewModels;
 
-/// <summary>One row in the group detail's Balances section. In pairwise mode this is always a
-/// real debt between the viewer and <see cref="Member"/>. In simplified mode it's one suggested
-/// settle-up transfer — <see cref="Member"/> is the payer; if the transfer doesn't involve the
-/// viewer at all (<see cref="IsNeutral"/>), <see cref="Member"/> pays <see cref="ToName"/>
-/// instead of "you", and no owed/owing color is shown.</summary>
+/// <summary>One row in the group detail's Balances section: a real pairwise debt between the
+/// viewer and <see cref="Member"/>.</summary>
 public partial class MemberBalanceItem : ObservableObject
 {
     public Member Member { get; init; } = null!;
     public string Name { get; init; } = "";
     public string Initials { get; init; } = "";
     public string? AvatarUrl { get; init; }
-    public string? ToName { get; init; }
-    public Guid? ToMemberId { get; init; }
-    public bool IsNeutral { get; init; }
 
     /// <summary>The unsigned amount this row represents — kept separately from AmountText
     /// (which carries a +/-/$ display prefix) so Settle doesn't have to re-parse formatted text
@@ -120,21 +114,6 @@ public partial class GroupExpensesViewModel : BaseViewModel
     [ObservableProperty] private bool isInitialLoading;
     private bool hasLoadedOnce;
 
-    /// <summary>Per-device display preference, not group state — see
-    /// AppConstants.Preferences.BalanceDisplayModePrefix. Set directly from the stored value in
-    /// LoadAsync (bypassing OnIsPairwiseModeChanged, via the lowercase backing field) since that
-    /// initial set shouldn't trigger a redundant reload before the rest of LoadAsync has even
-    /// finished once.</summary>
-    [ObservableProperty] private bool isPairwiseMode;
-
-    partial void OnIsPairwiseModeChanged(bool value)
-    {
-        Microsoft.Maui.Storage.Preferences.Default.Set(PreferenceKey, value);
-        if (membersById.Count > 0) _ = RunSafeAsync(RefreshBalancesAsync);
-    }
-
-    private string PreferenceKey => $"{AppConstants.Preferences.BalanceDisplayModePrefix}{groupId}";
-
     public GroupExpensesViewModel(
         IGroupsRepository groupsRepository,
         IMembersRepository membersRepository,
@@ -154,7 +133,6 @@ public partial class GroupExpensesViewModel : BaseViewModel
     public Task LoadAsync(Guid groupId) => RunSafeAsync(async () =>
     {
         this.groupId = groupId;
-        isPairwiseMode = Microsoft.Maui.Storage.Preferences.Default.Get(PreferenceKey, true);
         IsBusy = true;
         var isFirstLoad = !hasLoadedOnce;
         IsInitialLoading = isFirstLoad;
@@ -200,16 +178,11 @@ public partial class GroupExpensesViewModel : BaseViewModel
         }
     });
 
-    /// <summary>Rebuilds the Balances section for whichever mode is currently selected, without
-    /// refetching members/activity — used both by LoadAsync and by the mode toggle.</summary>
+    /// <summary>Rebuilds the Balances section without refetching members/activity.</summary>
     private async Task RefreshBalancesAsync()
     {
         var groupSymbol = AppConstants.Currencies.SymbolFor(currentGroup!.Currency);
-        var items = IsPairwiseMode
-            ? await BuildPairwiseItemsAsync(groupSymbol)
-            : BuildSimplifiedItems(await balancesRepository.GetForGroupAsync(groupId), membersById, myMemberId, aliases, groupSymbol);
-
-        Balances = new ObservableCollection<MemberBalanceItem>(items);
+        Balances = new ObservableCollection<MemberBalanceItem>(await BuildPairwiseItemsAsync(groupSymbol));
     }
 
     /// <summary>Builds ActivityItem rows for a batch of expenses, given their shares already
@@ -340,10 +313,11 @@ public partial class GroupExpensesViewModel : BaseViewModel
         HasNoSearchResults = items.Count == 0;
     }
 
-    /// <summary>Pairwise mode: my_pairwise_balances already gives real, two-party debts from
-    /// the viewer's own perspective (positive = they owe me), so no member exclusion or sign
-    /// juggling is needed — unlike the old (buggy) group_balances-based display this replaced,
-    /// "owes you"/"you owe" is always a literally true statement here.</summary>
+    /// <summary>my_pairwise_balances already gives real, two-party debts from the viewer's own
+    /// perspective (positive = they owe me), so "owes you"/"you owe" is always literally true.
+    /// The old Simplified (DebtSimplifier) mode was removed 2026-10-27: settling one of its
+    /// suggested transfers between two people who never shared an expense left made-up debts in
+    /// this pairwise view.</summary>
     private async Task<List<MemberBalanceItem>> BuildPairwiseItemsAsync(string groupSymbol)
     {
         var pairwise = await balancesRepository.GetMyPairwiseForGroupAsync(groupId);
@@ -378,73 +352,6 @@ public partial class GroupExpensesViewModel : BaseViewModel
         return items;
     }
 
-    /// <summary>Simplified mode: run DebtSimplifier over every member's group-wide net balance
-    /// (including the viewer's own — unlike the old display, nobody is excluded) to get the
-    /// minimum-transfer settle-up plan. A transfer only gets "you owe"/"owes you" phrasing when
-    /// the viewer is actually one of its two parties; otherwise it's shown neutrally as
-    /// "X pays Y", since it's not a statement about the viewer at all.</summary>
-    private static List<MemberBalanceItem> BuildSimplifiedItems(
-        IEnumerable<GroupBalance> balances, IReadOnlyDictionary<Guid, Member> membersById, Guid? myMemberId,
-        IReadOnlyDictionary<Guid, string> aliases, string groupSymbol)
-    {
-        var items = new List<MemberBalanceItem>();
-        foreach (var transfer in DebtSimplifier.Simplify(balances.Select(b => (b.MemberId, b.Balance))))
-        {
-            if (!membersById.TryGetValue(transfer.FromMemberId, out var from)) continue;
-            if (!membersById.TryGetValue(transfer.ToMemberId, out var to)) continue;
-
-            var loc = LocalizationResourceManager.Instance;
-            if (transfer.FromMemberId == myMemberId)
-            {
-                items.Add(new MemberBalanceItem
-                {
-                    Member = to,
-                    Name = MemberDisplay.Name(to, aliases),
-                    Initials = MemberDisplay.Initials(to, aliases),
-                    AvatarUrl = MemberDisplay.AvatarUrl(to),
-                    Amount = transfer.Amount,
-                    IsOwing = true,
-                    IsSettled = false,
-                    AmountText = $"-{groupSymbol}{transfer.Amount:0.00}",
-                    CaptionText = loc["GroupDetail_YouOwe"]
-                });
-            }
-            else if (transfer.ToMemberId == myMemberId)
-            {
-                items.Add(new MemberBalanceItem
-                {
-                    Member = from,
-                    Name = MemberDisplay.Name(from, aliases),
-                    Initials = MemberDisplay.Initials(from, aliases),
-                    AvatarUrl = MemberDisplay.AvatarUrl(from),
-                    Amount = transfer.Amount,
-                    IsOwed = true,
-                    IsSettled = false,
-                    AmountText = $"+{groupSymbol}{transfer.Amount:0.00}",
-                    CaptionText = loc["GroupDetail_OwesYou"]
-                });
-            }
-            else
-            {
-                var toName = MemberDisplay.Name(to, aliases);
-                items.Add(new MemberBalanceItem
-                {
-                    Member = from,
-                    Name = MemberDisplay.Name(from, aliases),
-                    Initials = MemberDisplay.Initials(from, aliases),
-                    AvatarUrl = MemberDisplay.AvatarUrl(from),
-                    ToName = toName,
-                    ToMemberId = to.Id,
-                    Amount = transfer.Amount,
-                    IsNeutral = true,
-                    AmountText = $"{groupSymbol}{transfer.Amount:0.00}",
-                    CaptionText = loc.Format("GroupDetail_Pays", toName)
-                });
-            }
-        }
-        return items;
-    }
-
     /// <summary>Per-expense primary/secondary amount text, per
     /// AppConstants.Preferences.AmountDisplayConverted — see MULTI_CURRENCY_PLAN.md's Milestone 5
     /// "On"/"Off" behavior. Both fields are empty-secondary when the expense's own currency matches
@@ -473,7 +380,7 @@ public partial class GroupExpensesViewModel : BaseViewModel
         if (elapsed.TotalHours < 1) return loc.Format("GroupDetail_MinutesAgo", (int)elapsed.TotalMinutes);
         if (elapsed.TotalDays < 1) return loc.Format("GroupDetail_HoursAgo", (int)elapsed.TotalHours);
         if (elapsed.TotalDays < 7) return loc.Format("GroupDetail_DaysAgo", (int)elapsed.TotalDays);
-        return occurredAtUtc.ToLocalTime().ToString("MMM d");
+        return DateFormats.ShortDate(occurredAtUtc.ToLocalTime(), includeYear: false);
     }
 
     [RelayCommand]
@@ -494,25 +401,15 @@ public partial class GroupExpensesViewModel : BaseViewModel
     /// <summary>Records a settlement — an Expense with IsSettlement true, paid_by = the discharging
     /// party, and one ExpenseShare for the party being paid back (see Models/Expense.cs and
     /// CLAUDE.md's "Merge payments into expenses" remarks for why this replaced a dedicated
-    /// Payment table). Works the same way regardless of balance display mode, since both modes
-    /// ultimately produce a (payer, payee, amount) triple on MemberBalanceItem — Pairwise's is a
-    /// real counterparty debt, Simplified's is whatever transfer the settle-up algorithm suggested
-    /// for that row (see "Balances: simplified vs. pairwise" in CLAUDE.md). A settled/neutral-
-    /// with-no-ToMemberId row (shouldn't normally reach here since the UI only offers Settle where
-    /// one of these is true) is a no-op.</summary>
+    /// Payment table). Always between the viewer and the row's member, for that pairwise debt.
+    /// A settled row is a no-op.</summary>
     [RelayCommand]
     private Task Settle(MemberBalanceItem? item) => RunSafeAsync(async () =>
     {
         if (item is null) return;
 
         Guid payerId, payeeId;
-        if (item.IsNeutral)
-        {
-            if (item.ToMemberId is not { } toId) return;
-            payerId = item.Member.Id;
-            payeeId = toId;
-        }
-        else if (item.IsOwing)
+        if (item.IsOwing)
         {
             if (myMemberId is not { } me) return;
             payerId = me;

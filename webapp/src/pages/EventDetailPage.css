@@ -1,7 +1,12 @@
-.edit-event-btn {
-  display: inline-block;
-  text-decoration: none;
+.event-actions {
+  display: flex;
+  gap: 8px;
   margin-bottom: 16px;
+}
+
+.event-actions .btn {
+  width: auto;
+  text-decoration: none;
 }
 
 .event-subcaption {

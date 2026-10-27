@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { equalSplitCents } from '../src/lib/expenseMath.ts'
 import { SerializedUpdates } from '../src/lib/serializedUpdates.ts'
 import { CoalescedWrites } from '../src/lib/coalescedWrites.ts'
+import { nextDue } from '../src/lib/recurringSchedule.ts'
 import { formatEventRange } from '../src/lib/dates.ts'
 
 test('equal splits conserve every cent and differ by at most one cent', () => {
@@ -77,4 +78,18 @@ test('rapid seat taps collapse into one write of the final value; flush sends im
   coalesced.flush('a')
   await new Promise((resolve) => setTimeout(resolve, 40))
   assert.deepEqual(writes.slice(1), [['a', 5], ['b', 7]])
+})
+
+test('recurring next-due matches the server materializer and RecurringSchedule.cs', () => {
+  for (const frequency of ['daily', 'weekly', 'monthly', 'yearly']) {
+    assert.equal(nextDue('2026-10-26', null, frequency), '2026-10-26')
+  }
+  assert.equal(nextDue('2026-10-26', '2026-10-26', 'daily'), '2026-10-27')
+  assert.equal(nextDue('2026-12-28', '2026-12-28', 'weekly'), '2027-01-04')
+  assert.equal(nextDue('2026-10-26', '2026-10-26', 'monthly'), '2026-11-26')
+  assert.equal(nextDue('2026-01-31', '2026-01-31', 'monthly'), '2026-02-28')
+  assert.equal(nextDue('2026-01-31', '2026-02-28', 'monthly'), '2026-03-31')
+  assert.equal(nextDue('2026-01-31', '2026-03-28', 'monthly'), '2026-04-30')
+  assert.equal(nextDue('2024-02-29', '2024-02-29', 'yearly'), '2025-02-28')
+  assert.equal(nextDue('2024-02-29', '2027-02-28', 'yearly'), '2028-02-29')
 })

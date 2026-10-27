@@ -64,7 +64,7 @@ public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
     private static string FormatDate(DateTime value) =>
         value.Date == DateTime.Today
             ? LocalizationResourceManager.Instance["Common_Today"]
-            : value.ToString("MMM d, yyyy");
+            : DateFormats.ShortDate(value);
 
     private static string FormatTime(TimeSpan value) => DateTime.Today.Add(value).ToString("HH:mm");
 

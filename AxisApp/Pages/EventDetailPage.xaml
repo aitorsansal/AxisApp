@@ -35,7 +35,8 @@
                 <TapGestureRecognizer Command="{Binding EditEventCommand}" />
             </Border.GestureRecognizers>
             <Label
-                Text="&#9998;"
+                Text="{x:Static local:AppConstants+Icons.Pencil}"
+                FontFamily="Lucide"
                 FontSize="{StaticResource TypeTitle}"
                 TextColor="{DynamicResource TextPrimary}"
                 HorizontalOptions="Center"
@@ -58,7 +59,8 @@
                 <TapGestureRecognizer Command="{Binding ShareEventCommand}" />
             </Border.GestureRecognizers>
             <Label
-                Text="&#128279;"
+                Text="{x:Static local:AppConstants+Icons.Share}"
+                FontFamily="Lucide"
                 FontSize="{StaticResource TypeTitle}"
                 TextColor="{DynamicResource TextPrimary}"
                 HorizontalOptions="Center"

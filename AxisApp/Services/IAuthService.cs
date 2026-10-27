@@ -53,7 +53,7 @@ public interface IAuthService
     Task<AuthResult> UpdatePasswordAsync(string newPassword);
 
     /// <summary>Sends a password-recovery email via Supabase. The link lands on
-    /// AppConstants.Links.PasswordResetUrl (web/reset/index.html), not this app — Windows has no
+    /// AppConstants.Links.PasswordResetUrl (webapp/public/reset/index.html), not this app — Windows has no
     /// deep-link support, so the reset form has to work standalone in whatever browser opens the
     /// link, independent of this app's own session/state.</summary>
     Task<AuthResult> ForgotPasswordAsync(string email);

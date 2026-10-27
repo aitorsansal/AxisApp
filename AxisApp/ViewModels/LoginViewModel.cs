@@ -38,7 +38,10 @@ public partial class LoginViewModel : BaseViewModel
             else if (!result.Success)
                 ErrorMessage = result.ErrorMessage ?? LocalizationResourceManager.Instance["Login_SignInFailed"];
             else
+            {
                 await Shell.Current.GoToAsync(AppConstants.Routes.Groups);
+                await App.ReplayPendingDeepLinkAsync();
+            }
         }
         finally
         {
@@ -57,7 +60,10 @@ public partial class LoginViewModel : BaseViewModel
         {
             var result = await authService.SignInWithGoogleAsync();
             if (result.Success)
+            {
                 await Shell.Current.GoToAsync(AppConstants.Routes.Groups);
+                await App.ReplayPendingDeepLinkAsync();
+            }
             else if (result.ErrorMessage is not null)
                 // A null ErrorMessage means the user cancelled (dismissed the account picker /
                 // closed the browser tab) — see IAuthService.SignInWithGoogleAsync's remarks.

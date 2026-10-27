@@ -54,15 +54,11 @@ What's actually left, in rough order:
    package manager before this causes real lockfile drift — both are kept
    in sync by hand for now). The web app has receipts, recurring expenses,
    the members roster/add-by-name flow, calendar feeds and group appearance;
-   its remaining parity gaps vs. Android are forgot-password, Stats/export,
-   the Detailed (pairwise) balance toggle, accent/converted-amount
-   preferences, an event share-link action, recurring next-due display and
-   a password visibility toggle (`review-artifacts/APP_REVIEW.md`, to be
-   discussed one by one). PWA install + web push are implemented and live
+   its remaining parity gaps vs. Android are Stats/export and
+   accent/converted-amount preferences (`review-artifacts/APP_REVIEW.md`, to be discussed one by one). PWA install + web push are implemented and live
    (see "Web app: PWA install + push notifications" below). Web push still
    fails silently when Firebase config is missing (`getPushState` has no
-   rejection handler). Paused recurring templates still show a next-due date
-   on Android. The Android events widget
+   rejection handler). The Android events widget
    (`EventsWidgetDataProvider`) still compares `StartsAt` against
    `DateTime.UtcNow` without normalizing Kind, the bug `EventTimes.IsPast`
    fixed for the events list — deferred pending a wider widget discussion.
@@ -103,28 +99,23 @@ Don't reintroduce a design where ledger rows reference `auth.users` or a
 "Person" that assumes every participant has logged in. That collapses the
 phantom-member case, which is the entire point of this schema.
 
-## Balances: simplified vs. pairwise
+## Balances: pairwise only
 
-Two selectable display modes on Group Detail, chosen via a per-device,
-per-account, per-group **local-only preference**
-(`AppConstants.Preferences.BalanceDisplayModePrefix` — deliberately never
-synced; it's a viewing preference, not group state):
+Group Detail's Balances section (Android and web) shows only pairwise debts:
+the `pairwise_balances`/`my_pairwise_balances` views derive genuine two-party
+debts directly from `expense_shares`/`expenses`, so "owes you"/"you owe" is
+always literally true. "Settle" creates an `Expense` with
+`IsSettlement = true` between the viewer and that one counterparty.
 
-- **Simplified** (default): `Services/DebtSimplifier.cs` runs the standard
-  greedy debt-simplification algorithm (match biggest creditor against
-  biggest debtor, repeat) over every member's `group_balances` net —
-  Tricount/Splitwise's "settle up" behavior, where offsetting/cyclic debts
-  net out to fewer, smaller transfers than the raw history.
-- **Pairwise** ("Detailed" toggle): `pairwise_balances`/`my_pairwise_balances`
-  views derive genuine two-party debts directly from `expense_shares`/
-  `expenses` — always literally true "owes you"/"you owe" language, may show
-  more/smaller line items than Simplified for the same underlying numbers.
-
-Both feed the same "Settle" write primitive (creates an `Expense` with
-`IsSettlement = true`). Deferred, not built: letting someone exclude a
-specific counterparty from simplification — needs pairwise data as
-simplification's *input* (a constrained matching/flow problem), materially
-bigger than either display mode.
+There used to be a "Simplified" toggle on Android (greedy debt
+simplification over `group_balances` nets, `DebtSimplifier`). It was removed
+2026-10-27, not ported to web: its suggested transfers could pair two people
+who never shared an expense, and settling one left made-up debts in the
+pairwise view. Don't reintroduce a settle-up plan that can record payments
+between people with no pairwise debt. The reverse is safe: if a member's
+pairwise balances are all zero, their `group_balances` net is zero too.
+`group_balances`/`my_group_balances` stay — the Groups list total and
+Group Detail still read them.
 
 ## Stats tab
 
@@ -286,41 +277,49 @@ or an inline overlay instead. `DisplayAlert`/`DisplayActionSheet` are
 confirmed safe standard MAUI primitives; so is `Toast.Make(...).Show()`
 **not** — it throws `COMException` on this unpackaged Win32 build.
 
-### Deep linking (group invites)
+### Deep linking (invites and events) — one domain
 
-An invite link (`https://axisapp.aitorsansal.com/invite?code=...`, built by
-`AppConstants.Links.BuildInviteUrl`) has to work both as a plain web page
-(no app installed) and as a direct jump into `JoinGroupPage` (app
-installed) — that split lives across the mobile project and a separate
-static site, so it's easy to change one side and forget the other:
+There is exactly one Axis domain: **`app.axisapp.aitorsansal.com`**, the web
+app (`AppConstants.Links.AppHost`). The old `axisapp.aitorsansal.com` static
+site (`web/`) was retired 2026-10-27 with no redirects — old links are dead
+by design. A shared link *is* the web app page itself, so it opens in the
+Android app when installed and in the web app otherwise:
 
-- **`web/`** is a standalone Cloudflare Worker (deployed with
-  `npx wrangler deploy` from `web/`, not part of the MAUI build).
-  `wrangler.jsonc` points its static-assets root at `.` specifically so both
-  `web/invite/index.html` (the fallback landing page — shows the code, links
-  to the Play Store) and `web/.well-known/assetlinks.json` (Android's
-  Digital Asset Links proof, listing the app's signing-cert SHA-256
-  fingerprint) get served; pointing it at `invite/` instead (what the
-  Cloudflare setup wizard guesses, since it's the only folder with an
-  `index.html`) silently drops `.well-known` and breaks App Links.
-- **`AxisApp/Platforms/Android/MainActivity.cs`** declares the App Link via
-  an `[IntentFilter(..., DataHost = "axisapp.aitorsansal.com",
-  DataPathPrefix = "/invite", AutoVerify = true)]` attribute — there's no
-  Android-manifest XML for this, it's all in the C# attribute. `AutoVerify`
-  is what makes Android open the link straight in-app instead of a browser,
-  and it only succeeds once Android has fetched and matched
-  `assetlinks.json` above against the APK's actual signing certificate, so a
-  cert mismatch (e.g. testing a debug build against a fingerprint list that
-  only has the release key, or vice versa) makes links silently fall back to
-  the browser with no error anywhere.
+- Invites: `/join?code=...` (`BuildInviteUrl`; web `MembersPage.buildInviteUrl`).
+- Events: `/groups/{groupId}/events/{eventId}` (`BuildEventUrl`).
+
+How the pieces fit — easy to change one side and forget the other:
+
+- **`webapp/public/`** holds every non-SPA file: `.well-known/assetlinks.json`
+  (Android's Digital Asset Links proof, the app's signing-cert SHA-256
+  fingerprints), `version.json` (`AppUpdateService`), the static `reset/`,
+  `confirm/`, `privacy/`, `termsofservice/`, `delete-account/` pages and
+  `email-assets/`. Cloudflare serves real files ahead of the SPA fallback
+  (`webapp/wrangler.jsonc`), so none of them are behind login.
+  `supabase/email-templates/` are pasted into the Supabase dashboard, not
+  served.
+- **`AxisApp/Platforms/Android/MainActivity.cs`** declares the App Links as
+  `[IntentFilter(..., DataHost = "app.axisapp.aitorsansal.com", ...,
+  AutoVerify = true)]` attributes — `DataPath = "/join"` and
+  `DataPathPattern = "/groups/.*/events/.*"`. Only those two: claiming all of
+  `/groups/` would make every copied web URL open the app. No manifest XML,
+  it's all in the C# attribute. `AutoVerify` only succeeds once Android has
+  fetched and matched `assetlinks.json` against the APK's actual signing
+  certificate (verification runs at install time), so a cert mismatch makes
+  links silently fall back to the browser with no error anywhere.
 - `MainActivity.OnCreate`/`OnNewIntent` both funnel the incoming `Intent`
   into `App.HandleDeepLink(uri)`, queued in `App.pendingRoute` if the app
   isn't ready to navigate yet (see the `App.isReadyToNavigate` note below —
   this is shared with push-notification taps, not just invite links).
   `SplashPage` calls `App.ReplayPendingDeepLinkAsync()` once it's picked
-  Login vs. Groups. `AppConstants.Links.TryExtractCode` is the one place
-  that parses a `?code=` query param back out of either a full invite URL
-  or a raw platform URI.
+  Login vs. Groups. A queued route stays pending while signed out (replay is
+  a no-op without a session); `LoginViewModel`/`RegisterViewModel` call the
+  same replay after landing on Groups, so a link opened signed out resumes
+  after login instead of hitting RLS with no session ("Group not found").
+  `AppConstants.Links.TryExtractCode`/`TryExtractEvent`
+  are the only parsers for those two link shapes.
+- A signed-out web visitor opening either link is sent through `/login` and
+  back (`ProtectedRoute`'s `axis.returnTo`).
 - **`App.isReadyToNavigate`, not `Shell.Current is null`, gates queued
   navigation** — a Firebase-triggered process start (see push notifications
   in CHANGELOG) can construct MAUI's whole `Application`/`Window`/`Shell`
@@ -328,7 +327,7 @@ static site, so it's easy to change one side and forget the other:
   well before `SplashPage.OnAppearing` has actually restored a session. Set
   `isReadyToNavigate = true` only once that restore has genuinely finished.
 - iOS Universal Links would need the equivalent (`apple-app-site-association`
-  under `web/.well-known/`, entitlements on the iOS target) but iOS isn't in
+  under `webapp/public/.well-known/`, entitlements on the iOS target) but iOS isn't in
   the active `TargetFrameworks` yet, so this is Android-only today.
 
 ### Web app: PWA install + push notifications
@@ -526,11 +525,9 @@ dotnet build AxisApp/AxisApp.csproj -f net10.0-windows10.0.19041.0
 ```
 
 ```bash
-# Deploy the invite-link web page + assetlinks.json (see "Deep linking" above)
-# — Cloudflare's GitHub integration auto-deploys web/ on every push to main,
-# so this manual command is now only needed for previewing before a push,
-# or redeploying without a new commit.
-npx wrangler deploy --config web/wrangler.jsonc
+# Deploy the web app, which also serves assetlinks.json, version.json and the
+# static reset/confirm/privacy pages (see "Deep linking" above)
+npm run deploy --prefix webapp
 ```
 
 ```bash
@@ -541,7 +538,7 @@ dotnet run --project tests/AxisApp.RegressionTests
 
 # Web app regression tests (node:test, mirrors the C# checks against
 # webapp/src/lib/expenseMath.ts, dates.ts, serializedUpdates.ts,
-# coalescedWrites.ts)
+# coalescedWrites.ts, recurringSchedule.ts)
 npm test --prefix webapp
 ```
 

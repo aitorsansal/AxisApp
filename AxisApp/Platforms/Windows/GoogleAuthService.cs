@@ -162,7 +162,7 @@ public class GoogleAuthService : IGoogleAuthService
     private static string Base64Url(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
-    // Same dark card look as web/reset & web/invite, for visual consistency.
+    // Same dark card look as the web app's static reset/confirm pages, for visual consistency.
     private const string Style = """
         <style>
           :root { --bg:#0B1220; --card:#121A2B; --text:#E8ECF4; --muted:#8A93A6; --accent:#3D7EFF; --accent2:#F5A623; --border:#22304A; }

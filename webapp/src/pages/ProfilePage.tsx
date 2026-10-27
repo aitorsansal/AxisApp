@@ -10,6 +10,7 @@ import { getPushState, registerForPush, unregisterFromPush, type PushState } fro
 import type { CalendarSubscription, MyMember } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
 import { DateField } from '../components/DateField'
+import { PasswordInput } from '../components/PasswordInput'
 import './ProfilePage.css'
 
 const AVATAR_BUCKET = 'avatars'
@@ -469,10 +470,10 @@ export function ProfilePage() {
       <form onSubmit={handleChangePassword} className="card profile-section">
         <h2 className="section-title">{t('Profile_Password')}</h2>
         <div className="field">
-          <input
-            type="password"
+          <PasswordInput
             required
             minLength={8}
+            autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             placeholder={t('Profile_NewPasswordPlaceholder')}
