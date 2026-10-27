@@ -7,39 +7,60 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AxisApp.ViewModels;
 
-/// <summary>One category's share of the money that's moved between "you" and this member within
-/// one shared group.</summary>
-public partial class MemberProfileCategoryItem : ObservableObject
+/// <summary>One expense between "you" and this member, with whose part the amount is.</summary>
+public sealed class MemberProfileExpenseItem
 {
-    public string Label { get; init; } = "";
-    public string AmountText { get; init; } = "";
+    public Guid GroupId { get; init; }
+    public Guid ExpenseId { get; init; }
+    public string Description { get; init; } = "";
+    public string DateText { get; init; } = "";
+    public string PartText { get; init; } = "";
 }
 
-/// <summary>One shared group's card on the member profile screen: current pairwise balance
-/// (my_pairwise_balances, same source GroupExpensesView's Detailed toggle uses) plus a category
-/// breakdown of every non-settlement expense actually between the two of you in that group.</summary>
+/// <summary>One shared group's card: the pairwise balance, the three lines it's made of (what I
+/// paid for them, what they paid for me, settle-ups — see Models/PairBreakdown.cs), and the
+/// expenses between the two of us.</summary>
 public partial class MemberProfileGroupItem : ObservableObject
 {
+    /// <summary>Collapsed list length; "Show all" reveals the rest.</summary>
+    public const int CollapsedExpenseCount = 10;
+
     public Guid GroupId { get; init; }
     public string GroupName { get; init; } = "";
     public bool IsOwed { get; init; }
     public bool IsOwing { get; init; }
     public string AmountText { get; init; } = "";
     public string CaptionText { get; init; } = "";
-    public ObservableCollection<MemberProfileCategoryItem> CategoryBreakdown { get; init; } = [];
-    public bool HasCategoryBreakdown => CategoryBreakdown.Count > 0;
+
+    public string PaidForThemLabel { get; init; } = "";
+    public string PaidForThemText { get; init; } = "";
+    public string PaidForYouLabel { get; init; } = "";
+    public string PaidForYouText { get; init; } = "";
+    /// <summary>"Settle-ups", plus who paid whom on net when there were any.</summary>
+    public string SettlementsLabel { get; init; } = "";
+    public string SettlementsText { get; init; } = "";
+
+    public IReadOnlyList<MemberProfileExpenseItem> AllExpenses { get; init; } = [];
+    public bool HasExpenses => AllExpenses.Count > 0;
+    public string ShowAllText { get; init; } = "";
+
+    [ObservableProperty] private ObservableCollection<MemberProfileExpenseItem> visibleExpenses = [];
+    [ObservableProperty] private bool hasHiddenExpenses;
+
+    [RelayCommand]
+    private void ShowAll()
+    {
+        VisibleExpenses = new ObservableCollection<MemberProfileExpenseItem>(AllExpenses);
+        HasHiddenExpenses = false;
+    }
 }
 
-/// <summary>"You and X" — merges the mini-profile and cross-group ideas from the v2 Stats design
-/// discussion into one screen. Opened by tapping a member row on MembersPage (not a chart bar —
-/// LiveCharts data-point tap-to-navigate was ruled out as extra risk for what a plain list already
-/// does simply). members are a global table (see CLAUDE.md's "members vs accounts"), so the same
-/// member_id genuinely recurs across every group that person is in — this walks the viewer's own
-/// groups, keeps the ones the target member is also in, and for each one pulls the real pairwise
-/// edges (same edge definition my_pairwise_balances uses: payer vs. share-holder) rather than the
-/// group's whole aggregate, so "you and X" stays about the two of you specifically even in a
-/// larger group. No new repository methods or SQL — entirely composed from IGroupsRepository/
-/// IMembersRepository/IExpensesRepository/IBalancesRepository calls that already existed.</summary>
+/// <summary>"You and X", opened by tapping a member row on MembersPage. members are a global table
+/// (see CLAUDE.md's "members vs accounts"), so the same member_id recurs across every group that
+/// person is in — this walks the viewer's own groups, keeps the ones the target member is also in,
+/// and for each one explains the pairwise balance from its parts rather than the group's whole
+/// aggregate. Rewritten 2026-10-27: the old card listed per-category totals with no label, mixing
+/// both directions and leaving out settle-ups, so the numbers never connected to the balance.</summary>
 public partial class MemberProfileViewModel : BaseViewModel, IQueryAttributable
 {
     private readonly IGroupsRepository groupsRepository;
@@ -50,7 +71,10 @@ public partial class MemberProfileViewModel : BaseViewModel, IQueryAttributable
 
     private Guid targetMemberId;
 
-    [ObservableProperty] private string memberName = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PageTitle))]
+    private string memberName = "";
+
     [ObservableProperty] private string initials = "";
     [ObservableProperty] private string? avatarUrl;
     [ObservableProperty] private bool isBusy;
@@ -58,6 +82,8 @@ public partial class MemberProfileViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private ObservableCollection<MemberProfileGroupItem> sharedGroups = [];
     [ObservableProperty] private bool hasSharedGroups;
     private bool hasLoadedOnce;
+
+    public string PageTitle => LocalizationResourceManager.Instance.Format("MemberProfile_Title", MemberName);
 
     public MemberProfileViewModel(
         IGroupsRepository groupsRepository,
@@ -114,7 +140,7 @@ public partial class MemberProfileViewModel : BaseViewModel, IQueryAttributable
                 {
                     foreach (var group in loadMyGroups.Result)
                     {
-                        var item = await BuildGroupItemAsync(group, me, aliases);
+                        var item = await BuildGroupItemAsync(group, me);
                         if (item is not null) items.Add(item);
                     }
                 }
@@ -136,81 +162,72 @@ public partial class MemberProfileViewModel : BaseViewModel, IQueryAttributable
         }
     });
 
+    private static string Money(string symbol, decimal value) => $"{symbol}{value:0.00}";
+
+    /// <summary>"+€19,50" / "−€5,00", or a plain "€0,00" for zero.</summary>
+    private static string SignedMoney(string symbol, decimal value) =>
+        value > 0 ? $"+{Money(symbol, value)}" : value < 0 ? $"−{Money(symbol, -value)}" : Money(symbol, 0);
+
     /// <summary>Null if the target member isn't actually in this group — not every one of "my"
     /// groups is shared with them.</summary>
-    private async Task<MemberProfileGroupItem?> BuildGroupItemAsync(Group group, Guid myMemberId, IReadOnlyDictionary<Guid, string> aliases)
+    private async Task<MemberProfileGroupItem?> BuildGroupItemAsync(Group group, Guid myMemberId)
     {
         var members = await membersRepository.GetForGroupAsync(group.Id);
         if (!members.Any(m => m.Id == targetMemberId)) return null;
 
         var loc = LocalizationResourceManager.Instance;
-        var groupSymbol = AppConstants.Currencies.SymbolFor(group.Currency);
+        var symbol = AppConstants.Currencies.SymbolFor(group.Currency);
 
+        // The header keeps reading the server's balance (my_pairwise_balances, same as Group
+        // Detail); PairBreakdown sums the same edges, so its lines add up to it.
         var pairwise = await balancesRepository.GetMyPairwiseForGroupAsync(group.Id);
         var balance = pairwise.FirstOrDefault(p => p.OtherMemberId == targetMemberId)?.Balance ?? 0;
 
-        var isOwed = balance > 0;
-        var isOwing = balance < 0;
-        var amountText = isOwed
-            ? $"+{groupSymbol}{balance:0.00}"
-            : isOwing
-                ? $"-{groupSymbol}{Math.Abs(balance):0.00}"
-                : $"{groupSymbol}0.00";
-        var captionText = isOwed
-            ? loc["GroupDetail_OwesYou"]
-            : isOwing
-                ? loc["GroupDetail_YouOwe"]
-                : loc["Common_SettledUp"];
-
         var expenses = await expensesRepository.GetAllForGroupAsync(group.Id);
-        var expenseIds = expenses.Select(e => e.Id).ToList();
-        var shares = await expensesRepository.GetSharesForExpensesAsync(expenseIds);
-        var sharesByExpense = shares.ToLookup(s => s.ExpenseId);
+        var shares = await expensesRepository.GetSharesForExpensesAsync(expenses.Select(e => e.Id).ToList());
+        var breakdown = PairBreakdown.Compute(
+            expenses.Select(e => new PairExpense(e.Id, e.PaidByMemberId, e.IsSettlement, e.Description, e.Category, e.OccurredAt)),
+            shares.Select(s => new PairShare(s.ExpenseId, s.MemberId, s.ShareAmountInGroupCurrency)),
+            myMemberId, targetMemberId);
 
-        // Same edge definition as my_pairwise_balances (schema.sql): one of us paid, the other
-        // holds a share — that's what "between us" means, not just any expense in a group we
-        // both happen to belong to.
-        (string Category, decimal Amount)? RelevantEdge(Expense e)
+        var all = breakdown.Expenses.Select(line => new MemberProfileExpenseItem
         {
-            if (e.PaidByMemberId == myMemberId)
-            {
-                var theirShare = sharesByExpense[e.Id].FirstOrDefault(s => s.MemberId == targetMemberId);
-                return theirShare is null ? null : (e.Category, theirShare.ShareAmountInGroupCurrency);
-            }
-            if (e.PaidByMemberId == targetMemberId)
-            {
-                var myShare = sharesByExpense[e.Id].FirstOrDefault(s => s.MemberId == myMemberId);
-                return myShare is null ? null : (e.Category, myShare.ShareAmountInGroupCurrency);
-            }
-            return null;
-        }
-
-        var categoryBreakdown = expenses
-            .Where(e => !e.IsSettlement)
-            .Select(RelevantEdge)
-            .Where(x => x is not null)
-            .Select(x => x!.Value)
-            .GroupBy(x => x.Category)
-            .Select(g => new { Category = g.Key, Total = g.Sum(x => x.Amount) })
-            .OrderByDescending(x => x.Total)
-            .Select(x => new MemberProfileCategoryItem
-            {
-                Label = CategoryDisplay.Label(x.Category),
-                AmountText = $"{groupSymbol}{x.Total:0.00}"
-            })
-            .ToList();
+            GroupId = group.Id,
+            ExpenseId = line.ExpenseId,
+            Description = string.IsNullOrWhiteSpace(line.Description) ? CategoryDisplay.Label(line.Category) : line.Description,
+            DateText = DateFormats.ShortDate(line.OccurredAt.ToLocalTime(), includeYear: line.OccurredAt.Year != DateTime.Now.Year),
+            PartText = loc.Format(line.IPaid ? "MemberProfile_TheirPart" : "MemberProfile_YourPart", Money(symbol, line.Amount))
+        }).ToList();
 
         return new MemberProfileGroupItem
         {
             GroupId = group.Id,
             GroupName = group.Name,
-            IsOwed = isOwed,
-            IsOwing = isOwing,
-            AmountText = amountText,
-            CaptionText = captionText,
-            CategoryBreakdown = new ObservableCollection<MemberProfileCategoryItem>(categoryBreakdown)
+            IsOwed = balance > 0,
+            IsOwing = balance < 0,
+            AmountText = balance > 0 ? $"+{Money(symbol, balance)}" : balance < 0 ? $"-{Money(symbol, -balance)}" : Money(symbol, 0),
+            CaptionText = balance > 0 ? loc["GroupDetail_OwesYou"] : balance < 0 ? loc["GroupDetail_YouOwe"] : loc["Common_SettledUp"],
+            PaidForThemLabel = loc.Format("MemberProfile_PaidForThem", MemberName),
+            PaidForThemText = SignedMoney(symbol, breakdown.PaidForThem),
+            PaidForYouLabel = loc.Format("MemberProfile_PaidForYou", MemberName),
+            PaidForYouText = SignedMoney(symbol, -breakdown.PaidForMe),
+            SettlementsText = SignedMoney(symbol, breakdown.SettlementsNet),
+            SettlementsLabel = breakdown.SettlementsNet == 0
+                ? loc["MemberProfile_Settlements"]
+                : $"{loc["MemberProfile_Settlements"]} ({loc.Format(breakdown.SettlementsNet < 0 ? "MemberProfile_TheyPaidYou" : "MemberProfile_YouPaidThem", MemberName)})",
+            AllExpenses = all,
+            VisibleExpenses = new ObservableCollection<MemberProfileExpenseItem>(all.Take(MemberProfileGroupItem.CollapsedExpenseCount)),
+            HasHiddenExpenses = all.Count > MemberProfileGroupItem.CollapsedExpenseCount,
+            ShowAllText = loc.Format("MemberProfile_ShowAll", all.Count)
         };
     }
+
+    [RelayCommand]
+    private Task OpenExpense(MemberProfileExpenseItem? item) => RunSafeAsync(async () =>
+    {
+        if (item is null) return;
+        await Shell.Current.GoToAsync($"{AppConstants.Routes.AddExpense}?groupId={item.GroupId}&expenseId={item.ExpenseId}");
+    });
 
     [RelayCommand]
     private Task Refresh() => LoadAsync();

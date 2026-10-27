@@ -1,6 +1,6 @@
 import { Icon } from '../components/Icon'
 import { categoryIcon } from '../lib/icons'
-import { formatMoney } from '../lib/formatting'
+import { formatExpenseAmount, getShowConverted } from '../lib/amountDisplay'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
@@ -70,7 +70,7 @@ export function EventDetailPage() {
       supabase
         .from('expenses')
         .select(
-          'id, group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id',
+          'id, group_id, paid_by_member_id, amount, currency, amount_in_group_currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id',
         )
         .eq('event_id', eventId)
         .order('occurred_at', { ascending: false }),
@@ -182,6 +182,7 @@ export function EventDetailPage() {
   }
 
   const dateLocale = language === 'es' ? 'es-ES' : 'en-US'
+  const showConverted = getShowConverted()
   const subParts = [formatEventRange(event.starts_at, event.ends_at, language)]
   if (event.location) subParts.push(event.location)
 
@@ -435,8 +436,16 @@ export function EventDetailPage() {
                     · {new Date(exp.occurred_at).toLocaleDateString(dateLocale)}
                   </div>
                 </div>
-                <div className="activity-amount">
-                  {formatMoney(exp.amount, exp.currency, language)}
+                <div className="activity-value">
+                  {(() => {
+                    const shown = formatExpenseAmount(exp, group.currency, language, showConverted)
+                    return (
+                      <>
+                        <strong className="activity-amount">{shown.primary}</strong>
+                        {shown.secondary && <span className="activity-secondary">{shown.secondary}</span>}
+                      </>
+                    )
+                  })()}
                 </div>
               </Link>
             ))}

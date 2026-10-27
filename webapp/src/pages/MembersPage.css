@@ -85,6 +85,17 @@
   padding: 6px 8px;
 }
 
+.profile-link {
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
 .remove-btn {
   width: auto;
   padding: 6px 12px;

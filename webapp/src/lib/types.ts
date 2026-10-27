@@ -36,6 +36,7 @@ export interface ExpenseWithPayer {
   paid_by_member_id: string
   amount: number
   currency: string
+  amount_in_group_currency: number
   description: string
   category: string
   occurred_at: string

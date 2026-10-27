@@ -11,6 +11,8 @@ import type { CalendarSubscription, MyMember } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
 import { DateField } from '../components/DateField'
 import { PasswordInput } from '../components/PasswordInput'
+import { ACCENT_PRESETS, accentSwatch, getAccent, setAccent, type AccentPreset } from '../lib/accent'
+import { getShowConverted, setShowConverted } from '../lib/amountDisplay'
 import './ProfilePage.css'
 
 const AVATAR_BUCKET = 'avatars'
@@ -18,6 +20,8 @@ const AVATAR_BUCKET = 'avatars'
 export function ProfilePage() {
   const { session } = useAuth()
   const { t, override, setOverride } = useLocale()
+  const [accent, setAccentState] = useState<AccentPreset>(getAccent)
+  const [showConverted, setShowConvertedState] = useState(getShowConverted)
   const navigate = useNavigate()
   const { installed, canPrompt, promptInstall, showIosInstructions } = useInstallPrompt()
 
@@ -384,6 +388,49 @@ export function ProfilePage() {
             ),
           )}
         </div>
+      </section>
+
+      <section className="card profile-section">
+        <h2 className="section-title">{t('Profile_AccentColor')}</h2>
+        <div className="accent-swatches" role="radiogroup" aria-label={t('Profile_AccentColor')}>
+          {ACCENT_PRESETS.map((preset) => {
+            const { color, onColor } = accentSwatch(preset)
+            return (
+              <button
+                key={preset}
+                type="button"
+                role="radio"
+                aria-checked={accent === preset}
+                aria-label={t(`Accent_${preset}`)}
+                title={t(`Accent_${preset}`)}
+                className={`accent-swatch${accent === preset ? ' selected' : ''}`}
+                style={{ background: color, color: onColor }}
+                onClick={() => {
+                  setAccent(preset)
+                  setAccentState(preset)
+                }}
+              >
+                {accent === preset && '✓'}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      <section className="card profile-section">
+        <h2 className="section-title">{t('Profile_AmountDisplay')}</h2>
+        <label className="language-option">
+          <input
+            type="checkbox"
+            checked={showConverted}
+            onChange={(e) => {
+              setShowConverted(e.target.checked)
+              setShowConvertedState(e.target.checked)
+            }}
+          />
+          {t('Profile_AmountDisplayConverted')}
+        </label>
+        <p className="field-hint">{t('Profile_AmountDisplayHint')}</p>
       </section>
 
       {!installed && (canPrompt || showIosInstructions) && (

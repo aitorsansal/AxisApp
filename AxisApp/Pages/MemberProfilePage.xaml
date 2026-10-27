@@ -8,11 +8,11 @@
     x:Class="AxisApp.Pages.MemberProfilePage"
     x:DataType="vm:MemberProfileViewModel"
     Shell.NavBarIsVisible="False"
-    Title="{Binding MemberName}">
+    Title="{Binding PageTitle}">
 
     <Grid RowDefinitions="Auto,*">
 
-        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="{Binding MemberName}" />
+        <controls:PageHeaderBar Grid.Row="0" HeaderTitle="{Binding PageTitle}" />
 
         <RefreshView Grid.Row="1" IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
             <ScrollView>
@@ -21,7 +21,7 @@
                     <!-- Skeleton: shown only while the initial load is in flight. -->
                     <VerticalStackLayout Spacing="{StaticResource SpacingS}" IsVisible="{Binding IsInitialLoading}">
                         <controls:SkeletonBox HeightRequest="96" />
-                        <controls:SkeletonBox HeightRequest="96" />
+                        <controls:SkeletonBox HeightRequest="160" />
                     </VerticalStackLayout>
 
                     <VerticalStackLayout
@@ -43,19 +43,21 @@
                             HorizontalTextAlignment="Center"
                             IsVisible="{Binding HasSharedGroups, Converter={StaticResource InverseBoolConverter}}" />
 
-                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding SharedGroups}" Spacing="{StaticResource SpacingM}">
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding SharedGroups}" Spacing="{StaticResource SpacingL}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="vm:MemberProfileGroupItem">
-                                    <Border Style="{StaticResource BalanceTileSettled}">
-                                        <Border.Triggers>
-                                            <DataTrigger TargetType="Border" Binding="{Binding IsOwed}" Value="True">
-                                                <Setter Property="Style" Value="{StaticResource BalanceTileReceive}" />
-                                            </DataTrigger>
-                                            <DataTrigger TargetType="Border" Binding="{Binding IsOwing}" Value="True">
-                                                <Setter Property="Style" Value="{StaticResource BalanceTilePay}" />
-                                            </DataTrigger>
-                                        </Border.Triggers>
-                                        <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+
+                                        <!-- The pairwise balance, same tile and colours as Group Detail. -->
+                                        <Border Style="{StaticResource BalanceTileSettled}">
+                                            <Border.Triggers>
+                                                <DataTrigger TargetType="Border" Binding="{Binding IsOwed}" Value="True">
+                                                    <Setter Property="Style" Value="{StaticResource BalanceTileReceive}" />
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Border" Binding="{Binding IsOwing}" Value="True">
+                                                    <Setter Property="Style" Value="{StaticResource BalanceTilePay}" />
+                                                </DataTrigger>
+                                            </Border.Triggers>
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <Label Grid.Column="0" Text="{Binding GroupName}" FontAttributes="Bold" VerticalOptions="Center" LineBreakMode="TailTruncation">
                                                     <Label.Triggers>
@@ -90,42 +92,57 @@
                                                     </Label>
                                                 </VerticalStackLayout>
                                             </Grid>
+                                        </Border>
 
-                                            <!-- Category breakdown: money that's actually moved between the
-                                            two of you in this group — not the group's whole aggregate. -->
-                                            <VerticalStackLayout Spacing="{StaticResource SpacingXS}" IsVisible="{Binding HasCategoryBreakdown}">
+                                        <!-- What the balance is made of: these three lines add up to it
+                                        (Models/PairBreakdown.cs), then the expenses behind the first two. -->
+                                        <Border Style="{StaticResource ElevatedCard}">
+                                            <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="{StaticResource SpacingXS}">
+                                                    <Label Grid.Row="0" Text="{Binding PaidForThemLabel}" Style="{StaticResource LabelSecondary}" />
+                                                    <Label Grid.Row="0" Grid.Column="1" Text="{Binding PaidForThemText}" HorizontalTextAlignment="End" />
+                                                    <Label Grid.Row="1" Text="{Binding PaidForYouLabel}" Style="{StaticResource LabelSecondary}" />
+                                                    <Label Grid.Row="1" Grid.Column="1" Text="{Binding PaidForYouText}" HorizontalTextAlignment="End" />
+                                                    <Label Grid.Row="2" Text="{Binding SettlementsLabel}" Style="{StaticResource LabelSecondary}" />
+                                                    <Label Grid.Row="2" Grid.Column="1" Text="{Binding SettlementsText}" HorizontalTextAlignment="End" />
+                                                </Grid>
+
                                                 <BoxView Style="{StaticResource SectionDivider}" HeightRequest="1" />
-                                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding CategoryBreakdown}">
+
+                                                <Label Text="{loc:Translate MemberProfile_SharedExpenses}" Style="{StaticResource SectionHeaderTertiary}" Margin="0" />
+                                                <Label
+                                                    Text="{loc:Translate MemberProfile_NoSharedExpenses}"
+                                                    Style="{StaticResource LabelTertiary}"
+                                                    IsVisible="{Binding HasExpenses, Converter={StaticResource InverseBoolConverter}}" />
+
+                                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding VisibleExpenses}">
                                                     <BindableLayout.ItemTemplate>
-                                                        <DataTemplate x:DataType="vm:MemberProfileCategoryItem">
-                                                            <Grid ColumnDefinitions="*,Auto">
-                                                                <Label Grid.Column="0" Text="{Binding Label}" FontSize="{StaticResource TypeCaption}">
-                                                                    <Label.Triggers>
-                                                                        <DataTrigger TargetType="Label" Binding="{Binding Source={RelativeSource AncestorType={x:Type vm:MemberProfileGroupItem}}, Path=IsOwed}" Value="True">
-                                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
-                                                                        </DataTrigger>
-                                                                        <DataTrigger TargetType="Label" Binding="{Binding Source={RelativeSource AncestorType={x:Type vm:MemberProfileGroupItem}}, Path=IsOwing}" Value="True">
-                                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
-                                                                        </DataTrigger>
-                                                                    </Label.Triggers>
-                                                                </Label>
-                                                                <Label Grid.Column="1" Text="{Binding AmountText}" FontSize="{StaticResource TypeCaption}">
-                                                                    <Label.Triggers>
-                                                                        <DataTrigger TargetType="Label" Binding="{Binding Source={RelativeSource AncestorType={x:Type vm:MemberProfileGroupItem}}, Path=IsOwed}" Value="True">
-                                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
-                                                                        </DataTrigger>
-                                                                        <DataTrigger TargetType="Label" Binding="{Binding Source={RelativeSource AncestorType={x:Type vm:MemberProfileGroupItem}}, Path=IsOwing}" Value="True">
-                                                                            <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
-                                                                        </DataTrigger>
-                                                                    </Label.Triggers>
-                                                                </Label>
+                                                        <DataTemplate x:DataType="vm:MemberProfileExpenseItem">
+                                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}" Padding="0,6">
+                                                                <Grid.GestureRecognizers>
+                                                                    <TapGestureRecognizer
+                                                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MemberProfileViewModel}}, Path=OpenExpenseCommand}"
+                                                                        CommandParameter="{Binding .}" />
+                                                                </Grid.GestureRecognizers>
+                                                                <VerticalStackLayout Grid.Column="0">
+                                                                    <Label Text="{Binding Description}" LineBreakMode="TailTruncation" />
+                                                                    <Label Text="{Binding DateText}" Style="{StaticResource LabelTertiary}" FontSize="{StaticResource TypeCaption}" />
+                                                                </VerticalStackLayout>
+                                                                <Label Grid.Column="1" Text="{Binding PartText}" Style="{StaticResource LabelSecondary}" VerticalOptions="Center" />
                                                             </Grid>
                                                         </DataTemplate>
                                                     </BindableLayout.ItemTemplate>
                                                 </VerticalStackLayout>
+
+                                                <Button
+                                                    Text="{Binding ShowAllText}"
+                                                    Command="{Binding ShowAllCommand}"
+                                                    IsVisible="{Binding HasHiddenExpenses}"
+                                                    Style="{StaticResource BtnOutlinePrimary}"
+                                                    FontSize="{StaticResource TypeCaption}" />
                                             </VerticalStackLayout>
-                                        </VerticalStackLayout>
-                                    </Border>
+                                        </Border>
+                                    </VerticalStackLayout>
                                 </DataTemplate>
                             </BindableLayout.ItemTemplate>
                         </VerticalStackLayout>

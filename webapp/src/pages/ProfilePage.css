@@ -90,6 +90,28 @@
   font-size: 0.95rem;
 }
 
+.accent-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.accent-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  padding: 0;
+}
+
+.accent-swatch.selected {
+  box-shadow: 0 0 0 2px var(--surface-elevated), 0 0 0 4px var(--text-primary);
+}
+
 .danger-zone {
   border-color: var(--danger);
 }

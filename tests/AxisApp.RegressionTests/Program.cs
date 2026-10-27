@@ -38,4 +38,30 @@ var englishRange = EventTimes.FormatRange(localNoon, null, new System.Globalizat
 Check(englishRange == "Tue, Sep 8, 2026 · 12:00", $"English dates are month-first: {englishRange}");
 var spanishShort = localNoon.ToString(DateFormats.ShortDatePattern(new System.Globalization.CultureInfo("es-ES"), includeYear: false), new System.Globalization.CultureInfo("es-ES"));
 Check(spanishShort.StartsWith("8 sept"), $"Spanish short dates are day-first: {spanishShort}");
+
+// "You and X": the three lines add up to the pairwise balance (positive = they owe me), with
+// expenses involving neither of us, and parts belonging to third parties, ignored.
+var me = Guid.NewGuid();
+var them = Guid.NewGuid();
+var other = Guid.NewGuid();
+PairExpense Exp(Guid paidBy, bool settlement, int day) =>
+    new(Guid.NewGuid(), paidBy, settlement, "", "food", new DateTime(2026, 9, day, 12, 0, 0, DateTimeKind.Utc));
+var dinner = Exp(me, false, 19);     // I paid 32, their part 16, a third party's part 8
+var taxi = Exp(them, false, 20);     // they paid, my part 5
+var unrelated = Exp(other, false, 21); // neither of us paid
+var payback = Exp(them, true, 22);   // they settled 11 to me
+var pairExpenses = new[] { dinner, taxi, unrelated, payback };
+var pairShares = new[]
+{
+    new PairShare(dinner.Id, me, 8), new PairShare(dinner.Id, them, 16), new PairShare(dinner.Id, other, 8),
+    new PairShare(taxi.Id, me, 5), new PairShare(taxi.Id, them, 5),
+    new PairShare(unrelated.Id, me, 7), new PairShare(unrelated.Id, them, 7),
+    new PairShare(payback.Id, me, 11),
+};
+var pair = PairBreakdown.Compute(pairExpenses, pairShares, me, them);
+Check(pair.PaidForThem == 16 && pair.PaidForMe == 5, "Pair lines count only the other party's part");
+Check(pair.SettledToMe == 11 && pair.SettlementsNet == -11, "Settle-ups they paid me reduce what they owe");
+Check(pair.Balance == 0, $"16 - 5 - 11 settles the pair: {pair.Balance}");
+Check(pair.Expenses.Count == 2 && pair.Expenses[0].ExpenseId == taxi.Id && !pair.Expenses[0].IPaid,
+    "Expense list excludes settlements and unrelated rows, newest first");
 Console.WriteLine("Android domain regressions passed: 30,030 split scenarios, schedule boundaries, event instants and ranges.");

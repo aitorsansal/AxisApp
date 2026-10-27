@@ -5,6 +5,8 @@ import { equalSplitCents } from '../src/lib/expenseMath.ts'
 import { SerializedUpdates } from '../src/lib/serializedUpdates.ts'
 import { CoalescedWrites } from '../src/lib/coalescedWrites.ts'
 import { nextDue } from '../src/lib/recurringSchedule.ts'
+import { formatExpenseAmount } from '../src/lib/amountDisplay.ts'
+import { pairBreakdown } from '../src/lib/pairBreakdown.ts'
 import { categoryColor, categoryFrequency, categoryTrend, expensesCsv, filterByRange, rangeCutoff, settlementsByMonth, spendByCategory, spendByMember } from '../src/lib/stats.ts'
 import { formatEventRange } from '../src/lib/dates.ts'
 
@@ -142,4 +144,42 @@ test('stats aggregations mirror GroupStatsViewModel', () => {
   assert.equal(csv[0], 'Date,Description,Category,Amount,Currency,Paid By,Settlement')
   assert.equal(csv[1], '2026-09-11,"Dinner, ""late""",OTHER,2.00,EUR,Luis,Yes')
   assert.equal(csv[2], '2026-09-10,x,FOOD,1.50,EUR,Ana,No')
+})
+test('expense amounts follow FormatExpenseAmount in both display modes', () => {
+  const same = { amount: 20, currency: 'EUR', amount_in_group_currency: 20 }
+  const foreign = { amount: 17.1, currency: 'GBP', amount_in_group_currency: 20 }
+  assert.deepEqual(formatExpenseAmount(same, 'EUR', 'en', true), { primary: '€20.00', secondary: '' })
+  assert.deepEqual(formatExpenseAmount(same, 'EUR', 'en', false), { primary: '€20.00', secondary: '' })
+  assert.deepEqual(formatExpenseAmount(foreign, 'EUR', 'en', true), { primary: '€20.00', secondary: '(£17.10)' })
+  assert.deepEqual(formatExpenseAmount(foreign, 'EUR', 'en', false), { primary: '£17.10', secondary: '(≈€20.00)' })
+})
+test('pair breakdown lines add up to the pairwise balance, like PairBreakdown.cs', () => {
+  const exp = (id, paidBy, settlement, day) => ({
+    id, paid_by_member_id: paidBy, is_settlement: settlement, description: id, category: 'food',
+    occurred_at: `2026-09-${day}T12:00:00Z`,
+  })
+  const expenses = [exp('dinner', 'me', false, 19), exp('taxi', 'them', false, 20), exp('unrelated', 'other', false, 21), exp('payback', 'them', true, 22)]
+  const shares = [
+    { expense_id: 'dinner', member_id: 'me', share_amount_in_group_currency: 8 },
+    { expense_id: 'dinner', member_id: 'them', share_amount_in_group_currency: 16 },
+    { expense_id: 'dinner', member_id: 'other', share_amount_in_group_currency: 8 },
+    { expense_id: 'taxi', member_id: 'me', share_amount_in_group_currency: 5 },
+    { expense_id: 'taxi', member_id: 'them', share_amount_in_group_currency: 5 },
+    { expense_id: 'unrelated', member_id: 'me', share_amount_in_group_currency: 7 },
+    { expense_id: 'payback', member_id: 'me', share_amount_in_group_currency: 11 },
+  ]
+  const pair = pairBreakdown(expenses, shares, 'me', 'them')
+  assert.equal(pair.paidForThem, 16)
+  assert.equal(pair.paidForMe, 5)
+  assert.equal(pair.settledToMe, 11)
+  assert.equal(pair.settlementsNet, -11)
+  assert.equal(pair.balance, 0)
+  assert.deepEqual(pair.expenses.map((l) => [l.expenseId, l.iPaid, l.amount]), [['taxi', false, 5], ['dinner', true, 16]])
+
+  // Cent arithmetic: 0.1 + 0.2 must not leave float drift.
+  const drift = pairBreakdown(
+    [exp('a', 'me', false, 1), exp('b', 'me', false, 2), exp('c', 'them', true, 3)],
+    [{ expense_id: 'a', member_id: 'them', share_amount_in_group_currency: 0.1 }, { expense_id: 'b', member_id: 'them', share_amount_in_group_currency: 0.2 }, { expense_id: 'c', member_id: 'me', share_amount_in_group_currency: 0.3 }],
+    'me', 'them')
+  assert.equal(drift.balance, 0)
 })

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
@@ -7,6 +7,7 @@ import { useLocale } from '../context/LocaleContext'
 import type { Group, MemberInfo, MemberRow } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
 import { Avatar } from '../components/Avatar'
+import { Icon } from '../components/Icon'
 import './MembersPage.css'
 
 // Same URL as AppConstants.Links.BuildInviteUrl: this app's own /join page, which the Android app
@@ -349,6 +350,16 @@ export function MembersPage() {
                     </>
                   )}
                 </div>
+                {!isYou && (
+                  <Link
+                    to={`/groups/${groupId}/members/${row.member_id}`}
+                    className="btn btn-outline profile-link"
+                    aria-label={t('Members_ViewProfile', displayName(row.members))}
+                    title={t('Members_ViewProfile', displayName(row.members))}
+                  >
+                    <Icon name="arrow_right" size={18} />
+                  </Link>
+                )}
                 {isPhantom && (
                   <button
                     type="button"

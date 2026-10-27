@@ -1,0 +1,133 @@
+.member-profile-avatar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.pair-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pair-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Same colours as Group Detail's balance tiles (balance-receive/-pay/-neutral). */
+.pair-balance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-on-accent);
+}
+
+.pair-balance.balance-neutral {
+  color: var(--text-primary);
+}
+
+.pair-group-name {
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pair-balance-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pair-balance-value strong {
+  font-size: 20px;
+}
+
+.pair-balance-value span {
+  font-size: 12px;
+}
+
+.pair-lines {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  margin: 0 0 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.pair-lines dt {
+  color: var(--text-secondary);
+}
+
+.pair-lines dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pair-details .section-title {
+  margin: 0 0 6px;
+}
+
+.pair-expenses {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pair-expenses a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.pair-expenses li:last-child a {
+  border-bottom: 0;
+}
+
+.pair-expenses a:hover .pair-expense-desc {
+  color: var(--action-text);
+}
+
+.pair-expense-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pair-expense-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pair-expense-date {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.pair-expense-part {
+  color: var(--text-secondary);
+  font-size: 14px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pair-show-all {
+  width: auto;
+  margin-top: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+}

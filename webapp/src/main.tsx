@@ -2,6 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { applyAccent, getAccent } from './lib/accent'
+
+// Before the first render, so a non-default accent never flashes blue first.
+applyAccent(getAccent())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

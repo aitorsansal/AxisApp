@@ -54,8 +54,8 @@ What's actually left, in rough order:
    package manager before this causes real lockfile drift — both are kept
    in sync by hand for now). The web app has receipts, recurring expenses,
    the members roster/add-by-name flow, calendar feeds and group appearance;
-   its remaining parity gaps vs. Android are accent/converted-amount
-   preferences and the "you and X" `MemberProfilePage` (`review-artifacts/APP_REVIEW.md`, to be discussed one by one). PWA install + web push are implemented and live
+   it has no remaining feature-parity gaps vs. Android (the list from
+   `review-artifacts/APP_REVIEW.md` was closed 2026-10-27). PWA install + web push are implemented and live
    (see "Web app: PWA install + push notifications" below). Web push still
    fails silently when Firebase config is missing (`getPushState` has no
    rejection handler). The Android events widget
@@ -172,7 +172,15 @@ this area again:
   does recur across every group that person belongs to — see "members vs.
   accounts" above), and for each shared group uses the same payer/
   share-holder edge definition `my_pairwise_balances` uses server-side, not
-  the group's whole aggregate.
+  the group's whole aggregate. Each group card explains its balance with
+  three lines that add up to it ("Pagaste por X", "X pagó por ti",
+  "Liquidaciones"), computed in `Models/PairBreakdown.cs` (pure, covered by
+  the regression tests), then lists the expenses between the two of you with
+  whose part each amount is. Web mirrors it at
+  `/groups/:groupId/members/:memberId` (`pages/MemberProfilePage.tsx`,
+  `lib/pairBreakdown.ts`), linked from each Members row. Redesigned 2026-10-27: the old card showed
+  unlabeled per-category totals that mixed both directions and skipped
+  settle-ups, so they never connected to the balance.
 - **Export (`Services/StatsExporter.cs`)** — CSV is the group's whole raw
   expense history (general-purpose, not Stats-specific); PDF is a
   numbers-table snapshot of the current tab's aggregations, over whichever
@@ -399,6 +407,12 @@ that first) reuses the same Firebase project as Android for push.
   to respond to the accent picker must be consumed as `{DynamicResource
   ...}`, not `{StaticResource ...}` — the latter resolves once at load and
   never picks up a preset change.
+- **Web accent presets** (`webapp/src/lib/accent.ts`) copy the same 8 presets'
+  values from `AccentPalettes.cs` into the accent CSS variables in
+  `index.css`, applied in `main.tsx` before the first render. Every web accent
+  colour must go through those variables. Never use `--primary` as text on the
+  dark surface: it fails contrast for most presets (Navy 2:1). Use
+  `--action-text`, the light tint, instead.
 - `Resources/AppIcon` and `Resources/Splash` currently hold a placeholder
   geometric mark, not real branding — swap those SVGs whenever real branding
   exists.
@@ -548,7 +562,8 @@ dotnet run --project tests/AxisApp.RegressionTests
 
 # Web app regression tests (node:test, mirrors the C# checks against
 # webapp/src/lib/expenseMath.ts, dates.ts, serializedUpdates.ts,
-# coalescedWrites.ts, recurringSchedule.ts, stats.ts)
+# coalescedWrites.ts, recurringSchedule.ts, stats.ts, amountDisplay.ts,
+# pairBreakdown.ts)
 npm test --prefix webapp
 ```
 

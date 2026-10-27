@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabaseClient'
+import { fetchAll } from '../lib/fetchAll'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import { formatMoney } from '../lib/formatting'
@@ -22,20 +23,6 @@ import {
   type Trend,
 } from '../lib/stats'
 import './GroupStatsTab.css'
-
-// PostgREST caps a response at 1000 rows by default, so a long history is fetched in pages.
-const PAGE_SIZE = 1000
-
-async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>) {
-  const rows: T[] = []
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await page(from, from + PAGE_SIZE - 1)
-    if (error) throw new Error(error.message)
-    const batch = (data as T[]) ?? []
-    rows.push(...batch)
-    if (batch.length < PAGE_SIZE) return rows
-  }
-}
 
 const RANGES: { range: StatsRange; label: string }[] = [
   { range: 'all', label: 'Stats_RangeAllTime' },

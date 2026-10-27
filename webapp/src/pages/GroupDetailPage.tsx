@@ -15,6 +15,7 @@ import { Avatar } from '../components/Avatar'
 import { Icon } from '../components/Icon'
 import { categoryIcon } from '../lib/icons'
 import { formatMoney } from '../lib/formatting'
+import { formatExpenseAmount, getShowConverted } from '../lib/amountDisplay'
 import { useGroups } from '../context/useGroups'
 import './GroupDetailPage.css'
 
@@ -64,7 +65,7 @@ export function GroupDetailPage() {
   )
 
   const activitySelect =
-    'id, group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id'
+    'id, group_id, paid_by_member_id, amount, currency, amount_in_group_currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id'
 
   const load = useCallback(async () => {
     if (!groupId) return
@@ -289,6 +290,7 @@ export function GroupDetailPage() {
   }
 
   const dateLocale = language === 'es' ? 'es-ES' : 'en-US'
+  const showConverted = getShowConverted()
 
   return (
     <div className="page page-wide group-detail-page">
@@ -548,9 +550,15 @@ export function GroupDetailPage() {
                           </div>
                         </div>
                         <div className="activity-value">
-                          <strong className="activity-amount">
-                            {formatMoney(exp.amount, exp.currency, language)}
-                          </strong>
+                          {(() => {
+                            const shown = formatExpenseAmount(exp, group.currency, language, showConverted)
+                            return (
+                              <>
+                                <strong className="activity-amount">{shown.primary}</strong>
+                                {shown.secondary && <span className="activity-secondary">{shown.secondary}</span>}
+                              </>
+                            )
+                          })()}
                           <span className="activity-date">
                             {new Date(exp.occurred_at).toLocaleDateString(dateLocale, {
                               day: 'numeric',

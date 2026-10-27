@@ -13,6 +13,7 @@ import { GroupDetailPage } from './pages/GroupDetailPage'
 import { AddExpensePage } from './pages/AddExpensePage'
 import { ProfilePage } from './pages/ProfilePage'
 import { MembersPage } from './pages/MembersPage'
+import { MemberProfilePage } from './pages/MemberProfilePage'
 import { RecurringExpensesPage } from './pages/RecurringExpensesPage'
 import { AddEventPage } from './pages/AddEventPage'
 import { EventDetailPage } from './pages/EventDetailPage'
@@ -37,6 +38,7 @@ export default function App() {
                   <Route path="/groups/:groupId/add-expense" element={<AddExpensePage />} />
                   <Route path="/groups/:groupId/expenses/:expenseId" element={<AddExpensePage />} />
                   <Route path="/groups/:groupId/members" element={<MembersPage />} />
+                  <Route path="/groups/:groupId/members/:memberId" element={<MemberProfilePage />} />
                   <Route path="/groups/:groupId/recurring" element={<RecurringExpensesPage />} />
                   <Route path="/groups/:groupId/recurring/new" element={<AddExpensePage />} />
                   <Route
