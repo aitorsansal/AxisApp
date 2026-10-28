@@ -114,6 +114,13 @@ pairwise balances are all zero, their `group_balances` net is zero too.
 `group_balances`/`my_group_balances` stay — the Groups list total and
 Group Detail still read them.
 
+Web's "Te deben / Debes" summary (Groups page) and Group Detail's balance
+hero are built from `my_pairwise_balances` via `lib/balanceSummary.ts`,
+never from summed group nets: positive and negative pairwise rows are
+totalled separately, per currency, with no conversion. A group net would
+hide what you owe one person behind what another owes you. Android has
+neither yet.
+
 ## Repayment review
 
 Android repayments now use `SettlementPage`/`SettlementViewModel` at

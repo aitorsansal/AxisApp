@@ -12,6 +12,7 @@ import { GroupStatsTab } from '../components/GroupStatsTab'
 import { GroupAppearancePicker } from '../components/GroupAppearancePicker'
 import { Modal } from '../components/Modal'
 import { SettlementForm } from '../components/SettlementForm'
+import { GroupBalanceHero } from '../components/GroupBalanceHero'
 import { localDateInput } from '../lib/dates'
 import { settlementParties } from '../lib/settlements'
 import { Avatar } from '../components/Avatar'
@@ -457,6 +458,10 @@ export function GroupDetailPage() {
       {tab === 'stats' ? null : isEventsTab ? (
         <GroupEventsTab groupId={groupId!} members={members} />
       ) : (
+        <>
+        {(balances.length > 0 || activity.length > 0) && (
+          <GroupBalanceHero balances={balances} currency={group.currency} memberName={memberName} />
+        )}
         <div className="expense-overview">
           <section className="balances-panel">
             <h2 className="section-title">{t('GroupDetail_Balances')}</h2>
@@ -606,6 +611,7 @@ export function GroupDetailPage() {
             })()}
           </section>
         </div>
+        </>
       )}
       <Link
         to={isEventsTab ? `/groups/${groupId}/events/new` : `/groups/${groupId}/add-expense`}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { applySavedOrder } from '../lib/groupOrder'
-import type { Group, MemberInfo, MyGroupBalance } from '../lib/types'
+import type { Group, MemberInfo, MyGroupBalance, PairwiseBalance } from '../lib/types'
 import { useAuth } from './AuthContext'
 import { GroupsContext, type DirectoryGroup } from './useGroups'
 
@@ -11,6 +11,7 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
   const [groups, setGroups] = useState<DirectoryGroup[] | null>(null)
   const [currentMember, setCurrentMember] = useState<MemberInfo | null>(null)
+  const [pairwise, setPairwise] = useState<PairwiseBalance[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const requestVersion = useRef(0)
   const userId = session?.user.id
@@ -18,9 +19,11 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     if (!userId) return
     const version = ++requestVersion.current
-    const [groupResult, balanceResult, memberResult, profileResult] = await Promise.all([
+    const [groupResult, balanceResult, pairwiseResult, memberResult, profileResult] = await Promise.all([
       supabase.from('groups').select('id, name, currency, created_by, color, icon'),
       supabase.from('my_group_balances').select('group_id, balance'),
+      // Every group at once (RLS scopes it to this account): feeds the owed/owing summary.
+      supabase.from('my_pairwise_balances').select('group_id, other_member_id, balance'),
       supabase
         .from('group_members')
         .select('group_id, members(id, display_name, account_id, avatar_path)'),
@@ -33,7 +36,7 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
         .maybeSingle(),
     ])
     if (version !== requestVersion.current) return
-    const loadError = groupResult.error ?? balanceResult.error ?? memberResult.error
+    const loadError = groupResult.error ?? balanceResult.error ?? pairwiseResult.error ?? memberResult.error
     if (loadError) {
       setError(loadError.message)
       return
@@ -57,6 +60,7 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
         })),
       ),
     )
+    setPairwise(pairwiseResult.data as PairwiseBalance[])
     setCurrentMember(profileResult.data as MemberInfo | null)
     setError(null)
   }, [userId])
@@ -66,7 +70,7 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
   }, [refresh, pathname])
 
   return (
-    <GroupsContext.Provider value={{ groups, setGroups, currentMember, error, refresh }}>
+    <GroupsContext.Provider value={{ groups, setGroups, pairwise, currentMember, error, refresh }}>
       {children}
     </GroupsContext.Provider>
   )

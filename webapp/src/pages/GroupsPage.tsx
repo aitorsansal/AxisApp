@@ -9,12 +9,13 @@ import { Icon } from '../components/Icon'
 import { useLocale } from '../context/LocaleContext'
 import { AppHeader } from '../components/AppHeader'
 import { GroupIconCircle } from '../components/GroupIconCircle'
+import { BalanceSummary } from '../components/BalanceSummary'
 import './GroupsPage.css'
 
 export function GroupsPage() {
   const { t } = useLocale()
   const { initials, avatarUrl, displayName } = useAliases()
-  const { groups, setGroups, error } = useGroups()
+  const { groups, setGroups, pairwise, error } = useGroups()
 
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const rowRefs = useRef<Map<string, HTMLElement>>(new Map())
@@ -88,6 +89,8 @@ export function GroupsPage() {
       </div>
 
       {error && <p className="error-text">{error}</p>}
+
+      {groups && pairwise && <BalanceSummary groups={groups} pairwise={pairwise} />}
 
       {groups === null && !error && <div className="spinner">{t('Common_Loading')}</div>}
 

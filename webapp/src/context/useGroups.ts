@@ -1,5 +1,5 @@
 import { createContext, useContext, type Dispatch, type SetStateAction } from 'react'
-import type { Group, MemberInfo } from '../lib/types'
+import type { Group, MemberInfo, PairwiseBalance } from '../lib/types'
 
 export interface DirectoryGroup extends Group {
   balance: number
@@ -9,6 +9,8 @@ export interface DirectoryGroup extends Group {
 interface GroupsContextValue {
   groups: DirectoryGroup[] | null
   setGroups: Dispatch<SetStateAction<DirectoryGroup[] | null>>
+  // my_pairwise_balances across all groups; null until the first load.
+  pairwise: PairwiseBalance[] | null
   currentMember: MemberInfo | null
   error: string | null
   refresh: () => Promise<void>

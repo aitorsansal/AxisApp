@@ -1,0 +1,99 @@
+.balance-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.summary-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  border: 1px solid transparent;
+}
+/* "You're owed" is the accent block. Its label stays >= 18.66px bold (WCAG large text) because
+   dark text on the Blue/Red presets is just under 4.5:1. */
+.summary-owed:not(.empty) {
+  background: var(--primary);
+  color: var(--text-on-accent);
+}
+.summary-label {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.summary-amount {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.summary-amount.secondary {
+  font-size: 22px;
+  margin-top: 2px;
+}
+.summary-owe .summary-amount {
+  color: var(--danger);
+}
+.summary-detail {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}
+.summary-owed:not(.empty) .summary-detail {
+  color: inherit;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.summary-nothing {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+}
+.summary-block.empty .summary-label {
+  color: var(--text-secondary);
+}
+.balance-summary.settled {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+}
+.balance-summary.settled strong {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.balance-summary.settled span {
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+@media (min-width: 1000px) {
+  .summary-block {
+    padding: 22px 24px;
+  }
+  .summary-amount {
+    font-size: 48px;
+  }
+  .summary-amount.secondary {
+    font-size: 26px;
+  }
+}
+@media (max-width: 370px) {
+  .summary-amount {
+    font-size: 26px;
+  }
+}

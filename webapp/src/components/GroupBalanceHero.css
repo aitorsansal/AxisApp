@@ -1,0 +1,65 @@
+/* Accent-filled block. Every text in it is >= 18.66px bold (WCAG large text), because dark text
+   on the Blue/Red presets is just under 4.5:1. */
+.group-balance-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 22px 24px;
+  margin-bottom: 28px;
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  background: var(--primary);
+  color: var(--text-on-accent);
+}
+.group-balance-hero.settled {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+}
+.hero-label {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.hero-amount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.group-balance-hero.settled .hero-amount {
+  font-size: 40px;
+}
+.hero-state {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.hero-detail {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.group-balance-hero.settled .hero-detail {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+@media (min-width: 1000px) {
+  .group-balance-hero {
+    padding: 26px 30px;
+  }
+  .hero-amount {
+    font-size: 80px;
+  }
+}
+@media (max-width: 370px) {
+  .hero-amount {
+    font-size: 44px;
+  }
+}

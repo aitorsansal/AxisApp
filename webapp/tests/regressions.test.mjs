@@ -11,6 +11,7 @@ import { CoalescedWrites } from '../src/lib/coalescedWrites.ts'
 import { nextDue } from '../src/lib/recurringSchedule.ts'
 import { formatExpenseAmount } from '../src/lib/amountDisplay.ts'
 import { pairBreakdown } from '../src/lib/pairBreakdown.ts'
+import { isSettled, summarizeBalances } from '../src/lib/balanceSummary.ts'
 import { categoryColor, categoryFrequency, categoryTrend, expensesCsv, filterByRange, rangeCutoff, settlementsByMonth, spendByCategory, spendByMember } from '../src/lib/stats.ts'
 import { expenseTimestamp, isCalendarDate, localDateInput, localDateTimeToIso, formatEventRange } from '../src/lib/dates.ts'
 import { isSettlementDate, settlementCents, settlementParties, settlementPayload } from '../src/lib/settlements.ts'
@@ -220,6 +221,29 @@ test('stats aggregations mirror GroupStatsViewModel', () => {
   assert.equal(csv[0], 'Date,Description,Category,Amount,Currency,Paid By,Settlement')
   assert.equal(csv[1], '2026-09-11,"Dinner, ""late""",OTHER,2.00,EUR,Luis,Yes')
   assert.equal(csv[2], '2026-09-10,x,FOOD,1.50,EUR,Ana,No')
+})
+test('balance summary keeps owed and owing apart, per currency, without netting', () => {
+  const row = (group_id, other_member_id, balance) => ({ group_id, other_member_id, balance })
+  const currency = { g1: 'EUR', g2: 'EUR', g3: 'USD' }
+  const summary = summarizeBalances(
+    [
+      row('g1', 'marta', 30), row('g1', 'joan', 28), row('g1', 'lucia', -12),
+      // Same person in another group stays on its own side: never netted against g1.
+      row('g2', 'marta', -5.1), row('g2', 'pau', 0.004),
+      row('g3', 'alex', 20.1), row('g3', 'alex', 0.2),
+      row('unknown', 'zoe', 99),
+    ],
+    (id) => currency[id],
+  )
+  assert.deepEqual(summary.owedToMe.totals, [{ currency: 'EUR', cents: 5800 }, { currency: 'USD', cents: 2030 }])
+  assert.deepEqual(summary.owedToMe.memberIds, ['marta', 'joan', 'alex'])
+  assert.deepEqual(summary.owedToMe.groupIds, ['g1', 'g3'])
+  assert.deepEqual(summary.iOwe.totals, [{ currency: 'EUR', cents: 1710 }])
+  assert.deepEqual(summary.iOwe.memberIds, ['lucia', 'marta'])
+  assert.equal(isSettled(summary), false)
+  // Sub-cent residue and unknown groups are ignored; float noise doesn't leak into cents.
+  assert.equal(isSettled(summarizeBalances([row('g1', 'pau', 0.004), row('g1', 'pau', -0.004)], (id) => currency[id])), true)
+  assert.deepEqual(summarizeBalances([row('g1', 'a', 0.1), row('g1', 'b', 0.2)], (id) => currency[id]).owedToMe.totals, [{ currency: 'EUR', cents: 30 }])
 })
 test('expense amounts follow FormatExpenseAmount in both display modes', () => {
   const same = { amount: 20, currency: 'EUR', amount_in_group_currency: 20 }
