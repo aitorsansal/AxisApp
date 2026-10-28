@@ -443,6 +443,10 @@ that first) reuses the same Firebase project as Android for push.
   limitation, unchanged by this feature — see that file's own header
   comment).
 
+### Web live refresh
+
+Event screens refresh through `webapp/src/lib/useLiveRefresh.ts` (Supabase Realtime on `events`/`event_attendees`, which `supabase/realtime_event_attendees.sql` added to the `supabase_realtime` publication, plus focus/online/reconnect refetch and a 60s visible poll, skipped while the viewer's own writes are pending). Views can't be published: a live balance would subscribe to the underlying tables. Android has no Realtime.
+
 ### UI
 
 - Dark theme enforced globally (`Application.Current.UserAppTheme =

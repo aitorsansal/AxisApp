@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { SerializedUpdates } from '../lib/serializedUpdates'
 import { useCoalescedWrites } from '../lib/useCoalescedWrites'
+import { useLiveRefresh } from '../lib/useLiveRefresh'
 import { formatEventRange } from '../lib/dates'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
@@ -78,6 +79,13 @@ export function GroupEventsTab({ groupId, members }: Props) {
   useEffect(() => {
     load()
   }, [load])
+
+  useLiveRefresh(
+    `group-events-${groupId}`,
+    [{ table: 'events', filter: `group_id=eq.${groupId}` }, { table: 'event_attendees' }],
+    load,
+    () => rsvpUpdates.current.hasPending || seatWrites.hasPending,
+  )
 
   function mine(eventId: string): EventAttendee | undefined {
     return attendeesByEvent[eventId]?.find((a) => a.member_id === myMemberId)

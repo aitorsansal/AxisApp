@@ -1,6 +1,10 @@
 export class SerializedUpdates<T> {
   private pending = new Map<string, Promise<T>>()
 
+  get hasPending() {
+    return this.pending.size > 0
+  }
+
   run(key: string, initial: T, update: (current: T) => T, persist: (next: T) => Promise<void>): Promise<T> {
     const previous = this.pending.get(key) ?? Promise.resolve(initial)
     const next = previous.then(async (current) => {

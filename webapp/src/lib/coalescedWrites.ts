@@ -17,6 +17,10 @@ export class CoalescedWrites<T> {
     this.write = write
   }
 
+  get hasPending() {
+    return this.pending.size > 0
+  }
+
   set(key: string, value: T) {
     const existing = this.pending.get(key)
     if (existing) clearTimeout(existing.timer)

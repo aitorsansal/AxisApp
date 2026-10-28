@@ -6,6 +6,7 @@ import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { SerializedUpdates } from '../lib/serializedUpdates'
 import { useCoalescedWrites } from '../lib/useCoalescedWrites'
+import { useLiveRefresh } from '../lib/useLiveRefresh'
 import { formatEventRange } from '../lib/dates'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
@@ -97,6 +98,13 @@ export function EventDetailPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useLiveRefresh(
+    `event-${eventId}`,
+    [{ table: 'events', filter: `id=eq.${eventId}` }, { table: 'event_attendees', filter: `event_id=eq.${eventId}` }],
+    load,
+    () => rsvpUpdates.current.hasPending || seatWrites.hasPending,
+  )
 
   const mine = attendees.find((a) => a.member_id === myMemberId)
   const myResponse = mine?.response ?? ''
