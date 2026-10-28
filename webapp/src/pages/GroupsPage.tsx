@@ -77,18 +77,17 @@ export function GroupsPage() {
       <div className="groups-heading">
         <h2>{t('Groups_YourGroups')}</h2>
         <Link to="/join">{t('Groups_JoinWithCode')}</Link>
+        <div className="groups-actions">
+          <Link to="/join" className="btn btn-outline">
+            {t('Groups_JoinWithCode')}
+          </Link>
+          <Link to="/new-group" className="btn btn-primary">
+            {t('Groups_NewGroup')}
+          </Link>
+        </div>
       </div>
 
       {error && <p className="error-text">{error}</p>}
-
-      <div className="groups-actions">
-        <Link to="/new-group" className="btn btn-primary">
-          {t('Groups_NewGroup')}
-        </Link>
-        <Link to="/join" className="btn btn-outline">
-          {t('Groups_JoinWithCode')}
-        </Link>
-      </div>
 
       {groups === null && !error && <div className="spinner">{t('Common_Loading')}</div>}
 
@@ -134,13 +133,13 @@ export function GroupsPage() {
                 if (suppressClickRef.current) event.preventDefault()
               }}
             >
-              <GroupIconCircle color={g.color} icon={g.icon} name={g.name} size={40} />
+              <GroupIconCircle color={g.color} icon={g.icon} name={g.name} size={52} />
               <div className="group-card-body">
                 <div className="group-name">{g.name}</div>
                 <div className="group-avatars" aria-hidden="true">
                   {g.members.slice(0, 4).map((member) => (
                     <span key={member.id} title={displayName(member)}>
-                      <Avatar url={avatarUrl(member)} initials={initials(member)} size={26} />
+                      <Avatar url={avatarUrl(member)} initials={initials(member)} seed={member.id} size={26} />
                     </span>
                   ))}
                 </div>

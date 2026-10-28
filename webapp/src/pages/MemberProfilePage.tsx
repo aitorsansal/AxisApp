@@ -102,7 +102,7 @@ export function MemberProfilePage() {
       {error && <p className="error-text" role="alert">{error}</p>}
       {target && (
         <div className="member-profile-avatar">
-          <Avatar url={avatarUrl(target)} initials={initials(target)} size={64} />
+          <Avatar url={avatarUrl(target)} initials={initials(target)} seed={target.id} size={64} />
         </div>
       )}
       {!pairs ? (

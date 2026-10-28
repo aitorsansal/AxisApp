@@ -240,7 +240,7 @@ export function GroupEventsTab({ groupId, members }: Props) {
                   {goingAttendees.length > 0 && (
                     <div className="event-avatars">
                       {goingAttendees.map((m) => (
-                        <Avatar key={m.id} url={avatarUrl(m)} initials={initials(m)} size={26} />
+                        <Avatar key={m.id} url={avatarUrl(m)} initials={initials(m)} seed={m.id} size={26} />
                       ))}
                     </div>
                   )}

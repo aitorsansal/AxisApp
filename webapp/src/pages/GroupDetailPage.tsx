@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, type CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useGoBackTo } from '../lib/navigation'
 import { supabase } from '../lib/supabaseClient'
@@ -17,6 +17,7 @@ import { settlementParties } from '../lib/settlements'
 import { Avatar } from '../components/Avatar'
 import { Icon } from '../components/Icon'
 import { categoryIcon } from '../lib/icons'
+import { categoryColor } from '../lib/stats'
 import { formatMoney } from '../lib/formatting'
 import { formatExpenseAmount, getShowConverted } from '../lib/amountDisplay'
 import { useGroups } from '../context/useGroups'
@@ -473,6 +474,7 @@ export function GroupDetailPage() {
                     <Avatar
                       url={member ? avatarUrl(member) : null}
                       initials={member ? initials(member) : '?'}
+                      seed={b.other_member_id}
                       size={36}
                     />
                     <div className="balance-name" title={memberName(b.other_member_id)}>
@@ -541,7 +543,11 @@ export function GroupDetailPage() {
                         className="card activity-row"
                         key={exp.id}
                       >
-                        <span className="activity-icon">
+                        <span
+                          className="activity-icon"
+                          // Same per-category colour as the Stats tab; settle-ups stay neutral.
+                          style={exp.is_settlement ? undefined : ({ '--category': categoryColor(exp.category) } as CSSProperties)}
+                        >
                           <Icon name={categoryIcon(exp.category, exp.is_settlement)} size={22} />
                         </span>
                         <div className="activity-body">

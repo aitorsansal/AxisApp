@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabaseClient'
 import { GroupsProvider } from '../context/GroupsContext'
 import { useGroups } from '../context/useGroups'
 import { useAliases } from '../context/AliasesContext'
@@ -14,6 +15,12 @@ function Workspace() {
   const { initials, avatarUrl, displayName } = useAliases()
   const { t } = useLocale()
   const location = useLocation()
+  const navigate = useNavigate()
+  // Same as AppHeader's account menu: local scope, so other devices stay signed in.
+  async function handleLogout() {
+    await supabase.auth.signOut({ scope: 'local' })
+    navigate('/login')
+  }
   return (
     <div className="app-layout">
       <a className="skip-link" href="#main-content">
@@ -67,17 +74,29 @@ function Workspace() {
             </NavLink>
           </div>
         </nav>
-        <NavLink to="/profile" className="sidebar-account">
-          <Avatar
-            url={currentMember ? avatarUrl(currentMember) : null}
-            initials={currentMember ? initials(currentMember) : '?'}
-          />
-          <span>
-            <strong>{currentMember ? displayName(currentMember) : t('Groups_Profile')}</strong>
-            <small>{t('Groups_Profile')}</small>
-          </span>
-          <Icon name="arrow_right" size={16} />
-        </NavLink>
+        {/* On desktop the header's account menu is hidden, so logging out lives here. */}
+        <div className="sidebar-footer">
+          <NavLink to="/profile" className="sidebar-account">
+            <Avatar
+              url={currentMember ? avatarUrl(currentMember) : null}
+              initials={currentMember ? initials(currentMember) : '?'}
+              seed={currentMember?.id}
+            />
+            <span>
+              <strong>{currentMember ? displayName(currentMember) : t('Groups_Profile')}</strong>
+              <small>{t('Groups_Profile')}</small>
+            </span>
+          </NavLink>
+          <button
+            type="button"
+            className="sidebar-logout"
+            onClick={handleLogout}
+            aria-label={t('Groups_LogOut')}
+            title={t('Groups_LogOut')}
+          >
+            <Icon name="log_out" size={18} />
+          </button>
+        </div>
       </aside>
       <main id="main-content" className="app-main" tabIndex={-1}>
         <Outlet key={location.pathname} />

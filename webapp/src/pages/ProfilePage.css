@@ -44,8 +44,7 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border);
+  background: var(--surface-emphasis);
   display: flex;
   align-items: center;
   justify-content: center;

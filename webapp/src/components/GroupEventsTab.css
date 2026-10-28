@@ -1,7 +1,7 @@
 .events-toggle {
   display: flex;
   background: var(--surface-elevated);
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: var(--radius-pill);
   padding: 4px;
   margin-bottom: 20px;
@@ -14,7 +14,7 @@
   color: var(--text-secondary);
   padding: 8px;
   border-radius: var(--radius-pill);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.9rem;
 }
 
@@ -67,14 +67,14 @@
 }
 
 .event-avatars > * {
-  margin-right: -8px;
-  border: 2px solid var(--surface);
+  margin-right: -3px;
+  box-shadow: 0 0 0 2px var(--surface-elevated);
 }
 
 .rsvp-pill {
   display: flex;
   background: var(--surface-elevated);
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   padding: 3px;
   gap: 3px;
@@ -88,7 +88,7 @@
   padding: 6px;
   border-radius: 6px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .rsvp-pill button.active {
@@ -137,7 +137,7 @@
   align-items: center;
   gap: 8px;
   background: var(--surface-elevated);
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   padding: 4px 10px;
 }
@@ -159,7 +159,6 @@
 
 .events-toggle {
   max-width: 320px;
-  background: var(--surface);
   border-radius: var(--radius-pill);
 }
 .events-toggle button,
@@ -173,10 +172,11 @@
   margin-bottom: 0;
 }
 .event-month-header {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   color: var(--text-tertiary);
-  text-transform: none;
+  text-transform: uppercase;
 }
 .event-title,
 .event-sub {

@@ -557,7 +557,7 @@ export function AddExpensePage() {
                   checked={paidBy === m.member_id}
                   onChange={() => setPaidBy(m.member_id)}
                 />
-                <Avatar url={avatarUrl(m.members)} initials={initials(m.members)} size={44} />
+                <Avatar url={avatarUrl(m.members)} initials={initials(m.members)} seed={m.member_id} size={44} />
                 <span>{displayName(m.members)}</span>
               </label>
             ))}
@@ -607,7 +607,7 @@ export function AddExpensePage() {
                       checked={included}
                       onChange={() => toggleParticipant(m.member_id)}
                     />
-                    <Avatar url={avatarUrl(m.members)} initials={initials(m.members)} size={28} />
+                    <Avatar url={avatarUrl(m.members)} initials={initials(m.members)} seed={m.member_id} size={28} />
                     <span>{displayName(m.members)}</span>
                   </label>
                   {!isSettlement && included && (

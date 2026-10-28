@@ -79,6 +79,7 @@ export function AppHeader({
               <Avatar
                 url={currentMember ? avatarUrl(currentMember) : null}
                 initials={currentMember ? initials(currentMember) : '?'}
+            seed={currentMember?.id}
               />
             </button>
             {accountOpen && (

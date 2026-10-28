@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Axis web — style directions (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=Public+Sans:wght@400..700&family=IBM+Plex+Mono:wght@400;500&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap"
+  rel="stylesheet" />
+<style>
+  /* ---------- Mockup chrome (not part of either direction) ---------- */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #2a2a2e; color: #ddd; font: 13px/1.4 system-ui, sans-serif; }
+  .toolbar {
+    position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
+    padding: 10px 20px; background: #1d1d20; border-bottom: 1px solid #3a3a40;
+  }
+  .toolbar .grp { display: flex; gap: 4px; align-items: center; }
+  .toolbar .grp > span { color: #999; margin-right: 6px; }
+  .toolbar button {
+    background: #2e2e33; color: #ddd; border: 1px solid #45454c; border-radius: 6px; padding: 6px 10px; cursor: pointer;
+  }
+  .toolbar button.on { background: #e8e8e8; color: #111; border-color: #e8e8e8; }
+  .toolbar .sw { width: 22px; height: 22px; padding: 0; border-radius: 50%; }
+  .toolbar .sw.on { outline: 2px solid #fff; outline-offset: 2px; }
+  .stage { display: flex; justify-content: center; padding: 28px 20px; }
+  .frame {
+    position: relative; width: min(1280px, 100%); height: 820px; overflow: hidden;
+    border-radius: 12px; box-shadow: 0 20px 60px #0008; border: 1px solid #000;
+  }
+  .frame.mobile { width: 390px; height: 844px; border-radius: 40px; border: 10px solid #000; }
+  .notes { max-width: 1280px; margin: 0 auto 60px; padding: 0 20px; color: #bbb; font-size: 14px; line-height: 1.6; }
+  .notes h2 { color: #fff; font-size: 16px; margin: 0 0 8px; }
+  .notes ul { margin: 0; padding-left: 18px; }
+  .notes [data-for] { display: none; }
+  body[data-dir='a'] .notes [data-for='a'], body[data-dir='b'] .notes [data-for='b'] { display: block; }
+
+  /* ---------- Shared layout (structure both directions use) ---------- */
+  svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .app { container: app / inline-size; height: 100%; overflow-y: auto; }
+  .shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100%; }
+  .sidebar { display: flex; flex-direction: column; gap: 6px; padding: 28px 16px 20px; }
+  .sidebar .side-groups { display: flex; flex-direction: column; gap: 2px; margin: 18px 0; }
+  .side-item { display: flex; align-items: center; gap: 12px; padding: 9px 10px; text-decoration: none; color: inherit; }
+  .side-foot { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 10px; }
+  .main { padding: 40px 56px 110px; min-width: 0; max-width: 1100px; }
+  .app[data-screen='groups'] .screen-detail, .app[data-screen='detail'] .screen-groups { display: none; }
+  .m-only { display: none !important; }
+  .page-head, .detail-head { display: flex; align-items: center; gap: 14px; }
+  .page-head h1, .detail-head h1 { margin: 0; flex: 1; min-width: 0; }
+  .head-actions { display: flex; gap: 10px; align-items: center; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid transparent; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .btn svg.i { width: 18px; height: 18px; }
+  .icon-btn { background: none; border: 0; color: inherit; padding: 8px; cursor: pointer; display: inline-flex; }
+  .summary { display: grid; grid-template-columns: 1fr 1fr; }
+  .sum { display: flex; flex-direction: column; }
+  .group-list { list-style: none; margin: 0; padding: 0; }
+  .group-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; cursor: pointer; }
+  .g-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .g-meta { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .avs { display: flex; }
+  .av { display: inline-grid; place-items: center; border-radius: 50%; font-weight: 700; flex-shrink: 0; }
+  .avs .av { width: 22px; height: 22px; font-size: 10px; margin-right: -3px; }
+  .g-bal { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+  .hero { display: flex; flex-direction: column; }
+  .tabs { display: flex; }
+  .tabs a { text-decoration: none; color: inherit; cursor: pointer; }
+  .detail-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(290px, 1fr); gap: 44px; align-items: start; }
+  .search { display: flex; align-items: center; gap: 10px; }
+  .day-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0; }
+  .tx { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; }
+  .tx-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .tx-amt { text-align: right; }
+  .bal-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 12px; align-items: center; }
+  .bal-row .av { width: 36px; height: 36px; font-size: 13px; }
+  .bal-who { display: flex; flex-direction: column; }
+  .fab { position: absolute; right: 22px; bottom: 26px; width: 58px; height: 58px; display: grid; place-items: center; border: 0; }
+  .fab svg.i { width: 26px; height: 26px; }
+  .m-topbar { align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .num { font-variant-numeric: tabular-nums lining-nums; }
+
+  @container app (max-width: 760px) {
+    .shell { grid-template-columns: minmax(0, 1fr); }
+    .sidebar, .d-only { display: none !important; }
+    .m-only { display: flex !important; }
+    .main { padding: 18px 18px 110px; }
+    .summary { grid-template-columns: 1fr 1fr; }
+    .detail-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+    .balances { order: -1; }
+  }
+
+  /* =====================================================================
+     DIRECTION A — "Libro" (household ledger)
+     Warm ink-on-paper neutrals, serif display (Fraunces), mono amounts,
+     hairline/dashed ledger rules instead of nested cards.
+     ===================================================================== */
+  .dir-a {
+    --bg: #141210; --surface: #1c1a17; --surface-2: #24211d;
+    --line: #2f2b25; --line-strong: #4a4439;
+    --ink: #f3eee4; --ink-2: #c6bdad; --ink-3: #91887a;
+    --pos: #7fd4a5; --neg: #f28b7b; --gold: #d9b56c;
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.5 'Public Sans', system-ui, sans-serif;
+  }
+  .dir-a .serif { font-family: 'Fraunces', Georgia, serif; font-variation-settings: 'SOFT' 50; }
+  .dir-a .mono, .dir-a .tx-amt, .dir-a .g-bal .amt, .dir-a .bal-row .amt { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .dir-a .sidebar { border-right: 1px solid var(--line); }
+  .dir-a .wordmark { font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: 30px; letter-spacing: -0.01em; padding: 0 10px; }
+  .dir-a .wordmark b { color: var(--gold); font-weight: 500; }
+  .dir-a .side-label { font-family: 'Fraunces', serif; font-style: italic; color: var(--ink-3); font-size: 14px; padding: 0 10px; margin-top: 22px; }
+  .dir-a .side-item { color: var(--ink-2); border-left: 2px solid transparent; border-radius: 0 6px 6px 0; font-size: 14px; }
+  .dir-a .side-item:hover { background: var(--surface); color: var(--ink); }
+  .dir-a .side-item.on { color: var(--ink); border-left-color: var(--gold); background: var(--surface); }
+  .dir-a .side-item .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--g); }
+  .dir-a .side-item.action { color: var(--ink-3); }
+  .dir-a .side-item.action svg.i { width: 16px; height: 16px; }
+  .dir-a .side-foot { border-top: 1px solid var(--line); padding-top: 16px; font-size: 14px; }
+  .dir-a .side-foot small { display: block; color: var(--ink-3); font-size: 12px; }
+
+  .dir-a .page-head, .dir-a .detail-head { padding-bottom: 18px; border-bottom: 3px double var(--line-strong); margin-bottom: 28px; }
+  .dir-a .page-head h1, .dir-a .detail-head h1 { font-family: 'Fraunces', serif; font-weight: 500; font-size: 40px; letter-spacing: -0.015em; line-height: 1.1; font-variation-settings: 'SOFT' 50, 'opsz' 144; }
+  .dir-a .btn { border-radius: 6px; padding: 10px 16px; font-weight: 600; font-size: 14px; }
+  .dir-a .btn-primary { background: var(--primary); color: var(--text-on-accent); }
+  .dir-a .btn-primary:hover { background: var(--primary-hover); }
+  .dir-a .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+  .dir-a .btn-ghost:hover { background: var(--surface); }
+
+  .dir-a .summary { margin-bottom: 40px; }
+  .dir-a .sum { padding: 0 28px; }
+  .dir-a .sum:first-child { padding-left: 0; border-right: 1px solid var(--line); }
+  .dir-a .sum-label { font-family: 'Fraunces', serif; font-style: italic; color: var(--ink-2); font-size: 16px; }
+  .dir-a .sum-amt { font-family: 'Fraunces', serif; font-size: 46px; font-weight: 400; line-height: 1.15; letter-spacing: -0.02em; font-variant-numeric: tabular-nums lining-nums; font-variation-settings: 'opsz' 144; }
+  .dir-a .sum-pos .sum-amt { color: var(--pos); }
+  .dir-a .sum-neg .sum-amt { color: var(--neg); }
+  .dir-a .sum-sub { color: var(--ink-3); font-size: 13px; }
+
+  .dir-a .section-label { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 17px; color: var(--ink-2); margin: 0 0 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line-strong); }
+  .dir-a .group-row { padding: 18px 8px; border-bottom: 1px dashed var(--line); }
+  .dir-a .group-row:hover { background: var(--surface); }
+  .dir-a .g-icon { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--g); background: color-mix(in srgb, var(--g) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--g) 45%, transparent); }
+  .dir-a .g-name { font-weight: 600; font-size: 17px; }
+  .dir-a .g-meta { color: var(--ink-3); font-size: 13px; }
+  .dir-a .avs .av { box-shadow: 0 0 0 2px var(--bg); color: #141210; }
+  .dir-a .g-bal .amt { font-size: 16px; font-weight: 500; }
+  .dir-a .g-bal .hint { color: var(--ink-3); font-size: 12px; }
+  .dir-a .pos .amt { color: var(--pos); }
+  .dir-a .neg .amt { color: var(--neg); }
+  .dir-a .settled .amt { color: var(--ink-3); font-family: 'Fraunces', serif; font-style: italic; font-size: 15px; }
+
+  .dir-a .detail-head .g-icon { width: 44px; height: 44px; }
+  .dir-a .back { color: var(--ink-2); }
+  .dir-a .hero { margin-bottom: 30px; }
+  .dir-a .hero-label { font-family: 'Fraunces', serif; font-style: italic; color: var(--ink-2); font-size: 17px; }
+  .dir-a .hero-amt { font-family: 'Fraunces', serif; font-weight: 350; font-size: 76px; line-height: 1.05; letter-spacing: -0.03em; color: var(--pos); font-variant-numeric: tabular-nums lining-nums; font-variation-settings: 'opsz' 144, 'SOFT' 30; }
+  .dir-a .hero-amt small { font-family: 'Public Sans', sans-serif; font-size: 15px; letter-spacing: 0; color: var(--ink-2); margin-left: 12px; }
+  .dir-a .hero-sub { color: var(--ink-2); font-size: 14px; }
+  .dir-a .hero-sub b { color: var(--ink); font-weight: 600; }
+  .dir-a .tabs { gap: 28px; border-bottom: 1px solid var(--line); margin-bottom: 28px; }
+  .dir-a .tabs a { padding: 10px 0; font-weight: 600; color: var(--ink-3); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .dir-a .tabs a.on { color: var(--ink); border-bottom-color: var(--gold); }
+
+  .dir-a .search { border-bottom: 1px solid var(--line-strong); padding: 10px 2px; color: var(--ink-3); margin-bottom: 26px; }
+  .dir-a .day { margin-bottom: 26px; }
+  .dir-a .day-head { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 17px; color: var(--ink-2); padding-bottom: 6px; border-bottom: 1px solid var(--line-strong); }
+  .dir-a .day-head span { font-family: 'IBM Plex Mono', monospace; font-style: normal; font-size: 12px; color: var(--ink-3); }
+  .dir-a .tx { padding: 14px 4px; border-bottom: 1px dashed var(--line); }
+  .dir-a .tx:hover { background: var(--surface); }
+  .dir-a .tx-icon { color: var(--ink-3); width: 28px; display: grid; place-items: center; }
+  .dir-a .tx-title { font-weight: 600; }
+  .dir-a .tx-meta { color: var(--ink-3); font-size: 13px; }
+  .dir-a .tx-meta b { color: var(--ink-2); font-weight: 500; }
+  .dir-a .tx-amt { font-size: 15px; }
+  .dir-a .tx.settle .tx-title { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; color: var(--ink-2); }
+  .dir-a .tx.settle .tx-amt { color: var(--ink-2); }
+
+  .dir-a .balances { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 20px 14px; }
+  .dir-a .bal-row { padding: 12px 0 12px 12px; border-left: 3px solid var(--line); margin-bottom: 10px; }
+  .dir-a .bal-row.pos { border-left-color: var(--pos); }
+  .dir-a .bal-row.neg { border-left-color: var(--neg); }
+  .dir-a .bal-row .av { color: #141210; }
+  .dir-a .bal-who .name { font-weight: 600; }
+  .dir-a .bal-who .hint { color: var(--ink-3); font-size: 13px; }
+  .dir-a .bal-row .amt { font-size: 16px; font-weight: 500; }
+  .dir-a .link { background: none; border: 0; color: var(--action-text); font-weight: 600; font-size: 13px; padding: 8px 6px; cursor: pointer; border-radius: 6px; }
+  .dir-a .link:hover { background: var(--surface-2); }
+  .dir-a .fine { color: var(--ink-3); font-size: 12px; margin: 8px 0 0; font-family: 'Fraunces', serif; font-style: italic; }
+  .dir-a .fab { border-radius: 50%; background: var(--primary); color: var(--text-on-accent); box-shadow: 0 8px 24px #0009; }
+  .dir-a .m-topbar .wordmark { padding: 0; font-size: 28px; }
+  .dir-a .m-topbar .av { width: 34px; height: 34px; font-size: 12px; background: var(--surface-2); color: var(--ink-2); }
+  @container app (max-width: 760px) {
+    .dir-a .page-head h1, .dir-a .detail-head h1 { font-size: 30px; }
+    .dir-a .sum { padding: 0 0 0 16px; }
+    .dir-a .sum:first-child { padding: 0 16px 0 0; }
+    .dir-a .sum-amt { font-size: 34px; }
+    .dir-a .hero-amt { font-size: 58px; }
+  }
+
+  /* =====================================================================
+     DIRECTION B — "Bloque" (bold graphic)
+     Neutral near-black, one heavy grotesque (Bricolage), no borders at all:
+     solid colour blocks, big numbers, colour-coded tiles.
+     ===================================================================== */
+  .dir-b {
+    --bg: #0e0e10; --surface: #18181b; --surface-2: #222226; --line: #26262b;
+    --ink: #f6f5f1; --ink-2: #b8b7b1; --ink-3: #85847e;
+    --pos: #44e19d; --neg: #ff6474;
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.45 'Bricolage Grotesque', system-ui, sans-serif;
+    font-variation-settings: 'opsz' 14;
+  }
+  .dir-b .sidebar { background: var(--surface); }
+  .dir-b .wordmark { font-weight: 800; font-size: 26px; letter-spacing: -0.04em; padding: 0 10px; display: flex; align-items: center; gap: 8px; font-variation-settings: 'opsz' 96; }
+  .dir-b .wordmark::before { content: ''; width: 14px; height: 14px; border-radius: 4px; background: var(--primary); }
+  .dir-b .wordmark b { display: none; }
+  .dir-b .side-label { color: var(--ink-3); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0 10px; margin-top: 22px; }
+  .dir-b .side-item { border-radius: 12px; font-weight: 600; font-size: 14px; color: var(--ink-2); }
+  .dir-b .side-item:hover { background: var(--surface-2); color: var(--ink); }
+  .dir-b .side-item.on { background: var(--surface-2); color: var(--ink); }
+  .dir-b .side-item .dot { width: 26px; height: 26px; border-radius: 8px; background: var(--g); }
+  .dir-b .side-item.action { color: var(--ink-3); }
+  .dir-b .side-foot { background: var(--surface-2); border-radius: 14px; font-weight: 700; font-size: 14px; }
+  .dir-b .side-foot small { display: block; color: var(--ink-3); font-weight: 500; font-size: 12px; }
+
+  .dir-b .page-head, .dir-b .detail-head { margin-bottom: 26px; }
+  .dir-b .page-head h1, .dir-b .detail-head h1 { font-weight: 800; font-size: 48px; letter-spacing: -0.04em; line-height: 1; font-variation-settings: 'opsz' 96; }
+  .dir-b .btn { border-radius: 12px; padding: 11px 18px; font-weight: 700; font-size: 14px; }
+  .dir-b .btn-primary { background: var(--primary); color: var(--text-on-accent); }
+  .dir-b .btn-primary:hover { background: var(--primary-hover); }
+  .dir-b .btn-ghost { background: var(--surface-2); color: var(--ink); }
+  .dir-b .btn-ghost:hover { background: #2c2c31; }
+
+  .dir-b .summary { gap: 12px; margin-bottom: 36px; }
+  .dir-b .sum { border-radius: 22px; padding: 22px 24px; background: var(--surface); }
+  .dir-b .sum-pos { background: var(--primary); color: var(--text-on-accent); }
+  .dir-b .sum-label { font-weight: 700; font-size: 14px; opacity: 0.85; }
+  .dir-b .sum-amt { font-weight: 800; font-size: 48px; letter-spacing: -0.04em; line-height: 1.1; font-variant-numeric: tabular-nums; font-variation-settings: 'opsz' 96; }
+  .dir-b .sum-neg .sum-amt { color: var(--neg); }
+  .dir-b .sum-sub { font-size: 13px; opacity: 0.75; }
+
+  .dir-b .section-label { color: var(--ink-3); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 12px; }
+  .dir-b .group-list { display: grid; gap: 10px; }
+  .dir-b .group-row { background: var(--surface); border-radius: 20px; padding: 14px 18px 14px 14px; }
+  .dir-b .group-row:hover { background: var(--surface-2); }
+  .dir-b .g-icon { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: var(--g); color: #fff; }
+  .dir-b .g-icon svg.i { width: 24px; height: 24px; stroke-width: 2.1; }
+  .dir-b .g-name { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+  .dir-b .g-meta { color: var(--ink-3); font-size: 13px; }
+  .dir-b .avs .av { box-shadow: 0 0 0 2px var(--surface); color: #0e0e10; }
+  .dir-b .g-bal .amt { font-weight: 800; font-size: 17px; padding: 5px 12px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+  .dir-b .g-bal .hint { color: var(--ink-3); font-size: 12px; font-weight: 600; }
+  .dir-b .g-bal.pos .amt { color: var(--pos); background: color-mix(in srgb, var(--pos) 13%, transparent); }
+  .dir-b .g-bal.neg .amt { color: var(--neg); background: color-mix(in srgb, var(--neg) 13%, transparent); }
+  .dir-b .settled .amt { color: var(--ink-3); background: var(--surface-2); font-size: 13px; font-weight: 700; }
+
+  .dir-b .detail-head .g-icon { width: 48px; height: 48px; border-radius: 14px; }
+  .dir-b .back { color: var(--ink-2); }
+  .dir-b .hero { background: var(--primary); color: var(--text-on-accent); border-radius: 26px; padding: 24px 28px; margin-bottom: 28px; }
+  .dir-b .hero-label { font-weight: 700; font-size: 14px; opacity: 0.85; }
+  .dir-b .hero-amt { font-weight: 800; font-size: 84px; line-height: 1; letter-spacing: -0.05em; margin: 4px 0 10px; font-variant-numeric: tabular-nums; font-variation-settings: 'opsz' 96; }
+  .dir-b .hero-amt small { font-size: 0.3em; letter-spacing: 0; font-weight: 700; margin-left: 8px; opacity: 0.8; }
+  .dir-b .hero-sub { font-size: 14px; font-weight: 500; opacity: 0.9; }
+  .dir-b .hero-sub b { font-weight: 800; }
+  .dir-b .tabs { gap: 26px; margin-bottom: 24px; }
+  .dir-b .tabs a { font-weight: 800; font-size: 22px; letter-spacing: -0.02em; color: var(--ink-3); padding-bottom: 6px; position: relative; }
+  .dir-b .tabs a.on { color: var(--ink); }
+  .dir-b .tabs a.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 4px; background: var(--primary); }
+
+  .dir-b .search { background: var(--surface); border-radius: 14px; padding: 12px 16px; color: var(--ink-3); margin-bottom: 22px; }
+  .dir-b .day { margin-bottom: 22px; }
+  .dir-b .day-head { color: var(--ink-3); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .dir-b .day-head span { font-weight: 600; }
+  .dir-b .tx { padding: 10px 8px; border-radius: 14px; }
+  .dir-b .tx:hover { background: var(--surface); }
+  .dir-b .tx-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); }
+  .dir-b .tx-title { font-weight: 700; font-size: 16px; }
+  .dir-b .tx-meta { color: var(--ink-3); font-size: 13px; }
+  .dir-b .tx-meta b { color: var(--ink-2); font-weight: 700; }
+  .dir-b .tx-amt { font-weight: 800; font-size: 17px; font-variant-numeric: tabular-nums; }
+  .dir-b .tx.settle .tx-amt { color: var(--ink-2); }
+
+  .dir-b .balances { background: var(--surface); border-radius: 24px; padding: 20px; }
+  .dir-b .balances .section-label { margin-bottom: 8px; }
+  .dir-b .bal-row { padding: 10px 0; }
+  .dir-b .bal-row + .bal-row { border-top: 1px solid var(--line); }
+  .dir-b .bal-row .av { width: 42px; height: 42px; border-radius: 14px; color: #0e0e10; font-size: 14px; }
+  .dir-b .bal-who .name { font-weight: 700; }
+  .dir-b .bal-who .hint { color: var(--ink-3); font-size: 13px; }
+  .dir-b .bal-row .amt { font-weight: 800; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .dir-b .bal-row.pos .amt { color: var(--pos); }
+  .dir-b .bal-row.neg .amt { color: var(--neg); }
+  .dir-b .link { background: var(--surface-2); border: 0; color: var(--ink); font-weight: 700; font-size: 13px; padding: 8px 12px; border-radius: 10px; cursor: pointer; }
+  .dir-b .link:hover { background: var(--primary); color: var(--text-on-accent); }
+  .dir-b .fine { color: var(--ink-3); font-size: 12px; margin: 10px 0 0; }
+  .dir-b .fab { border-radius: 20px; background: var(--primary); color: var(--text-on-accent); box-shadow: 0 10px 28px #000a; }
+  .dir-b .m-topbar .wordmark { padding: 0; }
+  .dir-b .m-topbar .av { width: 36px; height: 36px; font-size: 12px; border-radius: 12px; background: var(--surface-2); color: var(--ink-2); }
+  @container app (max-width: 760px) {
+    .dir-b .page-head h1, .dir-b .detail-head h1 { font-size: 34px; }
+    .dir-b .sum { padding: 16px; border-radius: 18px; }
+    .dir-b .sum-amt { font-size: 32px; }
+    .dir-b .hero { padding: 20px 22px; }
+    .dir-b .hero-amt { font-size: 60px; }
+    .dir-b .tabs a { font-size: 19px; }
+  }
+</style>
+</head>
+<body data-dir="a">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v12h14V9"/><path d="M10 21v-6h4v6"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/></symbol>
+  <symbol id="i-tent" viewBox="0 0 24 24"><path d="M3.5 21 14 3M20.5 21 10 3M15.5 21 12 15l-3.5 6M2 21h20"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L22 7H5.1"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M5 12.5a11 11 0 0 1 14 0M1.5 9a16 16 0 0 1 21 0M8.5 16a6 6 0 0 1 7 0M12 20h.01"/></symbol>
+  <symbol id="i-food" viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 0 0 6v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3a3 3 0 0 0 0-6V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></symbol>
+</svg>
+
+<div class="toolbar">
+  <div class="grp" data-ctl="dir"><span>Direction</span>
+    <button data-v="a" class="on">A · Libro (ledger)</button><button data-v="b">B · Bloque (graphic)</button></div>
+  <div class="grp" data-ctl="screen"><span>Screen</span>
+    <button data-v="groups" class="on">Grupos</button><button data-v="detail">Detalle de grupo</button></div>
+  <div class="grp" data-ctl="view"><span>Viewport</span>
+    <button data-v="desktop" class="on">Desktop</button><button data-v="mobile">Mobile</button></div>
+  <div class="grp" id="accents"><span>Accent preset</span></div>
+</div>
+
+<div class="stage">
+  <div class="frame" id="frame">
+    <div class="app dir-a" id="app" data-screen="groups">
+      <div class="shell">
+        <aside class="sidebar">
+          <div class="wordmark">axis<b>.</b></div>
+          <div class="side-label">Tus grupos</div>
+          <nav class="side-groups">
+            <a class="side-item on" style="--g:#5b72d6"><span class="dot"></span>Piso Gràcia</a>
+            <a class="side-item" style="--g:#c15a87"><span class="dot"></span>Familia</a>
+            <a class="side-item" style="--g:#4c8f63"><span class="dot"></span>Asturias 2026</a>
+          </nav>
+          <a class="side-item action"><svg class="i"><use href="#i-plus"/></svg>Nuevo grupo</a>
+          <a class="side-item action"><svg class="i"><use href="#i-ticket"/></svg>Unirse con código</a>
+          <div class="side-foot">
+            <span class="av" style="width:34px;height:34px;font-size:12px;background:#d9b56c;color:#141210">TÚ</span>
+            <div style="flex:1">Irene Soler<small>Perfil</small></div>
+            <svg class="i" style="width:16px;height:16px;opacity:.6"><use href="#i-arrow"/></svg>
+          </div>
+        </aside>
+
+        <main class="main">
+          <!-- ================= GROUPS ================= -->
+          <section class="screen-groups">
+            <div class="m-topbar m-only"><div class="wordmark">axis<b>.</b></div><span class="av">TÚ</span></div>
+            <header class="page-head">
+              <h1>Tus grupos</h1>
+              <div class="head-actions d-only">
+                <button class="btn btn-ghost"><svg class="i"><use href="#i-ticket"/></svg>Unirse con código</button>
+                <button class="btn btn-primary"><svg class="i"><use href="#i-plus"/></svg>Nuevo grupo</button>
+              </div>
+            </header>
+
+            <div class="summary">
+              <div class="sum sum-pos"><span class="sum-label">Te deben</span><span class="sum-amt num">46,00 €</span><span class="sum-sub">en Piso Gràcia</span></div>
+              <div class="sum sum-neg"><span class="sum-label">Debes</span><span class="sum-amt num">12,40 €</span><span class="sum-sub">en Familia</span></div>
+            </div>
+
+            <h2 class="section-label">Grupos</h2>
+            <ul class="group-list">
+              <li class="group-row" style="--g:#5b72d6">
+                <span class="g-icon"><svg class="i"><use href="#i-home"/></svg></span>
+                <div class="g-main"><span class="g-name">Piso Gràcia</span>
+                  <span class="g-meta"><span class="avs"><span class="av" style="background:#e3a77f">M</span><span class="av" style="background:#7fc0dc">J</span><span class="av" style="background:#b9a2e6">L</span></span>&nbsp;4 miembros</span></div>
+                <div class="g-bal pos"><span class="amt">+46,00 €</span><span class="hint">te deben</span></div>
+              </li>
+              <li class="group-row" style="--g:#c15a87">
+                <span class="g-icon"><svg class="i"><use href="#i-heart"/></svg></span>
+                <div class="g-main"><span class="g-name">Familia</span>
+                  <span class="g-meta"><span class="avs"><span class="av" style="background:#9ed39b">M</span><span class="av" style="background:#e6c27a">P</span></span>&nbsp;3 miembros</span></div>
+                <div class="g-bal neg"><span class="amt">−12,40 €</span><span class="hint">debes</span></div>
+              </li>
+              <li class="group-row" style="--g:#4c8f63">
+                <span class="g-icon"><svg class="i"><use href="#i-tent"/></svg></span>
+                <div class="g-main"><span class="g-name">Asturias 2026</span>
+                  <span class="g-meta"><span class="avs"><span class="av" style="background:#e3a77f">M</span><span class="av" style="background:#7fc0dc">J</span><span class="av" style="background:#f0a0a0">A</span><span class="av" style="background:#a6d6c8">R</span></span>&nbsp;5 miembros</span></div>
+                <div class="g-bal settled"><span class="amt">Todo saldado</span></div>
+              </li>
+            </ul>
+            <button class="fab m-only"><svg class="i"><use href="#i-plus"/></svg></button>
+          </section>
+
+          <!-- ================= GROUP DETAIL ================= -->
+          <section class="screen-detail" style="--g:#5b72d6">
+            <header class="detail-head">
+              <a class="back icon-btn"><svg class="i"><use href="#i-back"/></svg></a>
+              <span class="g-icon d-only"><svg class="i"><use href="#i-home"/></svg></span>
+              <h1>Piso Gràcia</h1>
+              <div class="head-actions">
+                <button class="btn btn-primary d-only"><svg class="i"><use href="#i-plus"/></svg>Añadir gasto</button>
+                <button class="icon-btn"><svg class="i"><use href="#i-more"/></svg></button>
+              </div>
+            </header>
+
+            <div class="hero">
+              <span class="hero-label">Tu saldo en este grupo</span>
+              <span class="hero-amt">+46,00 €<small>te deben</small></span>
+              <span class="hero-sub">Joan y Marta te deben <b>58,00 €</b> · tú le debes <b>12,00 €</b> a Lucía</span>
+            </div>
+
+            <nav class="tabs"><a class="on">Gastos</a><a>Eventos</a><a>Estadísticas</a></nav>
+
+            <div class="detail-grid">
+              <section class="activity">
+                <div class="search"><svg class="i" style="width:18px;height:18px"><use href="#i-search"/></svg>Buscar gastos…</div>
+
+                <div class="day">
+                  <h3 class="day-head">Hoy <span>28 oct</span></h3>
+                  <div class="tx" style="--c:#e0a84a">
+                    <span class="tx-icon"><svg class="i"><use href="#i-cart"/></svg></span>
+                    <div class="tx-main"><span class="tx-title">Mercadona</span><span class="tx-meta">Joan pagó · tu parte <b>16,08 €</b></span></div>
+                    <span class="tx-amt num">64,30 €</span>
+                  </div>
+                  <div class="tx settle" style="--c:#8a8a85">
+                    <span class="tx-icon"><svg class="i"><use href="#i-swap"/></svg></span>
+                    <div class="tx-main"><span class="tx-title">Marta te pagó</span><span class="tx-meta">Liquidación</span></div>
+                    <span class="tx-amt num">15,00 €</span>
+                  </div>
+                </div>
+
+                <div class="day">
+                  <h3 class="day-head">Lunes <span>27 oct</span></h3>
+                  <div class="tx" style="--c:#5fb3d9">
+                    <span class="tx-icon"><svg class="i"><use href="#i-zap"/></svg></span>
+                    <div class="tx-main"><span class="tx-title">Factura de la luz</span><span class="tx-meta">Pagaste tú · tu parte <b>22,03 €</b></span></div>
+                    <span class="tx-amt num">88,12 €</span>
+                  </div>
+                  <div class="tx" style="--c:#9b8cf0">
+                    <span class="tx-icon"><svg class="i"><use href="#i-wifi"/></svg></span>
+                    <div class="tx-main"><span class="tx-title">Fibra Digi</span><span class="tx-meta">Marta pagó · tu parte <b>7,50 €</b></span></div>
+                    <span class="tx-amt num">30,00 €</span>
+                  </div>
+                </div>
+
+                <div class="day">
+                  <h3 class="day-head">Viernes <span>24 oct</span></h3>
+                  <div class="tx" style="--c:#ef7d6b">
+                    <span class="tx-icon"><svg class="i"><use href="#i-food"/></svg></span>
+                    <div class="tx-main"><span class="tx-title">Cena de pizzas</span><span class="tx-meta">Pagaste tú · tu parte <b>10,50 €</b></span></div>
+                    <span class="tx-amt num">42,00 €</span>
+                  </div>
+                </div>
+              </section>
+
+              <aside class="balances">
+                <h2 class="section-label">Saldos</h2>
+                <div class="bal-row pos"><span class="av" style="background:#e3a77f">M</span>
+                  <div class="bal-who"><span class="name">Marta</span><span class="hint">te debe</span></div>
+                  <span class="amt num">30,00 €</span><button class="link">Saldar</button></div>
+                <div class="bal-row pos"><span class="av" style="background:#7fc0dc">J</span>
+                  <div class="bal-who"><span class="name">Joan</span><span class="hint">te debe</span></div>
+                  <span class="amt num">28,00 €</span><button class="link">Saldar</button></div>
+                <div class="bal-row neg"><span class="av" style="background:#b9a2e6">L</span>
+                  <div class="bal-who"><span class="name">Lucía</span><span class="hint">le debes</span></div>
+                  <span class="amt num">12,00 €</span><button class="link">Saldar</button></div>
+                <p class="fine">Todos los saldos en EUR</p>
+              </aside>
+            </div>
+            <button class="fab m-only"><svg class="i"><use href="#i-plus"/></svg></button>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="notes">
+  <div data-for="a">
+    <h2>A · Libro: the app as a household account book</h2>
+    <ul>
+      <li>Fraunces (serif) for headings, labels and the large numbers. Public Sans for UI text, IBM Plex Mono for amounts in rows so the euros line up in columns.</li>
+      <li>Warm neutrals (brown-black and paper white) replace the cold navy. Backgrounds still don't change with the accent preset.</li>
+      <li>No nested cards. Rows sit on dashed ledger lines, page titles get a double rule, and only the Balances side panel is a surface.</li>
+      <li>The fixed gold (#d9b56c) marks the active tab and active group. It's a fixed colour, not <code>--secondary</code>, because that variable changes with each preset.</li>
+      <li>The accent preset only drives buttons, links and the FAB.</li>
+    </ul>
+  </div>
+  <div data-for="b">
+    <h2>B · Bloque: bold, graphic, colour as structure</h2>
+    <ul>
+      <li>One heavy grotesque typeface (Bricolage Grotesque) for everything. Big tight headings, 80px+ balance numbers.</li>
+      <li>No borders. Hierarchy comes from filled surfaces, large radii and colour blocks.</li>
+      <li>The accent preset becomes the identity: your balance hero and the "te deben" block are filled with <code>--primary</code>, so changing the preset changes the whole personality.</li>
+      <li>Group colours become solid tiles, and categories get a soft colour tile on each expense row.</li>
+      <li>Risk: with the Amber, Orange or Green presets the hero is a large mid-tone block. <code>--text-on-accent</code> handles contrast, but it's loud.</li>
+    </ul>
+  </div>
+  <p style="margin-top:16px;color:#888">Shared in both: date-grouped activity, a "your balance" hero in group detail, the "te deben / debes" totals kept separate (never netted) on Grupos, coloured member avatars, one brand mark on desktop, and no gradients. The mockup data is invented. Fonts load from Google Fonts here; the real app would self-host them.</p>
+</section>
+
+<script>
+  const ACCENTS = {
+    Blue: ['#5B72D6', '#7387DC', '#B1BCEC', '#08101F'], Green: ['#4C8F63', '#57A371', '#C0DDCA', '#08101F'],
+    Red: ['#C25450', '#CA6A67', '#E6B9B7', '#08101F'], Purple: ['#7C5FBF', '#8E75C8', '#C6BAE3', '#F2F5FA'],
+    Pink: ['#C15A87', '#C97097', '#E5B9CC', '#08101F'], Amber: ['#A97A22', '#C28C27', '#EFD8AE', '#08101F'],
+    Orange: ['#C36B3E', '#CA7D55', '#E8C6B5', '#08101F'], Navy: ['#35507D', '#3E5E92', '#BBCAE2', '#F2F5FA'],
+  }
+  const app = document.getElementById('app')
+  const frame = document.getElementById('frame')
+  function setAccent(name) {
+    const [p, h, f, on] = ACCENTS[name]
+    app.style.setProperty('--primary', p); app.style.setProperty('--primary-hover', h)
+    app.style.setProperty('--action-text', f); app.style.setProperty('--text-on-accent', on)
+    document.querySelectorAll('#accents .sw').forEach(b => b.classList.toggle('on', b.dataset.v === name))
+  }
+  const acc = document.getElementById('accents')
+  Object.keys(ACCENTS).forEach(n => {
+    const b = document.createElement('button'); b.className = 'sw'; b.dataset.v = n; b.title = n
+    b.style.background = ACCENTS[n][0]; b.onclick = () => setAccent(n); acc.appendChild(b)
+  })
+  setAccent('Blue')
+  document.querySelectorAll('.toolbar [data-ctl]').forEach(grp => {
+    grp.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return
+      grp.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b))
+      const v = b.dataset.v, ctl = grp.dataset.ctl
+      if (ctl === 'dir') { app.classList.remove('dir-a', 'dir-b'); app.classList.add('dir-' + v); document.body.dataset.dir = v }
+      if (ctl === 'screen') { app.dataset.screen = v; app.scrollTop = 0 }
+      if (ctl === 'view') frame.classList.toggle('mobile', v === 'mobile')
+    })
+  })
+  // Sidebar/group rows navigate between the two screens, so the mockup can be clicked through.
+  document.querySelectorAll('.group-row, .side-item:not(.action)').forEach(el => el.addEventListener('click', () => document.querySelector('[data-ctl=screen] [data-v=detail]').click()))
+  document.querySelector('.back').addEventListener('click', () => document.querySelector('[data-ctl=screen] [data-v=groups]').click())
+  // ?dir=b&screen=detail&view=mobile&accent=Amber opens a specific combination directly.
+  const q = new URLSearchParams(location.search)
+  ;['dir', 'screen', 'view'].forEach(k => q.get(k) && document.querySelector(`[data-ctl=${k}] [data-v=${q.get(k)}]`)?.click())
+  if (ACCENTS[q.get('accent')]) setAccent(q.get('accent'))
+</script>
+</body>
+</html>

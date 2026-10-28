@@ -453,6 +453,18 @@ that first) reuses the same Firebase project as Android for push.
   to respond to the accent picker must be consumed as `{DynamicResource
   ...}`, not `{StaticResource ...}` — the latter resolves once at load and
   never picks up a preset change.
+- **Web visual style ("Bloque", 2026-10-28) diverges from Android on purpose**:
+  neutral near-black surfaces, self-hosted Bricolage Grotesque
+  (`@fontsource-variable/bricolage-grotesque`, imported in `main.tsx`), no
+  borders (filled surfaces; `.card`/controls keep a transparent border so
+  forced-colors still outlines them), large text tabs, flat balance rows.
+  Tokens live in `webapp/src/index.css`; Android has not been ported. On
+  desktop the home `AppHeader` is visually hidden (sidebar has brand,
+  profile and logout) — any action added to that header needs a sidebar
+  equivalent. Visual review fixture: `npx vite webapp --config
+  webapp/tests/visual.vite.config.ts` (mocked read-only data, port 5175;
+  `?qaTab=1|2`, `?qaAccent=`, `?qaSignedOut=1`,
+  `/tests/fixtures/mobile-frame.html#<path>` for a true 390px viewport).
 - **Web accent presets** (`webapp/src/lib/accent.ts`) copy the same 8 presets'
   values from `AccentPalettes.cs` into the accent CSS variables in
   `index.css`, applied in `main.tsx` before the first render. Every web accent

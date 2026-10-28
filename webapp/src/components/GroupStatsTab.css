@@ -15,12 +15,12 @@
 
 .stats-ranges button,
 .stats-mode button {
-  background: transparent;
-  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  border: 1px solid transparent;
   border-radius: var(--radius-pill);
   color: var(--text-secondary);
   padding: 6px 14px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 13px;
   min-height: 36px;
 }
@@ -29,6 +29,12 @@
   padding: 4px 10px;
   min-height: 30px;
   font-size: 12px;
+}
+
+.stats-ranges button:hover:not(.active),
+.stats-mode button:hover:not(.active) {
+  background: var(--surface-emphasis);
+  color: var(--text-primary);
 }
 
 .stats-ranges button.active,
@@ -253,7 +259,7 @@
   top: 0;
   transform: translateX(-50%);
   background: var(--surface-emphasis);
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   padding: 8px 10px;
   font-size: 12px;
@@ -328,6 +334,7 @@
   body.printing-stats .stats-print {
     display: block;
     color: #000;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     font-size: 11pt;
   }
 

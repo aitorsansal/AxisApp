@@ -249,7 +249,7 @@ export function MembersPage() {
           <ul className="match-list">
             {matches.map((m) => (
               <li key={m.id} className="match-row">
-                <Avatar url={avatarUrl(m)} initials={initials(m)} size={32} />
+                <Avatar url={avatarUrl(m)} initials={initials(m)} seed={m.id} size={32} />
                 <span className="match-name">{displayName(m)}</span>
                 {m.account_id ? (
                   <span className="match-hint">{t('Members_AlreadyOnAxis')}</span>
@@ -285,7 +285,7 @@ export function MembersPage() {
             <ul className="pending-list">
               {phantoms.map((row) => (
                 <li key={row.member_id} className="pending-row">
-                  <Avatar url={null} initials={initials(row.members)} size={32} />
+                  <Avatar url={null} initials={initials(row.members)} seed={row.member_id} size={32} />
                   <span className="match-name">{displayName(row.members)}</span>
                   <button
                     type="button"
@@ -309,7 +309,7 @@ export function MembersPage() {
             const isPhantom = !row.members.account_id
             return (
               <li key={row.member_id} className="card roster-row">
-                <Avatar url={avatarUrl(row.members)} initials={initials(row.members)} size={40} />
+                <Avatar url={avatarUrl(row.members)} initials={initials(row.members)} seed={row.member_id} size={40} />
                 <div className="roster-info">
                   {renamingId === row.member_id ? (
                     <div className="rename-row">

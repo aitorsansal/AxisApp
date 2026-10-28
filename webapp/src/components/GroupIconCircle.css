@@ -1,10 +1,11 @@
+/* A rounded tile, not a circle: its corner radius scales with the size it's rendered at. */
 .group-icon-circle {
   flex-shrink: 0;
-  border-radius: 50%;
+  border-radius: 30%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 800;
   color: #fff;
   line-height: 1;
 }

@@ -204,7 +204,7 @@ export function EventDetailPage() {
           : ''
     return (
       <div className="attendee-row" key={a.member_id}>
-        <Avatar url={avatarUrl(memberInfo)} initials={initials(memberInfo)} size={30} />
+        <Avatar url={avatarUrl(memberInfo)} initials={initials(memberInfo)} seed={memberInfo.id} size={30} />
         <div>
           <div className="attendee-name">
             {displayName(memberInfo)}{' '}

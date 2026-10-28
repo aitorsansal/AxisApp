@@ -1,5 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+// Self-hosted (bundled by Vite), weight + optical-size axes: big headings get the display cut
+// automatically via font-optical-sizing.
+import '@fontsource-variable/bricolage-grotesque/opsz.css'
 import './index.css'
 import App from './App.tsx'
 import { applyAccent, getAccent } from './lib/accent'
