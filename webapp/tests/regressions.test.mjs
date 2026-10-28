@@ -10,7 +10,7 @@ import { nextDue } from '../src/lib/recurringSchedule.ts'
 import { formatExpenseAmount } from '../src/lib/amountDisplay.ts'
 import { pairBreakdown } from '../src/lib/pairBreakdown.ts'
 import { categoryColor, categoryFrequency, categoryTrend, expensesCsv, filterByRange, rangeCutoff, settlementsByMonth, spendByCategory, spendByMember } from '../src/lib/stats.ts'
-import { formatEventRange } from '../src/lib/dates.ts'
+import { expenseTimestamp, isCalendarDate, localDateInput, localDateTimeToIso, formatEventRange } from '../src/lib/dates.ts'
 import { isSettlementDate, settlementCents, settlementParties, settlementPayload } from '../src/lib/settlements.ts'
 import { strings } from '../src/lib/i18n/strings.ts'
 
@@ -256,4 +256,44 @@ test('pair breakdown lines add up to the pairwise balance, like PairBreakdown.cs
     [{ expense_id: 'a', member_id: 'them', share_amount_in_group_currency: 0.1 }, { expense_id: 'b', member_id: 'them', share_amount_in_group_currency: 0.2 }, { expense_id: 'c', member_id: 'me', share_amount_in_group_currency: 0.3 }],
     'me', 'them')
   assert.equal(drift.balance, 0)
+})
+
+
+test('calendar dates reject impossible days, invalid years and incomplete input', () => {
+  for (const value of ['', '2026-02-31', '2026-02-29', '1900-02-29', '2026-04-31',
+    '2026-13-01', '2026-00-01', '2026-01-00', '2026-01-32', '0000-01-01',
+    '2026-1-01', '2026-01-1', '2026-01-', '2026-01-01extra']) {
+    assert.equal(isCalendarDate(value), false, value)
+    assert.throws(() => expenseTimestamp(value, null), RangeError, value)
+    assert.throws(() => localDateTimeToIso(value, '12:00'), RangeError, value)
+  }
+  for (const value of ['2028-02-29', '2000-02-29', '2026-04-30', '2026-12-31', '0001-01-01', '0099-01-01']) {
+    assert.equal(isCalendarDate(value), true, value)
+    assert.equal(localDateInput(expenseTimestamp(value, null)), value)
+    assert.equal(localDateInput(localDateTimeToIso(value, '12:30')), value)
+  }
+  assert.throws(() => expenseTimestamp('2026-02-31', '2026-03-03T00:00:00Z'), RangeError)
+})
+
+test('event date-time conversion rejects invalid times and preserves valid local input', () => {
+  for (const time of ['', '24:00', '12:60', '9:00', '12:00junk'])
+    assert.throws(() => localDateTimeToIso('2026-10-28', time), RangeError, time)
+  const result = new Date(localDateTimeToIso('2028-02-29', '23:15'))
+  assert.equal(result.getFullYear(), 2028)
+  assert.equal(result.getMonth(), 1)
+  assert.equal(result.getDate(), 29)
+  assert.equal(result.getHours(), 23)
+  assert.equal(result.getMinutes(), 15)
+})
+
+test('calendar validation is stable across time zones and rejects skipped local event times', () => {
+  for (const zone of ['Europe/Madrid', 'America/Los_Angeles', 'Asia/Tokyo']) {
+    const result = execFileSync(process.execPath, ['--experimental-strip-types', '--input-type=module', '-e', `
+      import { isCalendarDate, localDateTimeToIso } from './src/lib/dates.ts';
+      let rejected = false;
+      try { localDateTimeToIso('2026-03-29', '02:30'); } catch { rejected = true; }
+      console.log(JSON.stringify({ leap: isCalendarDate('2028-02-29'), invalid: isCalendarDate('2026-02-31'), rejected }));
+    `], { cwd: new URL('..', import.meta.url), env: { ...process.env, TZ: zone }, encoding: 'utf8' })
+    assert.deepEqual(JSON.parse(result), { leap: true, invalid: false, rejected: zone === 'Europe/Madrid' })
+  }
 })

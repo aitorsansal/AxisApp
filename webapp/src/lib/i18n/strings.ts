@@ -13,6 +13,9 @@ export const SUPPORTED_LANGUAGES: readonly Language[] = ['en', 'es']
 type Dictionary = Record<string, string>
 
 const en: Dictionary = {
+  DateInput_Invalid: 'Enter a valid date in dd/mm/yyyy format.',
+  DateInput_InvalidDateTime: 'Enter a valid date and time.',
+  Common_SaveFailed: 'Could not save. Please try again.',
   AmountInput_FormatHint: 'Use 1234.56 or 1234,56, without thousands separators.',
   AmountInput_Invalid: 'Enter a positive amount such as 1234.56 or 1234,56, without thousands separators.',
   AmountInput_TooLarge: 'The maximum amount is 9999999999.99.',
@@ -427,6 +430,9 @@ const en: Dictionary = {
 }
 
 const es: Dictionary = {
+  DateInput_Invalid: 'Introduce una fecha válida en formato dd/mm/aaaa.',
+  DateInput_InvalidDateTime: 'Introduce una fecha y hora válidas.',
+  Common_SaveFailed: 'No se ha podido guardar. Vuelve a intentarlo.',
   AmountInput_FormatHint: 'Usa 1234.56 o 1234,56, sin separadores de miles.',
   AmountInput_Invalid: 'Introduce un importe positivo como 1234.56 o 1234,56, sin separadores de miles.',
   AmountInput_TooLarge: 'El importe máximo es 9999999999.99.',

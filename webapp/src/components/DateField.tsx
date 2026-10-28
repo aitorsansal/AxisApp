@@ -1,4 +1,6 @@
-import { useEffect, useState, type FocusEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useLocale } from '../context/LocaleContext'
+import { isCalendarDate } from '../lib/dates'
 
 // Native <input type="date"> renders its displayed format (not just the
 // picker) from the browser's own locale (navigator.languages), not from an
@@ -46,34 +48,52 @@ export function DateField({
   onChange: (isoValue: string) => void
   required?: boolean
 }) {
+  const { t } = useLocale()
   const [text, setText] = useState(() => isoToDisplay(value))
+  const [touched, setTouched] = useState(false)
+  const emittedValue = useRef(value)
+  const input = useRef<HTMLInputElement>(null)
+  const iso = displayToIso(text)
+  const valid = (!required && text === '') || (iso !== null && isCalendarDate(iso))
+  const message = valid ? '' : t('DateInput_Invalid')
 
   useEffect(() => {
-    setText(isoToDisplay(value))
+    if (value !== emittedValue.current) {
+      emittedValue.current = value
+      setText(isoToDisplay(value))
+      setTouched(false)
+    }
   }, [value])
+
+  useEffect(() => {
+    input.current?.setCustomValidity(message)
+  }, [message])
 
   function handleChange(raw: string) {
     const next = autoSlash(raw, text)
     setText(next)
-    const iso = displayToIso(next)
-    if (iso) onChange(iso)
-  }
-
-  function handleBlur(e: FocusEvent<HTMLInputElement>) {
-    const iso = displayToIso(e.target.value)
-    setText(iso ? isoToDisplay(iso) : isoToDisplay(value))
+    const nextValue = displayToIso(next) ?? ''
+    emittedValue.current = nextValue
+    onChange(nextValue)
   }
 
   return (
-    <input
-      id={id}
-      type="text"
-      inputMode="numeric"
-      placeholder="dd/mm/yyyy"
-      required={required}
-      value={text}
-      onChange={(e) => handleChange(e.target.value)}
-      onBlur={handleBlur}
-    />
+    <>
+      <input
+        ref={input}
+        id={id}
+        type="text"
+        inputMode="numeric"
+        placeholder="dd/mm/yyyy"
+        required={required}
+        value={text}
+        aria-invalid={touched && !valid}
+        aria-describedby={touched && !valid ? `${id}-error` : undefined}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={() => setTouched(true)}
+        onInvalid={() => setTouched(true)}
+      />
+      {touched && !valid && <p id={`${id}-error`} className="error-text" role="alert">{message}</p>}
+    </>
   )
 }

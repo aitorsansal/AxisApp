@@ -7,7 +7,7 @@ import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import { resizeImageToWebp } from '../lib/imageResize'
 import { equalSplitCents } from '../lib/expenseMath'
-import { expenseTimestamp, localDateInput } from '../lib/dates'
+import { expenseTimestamp, isCalendarDate, localDateInput } from '../lib/dates'
 import {
   CATEGORY_KEYS,
   CURRENCIES,
@@ -328,52 +328,68 @@ export function AddExpensePage() {
       return
     }
 
+    if (!isCalendarDate(isRecurringMode ? startDate : occurredOn)) {
+      setError(t('DateInput_Invalid'))
+      return
+    }
+    let occurredAt: string | null = null
+    if (!isRecurringMode) {
+      try {
+        occurredAt = expenseTimestamp(occurredOn, originalOccurredAt.current)
+      } catch {
+        setError(t('DateInput_Invalid'))
+        return
+      }
+    }
     setBusy(true)
+    try {
+      // One transaction per save (supabase/atomic_expense_save.sql) — the row and
+      // its full share list commit or roll back together. created_by/created_at
+      // (and a template's schedule fields) are server-owned, never sent.
+      if (isRecurringMode) {
+        const { error: saveError } = await supabase.rpc('save_recurring_expense', {
+          p_template: {
+            id: recurringId ?? null,
+            group_id: groupId,
+            paid_by_member_id: paidBy,
+            amount: total,
+            currency,
+            description,
+            category,
+            frequency,
+            start_date: startDate,
+          },
+          p_shares: buildShares(),
+        })
+        if (saveError) return setError(saveError.message)
+        goBackTo(`/groups/${groupId}/recurring`)
+        return
+      }
 
-    // One transaction per save (supabase/atomic_expense_save.sql) — the row and
-    // its full share list commit or roll back together. created_by/created_at
-    // (and a template's schedule fields) are server-owned, never sent.
-    if (isRecurringMode) {
-      const { error: saveError } = await supabase.rpc('save_recurring_expense', {
-        p_template: {
-          id: recurringId ?? null,
+      const { error: saveError } = await supabase.rpc('save_expense', {
+        p_expense: {
+          id: expenseId ?? null,
           group_id: groupId,
           paid_by_member_id: paidBy,
           amount: total,
           currency,
           description,
-          category,
-          frequency,
-          start_date: startDate,
+          category: isSettlement ? '' : category,
+          occurred_at: occurredAt,
+          receipt_path: receiptPath,
+          is_settlement: isSettlement,
+          event_id: linkedEventId,
         },
         p_shares: buildShares(),
       })
-      setBusy(false)
       if (saveError) return setError(saveError.message)
-      goBackTo(`/groups/${groupId}/recurring`)
-      return
+
+      goBackTo(parentPath)
+    } catch {
+      setError(t('Common_SaveFailed'))
+    } finally {
+      setBusy(false)
     }
-
-    const { error: saveError } = await supabase.rpc('save_expense', {
-      p_expense: {
-        id: expenseId ?? null,
-        group_id: groupId,
-        paid_by_member_id: paidBy,
-        amount: total,
-        currency,
-        description,
-        category: isSettlement ? '' : category,
-        occurred_at: expenseTimestamp(occurredOn, originalOccurredAt.current),
-        receipt_path: receiptPath,
-        is_settlement: isSettlement,
-        event_id: linkedEventId,
-      },
-      p_shares: buildShares(),
-    })
-    setBusy(false)
-    if (saveError) return setError(saveError.message)
-
-    goBackTo(parentPath)
   }
 
   async function handleDelete() {

@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useLocale } from '../context/LocaleContext'
 import { AppHeader } from '../components/AppHeader'
 import { DateField } from '../components/DateField'
+import { isCalendarDate, localDateTimeToIso } from '../lib/dates'
 import './AddEventPage.css'
 
 function toLocalDateInput(iso: string): string {
@@ -16,10 +17,6 @@ function toLocalDateInput(iso: string): string {
 function toLocalTimeInput(iso: string): string {
   const d = new Date(iso)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-
-function combineToIso(date: string, time: string): string {
-  return new Date(`${date}T${time}`).toISOString()
 }
 
 export function AddEventPage() {
@@ -81,51 +78,63 @@ export function AddEventPage() {
       return
     }
     setError(null)
-    if (hasEndTime && new Date(`${endDate}T${endTime}`) <= new Date(`${startDate}T${startTime}`)) {
+    if (!isCalendarDate(startDate) || (hasEndTime && !isCalendarDate(endDate))) {
+      setError(t('DateInput_Invalid'))
+      return
+    }
+    let startsAt: string
+    let endsAt: string | null
+    try {
+      startsAt = localDateTimeToIso(startDate, startTime)
+      endsAt = hasEndTime ? localDateTimeToIso(endDate, endTime) : null
+    } catch {
+      setError(t('DateInput_InvalidDateTime'))
+      return
+    }
+    if (endsAt && new Date(endsAt) <= new Date(startsAt)) {
       setError(t('AddEvent_EndAfterStart'))
       return
     }
     setBusy(true)
-
-    const payload = {
-      group_id: groupId,
-      title: title.trim(),
-      description: description.trim() || null,
-      location: location.trim() || null,
-      starts_at: combineToIso(startDate, startTime),
-      ends_at: hasEndTime ? combineToIso(endDate, endTime) : null,
-      needs_transport: needsTransport,
-    }
-
-    if (eventId) {
-      const { error } = await supabase.from('events').update(payload).eq('id', eventId)
-      setBusy(false)
-      if (error) return setError(error.message)
-    } else {
-      const { data: inserted, error } = await supabase
-        .from('events')
-        .insert({ ...payload, created_by: session?.user.id })
-        .select('id')
-        .single()
-      if (error) {
-        setBusy(false)
-        return setError(error.message)
+    try {
+      const payload = {
+        group_id: groupId,
+        title: title.trim(),
+        description: description.trim() || null,
+        location: location.trim() || null,
+        starts_at: startsAt,
+        ends_at: endsAt,
+        needs_transport: needsTransport,
       }
-      // Creator auto-RSVPs "going" — same as AddEventViewModel.Save.
-      const { data: myMember } = await supabase
-        .from('members')
-        .select('id')
-        .eq('account_id', session?.user.id)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-      if (myMember) {
-        await supabase.from('event_attendees').insert({ event_id: inserted.id, member_id: myMember.id, response: 'going' })
+
+      if (eventId) {
+        const { error } = await supabase.from('events').update(payload).eq('id', eventId)
+        if (error) return setError(error.message)
+      } else {
+        const { data: inserted, error } = await supabase
+          .from('events')
+          .insert({ ...payload, created_by: session?.user.id })
+          .select('id')
+          .single()
+        if (error) return setError(error.message)
+        // Creator auto-RSVPs "going" — same as AddEventViewModel.Save.
+        const { data: myMember } = await supabase
+          .from('members')
+          .select('id')
+          .eq('account_id', session?.user.id)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+        if (myMember) {
+          await supabase.from('event_attendees').insert({ event_id: inserted.id, member_id: myMember.id, response: 'going' })
+        }
       }
+      goBackTo(parentPath)
+    } catch {
+      setError(t('Common_SaveFailed'))
+    } finally {
       setBusy(false)
     }
-
-    goBackTo(parentPath)
   }
 
   async function handleDelete() {
