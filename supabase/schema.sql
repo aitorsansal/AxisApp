@@ -1524,8 +1524,14 @@ alter table public.members add column avatar_path text;
 -- phantom's creator set avatar_path directly, bypassing Storage entirely.
 insert into storage.buckets (id, name, public) values ('avatars', 'avatars', true);
 
-create policy "anyone can view avatars" on storage.objects
-  for select using (bucket_id = 'avatars');
+-- No SELECT policy on the avatars bucket: it is a public bucket, so avatar
+-- images are served through the public object endpoint
+-- (/storage/v1/object/public/avatars/...), which bypasses RLS. The app only
+-- ever reads avatars by known path via getPublicUrl() (web) /
+-- GetPublicUrl() (MAUI) — nothing lists the bucket. A broad
+-- "for select using (bucket_id = 'avatars')" policy added nothing to display
+-- but let any client (anon included) enumerate every object, leaking member
+-- IDs; it was dropped from the live DB and is intentionally absent here.
 
 create policy "manage your own avatar" on storage.objects
   for insert with check (
