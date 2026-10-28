@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import { resizeImageToWebp } from '../lib/imageResize'
-import { equalSplitCents } from '../lib/expenseMath'
+import { editableEqualSplitCents, restoredSplitMode } from '../lib/splitMode'
 import { expenseTimestamp, isCalendarDate, localDateInput } from '../lib/dates'
 import {
   CATEGORY_KEYS,
@@ -57,8 +57,9 @@ export function AddExpensePage() {
   const [participants, setParticipants] = useState<Set<string>>(new Set())
   // Mirrors AddExpenseViewModel.IsManualSplit: off = shares derived equally from
   // amount + participants; on = shareInputs holds each participant's typed amount.
-  // Editing starts in manual mode so a saved uneven split is never flattened.
+  // Only explicit saved intent restores Equal; legacy records remain Manual.
   const [isManualSplit, setIsManualSplit] = useState(false)
+  const [savedEqualShares, setSavedEqualShares] = useState<Record<string, number> | null>(null)
   const [shareInputs, setShareInputs] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -88,6 +89,7 @@ export function AddExpensePage() {
     if (!groupId) return
     ;(async () => {
       setExpenseLoaded(false)
+      setSavedEqualShares(null)
       originalOccurredAt.current = null;
       const [groupRes, membersRes] = await Promise.all([
         supabase.from('groups').select('id, name, currency, created_by').eq('id', groupId).single(),
@@ -147,8 +149,7 @@ export function AddExpensePage() {
         setLinkedEventId(expense.event_id)
         loadShares(sharesRes.data ?? [])
         // A settlement is always one share for the full amount — keep it derived.
-        setIsManualSplit(!expense.is_settlement)
-        setExpenseLoaded(true)
+        setIsManualSplit(!expense.is_settlement && restoredSplitMode(expense.split_mode) === 'manual')
         if (expense.receipt_path) {
           const { data: signed } = await supabase.storage
             .from(RECEIPTS_BUCKET)
@@ -167,6 +168,7 @@ export function AddExpensePage() {
             .eq('recurring_expense_id', recurringId),
         ])
         if (templateRes.error) return setError(templateRes.error.message)
+        if (sharesRes.error) return setError(sharesRes.error.message)
         const tpl = templateRes.data
         setDescription(tpl.description ?? '')
         setAmount(String(tpl.amount))
@@ -176,7 +178,7 @@ export function AddExpensePage() {
         setFrequency(tpl.frequency)
         setPaidBy(tpl.paid_by_member_id)
         loadShares(sharesRes.data ?? [])
-        setIsManualSplit(true)
+        setIsManualSplit(restoredSplitMode(tpl.split_mode) === 'manual')
       } else {
         setCurrency(groupData.currency)
         const myRow = memberRows.find((m) => m.members.account_id === session?.user.id)
@@ -204,11 +206,13 @@ export function AddExpensePage() {
           setParticipants(new Set(memberRows.map((m) => m.member_id)))
         }
       }
+      setExpenseLoaded(true)
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, expenseId, recurringId, session])
 
   function loadShares(rows: { member_id: string; share_amount: number }[]) {
+    setSavedEqualShares(Object.fromEntries(rows.map((s) => [s.member_id, Math.round(Number(s.share_amount) * 100)])))
     setParticipants(new Set(rows.map((s) => s.member_id)))
     setShareInputs(
       Object.fromEntries(rows.map((s) => [s.member_id, Number(s.share_amount).toLocaleString(language === 'es' ? 'es-ES' : 'en-US', {
@@ -224,7 +228,7 @@ export function AddExpensePage() {
   const useEqualSplit = !isManualSplit || isSettlement
   const parsedShares = Object.fromEntries(includedIds.map((id) => [id, parseAmountInput(shareInputs[id] ?? '')]))
   const shareCents: Record<string, number> = useEqualSplit
-    ? equalSplitCents(totalCents, includedIds)
+    ? editableEqualSplitCents(totalCents, includedIds, savedEqualShares)
     : Object.fromEntries(includedIds.map((id) => [id, parsedShares[id].cents ?? 0]))
   const remainingCents = totalCents - includedIds.reduce((sum, id) => sum + shareCents[id], 0)
   const shareInputsValid = useEqualSplit || includedIds.every((id) => parsedShares[id].cents !== null)
@@ -263,6 +267,7 @@ export function AddExpensePage() {
 
   function handleSplitEqually() {
     setError(null)
+    setSavedEqualShares(null)
     setIsManualSplit(false)
     setShareInputs({})
   }
@@ -343,6 +348,9 @@ export function AddExpensePage() {
     }
     setBusy(true)
     try {
+      const { error: schemaError } = await supabase
+        .from(isRecurringMode ? 'recurring_expenses' : 'expenses').select('split_mode').limit(0)
+      if (schemaError) return setError(t('AddExpense_SaveUnavailable'))
       // One transaction per save (supabase/atomic_expense_save.sql) — the row and
       // its full share list commit or roll back together. created_by/created_at
       // (and a template's schedule fields) are server-owned, never sent.
@@ -357,6 +365,7 @@ export function AddExpensePage() {
             description,
             category,
             frequency,
+            split_mode: isManualSplit ? 'manual' : 'equal',
             start_date: startDate,
           },
           p_shares: buildShares(),
@@ -378,6 +387,7 @@ export function AddExpensePage() {
           occurred_at: occurredAt,
           receipt_path: receiptPath,
           is_settlement: isSettlement,
+          split_mode: isSettlement ? null : isManualSplit ? 'manual' : 'equal',
           event_id: linkedEventId,
         },
         p_shares: buildShares(),

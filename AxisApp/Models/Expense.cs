@@ -40,6 +40,9 @@ public class Expense : BaseModel
     [Column("description")]
     public string Description { get; set; } = "";
 
+    [Column("split_mode")]
+    public string? SplitMode { get; set; }
+
     [Column("category")]
     public string Category { get; set; } = "";
 

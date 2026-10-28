@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../AxisApp/Models/ExpenseSplitMode.cs" Link="ExpenseSplitMode.cs" />
     <Compile Include="../../AxisApp/Models/ExpenseMath.cs" Link="ExpenseMath.cs" />
     <Compile Include="../../AxisApp/Models/SettlementRules.cs" Link="SettlementRules.cs" />
     <Compile Include="../../AxisApp/Models/AmountInput.cs" Link="AmountInput.cs" />

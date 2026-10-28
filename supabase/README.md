@@ -63,3 +63,7 @@ Realtime + Storage). If you self-host it later — e.g. on your NAS — "migrati
 is just running this same `schema.sql` against the self-hosted instance and
 updating `Config.Local.cs` to point at its URL/key instead. No data
 migration, no auth migration, because it's the same software either way.
+
+## Split-mode migration (existing projects)
+
+Run the complete [`split_mode.sql`](./split_mode.sql) before deploying the web split-mode update. Existing data remains unknown/NULL rather than guessing Equal from its amounts. The script is transactional and rerunnable, preserves hardened save authorization, supports older Android clients, and carries mode into generated recurring expenses. See [rollout and verification](./SPLIT_MODE_ROLLOUT.md). Fresh projects already include this change in `schema.sql`.

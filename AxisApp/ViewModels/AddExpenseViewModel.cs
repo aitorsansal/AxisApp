@@ -127,7 +127,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     private DateTime? editingLastProcessedDate;
     private bool editingRecurringIsActive = true;
     private bool redistributing;
-
+    private Dictionary<Guid, decimal>? savedEqualShares;
     [ObservableProperty] private ObservableCollection<ExpenseParticipant> participants = [];
     [ObservableProperty] private ObservableCollection<PayerOption> payerOptions = [];
     [ObservableProperty] private ObservableCollection<CategoryChip> categoryChips = [];
@@ -299,6 +299,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     /// event_expenses.sql's design comment and CLAUDE.md's event-expenses discussion).</summary>
     public Task LoadAsync(Guid forGroupId, Guid? forExpenseId = null, Guid? forRecurringExpenseId = null, bool startAsRecurring = false, Guid? forEventId = null) => RunSafeAsync(async () =>
     {
+        savedEqualShares = null;
         groupId = forGroupId;
         editingExpenseId = forExpenseId;
         editingRecurringExpenseId = forRecurringExpenseId;
@@ -403,6 +404,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                     SelectPayer(myPayerOption);
 
                 SetCurrencyByCode(loadGroup.Result.Currency);
+                IsManualSplit = false;
                 RedistributeEqually();
             }
 
@@ -470,6 +472,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         if (payerOption is not null)
             SelectPayer(payerOption);
 
+        IsManualSplit = !ExpenseSplitMode.IsEqual(expense.SplitMode);
+        savedEqualShares = IsManualSplit ? null : shares.ToDictionary(s => s.MemberId, s => s.ShareAmount);
         RecalcRemaining();
     }
 
@@ -529,6 +533,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         if (payerOption is not null)
             SelectPayer(payerOption);
 
+        IsManualSplit = !ExpenseSplitMode.IsEqual(template.SplitMode);
+        savedEqualShares = IsManualSplit ? null : shares.ToDictionary(s => s.MemberId, s => s.ShareAmount);
         RecalcRemaining();
     }
 
@@ -624,6 +630,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [RelayCommand]
     private void SplitEqually()
     {
+        savedEqualShares = null;
         IsManualSplit = false;
         RedistributeEqually();
     }
@@ -671,7 +678,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                 return;
             }
 
-            var shares = ExpenseMath.SplitEqually(Amount, included.Count);
+            var shares = ExpenseSplitMode.AllocateEqual(Amount, included.Select(p => p.Member.Id).ToArray(), savedEqualShares);
             for (var i = 0; i < included.Count; i++)
                 included[i].Owes = shares[i];
 
@@ -736,6 +743,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                     Currency = currency,
                     Description = Description,
                     Category = SelectedCategory,
+                    SplitMode = IsManualSplit ? ExpenseSplitMode.Manual : ExpenseSplitMode.Equal,
                     Frequency = SelectedFrequency.ToString().ToLowerInvariant(),
                     StartDate = StartDate.Date,
                     LastProcessedDate = editingLastProcessedDate,
@@ -769,6 +777,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                     Currency = currency,
                     Description = Description,
                     Category = SelectedCategory,
+                    SplitMode = IsManualSplit ? ExpenseSplitMode.Manual : ExpenseSplitMode.Equal,
                     OccurredAt = editingOccurredAt is { } original && original.ToLocalTime().Date == OccurredOn.Date
                         ? original
                         : OccurredOn.Date.ToUniversalTime(),
@@ -787,6 +796,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                     expense.CreatedBy = editingCreatedBy;
                     expense.CreatedAt = editingCreatedAt;
                     expense.IsSettlement = editingIsSettlement;
+                    if (editingIsSettlement) expense.SplitMode = null;
                     await expensesRepository.UpdateAsync(expense, shares);
                 }
                 else

@@ -1,3 +1,4 @@
+import { editableEqualSplitCents, restoredSplitMode } from '../src/lib/splitMode.ts'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -296,4 +297,19 @@ test('calendar validation is stable across time zones and rejects skipped local 
     `], { cwd: new URL('..', import.meta.url), env: { ...process.env, TZ: zone }, encoding: 'utf8' })
     assert.deepEqual(JSON.parse(result), { leap: true, invalid: false, rejected: zone === 'Europe/Madrid' })
   }
+})
+
+
+test('saved split intent is explicit and legacy/manual shares are never inferred as Equal', () => {
+  assert.equal(restoredSplitMode('equal'), 'equal')
+  for (const mode of ['manual', null, undefined, '', 'unknown'])
+    assert.equal(restoredSplitMode(mode), 'manual')
+  const saved = { a: 333, b: 334, c: 333 }
+  assert.deepEqual(editableEqualSplitCents(1000, ['a', 'b', 'c'], saved), saved)
+  assert.deepEqual(editableEqualSplitCents(1000, ['c', 'a', 'b'], saved), saved)
+  assert.deepEqual(editableEqualSplitCents(1200, ['a', 'b', 'c'], saved), { a: 400, b: 400, c: 400 })
+  assert.deepEqual(editableEqualSplitCents(1000, ['a', 'b'], saved), { a: 500, b: 500 })
+  assert.deepEqual(editableEqualSplitCents(1000, ['a', 'b', 'd'], saved), { a: 334, b: 333, d: 333 })
+  assert.deepEqual(editableEqualSplitCents(1000, ['a', 'b', 'c'], null), { a: 334, b: 333, c: 333 })
+  assert.deepEqual(editableEqualSplitCents(1000, ['a', 'b'], { a: 900, b: 100 }), { a: 500, b: 500 })
 })

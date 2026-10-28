@@ -610,6 +610,7 @@ create table public.expenses (
   exchange_rate numeric(18,8) not null default 1,
   description text not null default '',
   category text not null default '',
+  split_mode text check (split_mode in ('equal', 'manual')),
   occurred_at timestamptz not null default now(),
   receipt_path text,
   created_by uuid not null references auth.users(id),
@@ -885,6 +886,7 @@ create table public.recurring_expenses (
     )),
   description text not null default '',
   category text not null default '',
+  split_mode text check (split_mode in ('equal', 'manual')),
   frequency text not null check (frequency in ('daily','weekly','monthly','yearly')),
   start_date date not null,
   last_processed_date date,
@@ -1706,9 +1708,9 @@ begin
 
       exit when v_occurrence > current_date or v_count >= 24;
 
-      insert into expenses (group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_by)
+      insert into expenses (group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_by, split_mode)
       values (v_template.group_id, v_template.paid_by_member_id, v_template.amount, v_template.currency,
-              v_template.description, v_template.category, v_occurrence, v_template.created_by)
+              v_template.description, v_template.category, v_occurrence, v_template.created_by, v_template.split_mode)
       returning id into v_new_expense_id;
 
       insert into expense_shares (expense_id, member_id, share_amount)
@@ -3023,6 +3025,9 @@ declare
   v_created_by uuid;
   v_old_payer uuid;
   v_amount numeric;
+  v_old_amount numeric;
+  v_old_split_mode text;
+  v_split_mode text := p_expense->>'split_mode';
   v_share_count int;
   v_share_sum numeric;
 begin
@@ -3041,10 +3046,10 @@ begin
     -- Authorize against the STORED row, never against p_expense — this function
     -- bypasses RLS, so trusting the caller's group_id here would let anyone edit
     -- any expense by id.
-    select group_id, created_by, paid_by_member_id
-      into v_group_id, v_created_by, v_old_payer
+    select group_id, created_by, paid_by_member_id, amount, split_mode
+      into v_group_id, v_created_by, v_old_payer, v_old_amount, v_old_split_mode
       from expenses
-     where id = v_id;
+     where id = v_id for update;
 
     if not found then
       raise exception 'Expense % not found', v_id;
@@ -3099,10 +3104,34 @@ begin
     raise exception 'Everyone in the split must be a member of this group';
   end if;
 
+  if v_split_mode is not null and v_split_mode not in ('equal', 'manual') then
+    raise exception 'Invalid split mode';
+  end if;
+
+  -- Older clients omit the key. Preserve intent on unchanged splits, but
+  -- invalidate Equal after an old client changes the amount or any share.
+  if not (p_expense ? 'split_mode') and v_id is not null then
+    v_split_mode := v_old_split_mode;
+    if v_old_split_mode = 'equal' and (
+      v_old_amount is distinct from (p_expense->>'amount')::numeric
+      or (select jsonb_object_agg(member_id::text, share_amount)
+            from expense_shares where expense_id = v_id)
+         is distinct from
+         (select jsonb_object_agg(((s->>'member_id')::uuid)::text, (s->>'share_amount')::numeric)
+            from jsonb_array_elements(p_shares) s)
+    ) then
+      v_split_mode := null;
+    end if;
+  end if;
+
+  if coalesce((p_expense->>'is_settlement')::boolean, false) then
+    v_split_mode := null;
+  end if;
+
   if v_id is null then
     insert into expenses (
       group_id, paid_by_member_id, amount, currency, description, category,
-      occurred_at, receipt_path, is_settlement, event_id, created_by
+      occurred_at, receipt_path, is_settlement, event_id, created_by, split_mode
     ) values (
       v_group_id,
       v_payer,
@@ -3114,7 +3143,8 @@ begin
       nullif(p_expense->>'receipt_path', ''),
       coalesce((p_expense->>'is_settlement')::boolean, false),
       nullif(p_expense->>'event_id', '')::uuid,
-      auth.uid()
+      auth.uid(),
+      v_split_mode
     )
     returning id into v_id;
   else
@@ -3122,6 +3152,7 @@ begin
       paid_by_member_id = v_payer,
       amount = (p_expense->>'amount')::numeric,
       currency = p_expense->>'currency',
+      split_mode = v_split_mode,
       description = coalesce(p_expense->>'description', ''),
       category = coalesce(p_expense->>'category', ''),
       occurred_at = coalesce((p_expense->>'occurred_at')::timestamptz, occurred_at),
@@ -3158,6 +3189,13 @@ begin
     raise exception 'A settlement must have exactly one share';
   end if;
 
+  if v_split_mode = 'equal' and (
+    select max(share_amount) - min(share_amount) > 0.01
+    from expense_shares where expense_id = v_id
+  ) then
+    raise exception 'Equal shares may differ by at most one cent';
+  end if;
+
   return v_id;
 end;
 $$;
@@ -3180,6 +3218,9 @@ declare
   v_created_by uuid;
   v_old_payer uuid;
   v_amount numeric;
+  v_old_amount numeric;
+  v_old_split_mode text;
+  v_split_mode text := p_template->>'split_mode';
   v_share_sum numeric;
 begin
   if auth.uid() is null then
@@ -3194,10 +3235,10 @@ begin
     v_group_id := v_sent_group_id;
     v_created_by := auth.uid();
   else
-    select group_id, created_by, paid_by_member_id
-      into v_group_id, v_created_by, v_old_payer
+    select group_id, created_by, paid_by_member_id, amount, split_mode
+      into v_group_id, v_created_by, v_old_payer, v_old_amount, v_old_split_mode
       from recurring_expenses
-     where id = v_id;
+     where id = v_id for update;
 
     if not found then
       raise exception 'Repeating expense % not found', v_id;
@@ -3242,10 +3283,30 @@ begin
     raise exception 'Everyone in the split must be a member of this group';
   end if;
 
+  if v_split_mode is not null and v_split_mode not in ('equal', 'manual') then
+    raise exception 'Invalid split mode';
+  end if;
+
+  -- Older clients omit the key. Preserve intent on unchanged splits, but
+  -- invalidate Equal after an old client changes the amount or any share.
+  if not (p_template ? 'split_mode') and v_id is not null then
+    v_split_mode := v_old_split_mode;
+    if v_old_split_mode = 'equal' and (
+      v_old_amount is distinct from (p_template->>'amount')::numeric
+      or (select jsonb_object_agg(member_id::text, share_amount)
+            from recurring_expense_shares where recurring_expense_id = v_id)
+         is distinct from
+         (select jsonb_object_agg(((s->>'member_id')::uuid)::text, (s->>'share_amount')::numeric)
+            from jsonb_array_elements(p_shares) s)
+    ) then
+      v_split_mode := null;
+    end if;
+  end if;
+
   if v_id is null then
     insert into recurring_expenses (
       group_id, paid_by_member_id, amount, currency, description, category,
-      frequency, start_date, created_by
+      frequency, start_date, created_by, split_mode
     ) values (
       v_group_id,
       v_payer,
@@ -3255,7 +3316,8 @@ begin
       coalesce(p_template->>'category', ''),
       p_template->>'frequency',
       (p_template->>'start_date')::date,
-      auth.uid()
+      auth.uid(),
+      v_split_mode
     )
     returning id into v_id;
   else
@@ -3263,6 +3325,7 @@ begin
       paid_by_member_id = v_payer,
       amount = (p_template->>'amount')::numeric,
       currency = p_template->>'currency',
+      split_mode = v_split_mode,
       description = coalesce(p_template->>'description', ''),
       category = coalesce(p_template->>'category', ''),
       frequency = p_template->>'frequency',
@@ -3292,6 +3355,13 @@ begin
   end if;
   if v_share_sum <> v_amount then
     raise exception 'Shares (%) must add up to the repeating expense amount (%)', v_share_sum, v_amount;
+  end if;
+
+  if v_split_mode = 'equal' and (
+    select max(share_amount) - min(share_amount) > 0.01
+    from recurring_expense_shares where recurring_expense_id = v_id
+  ) then
+    raise exception 'Equal shares may differ by at most one cent';
   end if;
 
   return v_id;

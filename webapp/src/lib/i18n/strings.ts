@@ -13,6 +13,7 @@ export const SUPPORTED_LANGUAGES: readonly Language[] = ['en', 'es']
 type Dictionary = Record<string, string>
 
 const en: Dictionary = {
+  AddExpense_SaveUnavailable: 'Saving expenses is temporarily unavailable. Please try again later.',
   DateInput_Invalid: 'Enter a valid date in dd/mm/yyyy format.',
   DateInput_InvalidDateTime: 'Enter a valid date and time.',
   Common_SaveFailed: 'Could not save. Please try again.',
@@ -430,6 +431,7 @@ const en: Dictionary = {
 }
 
 const es: Dictionary = {
+  AddExpense_SaveUnavailable: 'No se pueden guardar gastos en este momento. Vuelve a intentarlo más tarde.',
   DateInput_Invalid: 'Introduce una fecha válida en formato dd/mm/aaaa.',
   DateInput_InvalidDateTime: 'Introduce una fecha y hora válidas.',
   Common_SaveFailed: 'No se ha podido guardar. Vuelve a intentarlo.',

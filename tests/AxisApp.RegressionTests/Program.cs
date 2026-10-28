@@ -107,3 +107,22 @@ using (var cases = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Com
     }
 }
 Console.WriteLine("Shared amount-input fixtures passed: totals, shares and settlements use the same 40 cases as web.");
+
+
+Check(ExpenseSplitMode.IsEqual("equal"), "Explicit Equal restores Equal");
+foreach (var mode in new string?[] { null, "", "manual", "unknown" })
+    Check(!ExpenseSplitMode.IsEqual(mode), "Legacy or manual intent must never be inferred");
+var splitMembers = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+var savedEqual = new Dictionary<Guid, decimal>
+{
+    [splitMembers[0]] = 3.33m, [splitMembers[1]] = 3.34m, [splitMembers[2]] = 3.33m
+};
+Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, savedEqual).SequenceEqual(new[] { 3.33m, 3.34m, 3.33m }), "Opening Equal retains the saved remainder recipient");
+Check(ExpenseSplitMode.AllocateEqual(10m, new[] { splitMembers[1], splitMembers[2], splitMembers[0] }, savedEqual).SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Member ordering preserves keyed shares");
+Check(ExpenseSplitMode.AllocateEqual(12m, splitMembers, savedEqual).All(x => x == 4m), "Changing total recalculates Equal");
+Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers.Take(2).ToArray(), savedEqual).All(x => x == 5m), "Changing participants recalculates Equal");
+Check(ExpenseSplitMode.AllocateEqual(10m, new[] { splitMembers[0], splitMembers[1], Guid.NewGuid() }, savedEqual).SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Replacing a participant recalculates Equal");
+Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, null).SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Explicit Equal allocates fresh integer cents");
+var unevenSaved = splitMembers.Select((id, i) => (id, value: i == 0 ? 8m : 1m)).ToDictionary(x => x.id, x => x.value);
+Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, unevenSaved).SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Uneven saved values cannot override Equal allocation");
+Console.WriteLine("Split-mode regressions passed: explicit intent, legacy fallback, saved cents, reordered members, total and participant changes.");

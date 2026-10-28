@@ -110,6 +110,7 @@ public class SupabaseExpensesRepository : IExpensesRepository
                 ["currency"] = expense.Currency,
                 ["description"] = expense.Description,
                 ["category"] = expense.Category,
+                ["split_mode"] = expense.SplitMode,
                 ["occurred_at"] = expense.OccurredAt,
                 ["receipt_path"] = expense.ReceiptPath,
                 ["is_settlement"] = expense.IsSettlement,

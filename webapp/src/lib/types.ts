@@ -1,3 +1,5 @@
+import type { SplitMode } from './splitMode'
+
 export interface Group {
   id: string
   name: string
@@ -42,6 +44,7 @@ export interface ExpenseWithPayer {
   occurred_at: string
   created_at: string
   is_settlement: boolean
+  split_mode?: SplitMode | null
   receipt_path: string | null
   event_id: string | null
 }
@@ -63,6 +66,7 @@ export interface RecurringExpense {
   currency: string
   description: string
   category: string
+  split_mode?: SplitMode | null
   frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'
   start_date: string
   last_processed_date: string | null

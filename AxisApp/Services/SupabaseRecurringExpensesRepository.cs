@@ -60,6 +60,7 @@ public class SupabaseRecurringExpensesRepository : IRecurringExpensesRepository
                 ["currency"] = recurringExpense.Currency,
                 ["description"] = recurringExpense.Description,
                 ["category"] = recurringExpense.Category,
+                ["split_mode"] = recurringExpense.SplitMode,
                 ["frequency"] = recurringExpense.Frequency,
                 ["start_date"] = recurringExpense.StartDate.ToString("yyyy-MM-dd"),
             },
