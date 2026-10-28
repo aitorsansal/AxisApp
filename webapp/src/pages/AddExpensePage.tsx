@@ -21,6 +21,9 @@ import { DateField } from '../components/DateField'
 import { SettlementForm } from '../components/SettlementForm'
 import type { SettlementDraft } from '../lib/settlements'
 import { amountErrorKey, parseAmountInput } from '../lib/amountInput'
+import { expenseEditorSnapshot } from '../lib/expenseEditorSnapshot'
+import { useUnsavedChanges } from '../lib/useUnsavedChanges'
+import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
 import './AddExpensePage.css'
 
 const RECEIPTS_BUCKET = 'receipts'
@@ -40,6 +43,7 @@ export function AddExpensePage() {
   const { displayName, initials, avatarUrl } = useAliases()
   const { t, language } = useLocale()
   const goBackTo = useGoBackTo()
+  const editorKey = `${session?.user.id ?? ''}:${location.pathname}`
 
   const [group, setGroup] = useState<Group | null>(null)
   const [members, setMembers] = useState<MemberRow[]>([])
@@ -72,6 +76,7 @@ export function AddExpensePage() {
   const [isSettlement, setIsSettlement] = useState(false)
   const [settlementDraft, setSettlementDraft] = useState<SettlementDraft | null>(null)
   const [expenseLoaded, setExpenseLoaded] = useState(false)
+  const [loadedEditorKey, setLoadedEditorKey] = useState<string | null>(null)
 
   const receiptInputRef = useRef<HTMLInputElement>(null)
   const [receiptPath, setReceiptPath] = useState<string | null>(null)
@@ -87,6 +92,7 @@ export function AddExpensePage() {
 
   useEffect(() => {
     if (!groupId) return
+    let cancelled = false
     ;(async () => {
       setExpenseLoaded(false)
       setSavedEqualShares(null)
@@ -98,6 +104,7 @@ export function AddExpensePage() {
           .select('member_id, members(id, display_name, account_id, avatar_path)')
           .eq('group_id', groupId),
       ])
+      if (cancelled) return
       if (groupRes.error) return setError(groupRes.error.message)
       if (membersRes.error) return setError(membersRes.error.message)
 
@@ -115,6 +122,7 @@ export function AddExpensePage() {
             .select('member_id, share_amount')
             .eq('expense_id', expenseId),
         ])
+        if (cancelled) return
         if (expenseRes.error) return setError(expenseRes.error.message)
         if (sharesRes.error) return setError(sharesRes.error.message)
         const expense = expenseRes.data
@@ -154,6 +162,7 @@ export function AddExpensePage() {
           const { data: signed } = await supabase.storage
             .from(RECEIPTS_BUCKET)
             .createSignedUrl(expense.receipt_path, 3600)
+          if (cancelled) return
           setReceiptUrl(signed?.signedUrl ?? null)
         }
       } else if (recurringId) {
@@ -167,6 +176,7 @@ export function AddExpensePage() {
             .select('member_id, share_amount')
             .eq('recurring_expense_id', recurringId),
         ])
+        if (cancelled) return
         if (templateRes.error) return setError(templateRes.error.message)
         if (sharesRes.error) return setError(sharesRes.error.message)
         const tpl = templateRes.data
@@ -197,6 +207,7 @@ export function AddExpensePage() {
               .eq('event_id', linkedEventId)
               .eq('response', 'going'),
           ])
+          if (cancelled) return
           setLinkedEventTitle(eventRow?.title ?? null)
           const goingIds = new Set((goingRows ?? []).map((r: { member_id: string }) => r.member_id))
           setParticipants(
@@ -206,10 +217,13 @@ export function AddExpensePage() {
           setParticipants(new Set(memberRows.map((m) => m.member_id)))
         }
       }
+      if (cancelled) return
+      setLoadedEditorKey(editorKey)
       setExpenseLoaded(true)
     })()
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupId, expenseId, recurringId, session])
+  }, [groupId, expenseId, recurringId, editorKey])
 
   function loadShares(rows: { member_id: string; share_amount: number }[]) {
     setSavedEqualShares(Object.fromEntries(rows.map((s) => [s.member_id, Math.round(Number(s.share_amount) * 100)])))
@@ -235,6 +249,13 @@ export function AddExpensePage() {
   const isSplitValid = parsedAmount.cents !== null && shareInputsValid && remainingCents === 0
     && includedIds.every((id) => shareCents[id] > 0)
   const displayCents = (cents: number) => formatCents(cents).replace('.', language === 'es' ? ',' : '.')
+
+  const unsaved = useUnsavedChanges(editorKey,
+    expenseLoaded && loadedEditorKey === editorKey && !isSettlement ? expenseEditorSnapshot({
+      amount, description, currency, category, paidBy, includedIds, manual: isManualSplit,
+      shareInputs, shareCents, recurring: isRecurringMode, occurredOn, startDate, frequency,
+      receiptPath, eventId: linkedEventId,
+    }) : null, !isSettlement && (busy || receiptBusy))
 
   function toggleParticipant(memberId: string) {
     setParticipants((prev) => {
@@ -371,6 +392,7 @@ export function AddExpensePage() {
           p_shares: buildShares(),
         })
         if (saveError) return setError(saveError.message)
+        unsaved.markSaved()
         goBackTo(`/groups/${groupId}/recurring`)
         return
       }
@@ -394,6 +416,7 @@ export function AddExpensePage() {
       })
       if (saveError) return setError(saveError.message)
 
+      unsaved.markSaved()
       goBackTo(parentPath)
     } catch {
       setError(t('Common_SaveFailed'))
@@ -410,6 +433,7 @@ export function AddExpensePage() {
       : await supabase.from('expenses').delete().eq('id', expenseId)
     setBusy(false)
     if (error) return setError(error.message)
+    unsaved.markSaved()
     goBackTo(parentPath)
   }
 
@@ -429,7 +453,7 @@ export function AddExpensePage() {
           ? t('AddExpense_RecurringTitle')
           : t('AddExpense_Title')
 
-  if (!group || (expenseId && !expenseLoaded)) {
+  if (!group || !expenseLoaded || loadedEditorKey !== editorKey) {
     return (
       <div className="page expense-page">
         <AppHeader title={title} backTo={parentPath} />
@@ -465,7 +489,9 @@ export function AddExpensePage() {
     <div className="page expense-page">
       <AppHeader title={title} backTo={parentPath} />
 
+      <UnsavedChangesDialog blocker={unsaved.blocker} keepEditing={unsaved.keepEditing} pending={busy || receiptBusy} />
       <form onSubmit={handleSubmit} className="expense-form">
+        <fieldset className="expense-fields" disabled={busy}>
         {linkedEventId && linkedEventTitle && (
           <p className="field-hint linked-event-hint">
             {t('AddExpense_LinkedToEvent', linkedEventTitle)}
@@ -737,6 +763,7 @@ export function AddExpensePage() {
             {t('AddExpense_DeleteExpense')}
           </button>
         )}
+        </fieldset>
       </form>
     </div>
   )

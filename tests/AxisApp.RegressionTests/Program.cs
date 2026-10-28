@@ -126,3 +126,35 @@ Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, null).SequenceEqual(new[
 var unevenSaved = splitMembers.Select((id, i) => (id, value: i == 0 ? 8m : 1m)).ToDictionary(x => x.id, x => x.value);
 Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, unevenSaved).SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Uneven saved values cannot override Equal allocation");
 Console.WriteLine("Split-mode regressions passed: explicit intent, legacy fallback, saved cents, reordered members, total and participant changes.");
+
+
+var editor = new ExpenseEditorState("12.00", "Dinner", 0, "food", me, false,
+    new[] { new ExpenseEditorShare(me, "6.00"), new ExpenseEditorShare(them, "6,00") },
+    false, new DateTime(2026, 10, 28), new DateTime(2026, 10, 28), "Monthly", null, null);
+var originalEditor = ExpenseEditorSnapshot.Create(editor);
+Check(ExpenseEditorSnapshot.Create(editor with { Amount = "12,00", Shares = editor.Shares.Reverse().ToArray(), Frequency = "Weekly" }) == originalEditor,
+    "Amount display, participant order and hidden frequency do not dirty the form");
+foreach (var changed in new[] {
+    editor with { Description = "Changed" }, editor with { Amount = "13" }, editor with { Amount = "12," },
+    editor with { CurrencyIndex = 1 }, editor with { Category = "other" }, editor with { Payer = them },
+    editor with { Manual = true }, editor with { Shares = editor.Shares.Take(1).ToArray() },
+    editor with { OccurredOn = editor.OccurredOn.AddDays(1) }, editor with { Recurring = true },
+    editor with { ReceiptPath = "new.webp" }, editor with { EventId = other }
+}) Check(ExpenseEditorSnapshot.Create(changed) != originalEditor, "Meaningful expense edits are protected");
+var repeatingEditor = editor with { Recurring = true };
+Check(ExpenseEditorSnapshot.Create(repeatingEditor with { Frequency = "Weekly" }) != ExpenseEditorSnapshot.Create(repeatingEditor), "Recurring frequency is protected");
+Check(ExpenseEditorSnapshot.Create(repeatingEditor with { StartDate = editor.StartDate.AddDays(1) }) != ExpenseEditorSnapshot.Create(repeatingEditor), "Recurring start date is protected");
+var editGuard = new UnsavedEditGuard();
+Check(!editGuard.ShouldBlock(originalEditor, true), "Initial loading cannot produce a discard prompt");
+editGuard.Capture(originalEditor);
+Check(!editGuard.ShouldBlock(originalEditor, false), "Pristine values leave freely");
+var changedEditor = ExpenseEditorSnapshot.Create(editor with { Description = "Changed" });
+Check(editGuard.ShouldBlock(changedEditor, false), "Edited values require confirmation");
+Check(editGuard.ShouldBlock(changedEditor, false), "A failed save does not clear protection");
+Check(!editGuard.HasChanges(originalEditor), "Reverting values removes the dirty state");
+Check(editGuard.ShouldBlock(originalEditor, true), "Pending writes/uploads block leaving even with identical values");
+editGuard.MarkCommitted();
+Check(!editGuard.ShouldBlock(changedEditor, true), "Confirmed successful writes leave without prompting");
+editGuard.Reset(); editGuard.Capture(originalEditor);
+Check(editGuard.HasChanges(changedEditor), "A fresh editor restores protection after prior successful save");
+Console.WriteLine("Unsaved-edit regressions passed: persisted fields, normalization, recurrence, reverted edits, failure retention and committed navigation.");

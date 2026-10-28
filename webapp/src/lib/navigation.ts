@@ -141,5 +141,7 @@ export function useRebuildDeepEntry(ready: boolean) {
       if (Number(key) > idx) delete stack[Number(key)]
     }
     saveStack()
+    // Synchronize the router's history index after adding deep-link ancestors.
+    window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }))
   }, [ready])
 }

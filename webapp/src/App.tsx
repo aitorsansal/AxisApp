@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { createBrowserRouter, createRoutesFromElements, Outlet, RouterProvider, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { LocaleProvider } from './context/LocaleContext'
 import { AliasesProvider } from './context/AliasesContext'
@@ -19,42 +19,50 @@ import { AddEventPage } from './pages/AddEventPage'
 import { EventDetailPage } from './pages/EventDetailPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 
-export default function App() {
+function AppProviders() {
   return (
-    <BrowserRouter>
+    <>
       <NavigationTracker />
       <LocaleProvider>
         <AuthProvider>
           <AliasesProvider>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route element={<ProtectedRoute />}>
-                <Route element={<AppLayout />}>
-                  <Route path="/" element={<GroupsPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/new-group" element={<NewGroupPage />} />
-                  <Route path="/join" element={<JoinGroupPage />} />
-                  <Route path="/groups/:groupId" element={<GroupDetailPage />} />
-                  <Route path="/groups/:groupId/add-expense" element={<AddExpensePage />} />
-                  <Route path="/groups/:groupId/expenses/:expenseId" element={<AddExpensePage />} />
-                  <Route path="/groups/:groupId/members" element={<MembersPage />} />
-                  <Route path="/groups/:groupId/members/:memberId" element={<MemberProfilePage />} />
-                  <Route path="/groups/:groupId/recurring" element={<RecurringExpensesPage />} />
-                  <Route path="/groups/:groupId/recurring/new" element={<AddExpensePage />} />
-                  <Route
-                    path="/groups/:groupId/recurring/:recurringId"
-                    element={<AddExpensePage />}
-                  />
-                  <Route path="/groups/:groupId/events/new" element={<AddEventPage />} />
-                  <Route path="/groups/:groupId/events/:eventId" element={<EventDetailPage />} />
-                  <Route path="/groups/:groupId/events/:eventId/edit" element={<AddEventPage />} />
-                </Route>
-              </Route>
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
+            <Outlet />
           </AliasesProvider>
         </AuthProvider>
       </LocaleProvider>
-    </BrowserRouter>
+    </>
   )
+}
+
+const router = createBrowserRouter(createRoutesFromElements(
+  <Route element={<AppProviders />}>
+    <Route path="/login" element={<LoginPage />} />
+    <Route element={<ProtectedRoute />}>
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<GroupsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/new-group" element={<NewGroupPage />} />
+        <Route path="/join" element={<JoinGroupPage />} />
+        <Route path="/groups/:groupId" element={<GroupDetailPage />} />
+        <Route path="/groups/:groupId/add-expense" element={<AddExpensePage />} />
+        <Route path="/groups/:groupId/expenses/:expenseId" element={<AddExpensePage />} />
+        <Route path="/groups/:groupId/members" element={<MembersPage />} />
+        <Route path="/groups/:groupId/members/:memberId" element={<MemberProfilePage />} />
+        <Route path="/groups/:groupId/recurring" element={<RecurringExpensesPage />} />
+        <Route path="/groups/:groupId/recurring/new" element={<AddExpensePage />} />
+        <Route
+          path="/groups/:groupId/recurring/:recurringId"
+          element={<AddExpensePage />}
+        />
+        <Route path="/groups/:groupId/events/new" element={<AddEventPage />} />
+        <Route path="/groups/:groupId/events/:eventId" element={<EventDetailPage />} />
+        <Route path="/groups/:groupId/events/:eventId/edit" element={<AddEventPage />} />
+      </Route>
+    </Route>
+    <Route path="*" element={<NotFoundPage />} />
+  </Route>,
+))
+
+export default function App() {
+  return <RouterProvider router={router} />
 }

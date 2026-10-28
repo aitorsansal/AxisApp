@@ -19,6 +19,11 @@ public static class AppStrings
 
     private static readonly Dictionary<string, string> En = new()
     {
+        ["UnsavedChanges_Title"] = "Discard your changes?",
+        ["UnsavedChanges_Message"] = "Your changes have not been saved. If you leave, they will be lost.",
+        ["UnsavedChanges_Pending"] = "Please wait for saving or uploading to finish before leaving.",
+        ["UnsavedChanges_KeepEditing"] = "Keep editing",
+        ["UnsavedChanges_Discard"] = "Discard changes",
         ["AmountInput_FormatHint"] = "Use 1234.56 or 1234,56, without thousands separators.",
         ["AmountInput_Invalid"] = "Enter a positive amount such as 1234.56 or 1234,56, without thousands separators.",
         ["AmountInput_TooLarge"] = "The maximum amount is 9999999999.99.",
@@ -370,6 +375,11 @@ public static class AppStrings
 
     private static readonly Dictionary<string, string> Es = new()
     {
+        ["UnsavedChanges_Title"] = "¿Descartar los cambios?",
+        ["UnsavedChanges_Message"] = "Los cambios no se han guardado. Si sales, se perderán.",
+        ["UnsavedChanges_Pending"] = "Espera a que termine de guardar o subir el archivo antes de salir.",
+        ["UnsavedChanges_KeepEditing"] = "Seguir editando",
+        ["UnsavedChanges_Discard"] = "Descartar cambios",
         ["AmountInput_FormatHint"] = "Usa 1234.56 o 1234,56, sin separadores de miles.",
         ["AmountInput_Invalid"] = "Introduce un importe positivo como 1234.56 o 1234,56, sin separadores de miles.",
         ["AmountInput_TooLarge"] = "El importe máximo es 9999999999.99.",

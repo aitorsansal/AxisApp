@@ -13,6 +13,11 @@ export const SUPPORTED_LANGUAGES: readonly Language[] = ['en', 'es']
 type Dictionary = Record<string, string>
 
 const en: Dictionary = {
+  UnsavedChanges_Title: 'Discard your changes?',
+  UnsavedChanges_Message: 'Your changes have not been saved. If you leave, they will be lost.',
+  UnsavedChanges_Pending: 'Please wait for saving or uploading to finish before leaving.',
+  UnsavedChanges_KeepEditing: 'Keep editing',
+  UnsavedChanges_Discard: 'Discard changes',
   AddExpense_SaveUnavailable: 'Saving expenses is temporarily unavailable. Please try again later.',
   DateInput_Invalid: 'Enter a valid date in dd/mm/yyyy format.',
   DateInput_InvalidDateTime: 'Enter a valid date and time.',
@@ -431,6 +436,11 @@ const en: Dictionary = {
 }
 
 const es: Dictionary = {
+  UnsavedChanges_Title: '¿Descartar los cambios?',
+  UnsavedChanges_Message: 'Los cambios no se han guardado. Si sales, se perderán.',
+  UnsavedChanges_Pending: 'Espera a que termine de guardar o subir el archivo antes de salir.',
+  UnsavedChanges_KeepEditing: 'Seguir editando',
+  UnsavedChanges_Discard: 'Descartar cambios',
   AddExpense_SaveUnavailable: 'No se pueden guardar gastos en este momento. Vuelve a intentarlo más tarde.',
   DateInput_Invalid: 'Introduce una fecha válida en formato dd/mm/aaaa.',
   DateInput_InvalidDateTime: 'Introduce una fecha y hora válidas.',

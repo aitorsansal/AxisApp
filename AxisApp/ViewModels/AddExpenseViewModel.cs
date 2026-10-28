@@ -128,6 +128,17 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     private bool editingRecurringIsActive = true;
     private bool redistributing;
     private Dictionary<Guid, decimal>? savedEqualShares;
+    private readonly UnsavedEditGuard unsavedEdits = new();
+
+    public bool HasPendingEdits => !IsSettlement && (IsReceiptBusy || (IsBusy && !IsInitialLoading));
+    public bool ShouldConfirmLeaving => !IsSettlement && unsavedEdits.ShouldBlock(CaptureEditorSnapshot(), HasPendingEdits);
+
+    private string CaptureEditorSnapshot() => ExpenseEditorSnapshot.Create(new ExpenseEditorState(
+        AmountText, Description, SelectedCurrencyIndex, SelectedCategory, SelectedPayer?.Id,
+        IsManualSplit, Participants.Where(p => p.IsIncluded)
+            .Select(p => new ExpenseEditorShare(p.Member.Id, p.OwesText)).ToArray(),
+        IsRecurringMode, OccurredOn, StartDate, SelectedFrequency.ToString(), ReceiptPath, editingEventId));
+
     [ObservableProperty] private ObservableCollection<ExpenseParticipant> participants = [];
     [ObservableProperty] private ObservableCollection<PayerOption> payerOptions = [];
     [ObservableProperty] private ObservableCollection<CategoryChip> categoryChips = [];
@@ -299,6 +310,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     /// event_expenses.sql's design comment and CLAUDE.md's event-expenses discussion).</summary>
     public Task LoadAsync(Guid forGroupId, Guid? forExpenseId = null, Guid? forRecurringExpenseId = null, bool startAsRecurring = false, Guid? forEventId = null) => RunSafeAsync(async () =>
     {
+        unsavedEdits.Reset();
         savedEqualShares = null;
         groupId = forGroupId;
         editingExpenseId = forExpenseId;
@@ -411,6 +423,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             // After the existing-expense overlay above, so editingEventId is already final.
             BuildEventPicker(loadEvents.Result);
             });
+            unsavedEdits.Capture(CaptureEditorSnapshot());
         }
         finally
         {
@@ -805,6 +818,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                 }
             }
 
+            unsavedEdits.MarkCommitted();
             await Shell.Current.GoToAsync("..");
         }
         finally
@@ -826,6 +840,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
             else if (editingExpenseId is { } id)
                 await expensesRepository.DeleteAsync(id);
 
+            unsavedEdits.MarkCommitted();
             await Shell.Current.GoToAsync("..");
         }
         finally

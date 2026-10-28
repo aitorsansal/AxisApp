@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../AxisApp/Models/ExpenseEditorSnapshot.cs" Link="ExpenseEditorSnapshot.cs" />
+    <Compile Include="../../AxisApp/Models/UnsavedEditGuard.cs" Link="UnsavedEditGuard.cs" />
     <Compile Include="../../AxisApp/Models/ExpenseSplitMode.cs" Link="ExpenseSplitMode.cs" />
     <Compile Include="../../AxisApp/Models/ExpenseMath.cs" Link="ExpenseMath.cs" />
     <Compile Include="../../AxisApp/Models/SettlementRules.cs" Link="SettlementRules.cs" />

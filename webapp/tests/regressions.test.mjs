@@ -1,3 +1,4 @@
+import { expenseEditorSnapshot } from '../src/lib/expenseEditorSnapshot.ts'
 import { editableEqualSplitCents, restoredSplitMode } from '../src/lib/splitMode.ts'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -312,4 +313,24 @@ test('saved split intent is explicit and legacy/manual shares are never inferred
   assert.deepEqual(editableEqualSplitCents(1000, ['a', 'b', 'd'], saved), { a: 334, b: 333, d: 333 })
   assert.deepEqual(editableEqualSplitCents(1000, ['a', 'b', 'c'], null), { a: 334, b: 333, c: 333 })
   assert.deepEqual(editableEqualSplitCents(1000, ['a', 'b'], { a: 900, b: 100 }), { a: 500, b: 500 })
+})
+
+
+test('unsaved expense snapshots compare persisted intent and ignore display-only changes', () => {
+  const form = { amount: '12.00', description: 'Dinner', currency: 'EUR', category: 'food', paidBy: 'me',
+    includedIds: ['me', 'alex'], manual: false, shareInputs: {}, shareCents: { me: 600, alex: 600 },
+    recurring: false, occurredOn: '2026-10-28', startDate: '2026-10-28', frequency: 'monthly', receiptPath: null, eventId: null }
+  const baseline = expenseEditorSnapshot(form)
+  assert.equal(expenseEditorSnapshot({ ...form, amount: '12,00', includedIds: ['alex', 'me'], frequency: 'weekly' }), baseline)
+  for (const change of [{ description: 'Changed' }, { amount: '13' }, { amount: '12,' }, { currency: 'USD' },
+    { category: 'other' }, { paidBy: 'alex' }, { includedIds: ['me'] }, { manual: true },
+    { occurredOn: '' }, { receiptPath: 'new.webp' }, { eventId: 'event' }, { recurring: true }])
+    assert.notEqual(expenseEditorSnapshot({ ...form, ...change }), baseline, JSON.stringify(change))
+  const manual = { ...form, manual: true, shareInputs: { me: '6.00', alex: '6,00' } }
+  assert.equal(expenseEditorSnapshot({ ...manual, shareInputs: { me: '6,00', alex: '6.00' } }), expenseEditorSnapshot(manual))
+  assert.notEqual(expenseEditorSnapshot({ ...manual, shareInputs: { me: '7', alex: '5' } }), expenseEditorSnapshot(manual))
+  const recurring = { ...form, recurring: true }
+  assert.notEqual(expenseEditorSnapshot({ ...recurring, frequency: 'weekly' }), expenseEditorSnapshot(recurring))
+  assert.notEqual(expenseEditorSnapshot({ ...recurring, startDate: '' }), expenseEditorSnapshot(recurring))
+  assert.equal(expenseEditorSnapshot({ ...form, description: 'Changed', amount: '13', ...form }), baseline)
 })
