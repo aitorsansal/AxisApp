@@ -14,7 +14,7 @@
 // SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY are injected automatically into every Edge Function's
 // environment.
 
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
 interface EventRow {
   id: string;
@@ -27,7 +27,7 @@ interface EventRow {
 
 // RFC 5545 basic date-time form (UTC): YYYYMMDDTHHMMSSZ.
 function toIcsDate(isoString: string): string {
-  return isoString.replace(/[-:]/g, "").split(".")[0] + "Z";
+  return new Date(isoString).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
 
 // RFC 5545 §3.3.11 TEXT escaping — commas, semicolons and backslashes are structural, and folded
