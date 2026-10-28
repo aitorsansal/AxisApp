@@ -2452,3 +2452,19 @@ was deleted; the debt returned to EUR32.51 and the user's EUR5 repayment
 was preserved. No recurring template was created on the live backend.
 
 Full evidence and coverage are in `reports/AMOUNT_INPUT_REVIEW.md`.
+
+## Persisted split intent — 2026-10-28
+
+Web and Android now persist Equal/Manual intent for expenses and recurring templates through nullable `split_mode`, the hardened atomic save RPCs and recurring materialization. Existing records remain unknown/Manual. Equal reopen retains saved per-member cent allocations; changing total/participants recalculates. Explicit Manual is never inferred as Equal from matching amounts. The additive `supabase/split_mode.sql` migration supports older clients and was confirmed applied by the user. Android 1.1.0 (10) was installed on the connected phone and verified for expense/recurring save-reopen. See `reports/ANDROID_SPLIT_MODE_REVIEW.md` and `supabase/SPLIT_MODE_ROLLOUT.md` for evidence and rollout limits.
+
+## Calendar feed UTC timestamps — 2026-10-28
+
+The calendar-feed formatter now normalizes input instants to UTC before removing punctuation and fractional seconds. This prevents duplicate Z/offset suffixes and preserves the correct instant for fractional offset timestamps. Seven regression tests cover offsets, rollover, explicit/fallback ends, DST and ICAL.js import. Deployed through Supabase's dashboard and verified against a live QA feed (three events, nine UTC timestamps). JSR metadata downloads timed out during deployment, so the same resolved SDK release is pinned through `npm:@supabase/supabase-js@2.118.0`. See `reports/CALENDAR_FEED_REVIEW.md`. No database or client update is required.
+
+## Web expense unsaved-edit protection — 2026-10-28
+
+Ordinary/recurring web expense forms compare editable persisted values with the loaded baseline and use a custom discard dialog for internal navigation plus native beforeunload protection. Reverted values are clean; successful saves/deletes bypass the guard, failures retain it, and pending saves/uploads cannot be discarded. Switched the existing route tree to createBrowserRouter/RouterProvider for supported useBlocker, synchronized history indices after deep-link ancestry reconstruction, and ignored stale editor loads/token-refresh reloads. Twenty tests, production build, lint and isolated browser checks pass. Not deployed; Android/event/repayment guards remain separate work. See `reports/UNSAVED_WEB_REVIEW.md`.
+
+## Android expense unsaved-edit protection — 2026-10-28
+
+The ordinary/recurring expense editor now compares a normalized loaded baseline and defers Shell navigation for native Keep editing/Discard confirmation. Back/dismissal keeps the draft; reverting values clears the warning; confirmed successful saves/deletes bypass it. Pending operations cancel attempted navigation without holding a Shell deferral. Installed as 1.1.0 (10) on the connected Android 16 phone and verified for Cancel/system Back, incomplete new entries, reverts, saves and recurring frequency. Tests/build pass (0 errors, 55 warnings). QA expense description was changed and restored, and the paused recurring template remains unchanged. See `reports/ANDROID_UNSAVED_REVIEW.md`. Events and repayments remain outside this guard.

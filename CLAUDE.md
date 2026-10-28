@@ -627,3 +627,19 @@ These are plain assertion runners, not an xUnit/NUnit suite, and the test
 project isn't in `AxisApp.slnx`. Any logic you want covered there has to stay
 free of MAUI/Supabase types, since the test project compiles those files on
 their own.
+
+## Saved split intent (2026-10-28)
+
+Expenses and recurring templates now have nullable `split_mode` (`equal`/`manual`). NULL means historical intent is unknown; both editors open it as Manual. Models, RPC payloads, schema and recurring materializer carry the field. Do not infer Equal from equal-looking shares. Android `ExpenseSplitMode` and web `splitMode.ts` preserve saved per-member cent allocation on unchanged Equal edits, recalculate for total/participant changes, and reset allocation when Equal is explicitly selected. The user confirmed `supabase/split_mode.sql` applied and web operation; Android 1.1.0 (10) device verification is in `reports/ANDROID_SPLIT_MODE_REVIEW.md`. The isolated QA group and its paused recurring template remain. No new database migration is needed for this Android update.
+
+## Calendar feed timestamp formatting (2026-10-28)
+
+`supabase/functions/calendar-feed/index.ts` converts timestamps with `new Date(value).toISOString()` before basic UTC formatting; never strip an offset and append Z without converting the instant. The deployed function imports `npm:@supabase/supabase-js@2.118.0` because JSR metadata downloads timed out. This is still a single-file dashboard deployment; preserve the existing token-based access and JWT-verification setting. `supabase/tests/calendar_feed.test.mjs` exercises its actual helpers and ICAL.js import. Live feed verification is recorded in `reports/CALENDAR_FEED_REVIEW.md`.
+
+## Web expense unsaved changes (2026-10-28)
+
+Web now uses createBrowserRouter/RouterProvider with the existing route tree/providers. `useUnsavedChanges` and `UnsavedChangesDialog` protect ordinary and recurring AddExpensePage edits; repayments and events are not wired yet. `expenseEditorSnapshot` normalizes valid amounts and participant order while preserving split intent and invalid input. The baseline is keyed to the loaded account/route; keep token refreshes from reloading the form. Call `markSaved()` only after a confirmed successful save/delete, immediately before navigation. Native beforeunload handles document exits; internal navigation uses useBlocker. Deep-entry ancestry reconstruction dispatches popstate to synchronize router history indices; retest cold-link Back/Forward if changing that code. Isolated browser fixtures live in `webapp/tests/unsaved.vite.config.ts`; never use the fixture config for production. See `reports/UNSAVED_WEB_REVIEW.md`. The web stage is local, not deployed. Android expense/recurring protection is now installed and device-verified; see the following section.
+
+## Android expense unsaved changes (2026-10-28)
+
+AddExpensePage subscribes to Shell.Navigating while visible and uses GetDeferral/DisplayAlertAsync to protect ordinary/recurring edits. ExpenseEditorSnapshot normalizes actual editable values; UnsavedEditGuard captures only fully loaded data and compares on navigation. MarkCommitted is called only after confirmed repository success before leaving. Pending operations cancel attempted navigation and show a wait alert without holding a deferral. Keep or native-dialog dismissal cancels the original route; Discard completes it. Never start a second GoToAsync while a navigation deferral is pending. Native 1.1.0 (10) was installed and tested on the connected phone; details/data inventory are in `reports/ANDROID_UNSAVED_REVIEW.md`. Events, repayments and crash-recovery drafts remain separate work. No additional SQL is required.
