@@ -158,3 +158,15 @@ Check(!editGuard.ShouldBlock(changedEditor, true), "Confirmed successful writes 
 editGuard.Reset(); editGuard.Capture(originalEditor);
 Check(editGuard.HasChanges(changedEditor), "A fresh editor restores protection after prior successful save");
 Console.WriteLine("Unsaved-edit regressions passed: persisted fields, normalization, recurrence, reverted edits, failure retention and committed navigation.");
+
+var eventEditor = new EventEditorState("Plan", "", "", DateTime.Today, TimeSpan.FromHours(12), false, DateTime.Today, TimeSpan.FromHours(13), false);
+var eventSnapshot = FormEditorSnapshots.Event(eventEditor);
+Check(eventSnapshot == FormEditorSnapshots.Event(eventEditor with { EndDate = DateTime.Today.AddDays(1), EndTime = TimeSpan.FromHours(14) }), "Inactive event end fields do not mark a form dirty");
+foreach (var changed in new[] { eventEditor with { Title = "Changed" }, eventEditor with { Description = " " }, eventEditor with { Location = "Park" }, eventEditor with { StartDate = DateTime.Today.AddDays(1) }, eventEditor with { StartTime = TimeSpan.FromHours(14) }, eventEditor with { HasEndTime = true }, eventEditor with { NeedsTransport = true } })
+    Check(eventSnapshot != FormEditorSnapshots.Event(changed), "All event fields are protected");
+var repaymentEditor = new SettlementEditorState("8.50", "", DateTime.Today, Guid.NewGuid(), Guid.NewGuid(), "EUR");
+var repaymentSnapshot = FormEditorSnapshots.Settlement(repaymentEditor);
+Check(repaymentSnapshot == FormEditorSnapshots.Settlement(repaymentEditor with { Amount = "8,50" }), "Equivalent repayment amount formatting is pristine");
+foreach (var changed in new[] { repaymentEditor with { Amount = "8," }, repaymentEditor with { Note = "Partial" }, repaymentEditor with { Date = DateTime.Today.AddDays(1) }, repaymentEditor with { Payer = Guid.NewGuid() }, repaymentEditor with { Recipient = Guid.NewGuid() }, repaymentEditor with { Currency = "USD" } })
+    Check(repaymentSnapshot != FormEditorSnapshots.Settlement(changed), "All repayment fields are protected");
+Console.WriteLine("Event/repayment snapshot regressions passed: fields, invalid amounts, equivalent formatting and disabled end times.");

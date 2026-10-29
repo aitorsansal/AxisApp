@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+<pages:GuardedEditorPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:pages="clr-namespace:AxisApp.Pages"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:AxisApp.ViewModels"
              xmlns:loc="clr-namespace:AxisApp.Localization"
@@ -92,4 +93,4 @@
         <controls:ErrorPopup Grid.RowSpan="2" Message="{Binding ErrorMessage}" />
         <controls:UpdateBanner Grid.RowSpan="2" />
     </Grid>
-</ContentPage>
+</pages:GuardedEditorPage>

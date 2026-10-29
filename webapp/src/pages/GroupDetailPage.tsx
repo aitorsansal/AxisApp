@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, type CSSProperties } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useGoBackTo } from '../lib/navigation'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
@@ -12,6 +12,12 @@ import { GroupStatsTab } from '../components/GroupStatsTab'
 import { GroupAppearancePicker } from '../components/GroupAppearancePicker'
 import { Modal } from '../components/Modal'
 import { SettlementForm } from '../components/SettlementForm'
+import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
+import { useUnsavedChanges } from '../lib/useUnsavedChanges'
+import { useLiveRefresh } from '../lib/useLiveRefresh'
+import { RefreshRevision } from '../lib/refreshRevision'
+import { settlementEditorSnapshot } from '../lib/formEditorSnapshots'
+import type { SettlementDraft } from '../lib/settlements'
 import { GroupBalanceHero } from '../components/GroupBalanceHero'
 import { localDateInput } from '../lib/dates'
 import { settlementParties } from '../lib/settlements'
@@ -44,8 +50,14 @@ export function GroupDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [settlement, setSettlement] = useState<PairwiseBalance | null>(null)
   const [settlementBusy, setSettlementBusy] = useState(false)
+  const [settlementDraft, setSettlementDraft] = useState<SettlementDraft | null>(null)
+  const settlementUnsaved = useUnsavedChanges(`${session?.user.id}:${groupId}:${settlement?.other_member_id}`,
+    settlement && settlementDraft ? settlementEditorSnapshot(settlementDraft) : null, settlementBusy)
   const [settlementNotice, setSettlementNotice] = useState<string | null>(null)
   const settlementTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const refreshRevision = useRef(new RefreshRevision())
+  const pendingWrites = useRef(0)
+  const pendingLoads = useRef(0)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<ExpenseWithPayer[] | null>(null)
@@ -55,8 +67,11 @@ export function GroupDetailPage() {
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false)
   // Same three tabs as Android's GroupDetailTab enum. Stats mounts on its first selection and
   // then stays mounted (hidden), so it doesn't refetch the whole history on every switch.
-  const [tab, setTab] = useState<'expenses' | 'events' | 'stats'>('expenses')
-  const [hasOpenedStats, setHasOpenedStats] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedTab = searchParams.get('tab')
+  const tab = requestedTab === 'events' || requestedTab === 'stats' ? requestedTab : 'expenses'
+  const [hasOpenedStats, setHasOpenedStats] = useState(tab === 'stats')
+  useEffect(() => { if (tab === 'stats') setHasOpenedStats(true) }, [tab])
   const isEventsTab = tab === 'events'
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
@@ -75,10 +90,15 @@ export function GroupDetailPage() {
   const activitySelect =
     'id, group_id, paid_by_member_id, amount, currency, amount_in_group_currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id'
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ background = false, includeActivity = true }: {
+    background?: boolean
+    includeActivity?: boolean
+  } = {}) => {
     if (!groupId) return
-    setError(null)
+    const canApply = refreshRevision.current.begin()
+    if (!background) setError(null)
 
+    pendingLoads.current++
     const [groupRes, membersRes, balancesRes, activityRes] = await Promise.all([
       supabase
         .from('groups')
@@ -93,15 +113,17 @@ export function GroupDetailPage() {
         .from('my_pairwise_balances')
         .select('group_id, other_member_id, balance')
         .eq('group_id', groupId),
-      supabase
+      includeActivity ? supabase
         .from('expenses')
         .select(activitySelect)
         .eq('group_id', groupId)
         .order('occurred_at', { ascending: false })
         .order('created_at', { ascending: false })
-        .range(0, ACTIVITY_PAGE_SIZE - 1),
-    ])
+        .range(0, ACTIVITY_PAGE_SIZE - 1) : Promise.resolve(null),
+    ]).finally(() => { pendingLoads.current-- })
 
+    if (!canApply()) return
+    if (background && (groupRes.error || membersRes.error || balancesRes.error || activityRes?.error)) return
     if (groupRes.error) {
       setGroup(null)
       return setError(groupRes.error.code === 'PGRST116' || groupRes.error.code === '22P02'
@@ -109,22 +131,46 @@ export function GroupDetailPage() {
     }
     if (membersRes.error) return setError(membersRes.error.message)
     if (balancesRes.error) return setError(balancesRes.error.message)
-    if (activityRes.error) return setError(activityRes.error.message)
+    if (activityRes?.error) return setError(activityRes.error.message)
 
     setGroup(groupRes.data as Group)
     setMembers((membersRes.data as unknown as MemberRow[]) ?? [])
     setBalances((balancesRes.data as PairwiseBalance[]) ?? [])
-    const page = (activityRes.data as unknown as ExpenseWithPayer[]) ?? []
-    setActivity(page)
-    setHasMoreActivity(page.length === ACTIVITY_PAGE_SIZE)
+    if (activityRes) {
+      const page = (activityRes.data as unknown as ExpenseWithPayer[]) ?? []
+      setActivity(page)
+      setHasMoreActivity(page.length === ACTIVITY_PAGE_SIZE)
+    }
   }, [groupId, t])
 
   useEffect(() => {
+    const revision = refreshRevision.current
     load()
+    return () => { revision.invalidate() }
   }, [load])
+
+  useLiveRefresh(
+    `group-detail-${groupId}`,
+    [],
+    () => load({ background: true, includeActivity: !searchQuery.trim() && activity.length <= ACTIVITY_PAGE_SIZE }),
+    () => !group || settlement !== null || settlementBusy || isLoadingMore || pendingWrites.current > 0 || pendingLoads.current > 0,
+  )
+
+  async function runWrite<T>(write: () => PromiseLike<T>): Promise<T> {
+    pendingWrites.current++
+    refreshRevision.current.invalidate()
+    try {
+      return await write()
+    } finally {
+      pendingWrites.current--
+      refreshRevision.current.invalidate()
+    }
+  }
 
   async function loadMoreActivity() {
     if (!groupId || isLoadingMore) return
+    refreshRevision.current.invalidate()
+    const canApply = refreshRevision.current.begin()
     setIsLoadingMore(true)
     const { data, error } = await supabase
       .from('expenses')
@@ -134,6 +180,7 @@ export function GroupDetailPage() {
       .order('created_at', { ascending: false })
       .range(activity.length, activity.length + ACTIVITY_PAGE_SIZE - 1)
     setIsLoadingMore(false)
+    if (!canApply()) return
     if (error) return setError(error.message)
     const page = (data as unknown as ExpenseWithPayer[]) ?? []
     setActivity((prev) => [...prev, ...page])
@@ -150,6 +197,7 @@ export function GroupDetailPage() {
       setSearchResults(null)
       return
     }
+    let disposed = false
     const timeout = setTimeout(async () => {
       const { data, error } = await supabase
         .from('expenses')
@@ -159,10 +207,11 @@ export function GroupDetailPage() {
         .order('occurred_at', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(SEARCH_RESULT_LIMIT)
+      if (disposed) return
       if (error) return setError(error.message)
       setSearchResults((data as unknown as ExpenseWithPayer[]) ?? [])
     }, 300)
-    return () => clearTimeout(timeout)
+    return () => { disposed = true; clearTimeout(timeout) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, searchQuery])
 
@@ -197,10 +246,10 @@ export function GroupDetailPage() {
 
   async function handleSaveAppearance() {
     if (!group) return
-    const { error } = await supabase
+    const { error } = await runWrite(() => supabase
       .from('groups')
       .update({ color: appearanceColor, icon: appearanceIcon })
-      .eq('id', group.id)
+      .eq('id', group.id))
     if (error) return setError(error.message)
     setIsAppearanceOpen(false)
     setGroup({ ...group, color: appearanceColor, icon: appearanceIcon })
@@ -212,7 +261,7 @@ export function GroupDetailPage() {
     setIsMenuOpen(false)
     const next = window.prompt(t('GroupDetail_RenamePrompt'), group.name)
     if (!next || !next.trim() || next.trim() === group.name) return
-    const { error } = await supabase.from('groups').update({ name: next.trim() }).eq('id', group.id)
+    const { error } = await runWrite(() => supabase.from('groups').update({ name: next.trim() }).eq('id', group.id))
     if (error) return setError(error.message)
     void refreshGroups()
     load()
@@ -222,7 +271,7 @@ export function GroupDetailPage() {
     if (!groupId) return
     setIsMenuOpen(false)
     if (!window.confirm(t('GroupDetail_LeaveGroupConfirm'))) return
-    const { error } = await supabase.rpc('leave_group', { p_group_id: groupId })
+    const { error } = await runWrite(() => supabase.rpc('leave_group', { p_group_id: groupId }))
     if (error) return setError(error.message)
     goBackTo('/')
   }
@@ -235,7 +284,7 @@ export function GroupDetailPage() {
       ? t('GroupDetail_DissolveGroupConfirmWithBalances')
       : t('GroupDetail_DissolveGroupConfirm')
     if (!window.confirm(message)) return
-    const { error } = await supabase.from('groups').delete().eq('id', groupId)
+    const { error } = await runWrite(() => supabase.from('groups').delete().eq('id', groupId))
     if (error) return setError(error.message)
     goBackTo('/')
   }
@@ -248,10 +297,10 @@ export function GroupDetailPage() {
   async function handleTransfer(newOwnerMemberId: string) {
     if (!groupId) return
     setIsTransferOpen(false)
-    const { error } = await supabase.rpc('transfer_group_ownership', {
+    const { error } = await runWrite(() => supabase.rpc('transfer_group_ownership', {
       p_group_id: groupId,
       p_new_owner_member_id: newOwnerMemberId,
-    })
+    }))
     if (error) return setError(error.message)
     load()
   }
@@ -336,12 +385,12 @@ export function GroupDetailPage() {
       {error && <p className="error-text">{error}</p>}
       {settlementNotice && <p role="status">{settlementNotice}</p>}
 
+      <UnsavedChangesDialog blocker={settlementUnsaved.blocker} keepEditing={settlementUnsaved.keepEditing}
+        pending={settlementBusy} open={settlementUnsaved.confirmingClose} onDiscard={settlementUnsaved.discardChanges} />
       {settlement && myMemberId && (
         <Modal title={t('Settlement_Record')} returnFocusRef={settlementTriggerRef} className="settlement-modal"
           onClose={() => {
-            if (settlementBusy) return
-            setSettlement(null)
-            void load()
+            settlementUnsaved.requestClose(() => { setSettlement(null); setSettlementDraft(null); void load() })
           }}>
           <SettlementForm
             initial={{
@@ -357,7 +406,9 @@ export function GroupDetailPage() {
             otherMemberId={settlement.other_member_id}
             expectedBalance={settlement.balance}
             onBusyChange={setSettlementBusy}
-            onCancel={() => { setSettlement(null); void load() }}
+            onDraftChange={setSettlementDraft}
+            onCommitted={settlementUnsaved.markSaved}
+            onCancel={() => settlementUnsaved.requestClose(() => { setSettlement(null); setSettlementDraft(null); void load() })}
             onSaved={(remaining) => {
               setSettlementNotice(remaining === null ? t('Settlement_Recorded')
                 : t('Settlement_Remaining', memberName(settlement.other_member_id), formatMoney(Math.abs(remaining), group.currency, language)))
@@ -384,8 +435,12 @@ export function GroupDetailPage() {
             className={tab === key ? 'active' : ''}
             aria-pressed={tab === key}
             onClick={() => {
-              setTab(key)
-              if (key === 'stats') setHasOpenedStats(true)
+              setSearchParams((current) => {
+                const next = new URLSearchParams(current)
+                if (key === 'expenses') next.delete('tab')
+                else next.set('tab', key)
+                return next
+              }, { replace: true })
             }}
           >
             {t(label)}
@@ -449,7 +504,7 @@ export function GroupDetailPage() {
         </Modal>
       )}
 
-      {hasOpenedStats && (
+      {(hasOpenedStats || tab === 'stats') && (
         <div hidden={tab !== 'stats'}>
           <GroupStatsTab group={group} members={members} />
         </div>
@@ -502,9 +557,11 @@ export function GroupDetailPage() {
                         className="btn btn-outline settle-btn"
                         disabled={!myMemberId}
                         onClick={(event) => {
+                          refreshRevision.current.invalidate()
                           settlementTriggerRef.current = event.currentTarget
                           setSettlementNotice(null)
                           setSettlementBusy(false)
+                          setSettlementDraft(null)
                           setSettlement(b)
                         }}
                       >
@@ -526,7 +583,10 @@ export function GroupDetailPage() {
               placeholder={t('GroupDetail_SearchExpenses')}
               aria-label={t('GroupDetail_SearchExpenses')}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                refreshRevision.current.invalidate()
+                setSearchQuery(e.target.value)
+              }}
             />
             {(() => {
               const shownActivity = searchResults ?? activity

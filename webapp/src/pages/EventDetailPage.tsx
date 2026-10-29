@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabaseClient'
 import { SerializedUpdates } from '../lib/serializedUpdates'
 import { useCoalescedWrites } from '../lib/useCoalescedWrites'
 import { useLiveRefresh } from '../lib/useLiveRefresh'
+import { RefreshRevision } from '../lib/refreshRevision'
 import { formatEventRange } from '../lib/dates'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
@@ -33,6 +34,7 @@ function buildEventUrl(groupId: string, eventId: string): string {
 export function EventDetailPage() {
   const { groupId, eventId } = useParams<{ groupId: string; eventId: string }>()
   const { session } = useAuth()
+  const accountId = session?.user.id
   const { displayName, initials, avatarUrl } = useAliases()
   const { t, language } = useLocale()
 
@@ -47,11 +49,13 @@ export function EventDetailPage() {
   const [loaded, setLoaded] = useState(false)
   const [myCarExtraSeats, setMyCarExtraSeats] = useState<number | null>(null)
   const rsvpUpdates = useRef(new SerializedUpdates<EventAttendee>())
+  const refreshRevision = useRef(new RefreshRevision())
 
   const myMemberId = members.find((m) => m.members.account_id === session?.user.id)?.member_id
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (writeRevision?: number) => {
     if (!groupId || !eventId) return
+    const canApply = refreshRevision.current.begin(writeRevision)
     setError(null)
     const [groupRes, eventRes, membersRes, attendeesRes, expensesRes, myMemberRes] = await Promise.all([
       supabase
@@ -75,11 +79,12 @@ export function EventDetailPage() {
         )
         .eq('event_id', eventId)
         .order('occurred_at', { ascending: false }),
-      session ? supabase.from('members').select('car_extra_seats')
-        .eq('account_id', session.user.id).limit(1).maybeSingle()
+      accountId ? supabase.from('members').select('car_extra_seats')
+        .eq('account_id', accountId).limit(1).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
     ])
 
+    if (!canApply()) return
     if (groupRes.error) return setError(groupRes.error.message)
     if (eventRes.error) return setError(eventRes.error.message)
     if (membersRes.error) return setError(membersRes.error.message)
@@ -93,10 +98,12 @@ export function EventDetailPage() {
     setExpenses((expensesRes.data as unknown as ExpenseWithPayer[]) ?? [])
     setMyCarExtraSeats(myMemberRes.data?.car_extra_seats ?? null)
     setLoaded(true)
-  }, [groupId, eventId, session])
+  }, [groupId, eventId, accountId])
 
   useEffect(() => {
+    const revision = refreshRevision.current
     load()
+    return () => { revision.invalidate() }
   }, [load])
 
   useLiveRefresh(
@@ -116,6 +123,7 @@ export function EventDetailPage() {
     if (!myMemberId || !eventId) return
     // Pending seat taps go first so a later toggle composes on top of them.
     seatWrites.flush(eventId)
+    const writeRevision = refreshRevision.current.invalidate()
     const initial = mine ?? {
       event_id: eventId, member_id: myMemberId, response: 'not_going' as const,
       car_status: 'none' as const, car_offered_seats: null,
@@ -123,7 +131,7 @@ export function EventDetailPage() {
     void rsvpUpdates.current.run(eventId, initial, update, async (next) => {
       const { error } = await supabase.from('event_attendees').upsert(next, { onConflict: 'event_id,member_id' })
       if (error) throw error
-      await load()
+      await load(writeRevision)
     }).catch((err) => setError(err.message ?? t('Common_Error')))
   }
 
@@ -153,6 +161,7 @@ export function EventDetailPage() {
   function adjustSeats(delta: number) {
     if (!eventId || mine?.car_status !== 'offering') return
     const seats = Math.max(0, (mine.car_offered_seats ?? 0) + delta)
+    refreshRevision.current.invalidate()
     setAttendees((prev) => prev.map((a) => a.member_id === myMemberId ? { ...a, car_offered_seats: seats } : a))
     seatWrites.set(eventId, seats)
   }
@@ -177,7 +186,7 @@ export function EventDetailPage() {
   if (!loaded || !event || !group) {
     return (
       <div className="page">
-        <AppHeader title={t('EventDetail_GenericTitle')} backTo={`/groups/${groupId}`} />
+        <AppHeader title={t('EventDetail_GenericTitle')} backTo={`/groups/${groupId}?tab=events`} />
         {error ? (
           <p className="error-text" role="alert">
             {error}
@@ -248,7 +257,7 @@ export function EventDetailPage() {
 
   return (
     <div className="page">
-      <AppHeader title={event.title} backTo={`/groups/${groupId}`} />
+      <AppHeader title={event.title} backTo={`/groups/${groupId}?tab=events`} />
       {error && (
         <p className="error-text" role="alert">
           {error}

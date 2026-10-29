@@ -2,7 +2,21 @@ import { deleteToken, getToken } from 'firebase/messaging'
 import { getMessagingIfSupported } from './firebase'
 import { supabase } from './supabaseClient'
 
-export type PushState = 'unsupported' | 'default' | 'denied' | 'not_subscribed' | 'subscribed'
+export type PushState = 'unsupported' | 'unavailable' | 'default' | 'denied' | 'not_subscribed' | 'subscribed'
+
+async function waitForServiceWorker(): Promise<ServiceWorkerRegistration> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Service worker was not ready within 10 seconds.')), 10_000)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 // 'subscribed' means more than "permission granted" — permission can't be revoked
 // programmatically once granted, so after unregisterFromPush() the browser would still report
@@ -16,19 +30,20 @@ export async function getPushState(accountId: string): Promise<PushState> {
   if (Notification.permission === 'denied') return 'denied'
   if (Notification.permission === 'default') return 'default'
 
-  const registration = await navigator.serviceWorker.ready
+  const registration = await waitForServiceWorker()
   const token = await getToken(messaging, {
     vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
     serviceWorkerRegistration: registration,
   }).catch(() => null)
   if (!token) return 'not_subscribed'
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('device_tokens')
     .select('id')
     .eq('push_token', token)
     .eq('account_id', accountId)
     .maybeSingle()
+  if (error) throw error
   return data ? 'subscribed' : 'not_subscribed'
 }
 
@@ -44,7 +59,7 @@ export async function registerForPush(accountId: string): Promise<PushState> {
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') return permission
 
-  const registration = await navigator.serviceWorker.ready
+  const registration = await waitForServiceWorker()
   const token = await getToken(messaging, {
     vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
     serviceWorkerRegistration: registration,
@@ -62,7 +77,7 @@ export async function unregisterFromPush(): Promise<void> {
   const messaging = await getMessagingIfSupported()
   if (!messaging) return
 
-  const registration = await navigator.serviceWorker.ready
+  const registration = await waitForServiceWorker()
   const token = await getToken(messaging, {
     vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
     serviceWorkerRegistration: registration,

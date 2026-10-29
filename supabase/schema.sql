@@ -691,6 +691,8 @@ declare
   v_rates jsonb;
   v_from_rate numeric;
   v_to_rate numeric;
+  -- Check an unconstrained numeric before assigning to the numeric(12,2) field.
+  v_converted numeric;
 begin
   if new.group_id is null then
     -- Unscoped expense (its group was dissolved) — no group currency left
@@ -704,11 +706,15 @@ begin
 
   -- Same currency as before: reuse the rate the expense was first converted
   -- at, so correcting an old amount doesn't silently apply today's rate.
-  -- Safe because groups.currency can't change once a group has expenses
-  -- (enforce_group_currency_locked, "Currency integrity" section at the end).
+  -- Safe because groups.currency can't change once a group has expenses.
   if tg_op = 'UPDATE' and new.currency = old.currency then
     new.exchange_rate := old.exchange_rate;
-    new.amount_in_group_currency := round(new.amount * new.exchange_rate, 2);
+    v_converted := round(new.amount * new.exchange_rate, 2);
+    if v_converted > 9999999999.99 then
+      raise exception using errcode = '22003', message = 'converted_amount_too_large',
+        detail = format('Amount %s %s converts to %s (maximum 9999999999.99)', new.amount, new.currency, v_converted);
+    end if;
+    new.amount_in_group_currency := v_converted;
     return new;
   end if;
 
@@ -734,7 +740,12 @@ begin
   end if;
 
   new.exchange_rate := v_to_rate / v_from_rate;
-  new.amount_in_group_currency := round(new.amount * new.exchange_rate, 2);
+  v_converted := round(new.amount * new.exchange_rate, 2);
+  if v_converted > 9999999999.99 then
+    raise exception using errcode = '22003', message = 'converted_amount_too_large',
+      detail = format('Amount %s %s converts to %s (maximum 9999999999.99)', new.amount, new.currency, v_converted);
+  end if;
+  new.amount_in_group_currency := v_converted;
   return new;
 end;
 $$;
@@ -756,9 +767,17 @@ language plpgsql
 as $$
 declare
   v_rate numeric;
+  v_currency char(3);
+  -- Check an unconstrained numeric before assigning to the numeric(12,2) field.
+  v_converted numeric;
 begin
-  select exchange_rate into v_rate from public.expenses where id = new.expense_id;
-  new.share_amount_in_group_currency := round(new.share_amount * coalesce(v_rate, 1), 2);
+  select exchange_rate, currency into v_rate, v_currency from public.expenses where id = new.expense_id;
+  v_converted := round(new.share_amount * coalesce(v_rate, 1), 2);
+  if v_converted > 9999999999.99 then
+    raise exception using errcode = '22003', message = 'converted_amount_too_large',
+      detail = format('Share amount %s %s converts to %s (maximum 9999999999.99)', new.share_amount, v_currency, v_converted);
+  end if;
+  new.share_amount_in_group_currency := v_converted;
   return new;
 end;
 $$;
@@ -1691,36 +1710,53 @@ begin
       and start_date <= current_date
       and (last_processed_date is null or last_processed_date < current_date)
   loop
-    v_occurrence := v_template.last_processed_date;
-    v_count := 0;
+    begin
+      v_occurrence := v_template.last_processed_date;
+      v_count := 0;
 
-    loop
-      v_occurrence := case
-        when v_occurrence is null then v_template.start_date
-        when v_template.frequency = 'daily' then v_occurrence + 1
-        when v_template.frequency = 'weekly' then v_occurrence + 7
-        when v_template.frequency = 'monthly' then (v_template.start_date + make_interval(months =>
-          ((extract(year from v_occurrence) - extract(year from v_template.start_date)) * 12
-           + extract(month from v_occurrence) - extract(month from v_template.start_date))::int + 1))::date
-        when v_template.frequency = 'yearly' then (v_template.start_date + make_interval(years =>
-          (extract(year from v_occurrence) - extract(year from v_template.start_date))::int + 1))::date
-      end;
+      loop
+        v_occurrence := case
+          when v_occurrence is null then v_template.start_date
+          when v_template.frequency = 'daily' then v_occurrence + 1
+          when v_template.frequency = 'weekly' then v_occurrence + 7
+          when v_template.frequency = 'monthly' then (v_template.start_date + make_interval(months =>
+            ((extract(year from v_occurrence) - extract(year from v_template.start_date)) * 12
+             + extract(month from v_occurrence) - extract(month from v_template.start_date))::int + 1))::date
+          when v_template.frequency = 'yearly' then (v_template.start_date + make_interval(years =>
+            (extract(year from v_occurrence) - extract(year from v_template.start_date))::int + 1))::date
+        end;
 
-      exit when v_occurrence > current_date or v_count >= 24;
+        exit when v_occurrence > current_date or v_count >= 24;
 
-      insert into expenses (group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_by, split_mode)
-      values (v_template.group_id, v_template.paid_by_member_id, v_template.amount, v_template.currency,
-              v_template.description, v_template.category, v_occurrence, v_template.created_by, v_template.split_mode)
-      returning id into v_new_expense_id;
+        insert into expenses (group_id, paid_by_member_id, amount, currency, description, category, occurred_at, created_by, split_mode)
+        values (v_template.group_id, v_template.paid_by_member_id, v_template.amount, v_template.currency,
+                v_template.description, v_template.category, v_occurrence, v_template.created_by, v_template.split_mode)
+        returning id into v_new_expense_id;
 
-      insert into expense_shares (expense_id, member_id, share_amount)
-      select v_new_expense_id, member_id, share_amount
-      from recurring_expense_shares
-      where recurring_expense_id = v_template.id;
+        insert into expense_shares (expense_id, member_id, share_amount)
+        select v_new_expense_id, member_id, share_amount
+        from recurring_expense_shares
+        where recurring_expense_id = v_template.id;
 
-      update recurring_expenses set last_processed_date = v_occurrence where id = v_template.id;
-      v_count := v_count + 1;
-    end loop;
+        update recurring_expenses set last_processed_date = v_occurrence where id = v_template.id;
+        v_count := v_count + 1;
+      end loop;
+
+      -- Flush both same-named constraint triggers inside this template's subtransaction.
+      set constraints public.sync_expense_converted_total immediate;
+      set constraints public.sync_expense_converted_total deferred;
+    exception
+      when numeric_value_out_of_range then
+        if sqlerrm = 'converted_amount_too_large' then
+          update recurring_expenses set is_active = false where id = v_template.id;
+          raise warning 'Recurring expense template % deactivated: %', v_template.id, sqlerrm;
+        else
+          raise warning 'Recurring expense template % failed: %', v_template.id, sqlerrm;
+        end if;
+      when others then
+        -- Other failures may be transient (for example, a missing exchange rate).
+        raise warning 'Recurring expense template % failed: %', v_template.id, sqlerrm;
+    end;
   end loop;
 end;
 $$;
@@ -3752,6 +3788,11 @@ begin
 
   select sum(share_amount_in_group_currency) into v_total
   from expense_shares where expense_id = v_expense_id;
+
+  if v_total > 9999999999.99 then
+    raise exception using errcode = '22003', message = 'converted_amount_too_large',
+      detail = format('Expense %s has converted share total %s (maximum 9999999999.99)', v_expense_id, v_total);
+  end if;
 
   if v_total is not null then
     update expenses

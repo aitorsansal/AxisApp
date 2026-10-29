@@ -13,13 +13,18 @@ namespace AxisApp.ViewModels;
 /// Delete action — a plain group-member edit stays open (fixing a typo'd time/location shouldn't
 /// need the organizer specifically), only delete is restricted, per the plan's "Decisions locked".
 /// </summary>
-public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
+public partial class AddEventViewModel : BaseViewModel, IQueryAttributable, IUnsavedChangesEditor
 {
     private readonly IEventsRepository eventsRepository;
     private readonly IMembersRepository membersRepository;
     private readonly IAuthService authService;
 
     private Guid groupId;
+    private readonly UnsavedEditGuard unsavedEdits = new();
+    public bool HasPendingEdits => IsBusy && !IsInitialLoading;
+    public bool ShouldConfirmLeaving => unsavedEdits.ShouldBlock(CaptureSnapshot(), HasPendingEdits);
+    private string CaptureSnapshot() => FormEditorSnapshots.Event(new EventEditorState(
+        Title, Description, Location, StartDate, StartTime, HasEndTime, EndDate, EndTime, NeedsTransport));
     private Guid? editingEventId;
     private Guid? editingCreatedBy;
     private DateTime editingCreatedAt;
@@ -91,6 +96,7 @@ public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
     public Task LoadAsync(Guid forGroupId, Guid? forEventId = null) => RunSafeAsync(async () =>
     {
         groupId = forGroupId;
+        unsavedEdits.Reset();
         editingEventId = forEventId;
         IsEditMode = forEventId is not null;
         PageTitle = LocalizationResourceManager.Instance[IsEditMode ? "AddEvent_EditTitle" : "AddEvent_Title"];
@@ -104,6 +110,7 @@ public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
             if (forEventId is { } id)
             {
                 var ev = await eventsRepository.GetByIdAsync(id);
+                if (ev is null) throw new InvalidOperationException(LocalizationResourceManager.Instance["Common_Error"]);
                 if (ev is not null)
                 {
                     editingCreatedBy = ev.CreatedBy;
@@ -149,6 +156,7 @@ public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
             CanSave = !string.IsNullOrWhiteSpace(Title);
             CanDelete = IsEditMode && isEventCreator;
             });
+            unsavedEdits.Capture(CaptureSnapshot());
         }
         finally
         {
@@ -163,7 +171,7 @@ public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
     [RelayCommand]
     private Task Save() => RunSafeAsync(async () =>
     {
-        if (!CanSave) return;
+        if (!CanSave || IsBusy) return;
 
         if (HasEndTime && EndDate.Date.Add(EndTime) <= StartDate.Date.Add(StartTime))
             throw new InvalidOperationException(LocalizationResourceManager.Instance["AddEvent_EndAfterStart"]);
@@ -191,15 +199,21 @@ public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
                 ev.CreatedBy = editingCreatedBy;
                 ev.CreatedAt = editingCreatedAt;
                 await eventsRepository.UpdateAsync(ev);
+                unsavedEdits.MarkCommitted();
             }
             else
             {
                 var inserted = await eventsRepository.AddAsync(ev);
+                unsavedEdits.MarkCommitted();
 
                 // Creator auto-RSVPs "going" — see /EVENTS_PLAN.md's Milestone 3b remarks.
+                try
+                {
                 var myMember = await membersRepository.GetMyMemberAsync();
                 if (myMember is not null)
                     await eventsRepository.UpsertRsvpAsync(inserted.Id, myMember.Id, "going");
+                }
+                catch { }
             }
 
             await Shell.Current.GoToAsync("..");
@@ -213,12 +227,13 @@ public partial class AddEventViewModel : BaseViewModel, IQueryAttributable
     [RelayCommand]
     private Task Delete() => RunSafeAsync(async () =>
     {
-        if (!IsEditMode || editingEventId is not { } id) return;
+        if (IsBusy || !IsEditMode || editingEventId is not { } id) return;
 
         IsBusy = true;
         try
         {
             await eventsRepository.DeleteAsync(id);
+            unsavedEdits.MarkCommitted();
             await Shell.Current.GoToAsync("..");
         }
         finally

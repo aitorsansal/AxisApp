@@ -99,6 +99,9 @@ public partial class GroupEventsViewModel : BaseViewModel
     /// <summary>Bumped by every local RSVP patch; lets ApplyAttendeeUpdateAsync's refetch notice that
     /// a newer tap landed while it was in flight.</summary>
     private int attendeeWriteVersion;
+    private int pendingAttendeeWrites;
+    private bool refreshingAttendees;
+    private DateTime attendeesLoadedAtUtc;
 
     [ObservableProperty] private ObservableCollection<EventMonthGroup> groupedEvents = [];
     [ObservableProperty] private bool hasEvents;
@@ -129,6 +132,7 @@ public partial class GroupEventsViewModel : BaseViewModel
     public Task LoadAsync(Guid groupId) => RunSafeAsync(async () =>
     {
         this.groupId = groupId;
+        var versionAtLoad = ++attendeeWriteVersion;
         IsBusy = true;
         var isFirstLoad = !hasLoadedOnce;
         IsInitialLoading = isFirstLoad;
@@ -141,18 +145,21 @@ public partial class GroupEventsViewModel : BaseViewModel
                 var loadAliases = aliasesRepository.GetMyAliasesAsync();
                 await Task.WhenAll(loadEvents, loadMembers, loadAliases);
 
-                allEvents = loadEvents.Result;
+                var nextEvents = loadEvents.Result;
                 var members = loadMembers.Result;
+
+                var attendees = new Dictionary<Guid, List<EventAttendee>>();
+                foreach (var ev in nextEvents)
+                    attendees[ev.Id] = await eventsRepository.GetAttendeesAsync(ev.Id);
+                if (versionAtLoad != attendeeWriteVersion || groupId != this.groupId || pendingAttendeeWrites > 0) return;
+                allEvents = nextEvents;
                 membersById = members.ToDictionary(m => m.Id);
                 aliases = loadAliases.Result;
                 var myMember = members.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId);
                 myMemberId = myMember?.Id;
                 myCarExtraSeats = myMember?.CarExtraSeats;
-
-                var attendees = new Dictionary<Guid, List<EventAttendee>>();
-                foreach (var ev in allEvents)
-                    attendees[ev.Id] = await eventsRepository.GetAttendeesAsync(ev.Id);
                 attendeesByEvent = attendees;
+                attendeesLoadedAtUtc = DateTime.UtcNow;
 
                 Rebuild();
             }
@@ -292,8 +299,7 @@ public partial class GroupEventsViewModel : BaseViewModel
             _ => item.CarStatus
         };
         var carSeats = carStatus == "offering" ? item.CarOfferedSeats : (int?)null;
-        var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, response, carStatus, carSeats);
-        await ApplyAttendeeUpdateAsync(item.EventId, updated);
+        await WriteAttendeeAsync(item.EventId, () => eventsRepository.UpsertRsvpAsync(item.EventId, me, response, carStatus, carSeats));
     });
 
     /// <summary>Tapping the already-active state toggles it back off ("none") — the same
@@ -307,8 +313,7 @@ public partial class GroupEventsViewModel : BaseViewModel
         if (item is null || myMemberId is not { } me || item.MyResponse != "going") return;
         var newStatus = item.CarStatus == "offering" ? "none" : "offering";
         var seats = newStatus == "offering" ? myCarExtraSeats ?? 0 : (int?)null;
-        var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, newStatus, seats);
-        await ApplyAttendeeUpdateAsync(item.EventId, updated);
+        await WriteAttendeeAsync(item.EventId, () => eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, newStatus, seats));
     });
 
     [RelayCommand]
@@ -316,8 +321,7 @@ public partial class GroupEventsViewModel : BaseViewModel
     {
         if (item is null || myMemberId is not { } me || item.MyResponse is not ("going" or "maybe")) return;
         var newStatus = item.CarStatus == "needs_ride" ? "none" : "needs_ride";
-        var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, newStatus);
-        await ApplyAttendeeUpdateAsync(item.EventId, updated);
+        await WriteAttendeeAsync(item.EventId, () => eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, newStatus));
     });
 
     [RelayCommand]
@@ -330,9 +334,21 @@ public partial class GroupEventsViewModel : BaseViewModel
     {
         if (item is null || myMemberId is not { } me || item.CarStatus != "offering") return;
         var newSeats = Math.Max(0, item.CarOfferedSeats + delta);
-        var updated = await eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, "offering", newSeats);
-        await ApplyAttendeeUpdateAsync(item.EventId, updated);
+        await WriteAttendeeAsync(item.EventId, () => eventsRepository.UpsertRsvpAsync(item.EventId, me, item.MyResponse, "offering", newSeats));
     });
+
+    private async Task WriteAttendeeAsync(Guid eventId, Func<Task<EventAttendee>> write)
+    {
+        pendingAttendeeWrites++;
+        attendeeWriteVersion++;
+        var targetGroup = groupId;
+        try
+        {
+            var updated = await write();
+            if (targetGroup == groupId) await ApplyAttendeeUpdateAsync(eventId, updated);
+        }
+        finally { pendingAttendeeWrites--; }
+    }
 
     /// <summary>Replaces (or inserts) the single (event, member) row UpsertRsvpAsync just returned
     /// in the local attendeesByEvent cache, then re-derives the visible list from it (Rebuild is
@@ -363,16 +379,42 @@ public partial class GroupEventsViewModel : BaseViewModel
     private async Task ApplyAttendeeUpdateAsync(Guid eventId, EventAttendee updated)
     {
         ApplyAttendeeUpdate(eventId, updated);
+        if (pendingAttendeeWrites > 1) return;
         try
         {
             var versionAtStart = attendeeWriteVersion;
+            var targetGroup = groupId;
             var fetched = await eventsRepository.GetAttendeesAsync(eventId);
-            if (versionAtStart != attendeeWriteVersion) return;
+            if (versionAtStart != attendeeWriteVersion || targetGroup != groupId) return;
 
             attendeesByEvent[eventId] = fetched;
             Rebuild();
         }
         catch { /* keep the local patch */ }
+    }
+
+    public async Task RefreshIfStaleAsync(bool force = false)
+    {
+        if (!hasLoadedOnce || groupId == Guid.Empty || IsBusy || pendingAttendeeWrites > 0 || refreshingAttendees) return;
+        if (!force && DateTime.UtcNow - attendeesLoadedAtUtc < TimeSpan.FromSeconds(60)) return;
+        refreshingAttendees = true;
+        var targetGroup = groupId;
+        var versionAtStart = attendeeWriteVersion;
+        try
+        {
+            await authService.EnsureFreshSessionAsync();
+            var nextEvents = await eventsRepository.GetForGroupAsync(targetGroup);
+            var nextAttendees = new Dictionary<Guid, List<EventAttendee>>();
+            foreach (var ev in nextEvents)
+                nextAttendees[ev.Id] = await eventsRepository.GetAttendeesAsync(ev.Id);
+            if (targetGroup != groupId || versionAtStart != attendeeWriteVersion || pendingAttendeeWrites > 0) return;
+            allEvents = nextEvents;
+            attendeesByEvent = nextAttendees;
+            attendeesLoadedAtUtc = DateTime.UtcNow;
+            Rebuild();
+        }
+        catch { }
+        finally { refreshingAttendees = false; }
     }
 
     [RelayCommand]

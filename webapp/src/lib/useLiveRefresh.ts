@@ -39,23 +39,25 @@ export function useLiveRefresh(
         timer = setTimeout(run, debounceMs)
         return
       }
-      void refreshRef.current()
+      void Promise.resolve().then(() => disposed ? undefined : refreshRef.current()).catch(() => {
+        // A later reconnect/focus/poll retries a failed background refresh.
+      })
     }
     const schedule = () => {
       clearTimeout(timer)
       timer = setTimeout(run, debounceMs)
     }
 
-    const channel = supabase.channel(name)
-    for (const { table, filter } of JSON.parse(tablesKey) as LiveTable[]) {
-      channel.on('postgres_changes', { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) }, schedule)
+    const liveTables = JSON.parse(tablesKey) as LiveTable[]
+    const channel = liveTables.length > 0 ? supabase.channel(name) : null
+    if (channel) {
+      for (const { table, filter } of liveTables) {
+        channel.on('postgres_changes', { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) }, schedule)
+      }
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') schedule()
+      })
     }
-    let subscribedBefore = false
-    channel.subscribe((status) => {
-      if (status !== 'SUBSCRIBED') return
-      if (subscribedBefore) schedule()
-      subscribedBefore = true
-    })
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') schedule()
@@ -65,6 +67,7 @@ export function useLiveRefresh(
     }, pollMs)
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('online', schedule)
+    window.addEventListener('focus', schedule)
 
     return () => {
       disposed = true
@@ -72,7 +75,8 @@ export function useLiveRefresh(
       clearInterval(poll)
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('online', schedule)
-      void supabase.removeChannel(channel)
+      window.removeEventListener('focus', schedule)
+      if (channel) void supabase.removeChannel(channel)
     }
   }, [name, tablesKey])
 }

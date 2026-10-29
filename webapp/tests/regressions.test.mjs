@@ -16,6 +16,84 @@ import { categoryColor, categoryFrequency, categoryTrend, expensesCsv, filterByR
 import { expenseTimestamp, isCalendarDate, localDateInput, localDateTimeToIso, formatEventRange } from '../src/lib/dates.ts'
 import { isSettlementDate, settlementCents, settlementParties, settlementPayload } from '../src/lib/settlements.ts'
 import { strings } from '../src/lib/i18n/strings.ts'
+import { assertSupabaseConfig } from '../src/lib/runtimeConfig.ts'
+import { eventEditorSnapshot, settlementEditorSnapshot } from '../src/lib/formEditorSnapshots.ts'
+import { RefreshRevision } from '../src/lib/refreshRevision.ts'
+import { resolveConfig } from 'vite'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+test('late attendance responses cannot replace a newer read or a local seat/RSVP edit', () => {
+  const revision = new RefreshRevision()
+  const firstRead = revision.begin()
+  const newerRead = revision.begin()
+  assert.equal(firstRead(), false)
+  assert.equal(newerRead(), true)
+  const firstWrite = revision.invalidate()
+  assert.equal(newerRead(), false)
+  const firstWriteRead = revision.begin(firstWrite)
+  const secondWrite = revision.invalidate()
+  assert.equal(firstWriteRead(), false)
+  const finalRead = revision.begin(secondWrite)
+  assert.equal(revision.begin(firstWrite)(), false)
+  assert.equal(finalRead(), true, 'an older write callback must not cancel the current read')
+  revision.invalidate()
+  assert.equal(finalRead(), false, 'unmount or a subsequent edit invalidates pending results')
+})
+
+test('event and repayment dirty snapshots protect editable fields and ignore inactive/display values', () => {
+  const event = { title: 'Plan', description: '', location: '', startDate: '2026-10-28', startTime: '12:00', hasEndTime: false, endDate: '2026-10-28', endTime: '13:00', needsTransport: false }
+  assert.equal(eventEditorSnapshot(event), eventEditorSnapshot({ ...event, endDate: '2026-11-01', endTime: '14:00' }))
+  for (const change of [{ title: 'New plan' }, { description: ' ' }, { location: 'Park' }, { startDate: 'invalid' }, { startTime: '' }, { hasEndTime: true }, { needsTransport: true }])
+    assert.notEqual(eventEditorSnapshot(event), eventEditorSnapshot({ ...event, ...change }))
+  const payment = { payerId: 'a', recipientId: 'b', amount: '8.50', currency: 'EUR', date: '2026-10-28', note: '' }
+  assert.equal(settlementEditorSnapshot(payment), settlementEditorSnapshot({ ...payment, amount: '8,50', id: 'saved-id' }))
+  for (const change of [{ payerId: 'c' }, { recipientId: 'c' }, { amount: '8,' }, { currency: 'USD' }, { date: '' }, { note: 'Partial' }])
+    assert.notEqual(settlementEditorSnapshot(payment), settlementEditorSnapshot({ ...payment, ...change }))
+})
+
+test('startup configuration rejects missing settings without exposing values', () => {
+  const valid = { VITE_SUPABASE_URL: 'https://qa.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test' }
+  assert.doesNotThrow(() => assertSupabaseConfig(valid))
+  for (const field of Object.keys(valid)) {
+    for (const value of [undefined, '', '   '])
+      assert.throws(() => assertSupabaseConfig({ ...valid, [field]: value }), new RegExp(`Missing ${field}`))
+  }
+  for (const url of ['broken', 'ftp://example.com', 'https://YOUR-PROJECT-REF.supabase.co', 'https://user:password@example.com'])
+    assert.throws(() => assertSupabaseConfig({ ...valid, VITE_SUPABASE_URL: url }), /^Error: Invalid VITE_SUPABASE_URL\.$/)
+  for (const key of ['sb_publishable_...', 'key with spaces', 'sb_secret_private-test-value']) {
+    assert.throws(() => assertSupabaseConfig({ ...valid, VITE_SUPABASE_PUBLISHABLE_KEY: key }), (error) => {
+      assert.ok(!error.message.includes(key))
+      return /VITE_SUPABASE_PUBLISHABLE_KEY/.test(error.message)
+    })
+  }
+})
+
+test('the actual Vite build configuration blocks missing env and loads valid deployment env', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'axis-build-config-'))
+  const configFile = fileURLToPath(new URL('../vite.config.ts', import.meta.url))
+  const options = { configFile, root, mode: 'production', logLevel: 'silent' }
+  const names = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_PUBLISHABLE_KEY']
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]))
+  try {
+    for (const name of names) delete process.env[name]
+    await assert.rejects(resolveConfig(options, 'build'), /Missing VITE_SUPABASE_URL/)
+    await writeFile(join(root, '.env.production'), 'VITE_SUPABASE_URL=https://qa.supabase.co\n')
+    await assert.rejects(resolveConfig(options, 'build'), /Missing VITE_SUPABASE_PUBLISHABLE_KEY/)
+    await writeFile(join(root, '.env.production'), 'VITE_SUPABASE_URL=https://qa.supabase.co\nVITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_test\n')
+    await resolveConfig(options, 'build')
+    process.env.VITE_SUPABASE_URL = ''
+    await assert.rejects(resolveConfig(options, 'build'), /Missing VITE_SUPABASE_URL/)
+  } finally {
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name]
+      else process.env[name] = previous[name]
+    }
+    await rm(root, { recursive: true, force: true })
+  }
+})
 
 test('expense, share and settlement amounts follow the same cross-client input contract', () => {
   const cases = JSON.parse(readFileSync(new URL('../../tests/amount-input-cases.json', import.meta.url), 'utf8'))

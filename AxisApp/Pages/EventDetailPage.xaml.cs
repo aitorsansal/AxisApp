@@ -1,4 +1,5 @@
 using AxisApp.ViewModels;
+using Microsoft.Maui.Networking;
 
 namespace AxisApp.Pages;
 
@@ -7,6 +8,7 @@ public partial class EventDetailPage : ContentPage
     private readonly EventDetailViewModel vm;
     private IDispatcherTimer? captionTimer;
     private Window? subscribedWindow;
+    private bool foreground;
 
     public EventDetailPage(EventDetailViewModel vm)
     {
@@ -24,10 +26,16 @@ public partial class EventDetailPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        _ = vm.RefreshIfStaleAsync();
+        foreground = true;
+        _ = vm.RefreshIfStaleAsync(force: true);
 
         subscribedWindow = Window;
-        if (subscribedWindow is not null) subscribedWindow.Resumed += OnWindowResumed;
+        if (subscribedWindow is not null)
+        {
+            subscribedWindow.Resumed += OnWindowResumed;
+            subscribedWindow.Stopped += OnWindowStopped;
+        }
+        Connectivity.ConnectivityChanged += OnConnectivityChanged;
 
         captionTimer = Dispatcher.CreateTimer();
         captionTimer.Interval = TimeSpan.FromSeconds(30);
@@ -38,8 +46,14 @@ public partial class EventDetailPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
+        foreground = false;
+        Connectivity.ConnectivityChanged -= OnConnectivityChanged;
 
-        if (subscribedWindow is not null) subscribedWindow.Resumed -= OnWindowResumed;
+        if (subscribedWindow is not null)
+        {
+            subscribedWindow.Resumed -= OnWindowResumed;
+            subscribedWindow.Stopped -= OnWindowStopped;
+        }
         subscribedWindow = null;
 
         if (captionTimer is not null)
@@ -50,7 +64,27 @@ public partial class EventDetailPage : ContentPage
         }
     }
 
-    private void OnWindowResumed(object? sender, EventArgs e) => _ = vm.RefreshIfStaleAsync();
+    private void OnWindowResumed(object? sender, EventArgs e)
+    {
+        foreground = true;
+        captionTimer?.Start();
+        _ = vm.RefreshIfStaleAsync(force: true);
+    }
 
-    private void OnCaptionTick(object? sender, EventArgs e) => vm.UpdateUpdatedCaption();
+    private void OnWindowStopped(object? sender, EventArgs e)
+    {
+        foreground = false;
+        captionTimer?.Stop();
+    }
+
+    private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
+    {
+        if (e.NetworkAccess == NetworkAccess.Internet)
+            Dispatcher.Dispatch(() => { if (foreground) _ = vm.RefreshIfStaleAsync(force: true); });
+    }
+
+    private void OnCaptionTick(object? sender, EventArgs e)
+    {
+        if (foreground) _ = vm.RefreshIfStaleAsync();
+    }
 }

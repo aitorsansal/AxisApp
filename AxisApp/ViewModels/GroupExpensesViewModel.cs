@@ -113,6 +113,8 @@ public partial class GroupExpensesViewModel : BaseViewModel
     /// so the skeleton and its minimum-visible-duration padding only apply to the cold load.</summary>
     [ObservableProperty] private bool isInitialLoading;
     private bool hasLoadedOnce;
+    private bool refreshing;
+    private DateTime loadedAtUtc;
 
     public GroupExpensesViewModel(
         IGroupsRepository groupsRepository,
@@ -140,49 +142,93 @@ public partial class GroupExpensesViewModel : BaseViewModel
         {
             var generation = ++loadGeneration;
 
-            async Task DoLoad()
-            {
-                var loadGroup = groupsRepository.GetByIdAsync(groupId);
-                var loadMembers = membersRepository.GetForGroupAsync(groupId);
-                var loadExpenses = expensesRepository.GetForGroupAsync(groupId, PageSize, 0);
-                var loadAliases = aliasesRepository.GetMyAliasesAsync();
-                await Task.WhenAll(loadGroup, loadMembers, loadExpenses, loadAliases);
-                if (generation != loadGeneration) return; // a newer LoadAsync already superseded this
-
-                var members = loadMembers.Result;
-                membersById = members.ToDictionary(m => m.Id);
-                aliases = loadAliases.Result;
-                myMemberId = members.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)?.Id;
-                currentGroup = loadGroup.Result;
-
-                SearchQuery = "";
-                IsSearching = false;
-                HasNoSearchResults = false;
-                loadedActivity.Clear();
-                loadedOffset = 0;
-
-                await RefreshBalancesAsync();
-                await AppendActivityPageAsync(loadExpenses.Result, generation);
-            }
-
             if (isFirstLoad)
-                await WithMinimumDurationAsync(TimeSpan.FromMilliseconds(400), DoLoad);
+                await WithMinimumDurationAsync(TimeSpan.FromMilliseconds(400), () => LoadDataAsync(generation));
             else
-                await DoLoad();
+                await LoadDataAsync(generation);
         }
         finally
         {
             IsBusy = false;
             IsInitialLoading = false;
-            hasLoadedOnce = true;
         }
     });
 
+    private async Task LoadDataAsync(int generation, bool quiet = false)
+    {
+        var targetGroup = groupId;
+        var loadGroup = groupsRepository.GetByIdAsync(targetGroup);
+        var loadMembers = membersRepository.GetForGroupAsync(targetGroup);
+        var loadExpenses = expensesRepository.GetForGroupAsync(targetGroup, PageSize, 0);
+        var loadAliases = aliasesRepository.GetMyAliasesAsync();
+        await Task.WhenAll(loadGroup, loadMembers, loadExpenses, loadAliases);
+        if (generation != loadGeneration) return;
+
+        var nextGroup = loadGroup.Result;
+        var nextMembers = loadMembers.Result.ToDictionary(m => m.Id);
+        var nextAliases = loadAliases.Result;
+        var page = loadExpenses.Result;
+        var groupSymbol = AppConstants.Currencies.SymbolFor(nextGroup.Currency);
+        var loadShares = expensesRepository.GetSharesForExpensesAsync(page.Select(e => e.Id).ToList());
+        var loadBalances = BuildPairwiseItemsAsync(groupSymbol, targetGroup, nextMembers, nextAliases);
+        await Task.WhenAll(loadShares, loadBalances);
+        if (generation != loadGeneration) return;
+        // Search or paging may have started while a quiet reload was in flight.
+        if (quiet && (IsSearching || !string.IsNullOrEmpty(SearchQuery) || IsLoadingMore || loadedOffset > PageSize)) return;
+
+        var showConverted = Microsoft.Maui.Storage.Preferences.Default.Get(AppConstants.Preferences.AmountDisplayConverted, true);
+        var items = BuildActivityItems(page, loadShares.Result.ToLookup(s => s.ExpenseId),
+            nextMembers, nextAliases, groupSymbol, nextGroup.Currency, showConverted);
+
+        membersById = nextMembers;
+        aliases = nextAliases;
+        myMemberId = nextMembers.Values.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)?.Id;
+        currentGroup = nextGroup;
+        if (!quiet)
+        {
+            SearchQuery = "";
+            IsSearching = false;
+            HasNoSearchResults = false;
+        }
+        loadedActivity.Clear();
+        loadedActivity.AddRange(items);
+        loadedOffset = page.Count;
+        HasMorePages = page.Count == PageSize;
+        Balances = new ObservableCollection<MemberBalanceItem>(loadBalances.Result);
+        RecentActivity = new ObservableCollection<ActivityItem>(loadedActivity);
+        hasLoadedOnce = true;
+        loadedAtUtc = DateTime.UtcNow;
+    }
+
+    public async Task RefreshIfStaleAsync(bool force = false)
+    {
+        if (!hasLoadedOnce || currentGroup is null || IsBusy || refreshing || IsLoadingMore ||
+            IsSearching || !string.IsNullOrEmpty(SearchQuery)) return;
+        if (!force && DateTime.UtcNow - loadedAtUtc < TimeSpan.FromSeconds(60)) return;
+
+        refreshing = true;
+        var generation = ++loadGeneration;
+        try
+        {
+            await authService.EnsureFreshSessionAsync();
+            if (generation != loadGeneration || IsSearching || !string.IsNullOrEmpty(SearchQuery) || IsLoadingMore) return;
+            if (loadedOffset > PageSize)
+                await RefreshBalancesAsync(generation);
+            else
+                await LoadDataAsync(generation, quiet: true);
+        }
+        catch { }
+        finally { refreshing = false; }
+    }
+
     /// <summary>Rebuilds the Balances section without refetching members/activity.</summary>
-    private async Task RefreshBalancesAsync()
+    private async Task RefreshBalancesAsync(int generation)
     {
         var groupSymbol = AppConstants.Currencies.SymbolFor(currentGroup!.Currency);
-        Balances = new ObservableCollection<MemberBalanceItem>(await BuildPairwiseItemsAsync(groupSymbol));
+        var items = await BuildPairwiseItemsAsync(groupSymbol, groupId, membersById, aliases);
+        if (generation != loadGeneration) return;
+        Balances = new ObservableCollection<MemberBalanceItem>(items);
+        loadedAtUtc = DateTime.UtcNow;
     }
 
     /// <summary>Builds ActivityItem rows for a batch of expenses, given their shares already
@@ -318,18 +364,19 @@ public partial class GroupExpensesViewModel : BaseViewModel
     /// The old Simplified (DebtSimplifier) mode was removed 2026-10-27: settling one of its
     /// suggested transfers between two people who never shared an expense left made-up debts in
     /// this pairwise view.</summary>
-    private async Task<List<MemberBalanceItem>> BuildPairwiseItemsAsync(string groupSymbol)
+    private async Task<List<MemberBalanceItem>> BuildPairwiseItemsAsync(string groupSymbol, Guid targetGroup,
+        IReadOnlyDictionary<Guid, Member> members, IReadOnlyDictionary<Guid, string> memberAliases)
     {
-        var pairwise = await balancesRepository.GetMyPairwiseForGroupAsync(groupId);
+        var pairwise = await balancesRepository.GetMyPairwiseForGroupAsync(targetGroup);
         var items = new List<MemberBalanceItem>();
         foreach (var row in pairwise)
         {
-            if (!membersById.TryGetValue(row.OtherMemberId, out var member)) continue;
+            if (!members.TryGetValue(row.OtherMemberId, out var member)) continue;
             var item = new MemberBalanceItem
             {
                 Member = member,
-                Name = MemberDisplay.Name(member, aliases),
-                Initials = MemberDisplay.Initials(member, aliases),
+                Name = MemberDisplay.Name(member, memberAliases),
+                Initials = MemberDisplay.Initials(member, memberAliases),
                 AvatarUrl = MemberDisplay.AvatarUrl(member),
                 Amount = Math.Abs(row.Balance)
             };
@@ -372,15 +419,16 @@ public partial class GroupExpensesViewModel : BaseViewModel
 
     /// <summary>Internal rather than private so EventDetailViewModel can reuse it — same reasoning
     /// as FormatExpenseAmount above.</summary>
+    // occurred_at is a calendar day stored as a midnight timestamp, so elapsed-time wording
+    // ("21h ago") is meaningless for it; compare local calendar days instead.
     internal static string FormatRelative(DateTime occurredAtUtc)
     {
         var loc = LocalizationResourceManager.Instance;
-        var elapsed = DateTime.UtcNow - occurredAtUtc;
-        if (elapsed.TotalMinutes < 1) return loc["GroupDetail_JustNow"];
-        if (elapsed.TotalHours < 1) return loc.Format("GroupDetail_MinutesAgo", (int)elapsed.TotalMinutes);
-        if (elapsed.TotalDays < 1) return loc.Format("GroupDetail_HoursAgo", (int)elapsed.TotalHours);
-        if (elapsed.TotalDays < 7) return loc.Format("GroupDetail_DaysAgo", (int)elapsed.TotalDays);
-        return DateFormats.ShortDate(occurredAtUtc.ToLocalTime(), includeYear: false);
+        var day = occurredAtUtc.ToLocalTime().Date;
+        var today = DateTime.Today;
+        if (day == today) return loc["Common_Today"];
+        if (day == today.AddDays(-1)) return loc["Common_Yesterday"];
+        return DateFormats.ShortDate(day, includeYear: day.Year != today.Year);
     }
 
     [RelayCommand]

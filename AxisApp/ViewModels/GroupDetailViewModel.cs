@@ -30,6 +30,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
     private readonly IAuthService authService;
 
     private Guid groupId;
+    public Guid GroupId => groupId;
     private Dictionary<Guid, Member> membersById = new();
     private Guid? myMemberId;
     private Group? currentGroup;
@@ -111,6 +112,9 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
             groupId = id;
             _ = LoadAsync();
         }
+
+        if (query.TryGetValue("tab", out var tabValue) && tabValue?.ToString() == "events")
+            SelectedTab = GroupDetailTab.Events;
     }
 
     /// <summary>Loads the shared header/menu data (group + members, for IsGroupCreator/
@@ -131,6 +135,7 @@ public partial class GroupDetailViewModel : BaseViewModel, IQueryAttributable
         membersById = members.ToDictionary(m => m.Id);
         myMemberId = members.FirstOrDefault(m => m.AccountId == authService.CurrentAccountId)?.Id;
         currentGroup = loadGroup.Result;
+        GroupName = currentGroup.Name;
         IsGroupCreator = currentGroup.CreatedBy == authService.CurrentAccountId;
         HasOtherMembers = members.Count > 1;
     });

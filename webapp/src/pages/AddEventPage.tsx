@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { useGoBackTo } from '../lib/navigation'
 import { supabase } from '../lib/supabaseClient'
@@ -7,6 +7,9 @@ import { useLocale } from '../context/LocaleContext'
 import { AppHeader } from '../components/AppHeader'
 import { DateField } from '../components/DateField'
 import { isCalendarDate, localDateTimeToIso } from '../lib/dates'
+import { eventEditorSnapshot } from '../lib/formEditorSnapshots'
+import { useUnsavedChanges } from '../lib/useUnsavedChanges'
+import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
 import './AddEventPage.css'
 
 function toLocalDateInput(iso: string): string {
@@ -24,7 +27,7 @@ export function AddEventPage() {
   const { session } = useAuth()
   const { t } = useLocale()
   const goBackTo = useGoBackTo()
-  const parentPath = eventId ? `/groups/${groupId}/events/${eventId}` : `/groups/${groupId}`
+  const parentPath = eventId ? `/groups/${groupId}/events/${eventId}` : `/groups/${groupId}?tab=events`
 
   const now = new Date()
   const defaultDate = toLocalDateInput(now.toISOString())
@@ -42,13 +45,34 @@ export function AddEventPage() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [canDelete, setCanDelete] = useState(false)
   const [loaded, setLoaded] = useState(!eventId)
+  const editorKey = `${session?.user.id}:${groupId}:${eventId ?? 'new'}`
+  const [loadedKey, setLoadedKey] = useState<string | null>(null)
+  const inFlight = useRef(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const loadErrorText = useRef(t('Common_Error'))
+  useEffect(() => { loadErrorText.current = t('Common_Error') }, [t])
+  const unsaved = useUnsavedChanges(editorKey, loaded && loadedKey === editorKey ? eventEditorSnapshot({
+    title, description, location, startDate, startTime, hasEndTime, endDate, endTime, needsTransport,
+  }) : null, busy)
 
   useEffect(() => {
-    if (!eventId) return
+    let active = true
+    setLoadedKey(null)
+    setLoaded(false)
+    setError(null)
     ;(async () => {
+      if (!eventId) {
+        const initial = new Date().toISOString()
+        setTitle(''); setDescription(''); setLocation(''); setNeedsTransport(false)
+        setStartDate(toLocalDateInput(initial)); setStartTime(toLocalTimeInput(initial))
+        setEndDate(toLocalDateInput(initial)); setEndTime(toLocalTimeInput(initial))
+        setHasEndTime(false); setIsEditMode(false); setCanDelete(false)
+        setLoaded(true); setLoadedKey(editorKey)
+        return
+      }
       const { data, error } = await supabase.from('events').select('*').eq('id', eventId).single()
+      if (!active) return
       if (error) {
         setError(error.message)
         setLoaded(true)
@@ -64,15 +88,18 @@ export function AddEventPage() {
         setHasEndTime(true)
         setEndDate(toLocalDateInput(data.ends_at))
         setEndTime(toLocalTimeInput(data.ends_at))
-      }
+      } else setHasEndTime(false)
       setNeedsTransport(data.needs_transport)
       setCanDelete(data.created_by === session?.user.id)
       setLoaded(true)
-    })()
-  }, [eventId, session])
+      setLoadedKey(editorKey)
+    })().catch(() => { if (active) { setError(loadErrorText.current); setLoaded(false) } })
+    return () => { active = false }
+  }, [eventId, editorKey, session?.user.id])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (inFlight.current) return
     if (!title.trim() || !groupId) {
       setError(t('AddEvent_TitleRequired'))
       return
@@ -95,6 +122,7 @@ export function AddEventPage() {
       setError(t('AddEvent_EndAfterStart'))
       return
     }
+    inFlight.current = true
     setBusy(true)
     try {
       const payload = {
@@ -110,6 +138,7 @@ export function AddEventPage() {
       if (eventId) {
         const { error } = await supabase.from('events').update(payload).eq('id', eventId)
         if (error) return setError(error.message)
+        unsaved.markSaved()
       } else {
         const { data: inserted, error } = await supabase
           .from('events')
@@ -117,38 +146,47 @@ export function AddEventPage() {
           .select('id')
           .single()
         if (error) return setError(error.message)
+        unsaved.markSaved()
         // Creator auto-RSVPs "going" — same as AddEventViewModel.Save.
-        const { data: myMember } = await supabase
-          .from('members')
-          .select('id')
-          .eq('account_id', session?.user.id)
-          .order('created_at', { ascending: true })
-          .limit(1)
-          .maybeSingle()
-        if (myMember) {
-          await supabase.from('event_attendees').insert({ event_id: inserted.id, member_id: myMember.id, response: 'going' })
-        }
+        try {
+          const { data: myMember } = await supabase
+            .from('members')
+            .select('id')
+            .eq('account_id', session?.user.id)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+          if (myMember) {
+            await supabase.from('event_attendees').insert({ event_id: inserted.id, member_id: myMember.id, response: 'going' })
+          }
+        } catch { /* The event is committed; RSVP failure must not invite a duplicate save. */ }
       }
       goBackTo(parentPath)
     } catch {
       setError(t('Common_SaveFailed'))
     } finally {
       setBusy(false)
+      inFlight.current = false
     }
   }
 
   async function handleDelete() {
+    if (inFlight.current) return
     if (!window.confirm(t('AddEvent_DeleteConfirm'))) return
+    inFlight.current = true
     setBusy(true)
-    const { error } = await supabase.from('events').delete().eq('id', eventId)
-    setBusy(false)
-    if (error) return setError(error.message)
-    goBackTo(`/groups/${groupId}`)
+    try {
+      const { error } = await supabase.from('events').delete().eq('id', eventId)
+      if (error) return setError(error.message)
+      unsaved.markSaved()
+      goBackTo(`/groups/${groupId}?tab=events`)
+    } catch { setError(t('Common_SaveFailed')) }
+    finally { setBusy(false); inFlight.current = false }
   }
 
   const title_ = isEditMode ? t('AddEvent_EditTitle') : t('AddEvent_Title')
 
-  if (!loaded) {
+  if (!loaded || loadedKey !== editorKey) {
     return (
       <div className="page">
         <AppHeader title={title_} backTo={parentPath} />
@@ -160,8 +198,9 @@ export function AddEventPage() {
   return (
     <div className="page">
       <AppHeader title={title_} backTo={parentPath} />
-
+      <UnsavedChangesDialog blocker={unsaved.blocker} keepEditing={unsaved.keepEditing} pending={busy} />
       <form onSubmit={handleSubmit}>
+        <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <div className="field">
           <label htmlFor="title">{t('AddEvent_TitleLabel')}</label>
           <input id="title" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('AddEvent_TitlePlaceholder')} />
@@ -222,6 +261,7 @@ export function AddEventPage() {
             {t('AddEvent_DeleteEvent')}
           </button>
         )}
+        </fieldset>
       </form>
     </div>
   )

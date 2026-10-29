@@ -1,3 +1,4 @@
+using AxisApp.Localization;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace AxisApp.ViewModels;
@@ -42,7 +43,7 @@ public abstract partial class BaseViewModel : ObservableObject
             }
             catch (Exception retryEx)
             {
-                ErrorMessage = retryEx.Message;
+                ErrorMessage = GetErrorMessage(retryEx);
             }
         }
         catch (Exception ex) when (IsClockSkewRejection(ex))
@@ -61,14 +62,19 @@ public abstract partial class BaseViewModel : ObservableObject
             }
             catch (Exception retryEx)
             {
-                ErrorMessage = retryEx.Message;
+                ErrorMessage = GetErrorMessage(retryEx);
             }
         }
         catch (Exception ex)
         {
-            ErrorMessage = ex.Message;
+            ErrorMessage = GetErrorMessage(ex);
         }
     }
+
+    protected static string GetErrorMessage(Exception ex, string? fallback = null) =>
+        ex.Message.Contains("converted_amount_too_large", StringComparison.Ordinal)
+            ? LocalizationResourceManager.Instance["AmountInput_ConvertedTooLarge"]
+            : fallback ?? ex.Message;
 
     private static bool IsExpiredJwtRejection(Exception ex) =>
         ex.Message.Contains("JWT expired", StringComparison.OrdinalIgnoreCase);

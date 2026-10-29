@@ -184,8 +184,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 
     /// <summary>Picker entries: index 0 is "No event", index i maps to eventChoices[i - 1]. Only
     /// the reference (editingEventId) changes when the selection does — participants/payer are
-    /// never rebuilt, so switching event never wipes a split the user already set up (the
-    /// "going"-only snapshot only applies when arriving from EventDetailPage's "+ Add expense").</summary>
+    /// never rebuilt, so switching event preserves the split. Going attendees are preselected
+    /// only when arriving from EventDetailPage's "+ Add expense".</summary>
     private List<Event> eventChoices = [];
     private bool syncingEventPicker;
     [ObservableProperty] private ObservableCollection<string> eventOptions = [];
@@ -304,10 +304,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     /// existing one-off Expense or an existing RecurringExpense template overlays its saved data
     /// on top, overriding the equal-split defaults built for the member list. startAsRecurring
     /// starts a fresh add already in recurring mode (the "Repeat" toggle can also flip this on
-    /// manually — see CanToggleRecurring). forEventId (fresh add only, from EventDetailPage's "+
-    /// Add expense") restricts both Participants and PayerOptions to that event's current "going"
-    /// attendees — a one-time snapshot at this load, never re-derived live afterward (see
-    /// event_expenses.sql's design comment and CLAUDE.md's event-expenses discussion).</summary>
+    /// manually — see CanToggleRecurring). forEventId preselects Going attendees on a fresh add,
+    /// or everyone if nobody is Going; all group members remain available as participants/payers.</summary>
     public Task LoadAsync(Guid forGroupId, Guid? forExpenseId = null, Guid? forRecurringExpenseId = null, bool startAsRecurring = false, Guid? forEventId = null) => RunSafeAsync(async () =>
     {
         unsavedEdits.Reset();
@@ -346,9 +344,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 
             var aliases = loadAliases.Result;
 
-            // Only meaningful on a fresh add from EventDetailPage (editingEventId is null again by
-            // the time this runs in edit mode — see its assignment above) — a one-time snapshot of
-            // who's currently "going", not re-checked on every load.
+            // Attendance seeds a fresh form only; later RSVP changes must not overwrite edits.
             var goingMemberIds = editingEventId is not null
                 ? loadEventAttendees.Result.Where(a => a.Response == "going").Select(a => a.MemberId).ToHashSet()
                 : (HashSet<Guid>?)null;
@@ -361,13 +357,15 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 
             foreach (var member in loadMembers.Result)
             {
-                if (goingMemberIds is not null && !goingMemberIds.Contains(member.Id)) continue;
-
                 var name = MemberDisplay.Name(member, aliases);
                 var initials = MemberDisplay.Initials(member, aliases);
                 var avatarUrl = MemberDisplay.AvatarUrl(member);
 
-                var participant = new ExpenseParticipant { Member = member, Name = name, Initials = initials, AvatarUrl = avatarUrl };
+                var participant = new ExpenseParticipant
+                {
+                    Member = member, Name = name, Initials = initials, AvatarUrl = avatarUrl,
+                    IsIncluded = goingMemberIds is not { Count: > 0 } || goingMemberIds.Contains(member.Id)
+                };
                 participant.PropertyChanged += ParticipantChanged;
                 Participants.Add(participant);
 

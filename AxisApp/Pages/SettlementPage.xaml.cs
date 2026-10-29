@@ -2,7 +2,7 @@ using AxisApp.ViewModels;
 
 namespace AxisApp.Pages;
 
-public partial class SettlementPage : ContentPage
+public partial class SettlementPage : GuardedEditorPage
 {
     private readonly SettlementViewModel viewModel;
 

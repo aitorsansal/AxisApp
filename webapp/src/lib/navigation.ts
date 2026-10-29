@@ -28,6 +28,7 @@ function loadStack(): Stack {
 // idx → pathname for each history entry this tab has visited. Persisted per tab so
 // a reload doesn't forget what's underneath the current entry.
 const stack: Stack = loadStack()
+let pendingPop: { idx: number; pathname: string; search: string } | null = null
 
 function saveStack() {
   try {
@@ -56,6 +57,7 @@ export function logicalParent(pathname: string, search = ''): string | null {
   if (/^recurring\/[^/]+$/.test(rest)) return `${group}/recurring`
   const editEvent = rest.match(/^events\/([^/]+)\/edit$/)
   if (editEvent) return `${group}/events/${editEvent[1]}`
+  if (/^events\/[^/]+$/.test(rest)) return `${group}?tab=events`
   return group
 }
 
@@ -63,6 +65,7 @@ export function logicalParent(pathname: string, search = ''): string | null {
 export function NavigationTracker() {
   const location = useLocation()
   const navigationType = useNavigationType()
+  const navigate = useNavigate()
 
   useEffect(() => {
     const idx = historyIndex()
@@ -75,7 +78,17 @@ export function NavigationTracker() {
     }
     stack[idx] = location.pathname
     saveStack()
-  }, [location.key, location.pathname, navigationType])
+    const destination = pendingPop
+    pendingPop = null
+    if (destination && navigationType === 'POP' && idx === destination.idx && location.pathname === destination.pathname) {
+      // Reuse the existing parent entry while restoring the requested tab.
+      const search = new URLSearchParams(location.search)
+      new URLSearchParams(destination.search).forEach((value, key) => search.set(key, value))
+      if (search.toString() !== new URLSearchParams(location.search).toString()) {
+        navigate({ pathname: location.pathname, search: `?${search}`, hash: location.hash }, { replace: true })
+      }
+    }
+  }, [location.key, location.pathname, location.search, location.hash, navigationType, navigate])
 
   return null
 }
@@ -89,10 +102,12 @@ export function useGoBackTo() {
   return useCallback(
     (target: string) => {
       const idx = historyIndex()
-      const targetPath = target.split('?')[0]
+      pendingPop = null
+      const [targetPath, targetSearch = ''] = target.split('?')
       if (idx != null) {
         for (let i = idx - 1; i >= 0; i--) {
-          if (stack[i] === targetPath) {
+          if (stack[i]?.split('?')[0] === targetPath) {
+            if (targetSearch) pendingPop = { idx: i, pathname: targetPath, search: targetSearch }
             navigate(i - idx)
             return
           }
@@ -120,8 +135,10 @@ export function useRebuildDeepEntry(ready: boolean) {
 
     const { pathname, search, hash } = window.location
     const ancestors: string[] = []
-    for (let p = logicalParent(pathname, search); p; p = logicalParent(p)) {
+    for (let p = logicalParent(pathname, search); p;) {
       ancestors.unshift(p)
+      const [parentPath, parentSearch = ''] = p.split('?')
+      p = logicalParent(parentPath, parentSearch)
     }
     if (ancestors.length === 0) return
 
@@ -129,10 +146,10 @@ export function useRebuildDeepEntry(ready: boolean) {
     const entryKey = () => Math.random().toString(36).slice(2, 10)
 
     window.history.replaceState({ usr: null, key: entryKey(), idx: 0 }, '', ancestors[0])
-    stack[0] = ancestors[0]
+    stack[0] = ancestors[0].split('?')[0]
     for (let i = 1; i < ancestors.length; i++) {
       window.history.pushState({ usr: null, key: entryKey(), idx: i }, '', ancestors[i])
-      stack[i] = ancestors[i]
+      stack[i] = ancestors[i].split('?')[0]
     }
     const idx = ancestors.length
     window.history.pushState({ ...currentState, idx }, '', pathname + search + hash)

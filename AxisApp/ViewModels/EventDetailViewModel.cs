@@ -64,6 +64,8 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
     /// RefreshAttendeesAsync.</summary>
     private DateTime attendeesLoadedAtUtc;
     private int attendeeVersion;
+    private int pendingAttendeeWrites;
+    private bool refreshingAttendees;
     private static readonly TimeSpan AttendeesStaleAfter = TimeSpan.FromSeconds(60);
 
     /// <summary>Full set of this event's expenses, built once per LoadAsync — Expenses mirrors
@@ -141,6 +143,7 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
     {
         groupId = forGroupId;
         eventId = forEventId;
+        var versionAtLoad = ++attendeeVersion;
         IsBusy = true;
         var isFirstLoad = !hasLoadedOnce;
         IsInitialLoading = isFirstLoad;
@@ -155,6 +158,7 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
                 var loadGroup = groupsRepository.GetByIdAsync(groupId);
                 var loadExpenses = expensesRepository.GetForEventAsync(eventId);
                 await Task.WhenAll(loadEvent, loadAttendees, loadMembers, loadAliases, loadGroup, loadExpenses);
+                if (versionAtLoad != attendeeVersion || forEventId != eventId || forGroupId != groupId || pendingAttendeeWrites > 0) return;
 
                 var ev = loadEvent.Result;
                 if (ev is null)
@@ -355,8 +359,7 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
             _ => CarStatus
         };
         var carSeats = newCarStatus == "offering" ? CarOfferedSeats : (int?)null;
-        var updated = await eventsRepository.UpsertRsvpAsync(eventId, me, response, newCarStatus, carSeats);
-        await ApplyAttendeeUpdateAsync(updated);
+        await WriteAttendeeAsync(() => eventsRepository.UpsertRsvpAsync(eventId, me, response, newCarStatus, carSeats));
     });
 
     [RelayCommand]
@@ -365,8 +368,7 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
         if (myMemberId is not { } me || MyResponse != "going") return;
         var newStatus = CarStatus == "offering" ? "none" : "offering";
         var seats = newStatus == "offering" ? myCarExtraSeats ?? 0 : (int?)null;
-        var updated = await eventsRepository.UpsertRsvpAsync(eventId, me, MyResponse, newStatus, seats);
-        await ApplyAttendeeUpdateAsync(updated);
+        await WriteAttendeeAsync(() => eventsRepository.UpsertRsvpAsync(eventId, me, MyResponse, newStatus, seats));
     });
 
     [RelayCommand]
@@ -374,8 +376,7 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
     {
         if (myMemberId is not { } me || MyResponse is not ("going" or "maybe")) return;
         var newStatus = CarStatus == "needs_ride" ? "none" : "needs_ride";
-        var updated = await eventsRepository.UpsertRsvpAsync(eventId, me, MyResponse, newStatus);
-        await ApplyAttendeeUpdateAsync(updated);
+        await WriteAttendeeAsync(() => eventsRepository.UpsertRsvpAsync(eventId, me, MyResponse, newStatus));
     });
 
     [RelayCommand]
@@ -388,9 +389,21 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
     {
         if (myMemberId is not { } me || CarStatus != "offering") return;
         var newSeats = Math.Max(0, CarOfferedSeats + delta);
-        var updated = await eventsRepository.UpsertRsvpAsync(eventId, me, MyResponse, "offering", newSeats);
-        await ApplyAttendeeUpdateAsync(updated);
+        await WriteAttendeeAsync(() => eventsRepository.UpsertRsvpAsync(eventId, me, MyResponse, "offering", newSeats));
     });
+
+    private async Task WriteAttendeeAsync(Func<Task<EventAttendee>> write)
+    {
+        pendingAttendeeWrites++;
+        attendeeVersion++;
+        var targetEvent = eventId;
+        try
+        {
+            var updated = await write();
+            if (eventId == targetEvent) await ApplyAttendeeUpdateAsync(updated);
+        }
+        finally { pendingAttendeeWrites--; }
+    }
 
     /// <summary>Patches the single (event, member) row UpsertRsvpAsync just returned into
     /// currentAttendees, then rebuilds the RSVP/transport state and roster from it — both are
@@ -419,11 +432,12 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
     private async Task ApplyAttendeeUpdateAsync(EventAttendee updated)
     {
         ApplyAttendeeUpdate(updated);
+        if (pendingAttendeeWrites > 1) return;
         try { await RefreshAttendeesAsync(); }
         catch { /* keep the local patch */ }
     }
 
-    /// <summary>Attendees-only reload (one query — not LoadAsync's six), replacing the cache and
+    /// <summary>Event and attendees reload (not LoadAsync's six queries), replacing the cache and
     /// rebuilding the RSVP state and roster from it. Dropped if a newer local write landed while it
     /// was in flight, since its snapshot is then older than what's on screen.</summary>
     private async Task RefreshAttendeesAsync()
@@ -431,10 +445,16 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
         if (currentEvent is null) return;
 
         var versionAtStart = attendeeVersion;
-        var fetched = await eventsRepository.GetAttendeesAsync(eventId);
-        if (versionAtStart != attendeeVersion || currentEvent is null) return;
+        var targetEvent = eventId;
+        var loadEvent = eventsRepository.GetByIdAsync(targetEvent);
+        var loadAttendees = eventsRepository.GetAttendeesAsync(targetEvent);
+        await Task.WhenAll(loadEvent, loadAttendees);
+        if (versionAtStart != attendeeVersion || targetEvent != eventId || currentEvent is null) return;
+        if (loadEvent.Result is not { } refreshedEvent) return;
 
-        currentAttendees = fetched;
+        currentEvent = refreshedEvent;
+        currentAttendees = loadAttendees.Result;
+        BuildHeader(currentEvent);
         BuildRsvpAndTransport(currentEvent, currentAttendees);
         BuildRoster(currentAttendees);
         MarkAttendeesFresh();
@@ -443,18 +463,20 @@ public partial class EventDetailViewModel : BaseViewModel, IQueryAttributable
     /// <summary>Called by the page when it appears and when the app resumes: if the attendee data is
     /// older than a minute, quietly refetch it. Silent by design — no spinner, no error popup — the
     /// caption tells the user how old what they're looking at is.</summary>
-    public async Task RefreshIfStaleAsync()
+    public async Task RefreshIfStaleAsync(bool force = false)
     {
         UpdateUpdatedCaption();
-        if (!hasLoadedOnce || IsBusy || currentEvent is null) return;
-        if (DateTime.UtcNow - attendeesLoadedAtUtc < AttendeesStaleAfter) return;
+        if (!hasLoadedOnce || IsBusy || currentEvent is null || pendingAttendeeWrites > 0 || refreshingAttendees) return;
+        if (!force && DateTime.UtcNow - attendeesLoadedAtUtc < AttendeesStaleAfter) return;
 
+        refreshingAttendees = true;
         try
         {
             await authService.EnsureFreshSessionAsync();
             await RefreshAttendeesAsync();
         }
         catch { /* leave the stale data up; the caption says how stale */ }
+        finally { refreshingAttendees = false; }
     }
 
     private void MarkAttendeesFresh()

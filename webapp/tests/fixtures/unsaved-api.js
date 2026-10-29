@@ -2,6 +2,8 @@ const backend = new URL(import.meta.env.VITE_SUPABASE_URL)
 const groupId = '00000000-0000-0000-0000-000000000100'
 const expenseId = '00000000-0000-0000-0000-000000000200'
 const templateId = '00000000-0000-0000-0000-000000000300'
+const eventId = '00000000-0000-0000-0000-000000000400'
+const paymentId = '00000000-0000-0000-0000-000000000500'
 const userId = '00000000-0000-0000-0000-000000000001'
 const members = [
   { id: '00000000-0000-0000-0000-000000000010', display_name: 'QA User', account_id: userId, avatar_path: null },
@@ -15,7 +17,9 @@ localStorage.setItem('axis_language_override', new URLSearchParams(location.sear
 const group = { id: groupId, name: 'Unsaved editor QA (mocked)', currency: 'EUR', created_by: userId, color: '#3987E5', icon: null }
 const initialExpense = { id: expenseId, group_id: groupId, paid_by_member_id: members[0].id, amount: 12, currency: 'EUR', amount_in_group_currency: 12, description: 'Original dinner', category: 'food', occurred_at: '2026-10-28T12:00:00Z', created_at: '2026-10-28T12:00:00Z', created_by: userId, is_settlement: false, split_mode: 'equal', event_id: null, receipt_path: null }
 const initialTemplate = { ...initialExpense, id: templateId, description: 'Original monthly bill', frequency: 'monthly', start_date: '2026-10-28', last_processed_date: null, is_active: false }
-function readState() { return JSON.parse(localStorage.getItem('axis.unsaved.qa') || 'null') || { expense: initialExpense, template: initialTemplate, writes: 0 } }
+const initialEvent = { id: eventId, group_id: groupId, title: 'Original outing', description: '', location: 'Park', starts_at: '2026-11-01T12:00:00Z', ends_at: null, needs_transport: false, created_by: userId, created_at: initialExpense.created_at }
+const initialPayment = { ...initialExpense, id: paymentId, paid_by_member_id: members[1].id, is_settlement: true, split_mode: null, amount: 2, amount_in_group_currency: 2, description: 'Original repayment' }
+function readState() { return { expense: initialExpense, template: initialTemplate, event: initialEvent, payment: initialPayment, writes: 0, ...JSON.parse(localStorage.getItem('axis.unsaved.qa') || 'null') } }
 let failSave = false
 let delaySave = false
 let outsideAttempts = 0
@@ -43,8 +47,9 @@ window.fetch = async (input, init) => {
     const body = await request.json()
     const recurring = table === 'save_recurring_expense'
     const payload = body.p_template || body.p_expense
-    const id = payload.id || (recurring ? templateId : expenseId)
-    state[recurring ? 'template' : 'expense'] = { ...state[recurring ? 'template' : 'expense'], ...payload, id }
+    const slot = recurring ? 'template' : payload.is_settlement ? 'payment' : 'expense'
+    const id = payload.id || (recurring ? templateId : payload.is_settlement ? paymentId : expenseId)
+    state[slot] = { ...state[slot], ...payload, id }
     state.writes++
     localStorage.setItem('axis.unsaved.qa', JSON.stringify(state))
     updateStatus()
@@ -54,14 +59,29 @@ window.fetch = async (input, init) => {
   if (table === 'groups') return reply([group], request)
   if (table === 'group_members') return reply(members.map(m => ({ group_id: groupId, member_id: m.id, members: m })), request)
   if (table === 'members') return reply([{ ...members[0], birth_date: null, car_extra_seats: 3 }], request)
-  if (table === 'expenses') return reply([state.expense], request)
+  if (table === 'events') {
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      if (delaySave) await new Promise(resolve => setTimeout(resolve, 5000))
+      if (failSave) return reply({ message: 'Simulated save failure', code: 'QA_FAILURE' }, request, 500)
+      const payload = request.method === 'DELETE' ? {} : await request.json()
+      state.event = { ...state.event, ...payload }
+      state.writes++
+      localStorage.setItem('axis.unsaved.qa', JSON.stringify(state)); updateStatus()
+    }
+    return reply([state.event], request)
+  }
+  if (table === 'expenses') return reply(url.searchParams.get('id') === `eq.${paymentId}` ? [state.payment]
+    : url.searchParams.has('id') ? [state.expense] : [state.expense, state.payment], request)
   if (table === 'recurring_expenses') return reply([state.template], request)
   if (table === 'expense_shares' || table === 'recurring_expense_shares') {
+    if (url.searchParams.get('expense_id') === `eq.${paymentId}`)
+      return reply([{ member_id: members[0].id, expense_id: paymentId, share_amount: state.payment.amount, share_amount_in_group_currency: state.payment.amount }], request)
     const amount = table === 'expense_shares' ? state.expense.amount : state.template.amount
     return reply(members.map(m => ({ member_id: m.id, expense_id: expenseId, recurring_expense_id: templateId, share_amount: amount / 2, share_amount_in_group_currency: amount / 2 })), request)
   }
   if (table === 'calendar_subscriptions') return reply([{ id: 'test-subscription', member_id: members[0].id, token: 'synthetic-not-a-real-token' }], request)
   if (table === 'my_group_balances') return reply([{ group_id: groupId, balance: 0 }], request)
+  if (table === 'my_pairwise_balances') return reply([{ group_id: groupId, other_member_id: members[1].id, balance: 6 }], request)
   return reply([], request)
 }
 // The fixture never opens a real realtime connection.

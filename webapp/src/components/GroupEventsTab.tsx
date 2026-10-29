@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import { SerializedUpdates } from '../lib/serializedUpdates'
 import { useCoalescedWrites } from '../lib/useCoalescedWrites'
 import { useLiveRefresh } from '../lib/useLiveRefresh'
+import { RefreshRevision } from '../lib/refreshRevision'
 import { formatEventRange } from '../lib/dates'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
@@ -19,6 +20,7 @@ interface Props {
 
 export function GroupEventsTab({ groupId, members }: Props) {
   const { session } = useAuth()
+  const accountId = session?.user.id
   const { initials, avatarUrl } = useAliases()
   const { t, language } = useLocale()
 
@@ -29,10 +31,12 @@ export function GroupEventsTab({ groupId, members }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const rsvpUpdates = useRef(new SerializedUpdates<EventAttendee>())
+  const refreshRevision = useRef(new RefreshRevision())
 
   const myMemberId = members.find((m) => m.members.account_id === session?.user.id)?.member_id
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (writeRevision?: number) => {
+    const canApply = refreshRevision.current.begin(writeRevision)
     setError(null)
     const [eventsRes, myMemberRes] = await Promise.all([
       supabase
@@ -40,22 +44,19 @@ export function GroupEventsTab({ groupId, members }: Props) {
         .select('*')
         .eq('group_id', groupId)
         .order('starts_at', { ascending: true }),
-      session
+      accountId
         ? supabase
             .from('members')
             .select('car_extra_seats')
-            .eq('account_id', session.user.id)
+            .eq('account_id', accountId)
             .limit(1)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
     ])
+    if (!canApply()) return
     if (eventsRes.error) return setError(eventsRes.error.message)
     const eventRows = (eventsRes.data as EventRow[]) ?? []
-    setEvents(eventRows)
-    setMyCarExtraSeats(
-      (myMemberRes.data as { car_extra_seats: number | null } | null)?.car_extra_seats ?? null,
-    )
-
+    const grouped: Record<string, EventAttendee[]> = {}
     if (eventRows.length > 0) {
       const { data: attendees, error: attendeesError } = await supabase
         .from('event_attendees')
@@ -64,20 +65,23 @@ export function GroupEventsTab({ groupId, members }: Props) {
           'event_id',
           eventRows.map((e) => e.id),
         )
+      if (!canApply()) return
       if (attendeesError) return setError(attendeesError.message)
-      const grouped: Record<string, EventAttendee[]> = {}
       for (const row of (attendees as EventAttendee[]) ?? []) {
         ;(grouped[row.event_id] ??= []).push(row)
       }
-      setAttendeesByEvent(grouped)
-    } else {
-      setAttendeesByEvent({})
     }
+    if (!canApply()) return
+    setEvents(eventRows)
+    setAttendeesByEvent(grouped)
+    setMyCarExtraSeats((myMemberRes.data as { car_extra_seats: number | null } | null)?.car_extra_seats ?? null)
     setLoaded(true)
-  }, [groupId, session])
+  }, [groupId, accountId])
 
   useEffect(() => {
+    const revision = refreshRevision.current
     load()
+    return () => { revision.invalidate() }
   }, [load])
 
   useLiveRefresh(
@@ -98,6 +102,7 @@ export function GroupEventsTab({ groupId, members }: Props) {
     if (!myMemberId) return
     // Pending seat taps go first so a later toggle composes on top of them.
     seatWrites.flush(eventId)
+    const writeRevision = refreshRevision.current.invalidate()
     const initial = mine(eventId) ?? {
       event_id: eventId, member_id: myMemberId, response: 'not_going' as const,
       car_status: 'none' as const, car_offered_seats: null,
@@ -105,7 +110,7 @@ export function GroupEventsTab({ groupId, members }: Props) {
     void rsvpUpdates.current.run(eventId, initial, update, async (next) => {
       const { error } = await supabase.from('event_attendees').upsert(next, { onConflict: 'event_id,member_id' })
       if (error) throw error
-      await load()
+      await load(writeRevision)
     }).catch((err) => setError(err.message ?? t('Common_Error')))
   }
 
@@ -136,6 +141,7 @@ export function GroupEventsTab({ groupId, members }: Props) {
     const current = mine(eventId)
     if (current?.car_status !== 'offering') return
     const seats = Math.max(0, (current.car_offered_seats ?? 0) + delta)
+    refreshRevision.current.invalidate()
     setAttendeesByEvent((prev) => ({
       ...prev,
       [eventId]: (prev[eventId] ?? []).map((a) => a.member_id === myMemberId ? { ...a, car_offered_seats: seats } : a),

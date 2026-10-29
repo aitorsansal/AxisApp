@@ -16,9 +16,14 @@ public partial class SettlementViewModel(
     IExpensesRepository expensesRepository,
     IBalancesRepository balancesRepository,
     IAliasesRepository aliasesRepository,
-    IAuthService authService) : BaseViewModel, IQueryAttributable
+    IAuthService authService) : BaseViewModel, IQueryAttributable, IUnsavedChangesEditor
 {
     private Guid groupId;
+    private readonly UnsavedEditGuard unsavedEdits = new();
+    public bool HasPendingEdits => IsBusy && IsReady;
+    public bool ShouldConfirmLeaving => unsavedEdits.ShouldBlock(CaptureSnapshot(), HasPendingEdits);
+    private string CaptureSnapshot() => FormEditorSnapshots.Settlement(new SettlementEditorState(
+        AmountText, Note, OccurredOn, SelectedPayer?.Member.Id, SelectedRecipient?.Member.Id, Currency));
     private Guid myMemberId;
     private Guid? otherMemberId;
     private decimal? expectedBalance;
@@ -84,6 +89,7 @@ public partial class SettlementViewModel(
     public Task LoadAsync(Guid id, Guid? expenseId, Guid? otherId) => RunSafeAsync(async () =>
     {
         groupId = id;
+        unsavedEdits.Reset();
         IsBusy = true;
         IsReady = false;
         HasSaved = false;
@@ -154,6 +160,7 @@ public partial class SettlementViewModel(
             if (SelectedCurrencyIndex < 0) { ErrorMessage = loc["Settlement_Unavailable"]; return; }
             otherMemberId = otherId ?? (payerId == myMemberId ? recipientId : recipientId == myMemberId ? payerId : null);
             IsReady = true;
+            unsavedEdits.Capture(CaptureSnapshot());
         }
         finally { IsBusy = false; }
     });
@@ -204,6 +211,7 @@ public partial class SettlementViewModel(
             }
             catch (ExpenseSaveCommittedException) { }
             HasSaved = true;
+            unsavedEdits.MarkCommitted();
             SuccessMessage = loc["Settlement_Recorded"];
             RemainingMessage = "";
             var counterparty = SelectedPayer.Member.Id == myMemberId ? SelectedRecipient : SelectedRecipient.Member.Id == myMemberId ? SelectedPayer : null;
@@ -218,7 +226,7 @@ public partial class SettlementViewModel(
                 catch { }
             }
         }
-        catch { ErrorMessage = loc["Settlement_SaveFailed"]; }
+        catch (Exception ex) { ErrorMessage = GetErrorMessage(ex, loc["Settlement_SaveFailed"]); }
         finally { IsBusy = false; }
     });
 
@@ -232,6 +240,7 @@ public partial class SettlementViewModel(
             if (!await Shell.Current.DisplayAlertAsync(loc["Settlement_Delete"], loc["Settlement_DeleteConfirm"], loc["Common_Yes"], loc["Common_Cancel"])) return;
             await expensesRepository.DeleteAsync(original.Id);
             HasSaved = true;
+            unsavedEdits.MarkCommitted();
             SuccessMessage = loc["Settlement_Deleted"];
             RemainingMessage = "";
         }

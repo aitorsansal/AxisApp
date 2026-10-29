@@ -27,6 +27,7 @@ public static class AppStrings
         ["AmountInput_FormatHint"] = "Use 1234.56 or 1234,56, without thousands separators.",
         ["AmountInput_Invalid"] = "Enter a positive amount such as 1234.56 or 1234,56, without thousands separators.",
         ["AmountInput_TooLarge"] = "The maximum amount is 9999999999.99.",
+        ["AmountInput_ConvertedTooLarge"] = "This amount is too large once converted to the group's currency (maximum 9999999999.99).",
         ["AmountInput_IncompleteSplit"] = "Complete valid amounts to see the remaining balance.",
         ["Settlement_Record"] = "Record repayment",
         ["Settlement_Save"] = "Save repayment",
@@ -66,6 +67,7 @@ public static class AppStrings
         ["Common_Share"] = "Share",
         ["Common_SettledUp"] = "Settled up",
         ["Common_Today"] = "Today",
+        ["Common_Yesterday"] = "Yesterday",
 
         // Login
         ["Login_EmailPlaceholder"] = "Email",
@@ -170,10 +172,6 @@ public static class AppStrings
         ["Notification_RsvpGoing"] = "You're going",
         ["Notification_RsvpMaybe"] = "Maybe",
         ["Notification_RsvpNotGoing"] = "Can't go",
-        ["GroupDetail_JustNow"] = "just now",
-        ["GroupDetail_MinutesAgo"] = "{0}m ago",
-        ["GroupDetail_HoursAgo"] = "{0}h ago",
-        ["GroupDetail_DaysAgo"] = "{0}d ago",
         ["GroupDetail_OwesYou"] = "owes you",
         ["GroupDetail_YouOwe"] = "you owe",
         ["GroupDetail_GroupOptions"] = "Group options",
@@ -383,6 +381,7 @@ public static class AppStrings
         ["AmountInput_FormatHint"] = "Usa 1234.56 o 1234,56, sin separadores de miles.",
         ["AmountInput_Invalid"] = "Introduce un importe positivo como 1234.56 o 1234,56, sin separadores de miles.",
         ["AmountInput_TooLarge"] = "El importe máximo es 9999999999.99.",
+        ["AmountInput_ConvertedTooLarge"] = "Este importe es demasiado grande al convertirlo a la moneda del grupo (máximo 9999999999.99).",
         ["AmountInput_IncompleteSplit"] = "Completa los importes válidos para ver el saldo restante.",
         ["Settlement_Record"] = "Registrar pago",
         ["Settlement_Save"] = "Guardar pago",
@@ -422,6 +421,7 @@ public static class AppStrings
         ["Common_Share"] = "Compartir",
         ["Common_SettledUp"] = "Todo saldado",
         ["Common_Today"] = "Hoy",
+        ["Common_Yesterday"] = "Ayer",
 
         // Login
         ["Login_EmailPlaceholder"] = "Correo electrónico",
@@ -527,10 +527,6 @@ public static class AppStrings
         ["Notification_RsvpGoing"] = "Vas a ir",
         ["Notification_RsvpMaybe"] = "Quizás",
         ["Notification_RsvpNotGoing"] = "No vas a ir",
-        ["GroupDetail_JustNow"] = "ahora mismo",
-        ["GroupDetail_MinutesAgo"] = "hace {0}m",
-        ["GroupDetail_HoursAgo"] = "hace {0}h",
-        ["GroupDetail_DaysAgo"] = "hace {0}d",
         ["GroupDetail_OwesYou"] = "te debe",
         ["GroupDetail_YouOwe"] = "le debes",
         ["GroupDetail_GroupOptions"] = "Opciones del grupo",

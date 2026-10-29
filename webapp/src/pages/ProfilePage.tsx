@@ -50,7 +50,7 @@ export function ProfilePage() {
 
   useEffect(() => {
     load()
-    if (session) getPushState(session.user.id).then(setPushState)
+    if (session) getPushState(session.user.id).then(setPushState).catch(() => setPushState('unavailable'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -265,6 +265,7 @@ export function ProfilePage() {
       await unregisterFromPush()
       setPushState(await getPushState(session.user.id))
     } catch (err) {
+      setPushState('unavailable')
       setError(err instanceof Error ? err.message : t('Common_Error'))
     } finally {
       setSavingPush(false)
@@ -451,7 +452,8 @@ export function ProfilePage() {
         <section className="card profile-section">
           <h2 className="section-title">{t('Profile_NotificationsSection')}</h2>
           <p className="field-hint">
-            {pushState === 'denied' ? t('Profile_PushDenied') : t('Profile_NotificationsHint')}
+            {pushState === 'denied' ? t('Profile_PushDenied')
+              : pushState === 'unavailable' ? t('Profile_PushUnavailable') : t('Profile_NotificationsHint')}
           </p>
           {pushState === 'subscribed' ? (
             <button type="button" className="btn btn-outline" onClick={handleDisablePush} disabled={savingPush}>

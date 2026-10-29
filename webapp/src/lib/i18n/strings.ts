@@ -25,6 +25,7 @@ const en: Dictionary = {
   AmountInput_FormatHint: 'Use 1234.56 or 1234,56, without thousands separators.',
   AmountInput_Invalid: 'Enter a positive amount such as 1234.56 or 1234,56, without thousands separators.',
   AmountInput_TooLarge: 'The maximum amount is 9999999999.99.',
+  AmountInput_ConvertedTooLarge: "This amount is too large once converted to the group's currency (maximum 9999999999.99).",
   AmountInput_IncompleteSplit: 'Complete valid amounts to see the remaining balance.',
   AmountInput_ShareLabel: 'Share for {0}',
   Settlement_Record: 'Record repayment',
@@ -406,6 +407,8 @@ const en: Dictionary = {
     'Get notified about new expenses, settlements, and events in your groups.',
   Profile_PushDenied:
     'Notifications are blocked for this site — re-enable them in your browser settings.',
+  Profile_PushUnavailable:
+    "Notifications couldn't be checked on this device. Try again, or reload the page.",
   Profile_EnableNotifications: 'Enable notifications',
   Profile_DisableNotifications: 'Disable notifications',
   Profile_CalendarFeedSection: 'Calendar feed',
@@ -463,6 +466,7 @@ const es: Dictionary = {
   AmountInput_FormatHint: 'Usa 1234.56 o 1234,56, sin separadores de miles.',
   AmountInput_Invalid: 'Introduce un importe positivo como 1234.56 o 1234,56, sin separadores de miles.',
   AmountInput_TooLarge: 'El importe máximo es 9999999999.99.',
+  AmountInput_ConvertedTooLarge: 'Este importe es demasiado grande al convertirlo a la moneda del grupo (máximo 9999999999.99).',
   AmountInput_IncompleteSplit: 'Completa los importes válidos para ver el saldo restante.',
   AmountInput_ShareLabel: 'Parte de {0}',
   Settlement_Record: 'Registrar pago',
@@ -844,6 +848,8 @@ const es: Dictionary = {
   Profile_NotificationsHint: 'Recibe avisos de nuevos gastos, pagos y eventos en tus grupos.',
   Profile_PushDenied:
     'Las notificaciones están bloqueadas para este sitio — actívalas en los ajustes de tu navegador.',
+  Profile_PushUnavailable:
+    'No se pudieron comprobar las notificaciones en este dispositivo. Inténtalo de nuevo o recarga la página.',
   Profile_EnableNotifications: 'Activar notificaciones',
   Profile_DisableNotifications: 'Desactivar notificaciones',
   Profile_CalendarFeedSection: 'Suscripción de calendario',

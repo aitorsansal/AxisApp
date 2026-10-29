@@ -11,6 +11,7 @@ namespace AxisApp
         // AxisFirebaseMessagingService) resolve to a route before queuing, so this one field/queue
         // serves both instead of duplicating the "queue or navigate now" logic per source.
         private static string? pendingRoute;
+        private static readonly SemaphoreSlim navigationGate = new(1, 1);
 
         // Real bug, found 2026-09-03: Shell.Current being non-null is NOT a reliable "is the app
         // ready to navigate" signal — AxisFirebaseMessagingService can start this app's process
@@ -125,7 +126,66 @@ namespace AxisApp
                 return;
             }
 
-            _ = Shell.Current.GoToAsync(route);
+            _ = NavigateAsync(route);
+        }
+
+        private static async Task NavigateAsync(string route)
+        {
+            // Keep both steps together even when multiple intents arrive during an animation/dialog.
+            await navigationGate.WaitAsync();
+            try
+            {
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    if (!isReadyToNavigate || !IsSignedIn())
+                    {
+                        pendingRoute = route;
+                        return;
+                    }
+
+                    var shell = Shell.Current;
+                    var eventPrefix = $"{AppConstants.Routes.EventDetail}?";
+                    if (!route.StartsWith(eventPrefix, StringComparison.Ordinal))
+                    {
+                        await shell.GoToAsync(route);
+                        return;
+                    }
+
+                    var query = System.Web.HttpUtility.ParseQueryString(route[eventPrefix.Length..]);
+                    if (!Guid.TryParse(query["groupId"], out var groupId)
+                        || !Guid.TryParse(query["eventId"], out var eventId)) return;
+
+                    if (shell.CurrentPage is Pages.GroupDetailPage
+                        && shell.CurrentPage.BindingContext is ViewModels.GroupDetailViewModel currentGroup
+                        && currentGroup.GroupId == groupId
+                        && shell.Navigation.NavigationStack.Count == 2
+                        && shell.Navigation.NavigationStack[0] is Pages.GroupsPage)
+                    {
+                        currentGroup.SelectedTab = ViewModels.GroupDetailTab.Events;
+                    }
+                    else
+                    {
+                        await shell.GoToAsync(
+                            $"{AppConstants.Routes.Groups}/{AppConstants.Routes.GroupDetails}?groupId={groupId}&tab=events");
+                    }
+
+                    // A guarded editor can cancel the first navigation; do not push past that decision.
+                    if (shell.CurrentPage is not Pages.GroupDetailPage
+                        || shell.CurrentPage.BindingContext is not ViewModels.GroupDetailViewModel destination
+                        || destination.GroupId != groupId
+                        || !destination.IsEventsTabSelected) return;
+
+                    await shell.GoToAsync($"{AppConstants.Routes.EventDetail}?groupId={groupId}&eventId={eventId}");
+                });
+            }
+            catch (Exception ex)
+            {
+                LogCrash(ex);
+            }
+            finally
+            {
+                navigationGate.Release();
+            }
         }
 
         /// <summary>Called by SplashPage once it's decided where to land, and by Login/Register
@@ -133,9 +193,9 @@ namespace AxisApp
         /// was ready or while signed out. A no-op while still signed out — the route stays queued.</summary>
         public static Task ReplayPendingDeepLinkAsync()
         {
-            if (pendingRoute is not { } route || !IsSignedIn()) return Task.CompletedTask;
+            if (pendingRoute is not { } route || !isReadyToNavigate || !IsSignedIn()) return Task.CompletedTask;
             pendingRoute = null;
-            return Shell.Current.GoToAsync(route);
+            return NavigateAsync(route);
         }
     }
 }

@@ -5,6 +5,7 @@ export function useUnsavedChanges(recordKey: string, snapshot: string | null, pe
   const [initial, setInitial] = useState<{ key: string; snapshot: string } | null>(null)
   const bypass = useRef(false)
   const focusTarget = useRef<HTMLElement | null>(null)
+  const [closeAction, setCloseAction] = useState<(() => void) | null>(null)
 
   if (snapshot !== null && initial?.key !== recordKey) {
     setInitial({ key: recordKey, snapshot })
@@ -35,6 +36,7 @@ export function useUnsavedChanges(recordKey: string, snapshot: string | null, pe
   }, [shouldWarn])
 
   function keepEditing() {
+    setCloseAction(null)
     if (blocker.state === 'blocked') blocker.reset()
     requestAnimationFrame(() => focusTarget.current?.isConnected && focusTarget.current.focus())
   }
@@ -43,7 +45,20 @@ export function useUnsavedChanges(recordKey: string, snapshot: string | null, pe
     bypass.current = true
     if (snapshot !== null) setInitial({ key: recordKey, snapshot })
     if (blocker.state === 'blocked') blocker.reset()
+    setCloseAction(null)
   }
 
-  return { blocker, keepEditing, markSaved }
+  function requestClose(action: () => void) {
+    if (bypass.current || !shouldWarn) { action(); return }
+    focusTarget.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setCloseAction(() => action)
+  }
+
+  function discardChanges() {
+    if (pending) return
+    if (closeAction) { bypass.current = true; setCloseAction(null); closeAction() }
+    else if (blocker.state === 'blocked') blocker.proceed()
+  }
+
+  return { blocker, keepEditing, markSaved, requestClose, discardChanges, confirmingClose: closeAction !== null }
 }

@@ -1,7 +1,8 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocale } from '../context/LocaleContext'
 import { useAliases } from '../context/AliasesContext'
 import { supabase } from '../lib/supabaseClient'
+import { isConvertedAmountTooLarge } from '../lib/dbErrors'
 import { expenseTimestamp } from '../lib/dates'
 import { formatMoney } from '../lib/formatting'
 import { CURRENCIES, type MemberRow } from '../lib/types'
@@ -12,6 +13,7 @@ import './SettlementForm.css'
 export function SettlementForm({
   initial, groupId, members, myMemberId, expectedBalance, otherMemberId,
   canDelete = false, onCancel, onSaved, onDeleted, onBusyChange,
+  onDraftChange, onCommitted,
 }: {
   initial: SettlementDraft
   groupId: string
@@ -24,10 +26,13 @@ export function SettlementForm({
   onSaved: (remaining: number | null) => void
   onDeleted?: () => void
   onBusyChange?: (busy: boolean) => void
+  onDraftChange: (draft: SettlementDraft) => void
+  onCommitted: () => void
 }) {
   const { t, language } = useLocale()
   const { displayName } = useAliases()
   const [draft, setDraft] = useState(initial)
+  useEffect(() => { onDraftChange(draft) }, [draft, onDraftChange])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inFlight = useRef(false)
@@ -79,8 +84,9 @@ export function SettlementForm({
       ))
       if (result.error) throw result.error
       saved = true
-    } catch {
-      setError(t('Settlement_SaveFailed'))
+      onCommitted()
+    } catch (error) {
+      setError(t(isConvertedAmountTooLarge(error) ? 'AmountInput_ConvertedTooLarge' : 'Settlement_SaveFailed'))
     } finally {
       if (!saved) setSaving(false)
     }
@@ -106,6 +112,7 @@ export function SettlementForm({
       const result = await supabase.from('expenses').delete().eq('id', initial.id)
       if (result.error) throw result.error
       deleted = true
+      onCommitted()
     } catch {
       setError(t('Settlement_DeleteFailed'))
     } finally {

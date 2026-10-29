@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useGoBackTo } from '../lib/navigation'
 import { supabase } from '../lib/supabaseClient'
+import { isConvertedAmountTooLarge } from '../lib/dbErrors'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
@@ -20,6 +21,7 @@ import { Avatar } from '../components/Avatar'
 import { DateField } from '../components/DateField'
 import { SettlementForm } from '../components/SettlementForm'
 import type { SettlementDraft } from '../lib/settlements'
+import { settlementEditorSnapshot } from '../lib/formEditorSnapshots'
 import { amountErrorKey, parseAmountInput } from '../lib/amountInput'
 import { expenseEditorSnapshot } from '../lib/expenseEditorSnapshot'
 import { useUnsavedChanges } from '../lib/useUnsavedChanges'
@@ -255,7 +257,8 @@ export function AddExpensePage() {
       amount, description, currency, category, paidBy, includedIds, manual: isManualSplit,
       shareInputs, shareCents, recurring: isRecurringMode, occurredOn, startDate, frequency,
       receiptPath, eventId: linkedEventId,
-    }) : null, !isSettlement && (busy || receiptBusy))
+    }) : expenseLoaded && loadedEditorKey === editorKey && isSettlement && settlementDraft
+      ? settlementEditorSnapshot(settlementDraft) : null, busy || receiptBusy)
 
   function toggleParticipant(memberId: string) {
     setParticipants((prev) => {
@@ -391,7 +394,7 @@ export function AddExpensePage() {
           },
           p_shares: buildShares(),
         })
-        if (saveError) return setError(saveError.message)
+        if (saveError) return setError(isConvertedAmountTooLarge(saveError) ? t('AmountInput_ConvertedTooLarge') : saveError.message)
         unsaved.markSaved()
         goBackTo(`/groups/${groupId}/recurring`)
         return
@@ -414,12 +417,12 @@ export function AddExpensePage() {
         },
         p_shares: buildShares(),
       })
-      if (saveError) return setError(saveError.message)
+      if (saveError) return setError(isConvertedAmountTooLarge(saveError) ? t('AmountInput_ConvertedTooLarge') : saveError.message)
 
       unsaved.markSaved()
       goBackTo(parentPath)
-    } catch {
-      setError(t('Common_SaveFailed'))
+    } catch (error) {
+      setError(t(isConvertedAmountTooLarge(error) ? 'AmountInput_ConvertedTooLarge' : 'Common_SaveFailed'))
     } finally {
       setBusy(false)
     }
@@ -470,6 +473,8 @@ export function AddExpensePage() {
     return (
       <div className="page">
         <AppHeader title={t('AddExpense_EditSettlementTitle')} backTo={parentPath} />
+        <UnsavedChangesDialog blocker={unsaved.blocker} keepEditing={unsaved.keepEditing}
+          pending={busy} open={unsaved.confirmingClose} onDiscard={unsaved.discardChanges} />
         <SettlementForm
           key={settlementDraft.id}
           initial={settlementDraft}
@@ -477,7 +482,10 @@ export function AddExpensePage() {
           members={members}
           myMemberId={members.find((m) => m.members.account_id === session?.user.id)?.member_id}
           canDelete={canDelete}
-          onCancel={() => goBackTo(parentPath)}
+          onDraftChange={setSettlementDraft}
+          onBusyChange={setBusy}
+          onCommitted={unsaved.markSaved}
+          onCancel={() => unsaved.requestClose(() => goBackTo(parentPath))}
           onSaved={() => goBackTo(parentPath)}
           onDeleted={() => goBackTo(parentPath)}
         />
