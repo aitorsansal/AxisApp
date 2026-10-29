@@ -13,9 +13,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Axis" />
     <title>Axis</title>
+    <style>
+      .startup-message{max-width:36rem;margin:12vh auto;padding:1.5rem;font:1rem/1.6 system-ui,sans-serif;color:#F2F5FA;background:#0B1220;border-radius:1rem}
+      body:has(.startup-message){background:#0B1220;margin:0}
+      .startup-message a{color:#B1BCEC}
+      .startup-message button{font:inherit;min-height:44px;padding:.6rem 1.2rem;cursor:pointer}
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><main class="startup-message" role="status"><h1>Axis</h1><p>Starting Axis… / Iniciando Axis…</p><p>If this message stays here, <a href="">reload this page</a> or try again later.<br>Si este mensaje no desaparece, <a href="">recarga la página</a> o inténtalo más tarde.</p><noscript>Enable JavaScript to use Axis. / Activa JavaScript para usar Axis.</noscript></main></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -4,17 +4,25 @@ import { createRoot } from 'react-dom/client'
 // automatically via font-optical-sizing.
 import '@fontsource-variable/bricolage-grotesque/opsz.css'
 import './index.css'
-import App from './App.tsx'
 import { applyAccent, getAccent } from './lib/accent'
+import { assertSupabaseConfig } from './lib/runtimeConfig'
+import { showStartupFailure } from './lib/startupFailure'
 
 // Before the first render, so a non-default accent never flashes blue first.
-applyAccent(getAccent())
+async function start() {
+  try {
+    assertSupabaseConfig(import.meta.env)
+    try { applyAccent(getAccent()) } catch { /* A blocked preference store must not prevent startup. */ }
+    const { default: App } = await import('./App.tsx')
+    createRoot(document.getElementById('root')!, {
+      onUncaughtError: () => showStartupFailure(),
+    }).render(<StrictMode><App /></StrictMode>)
+  } catch {
+    showStartupFailure()
+  }
+}
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+void start()
 
 // Required for PWA installability (Chrome/Edge/Android need a registered SW at root scope) and,
 // later, for Firebase Messaging's background push handling — see public/sw.js.

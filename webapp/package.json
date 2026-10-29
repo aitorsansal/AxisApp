@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "cf:dev": "npm run build && npx wrangler dev",
-    "deploy": "npm run build && npx wrangler deploy",
+    "deploy": "npm run build && npx wrangler deploy && npm run smoke",
+    "smoke": "node scripts/smoke.mjs",
     "test": "node --experimental-strip-types --test tests/regressions.test.mjs"
   },
   "dependencies": {
