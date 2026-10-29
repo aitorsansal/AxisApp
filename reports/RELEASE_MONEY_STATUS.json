@@ -1,0 +1,38 @@
+{
+  "A1": [
+    "Deployed; production save/reopen verified",
+    "Production web preserved dot/comma input, saved EUR8.50 and reopened matching shares. Prior Android device QA and both regression suites pass. See RELEASE_MONEY_REVIEW.md."
+  ],
+  "W1": [
+    "Deployed; production date correction verified",
+    "Production blocked 31 April without freezing Save. Correcting to 30 April saved an event on the intended date. Earlier local checks cover end dates and DST. See RELEASE_MONEY_REVIEW.md."
+  ],
+  "W2": [
+    "Deployed; production save/reopen verified",
+    "Production blocked 31 February; corrected leap day 29 February 2028 saved and reopened unchanged, including subsequent amount/split edits. See RELEASE_MONEY_REVIEW.md."
+  ],
+  "W4 / A2": [
+    "Deployed; production repayment flow verified",
+    "Review/cancel left the EUR5 debt unchanged. A EUR2 partial repayment reduced it to EUR3; the remaining EUR3 cleared it. Prior Android device checks remain applicable. Concurrent repayment safety was not tested. See RELEASE_MONEY_REVIEW.md."
+  ],
+  "W7 / A8": [
+    "Deployed; production dedicated editor verified",
+    "A saved repayment reopened with one payer and one recipient. Its note was edited successfully without changing the debt. Prior Android QA covers reversed direction and invalid amounts. See RELEASE_MONEY_REVIEW.md."
+  ],
+  "W10": [
+    "Deployed; production split intent verified",
+    "Equal reopened correctly and recalculated EUR10.01 as EUR5.01/EUR5.00. Explicit Manual with EUR5/EUR5 reopened as Manual. Prior Android/paused recurring QA remains recorded; alternating a record between clients was not tested. See RELEASE_MONEY_REVIEW.md."
+  ],
+  "W14": [
+    "Fixed 2026-10-29; conversion limit verified on web and Android",
+    "Input limits were verified in production on 2026-10-28. supabase/converted_amount_limit.sql (applied live 2026-10-29) rejects conversions above numeric(12,2) with converted_amount_too_large, translated on both clients. EUR 100,000,000 into a JPY group was refused on web and phone with nothing saved; EUR 10 saved correctly. Recurring templates are isolated per template; the pause path was not exercised against real data. See CHANGELOG.md “Converted-amount limit”."
+  ],
+  "F02": [
+    "Deployed; production sync retest pending",
+    "The existing Realtime/focus/reconnect/poll implementation was included in the web release. Earlier local user confirmation remains applicable. No fresh timed cross-client production refresh check was performed in this financial verification. See RELEASE_MONEY_REVIEW.md."
+  ],
+  "F03": [
+    "Deployed on web; prior Android device QA passed",
+    "The existing expense/recurring unsaved-change implementation was included in the web release. Earlier mocked browser and actual Android checks remain applicable; this session did not repeat production discard scenarios. Event/repayment protection remains outside scope. See RELEASE_MONEY_REVIEW.md."
+  ]
+}

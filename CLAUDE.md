@@ -41,6 +41,18 @@ every screen is wired to the real backend — see "Backend abstraction" below
 for the full interface list.
 
 What's actually left, in rough order:
+0. **Stabilisation pass (agreed 2026-10-29, before any new feature)**: Axis is
+   a private, whitelisted friends app, so everyday reliability comes first.
+   Done: (1) monetary safeguards (converted-amount limit, cross-client stale
+   repayments refused), (2) dependable updates (Group Detail auto refresh,
+   honest web push state), (3) event context on both clients, plus
+   date-only activity labels on Android. Next: (4) invitations and everyday
+   clarity — guest-add vs. clipboard, explicit copy, join preview, aligned
+   categories/repayment descriptions/dates, translated errors, Enter to add a
+   member, zero-decimal currencies (JPY/KRW/ISK; app assumes two decimals
+   everywhere, design: one minor-units table in SQL mirrored by both
+   clients); (5) accessibility and evidence gaps. The 2026-10-29 web changes
+   are not deployed yet (`npm run deploy --prefix webapp`).
 1. **Phase 2.5 — Google Calendar sync**, not started at all — per-user
    Google OAuth separate from Supabase Auth, encrypted token storage/
    refresh, a sync strategy, and reconciling Axis's recurrence model
@@ -53,9 +65,7 @@ What's actually left, in rough order:
    the members roster/add-by-name flow, calendar feeds and group appearance;
    it has no remaining feature-parity gaps vs. Android (the list from
    `review-artifacts/APP_REVIEW.md` was closed 2026-10-27). PWA install + web push are implemented and live
-   (see "Web app: PWA install + push notifications" below). Web push still
-   fails silently when Firebase config is missing (`getPushState` has no
-   rejection handler). The Android events widget
+   (see "Web app: PWA install + push notifications" below). The Android events widget
    (`EventsWidgetDataProvider`) still compares `StartsAt` against
    `DateTime.UtcNow` without normalizing Kind, the bug `EventTimes.IsPast`
    fixed for the events list — deferred pending a wider widget discussion.
@@ -164,6 +174,18 @@ as saved and never invites a duplicate retry. See
 `reports/ANDROID_SETTLEMENT_REVIEW.md` for physical-device verification.
 
 ## Stats tab
+
+Attendance freshness follow-up (2026-10-28): web useLiveRefresh now refetches on
+first subscription and window focus as well as reconnect/visibility/online/poll.
+EventDetailPage and GroupEventsTab use RefreshRevision to reject late responses
+after newer reads/local edits; loader dependencies use account ID, not session
+object identity. Native EventDetailPage and GroupDetailPage check visible event
+data every 30 seconds, fetching at age >=60 seconds and forcing refresh on
+resume/reconnect (and Events tab selection). Timers stop on Window.Stopped and
+page disappearance; refreshes skip pending writes and reject overtaken data.
+Native uses polling, not Realtime. See reports/LIVE_ATTENDANCE_REVIEW.md:
+production web checks pass; Android is built/installed but physical UI polling
+and lifecycle checks remain unverified.
 
 Group Detail's third tab (`GroupStatsView`/`GroupStatsViewModel`) — pure
 read-only aggregation over a group's whole expense history, no new
@@ -332,7 +354,15 @@ strings — follow that pattern for any new screen. The Events list itself
 has **no** separate route — it lives embedded in `GroupDetailPage`'s Events
 tab (`GroupEventsView`), not as its own navigated page; only `AddEventPage`
 needed a real route, same shape as `AddExpensePage`. Same for the Stats
-tab (`GroupStatsView`, no route of its own). `Splash` is the first
+tab (`GroupStatsView`, no route of its own). Group Detail accepts `tab=events`
+(Android query attribute; web `?tab=events|stats` in the URL, replaced on tab
+switch) so event save/delete/Back and reload land on Events. Android event
+deep links and push taps navigate Groups → that group's GroupDetail (Events)
+→ EventDetail via `App.NavigateAsync`, so Back reaches the event's own group;
+`GroupDetailViewModel.LoadAsync` sets `GroupName` from the loaded group, since
+those routes carry no `groupName` param. Event-linked expenses list every
+member as participant/payer, with Going attendees preselected (everyone if
+nobody is Going), on both clients. `Splash` is the first
 `ShellContent` in `AppShell.xaml`; it decides between `//Login` and
 `//Groups` before anything else renders (`SplashPage.OnAppearing` must
 `await Task.Yield()` before touching `Shell.Current` — Shell's own initial
@@ -446,6 +476,8 @@ that first) reuses the same Firebase project as Android for push.
 ### Web live refresh
 
 Event screens refresh through `webapp/src/lib/useLiveRefresh.ts` (Supabase Realtime on `events`/`event_attendees`, which `supabase/realtime_event_attendees.sql` added to the `supabase_realtime` publication, plus focus/online/reconnect refetch and a 60s visible poll, skipped while the viewer's own writes are pending). Views can't be published: a live balance would subscribe to the underlying tables. Android has no Realtime.
+
+Group Detail balances/activity (2026-10-29) refresh without Realtime on both clients: web uses `useLiveRefresh` with an empty table list (focus/online/visible 60s poll); Android's `GroupExpensesViewModel.RefreshIfStaleAsync` follows the events tab lifecycle (30s tick, 60s stale, forced on resume/reconnect/tab switch). Neither touches the activity list during a search or after load-more (balances only), neither interrupts an open repayment, and background failures keep stale data silently. Device-verified: web→phone ~76s untouched, phone→web within one poll. Web push state gains `'unavailable'` (check failed or service worker not ready in 10s) so Profile never silently hides the Notifications section.
 
 ### UI
 
@@ -632,6 +664,15 @@ dotnet build AxisApp/AxisApp.csproj -f net10.0-windows10.0.19041.0
 npm run deploy --prefix webapp
 ```
 
+The deploy script now runs HTTP smoke checks after publishing: the home route,
+`/profile` SPA fallback and the JavaScript entry must match the local build.
+`npm run smoke --prefix webapp` repeats these checks; failure reports a bad
+release without automatic rollback. Vite rejects missing/malformed Supabase
+build settings before generating assets. Browser bootstrap validates the same
+settings before importing App, with an English/Spanish retry screen on failure
+and static HTML loading/reload copy if JavaScript cannot load. See
+`reports/STARTUP_REVIEW.md` for deployed verification and limits.
+
 ```bash
 # Regression tests (no MAUI dependency — the test project links the pure
 # domain files Models/ExpenseMath.cs, EventTimes.cs, DateFormats.cs,
@@ -664,5 +705,15 @@ Expenses and recurring templates now have nullable `split_mode` (`equal`/`manual
 Web now uses createBrowserRouter/RouterProvider with the existing route tree/providers. `useUnsavedChanges` and `UnsavedChangesDialog` protect ordinary and recurring AddExpensePage edits; repayments and events are not wired yet. `expenseEditorSnapshot` normalizes valid amounts and participant order while preserving split intent and invalid input. The baseline is keyed to the loaded account/route; keep token refreshes from reloading the form. Call `markSaved()` only after a confirmed successful save/delete, immediately before navigation. Native beforeunload handles document exits; internal navigation uses useBlocker. Deep-entry ancestry reconstruction dispatches popstate to synchronize router history indices; retest cold-link Back/Forward if changing that code. Isolated browser fixtures live in `webapp/tests/unsaved.vite.config.ts`; never use the fixture config for production. See `reports/UNSAVED_WEB_REVIEW.md`. The web stage is local, not deployed. Android expense/recurring protection is now installed and device-verified; see the following section.
 
 ## Android expense unsaved changes (2026-10-28)
+
+Later extension: AddEventPage and SettlementPage now inherit GuardedEditorPage
+and implement IUnsavedChangesEditor through their view models. FormEditorSnapshots
+captures event/repayment values; baselines are captured after loading and only
+confirmed commits bypass navigation protection. Web AddEventPage and both
+SettlementForm parents use useUnsavedChanges; local repayment Cancel/Escape/
+backdrop closure uses requestClose with the same confirmation. Keep one route
+blocker per mounted page. See reports/FORM_UNSAVED_REVIEW.md: browser checks pass,
+Android is clean-built/installed, but native tap-through QA remains pending.
+The earlier paragraphs below record expense/recurring implementation history.
 
 AddExpensePage subscribes to Shell.Navigating while visible and uses GetDeferral/DisplayAlertAsync to protect ordinary/recurring edits. ExpenseEditorSnapshot normalizes actual editable values; UnsavedEditGuard captures only fully loaded data and compares on navigation. MarkCommitted is called only after confirmed repository success before leaving. Pending operations cancel attempted navigation and show a wait alert without holding a deferral. Keep or native-dialog dismissal cancels the original route; Discard completes it. Never start a second GoToAsync while a navigation deferral is pending. Native 1.1.0 (10) was installed and tested on the connected phone; details/data inventory are in `reports/ANDROID_UNSAVED_REVIEW.md`. Events, repayments and crash-recovery drafts remain separate work. No additional SQL is required.

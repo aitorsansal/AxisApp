@@ -67,3 +67,7 @@ migration, no auth migration, because it's the same software either way.
 ## Split-mode migration (existing projects)
 
 Run the complete [`split_mode.sql`](./split_mode.sql) before deploying the web split-mode update. Existing data remains unknown/NULL rather than guessing Equal from its amounts. The script is transactional and rerunnable, preserves hardened save authorization, supports older Android clients, and carries mode into generated recurring expenses. See [rollout and verification](./SPLIT_MODE_ROLLOUT.md). Fresh projects already include this change in `schema.sql`.
+
+## Converted-amount limit (existing projects)
+
+Run [`converted_amount_limit.sql`](./converted_amount_limit.sql) once (applied to the live project 2026-10-29). Conversions above `numeric(12,2)` now raise `converted_amount_too_large` (SQLSTATE 22003), which both clients translate, and `materialize_recurring_expenses()` isolates each template so one failure no longer aborts the daily run: an over-limit template is paused, other errors skip it for the day. Rerunnable (`create or replace`). Fresh projects already include this in `schema.sql`.

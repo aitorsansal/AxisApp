@@ -12,7 +12,26 @@ Read this guide first, then open the original finding when you need reproduction
 
 ## Current implementation status — 28 October 2026
 
-[The status review](REPORT_STATUS_REVIEW.md) supersedes the historical open wording for A1, W4/A2/F07 and W7/A8: these are implemented with prior Android QA evidence. W8/A7, W13 and W14 have narrower fixes or remaining verification. Both regression suites pass. Live web deployment was not checked. W1/W2 now have local date-validation fixes and browser checks. Split-mode persistence is implemented on both clients; the user confirmed SQL/web operation and Android device checks passed. Calendar timestamp formatting is now deployed and verified against the live QA feed; earlier timezone and split-rounding fixes addressed different problems. Local web expense and recurring editors now have unsaved-change protection, checked with isolated browser fixtures; see [verification](UNSAVED_WEB_REVIEW.md). The web stage is not deployed. Android expense/recurring protection has since been installed and device-verified; event and repayment forms remain outside scope. F02 (stale attendance) now has a web fix using Supabase Realtime plus focus/poll refetches, confirmed by the user locally and not yet deployed. The combined HTML now shows these statuses alongside original evidence.
+**F02 update:** production web RSVP/seat propagation passed between open detail
+and list views. Recovery/race hardening is deployed. Android polling was
+confirmed on the physical phone on 29 October (about a minute delay; phone-to-web
+instant; Wi-Fi reconnect refresh did not visibly trigger). See
+[attendance verification](LIVE_ATTENDANCE_REVIEW.md); the isolated QA event was
+restored to Going, no car offer and transport disabled.
+
+**F03 update:** event and repayment editors now have unsaved-change guards on
+both clients. Additional web browser checks pass; the Android guard was confirmed
+on the physical phone on 29 October (native alert, not itemised per form).
+See [form verification](FORM_UNSAVED_REVIEW.md) for evidence and release status.
+
+**U01 update:** startup safeguards are deployed: missing configuration blocks
+builds, browser startup failures show a retry screen, and the npm deployment
+pipeline checks the expected home/profile shell and entry asset. Local failure
+and production startup checks passed. See [verification](STARTUP_REVIEW.md).
+
+**Later update:** the web fixes have now been deployed and the financial flows checked against production. See [production verification](RELEASE_MONEY_REVIEW.md) for save/reopen, split intent, repayment results and retained QA records. W14 still has a converted-amount boundary gap; fresh production sync/discard checks remain separate. The following paragraph describes the earlier status checkpoint.
+
+[The status review](REPORT_STATUS_REVIEW.md) supersedes the historical open wording for A1, W4/A2/F07 and W7/A8: these are implemented with prior Android QA evidence. W8/A7, W13 and W14 have narrower fixes or remaining verification. Both regression suites pass. Live web deployment was not checked. W1/W2 now have local date-validation fixes and browser checks. Split-mode persistence is implemented on both clients; the user confirmed SQL/web operation and Android device checks passed. Calendar timestamp formatting is now deployed and verified against the live QA feed; earlier timezone and split-rounding fixes addressed different problems. Local web expense and recurring editors now have unsaved-change protection, checked with isolated browser fixtures; see [verification](UNSAVED_WEB_REVIEW.md). The web release was later deployed. Android expense/recurring protection has been device-verified, and event and repayment forms now have guards too (see F03 update above). F02 (stale attendance) now has a web fix using Supabase Realtime plus focus/poll refetches, confirmed by the user locally and since deployed. The combined HTML now shows these statuses alongside original evidence.
 
 ## 1. What the combined review tells us
 

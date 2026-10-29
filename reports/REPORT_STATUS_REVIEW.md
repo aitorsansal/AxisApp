@@ -1,5 +1,39 @@
 # Combined report status review — 28 October 2026
 
+## Live attendance and seats — F02
+
+Repeated production web checks passed across two tabs and event-detail/list
+views. Web recovery/stale-response hardening is deployed. Android polls
+(60–90 s delay by design) and refreshes on resume; on 29 October the physical
+phone picked up a web change after about a minute, and a phone change reached web
+instantly. The Wi-Fi off/on refresh did not visibly trigger. Simultaneous same-row writes
+remain last-write-wins. See [attendance verification](LIVE_ATTENDANCE_REVIEW.md)
+for timings, restored QA state and the outstanding checks. Earlier statements
+that web production sync had not been checked describe the preceding checkpoint.
+
+## Event and repayment unsaved protection — F03
+
+Deployed web event and repayment guards now extend the existing expense/recurring
+coverage. Isolated browser checks verify navigation and local dialog closure,
+reverted values, incomplete events, failed/pending/successful saves and bilingual
+dialogs. Production event/repayment discard checks also passed without saving
+records. On 29 October the user confirmed on the physical phone that the Android guard
+works (native alert); individual forms were not itemised. See [form verification](FORM_UNSAVED_REVIEW.md).
+Earlier statements that event/repayment forms were outside scope describe the
+previous checkpoint.
+
+## Startup safeguards — U01
+
+Build-time configuration validation, a readable browser startup fallback and
+post-deploy HTTP smoke checks are now deployed. Local missing-config/Retry and
+production home/profile checks passed; all 23 web regressions pass. See
+[startup verification](STARTUP_REVIEW.md) for deployment identity, evidence and
+limits. The recovered original incident remains historical evidence.
+
+## Later production deployment and verification
+
+The [production financial verification](RELEASE_MONEY_REVIEW.md) supersedes earlier undeployed wording below. The web release is now live: amount/date save-reopen, Equal/Manual persistence and reviewed partial/full repayments passed in an isolated production QA group. All 21 web tests and the C# regressions pass. W14 retains a conversion-boundary gap identified in source; prior Android physical checks remain distinct from this new web verification. Live attendance and expense unsaved protection were included in the release, but were not freshly acceptance-tested on production in this pass. Earlier paragraphs below retain their original verification context.
+
 The combined report retained historical failures after commit `f4a5d7f` implemented repayment and monetary-input changes. Its affected cards now carry current implementation statuses and this evidence alongside the original observations. The original reports remain historical records.
 
 This review checked repository source and reran existing regression suites. It did not test the live web deployment or run a fresh physical-device session. Prior Android and browser QA evidence is explicitly identified below.
@@ -33,7 +67,7 @@ Local browser checks covered impossible event start/end dates, retaining incompl
 - **W10/F01, Equal reopening as Manual — implemented:** the user confirmed SQL/web operation. Android 1.1.0 (10) was installed and verified on the connected phone for Equal/Manual and paused recurring editing. [Device verification](ANDROID_SPLIT_MODE_REVIEW.md) records the evidence, retained test data and limits. No alternating-client or concurrent-edit test was performed.
 - **W3, calendar timestamps — deployed and verified:** UTC normalization is deployed in Supabase. Seven regression tests pass, and the live QA feed imported successfully with three events and nine correctly formatted timestamps. [Verification](CALENDAR_FEED_REVIEW.md) records the registry workaround and limits; external calendar polling was not tested.
 - **F02, live attendance — implemented on web, user-confirmed locally:** the web fetched attendees once per mount, with no subscription and no refetch on focus. `EventDetailPage` and `GroupEventsTab` now use `useLiveRefresh` (Supabase Realtime on `events`/`event_attendees`, plus refetch on focus, reconnect and a 60-second visible poll, skipped while the viewer's own RSVP or seat writes are pending). `supabase/realtime_event_attendees.sql` was applied to the live project; the free plan covers it. The user confirmed an open view updates after a change from another client. Web production deployment, repeated timed runs and other screens were not checked; Android has no Realtime and was not changed.
-- **F03, unsaved edits — local web expense editors implemented:** ordinary/recurring editors now guard navigation and browser unload. [Browser verification](UNSAVED_WEB_REVIEW.md) covers pristine/reverted values, Back/Forward, failed/successful/pending saves and bilingual dialogs with mocked APIs. Android expense/recurring protection has since been implemented and verified on the phone; see [native verification](ANDROID_UNSAVED_REVIEW.md). Web production deployment and event/repayment forms remain pending.
+- **F03, unsaved edits — local web expense editors implemented:** ordinary/recurring editors now guard navigation and browser unload. [Browser verification](UNSAVED_WEB_REVIEW.md) covers pristine/reverted values, Back/Forward, failed/successful/pending saves and bilingual dialogs with mocked APIs. Android expense/recurring protection has since been implemented and verified on the phone; see [native verification](ANDROID_UNSAVED_REVIEW.md). Web production deployment and event/repayment forms were completed later; see the F03 section above.
 
 Other findings retain their earlier evidence and status; they have not all been retested.
 
