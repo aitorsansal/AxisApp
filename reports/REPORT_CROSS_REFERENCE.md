@@ -12,6 +12,8 @@ Read this guide first, then open the original finding when you need reproduction
 
 ## Current implementation status — 28 October 2026
 
+**30 October update:** W6, W12 (partly), W14, W15, W17 and W18 have new statuses, and the web invite card, Enter-to-add-member and zero-decimal currencies were added. See the first section of [the status review](REPORT_STATUS_REVIEW.md) and the combined report cards; the paragraphs below keep their original checkpoint wording.
+
 **F02 update:** production web RSVP/seat propagation passed between open detail
 and list views. Recovery/race hardening is deployed. Android polling was
 confirmed on the physical phone on 29 October (about a minute delay; phone-to-web

@@ -67,7 +67,7 @@ extras=[
 ('F08','Entering expenses','next','Currency conversions are not explained','The tested web form shows converted totals without a visible rate, date or source. Neither report establishes that the rate is wrong.','Show the applied conversion. Treat an actual-bank-charge override as a separate product decision.'),
 ]
 polish=[
-('Members & invites','Enter does not add a named member','The named-member input does not submit with Enter.','Use standard form submission and verify keyboard behavior.'),
+('Members & invites','Enter does not add a named member','The named-member input does not submit with Enter. Fixed 30 October 2026: Enter adds the member on web and Android, gated like the Add button.','Use standard form submission and verify keyboard behavior.'),
 ('Entering expenses','Other is not the last category','Legacy rent and utilities appear after Other.','Review ordering alongside the category compatibility issue.'),
 ('Accessibility','Web form controls have weak accessible labels','Checkboxes, date fields and share fields are insufficiently named.','Associate visible labels and verify keyboard and screen-reader output.'),
 ('Stats & activity','Dates look different inside event expenses','Event-linked rows use a numeric date while surrounding screens use a short month label.','Use a consistent display format. This is separate from invalid-date saving.'),
@@ -149,6 +149,8 @@ status_review={
 }
 release_status=json.loads((ROOT/'RELEASE_MONEY_STATUS.json').read_text(encoding='utf-8'))
 status_review.update(release_status)
+session_status=json.loads((ROOT/'INVITES_CURRENCY_STATUS.json').read_text(encoding='utf-8'))
+status_review.update(session_status)
 status_review['F02']=('Verified on web and Android','Repeated production web checks propagated RSVP and seats across event-detail and Events-list views without reload. Web now refetches on initial subscription/window focus and rejects stale read results after local taps. Simulated reconnect/focus/pending-write tests and 25 web regressions pass. Android polls (60-90 s delay by design, no Realtime) plus resume/reconnect refresh. On the physical phone, a web change appeared on the open event screen after about a minute and on app resume, and a phone change appeared instantly on web. The Wi-Fi off/on refresh did not visibly trigger. Same-row concurrent writes remain last-write-wins. See LIVE_ATTENDANCE_REVIEW.md for timings, deployment and limits.')
 status_review['F03']=('Verified on web and Android','Web event creation/editing and repayment creation/editing now share the existing navigation/unload protection. Repayment Cancel/Escape/backdrop closure also requests discard; pending saves block leaving and successful writes bypass prompts. Isolated browser failure/delay/Keep/Discard checks pass in English/Spanish. The web release is deployed and production event/repayment discard checks passed without saving records. The user confirmed on the physical phone (29 October) that the Android guard works, using a standard native alert; individual forms and Keep/Discard paths were not itemised. Earlier expense/recurring device checks remain applicable. See FORM_UNSAVED_REVIEW.md for release status and limits.')
 status_review['U01']=('Safeguards deployed; production startup checked','Vite now blocks missing or malformed Supabase build settings. Browser startup has an English/Spanish retry screen; static HTML retains a loading/reload fallback. The npm deployment command checks the expected home/profile shell and JavaScript entry. Local missing-config/Retry checks and production home/profile startup passed; all 23 web tests pass. No automatic rollback or notification-delivery verification is claimed. See STARTUP_REVIEW.md.')
@@ -161,6 +163,8 @@ for issue in issues:
   issue['sources'].append({'author':'Startup safeguard verification','ref':'28 October 2026','url':'STARTUP_REVIEW.md','priority':status_review['U01'][0],'parts':[{'label':'Deployed safeguards and limits','text':status_review['U01'][1]}],'images':[{'src':'startup-review/missing-config.png','alt':'Local missing-config test shows a readable Axis retry screen.'},{'src':'startup-review/production-home.png','alt':'Production home loaded successfully after the safeguard release.'}]})
  if issue['key'] in release_status:
   issue['sources'].append({'author':'Production financial verification','ref':'28 October 2026','url':'RELEASE_MONEY_REVIEW.md','priority':release_status[issue['key']][0],'parts':[{'label':'Deployed web verification','text':release_status[issue['key']][1]}],'images':[{'src':'release-money-review/settled.png','alt':'Isolated production QA ledger after EUR2 partial and EUR3 remaining repayments cleared the EUR5 debt.'}] if issue['key']=='W4 / A2' else []})
+ if issue['key'] in session_status:
+  issue['sources'].append({'author':'Invitations and currency verification','ref':'30 October 2026','url':'REPORT_STATUS_REVIEW.md','priority':session_status[issue['key']][0],'parts':[{'label':'Current implementation and verification','text':session_status[issue['key']][1]}],'images':[]})
  if issue['key'] not in status_review:continue
  status,note=status_review[issue['key']]
  issue['status']=status
@@ -172,7 +176,7 @@ for issue in issues:
   issue['sources'].append({'author':'Calendar deployment verification','ref':'28 October 2026','url':'CALENDAR_FEED_REVIEW.md','priority':status,'parts':[{'label':'Deployed and checked against the live feed','text':note}],'images':[{'src':'calendar-feed-review/deployed.png','alt':'Supabase calendar-feed overview after deploying the UTC timestamp fix.'}]})
  if issue['key']=='W10':
   issue['sources'].append({'author':'Android device verification','ref':'28 October 2026','url':'ANDROID_SPLIT_MODE_REVIEW.md','priority':status,'parts':[{'label':'Verified on the connected phone','text':note}],'images':[{'src':'android-split-mode-review/01-equal-reopened.png','alt':'Saved Equal split reopened on the connected Android phone.'}]})
- issue['sources'].append({'author':'Repository status review','ref':'28 October 2026','url':'REPORT_STATUS_REVIEW.md','priority':status,'parts':[{'label':'Current implementation and verification', 'text':note}],'images':[{'src':'date-validation-expense.png','alt':'Local web expense form retains 31/02/2026 and blocks saving with an inline date error.'}] if issue['key']=='W2' else []})
+ if issue['key'] not in session_status:issue['sources'].append({'author':'Repository status review','ref':'28 October 2026','url':'REPORT_STATUS_REVIEW.md','priority':status,'parts':[{'label':'Current implementation and verification', 'text':note}],'images':[{'src':'date-validation-expense.png','alt':'Local web expense form retains 31/02/2026 and blocks saving with an inline date error.'}] if issue['key']=='W2' else []})
 issues.sort(key=lambda x:(0,order[x['key']]) if x['key'] in order else (1 if x['priority']=='next' else 2, x['id']))
 payload=json.dumps(issues,ensure_ascii=False).replace('</','<\\/')
 template=(ROOT/'review_template.html').read_text(encoding='utf-8')

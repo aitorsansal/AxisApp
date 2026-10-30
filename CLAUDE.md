@@ -47,20 +47,18 @@ What's actually left, in rough order:
    repayments refused), (2) dependable updates (Group Detail auto refresh,
    honest web push state), (3) event context on both clients, plus
    date-only activity labels on Android. (4) invitations and everyday
-   clarity, in progress. Done 2026-10-30 (committed except the join preview;
-   web not yet deployed): guest-add no longer touches the clipboard, explicit
-   copy-link with invite reuse (`Invite.CreatedAt` no longer written as
-   0001-01-01), Enter adds a member, join preview (`preview_invite`,
-   `supabase/invite_preview.sql`, applied) with translated join errors on both
-   clients. Still to do: web Invite screen has no QR code and no invite
-   editor (max uses / expiry) like Android's `InviteToGroupPage` — the web
-   Members page only has Copy link, so this is a real parity gap despite the
-   "no remaining gaps" note below; aligned categories/repayment
-   descriptions/dates, desktop event Copy link, whitespace-only group name,
-   zero-decimal currencies (JPY/KRW/ISK; app assumes two decimals
-   everywhere, design: one minor-units table in SQL mirrored by both
-   clients); (5) accessibility and evidence gaps. The 2026-10-29 web changes
-   are not deployed yet (`npm run deploy --prefix webapp`).
+   clarity, mostly done 2026-10-30: guest-add never touches the clipboard,
+   explicit copy-link with invite reuse, Enter adds a member, the join
+   preview and translated join errors, the web invite card (QR code and
+   max-uses/expiry editor), blank group names refused, event Copy link,
+   settlement descriptions on the event screen, and zero-decimal currencies
+   (see "Invitations" and "Currencies and decimals" below). Still to do in
+   step 4: aligned categories (web offers rent/utilities that Android can't
+   label; Android shows the cart icon for every category), relative times and
+   date formats (A5/F09), and default repayment descriptions being stored
+   localized (W8/A7); (5) accessibility and evidence gaps. Nothing since the
+   2026-10-29 web changes is deployed yet (`npm run deploy --prefix webapp`),
+   and Android is still 1.1.1 (build 11) in the repo.
 1. **Phase 2.5 — Google Calendar sync**, not started at all — per-user
    Google OAuth separate from Supabase Auth, encrypted token storage/
    refresh, a sync strategy, and reconciling Axis's recurrence model
@@ -154,9 +152,10 @@ text. Web uses the same description policy and its own dedicated form.
 `SettlementRules` preserves unchanged date timestamps and delegates money
 validation to `Models/AmountInput.cs`. The same parser is used for ordinary
 expense totals, manual shares, recurring forms and settlements. Input may
-contain one dot or comma decimal separator, with at most two decimal
-places; grouped, mixed-separator, non-positive and overflowing values are
-rejected without stripping punctuation or rounding. Whitespace at the
+contain one dot or comma decimal separator, with at most as many decimal
+places as the currency has (two, or none for JPY/KRW/ISK — see "Currencies
+and decimals"); grouped, mixed-separator, non-positive and overflowing values
+are rejected without stripping punctuation or rounding. Whitespace at the
 edges is trimmed for parsing, while the field retains its raw text.
 
 `Controls/DecimalInput` is the native attached behaviour for these entries:
@@ -168,9 +167,10 @@ previews; invalid manual shares replace the numerical remainder with a
 validation hint. Both the UI and save commands enforce validity.
 
 Web uses `lib/amountInput.ts` with the same contract, text inputs with
-`inputMode="decimal"`, and integer cents. Its expense, share and settlement
-parsers no longer diverge. Both domain suites consume the same 40-case
-fixture at `tests/amount-input-cases.json`. See
+`inputMode="decimal"`, and integer minor units (cents; whole yen for JPY).
+Its expense, share and settlement parsers no longer diverge. Both domain
+suites consume the same 75-case fixture at `tests/amount-input-cases.json`,
+whose cases carry an optional `currency` (default EUR). See
 `reports/AMOUNT_INPUT_REVIEW.md` for browser and physical-phone checks.
 
 The repayment screen checks balance freshness before creation, but does
@@ -180,6 +180,78 @@ raises `ExpenseSaveCommittedException` if the transaction succeeded but
 its subsequent typed re-fetch failed; the repayment screen treats that
 as saved and never invites a duplicate retry. See
 `reports/ANDROID_SETTLEMENT_REVIEW.md` for physical-device verification.
+
+## Currencies and decimals
+
+JPY, KRW and ISK have no minor unit; every other supported currency (HUF and
+IDR included, on purpose) has two. Added 2026-10-30; CHANGELOG.md's
+"Zero-decimal currencies" entry has the build history.
+
+- **One table, three copies**: `currency_minor_units()` in
+  `supabase/zero_decimal_currencies.sql`, `webapp/src/lib/currencyUnits.ts`
+  and `AxisApp/Models/CurrencyUnits.cs`. A test in each suite reads the SQL
+  file and fails if the lists drift. Change all three together.
+- **Columns stay `numeric(12,2)`**: whole yen are stored as `1500.00`. The
+  9999999999.99 cap applies in every currency (a zero-decimal currency tops
+  out at 9999999999 whole units).
+- **The database enforces it**: new or changed amounts/shares with more
+  decimals than their currency allows raise `amount_precision` (SQLSTATE
+  22003), like `converted_amount_too_large`; both clients translate it.
+  Conversions round to the GROUP currency's units, for the total and every
+  share. The equal-split fairness check in `save_expense()`/
+  `save_recurring_expense()` allows one smallest unit (`currency_minor_step()`)
+  instead of a hard-coded cent. Rows written before this keep their fractional
+  values and are not re-checked unless their amount changes.
+- **Clients**: parsers take the currency (`parseAmountInput(text, currency)` /
+  `AmountInput.Parse(text, currency, out ...)`); a decimal part in a
+  zero-decimal currency is rejected with its own "no decimals" error, never
+  rounded, and `1.000` is rejected too. Splits, balances, repayments, the
+  pair breakdown, CSV/PDF exports, the widget and every display format take
+  their decimals from the currency; web `formatMoney` and C#
+  `CurrencyUnits.Text`/`FormatString` are the only formatters. Web money maths
+  uses integer minor units (`toMinor`/`fromMinor`); Android uses `decimal`.
+  Which currency applies: the expense currency for the amount and shares, the
+  group currency for balances, stats and repayments.
+- **Gotcha**: switching the currency while editing an expense keeps the typed
+  text and revalidates it (a typed `100.50` switched to JPY shows the
+  no-decimals message), it never rewrites it. Android's `ExpenseParticipant`
+  carries its own `Currency` for that reason.
+
+## Invitations
+
+Current-state facts (CHANGELOG.md's "Invitations and join flow" entry has the
+history):
+
+- **Adding a guest by name only adds the member.** It never mints an invite or
+  writes the clipboard. Copying a link is always an explicit tap (web "Copy
+  link", per-guest "Copy invite link"; Android "Copy link"), with a manual-copy
+  field as the fallback when the browser blocks the clipboard. Enter adds the
+  member on both clients, gated like the Add button: nothing happens while a
+  phantom suggestion is showing (that needs a deliberate Link tap), and an IME
+  composition Enter is ignored.
+- **Invite reuse**: both clients reuse the group's newest usable invite per
+  (group, target member) instead of minting one per visit. Ordering is
+  `created_at` then `expires_at` (`SupabaseInvitesRepository.GetOrCreateAsync`,
+  web `fetchOrCreateInvite`/`pickReusableInvite`). `Invite.CreatedAt` is
+  `ignoreOnInsert`: before the fix every Android-created invite stored
+  `created_at = 0001-01-01`, which made "newest" arbitrary. Old rows still tie
+  at year 1 and sort by expiry; `supabase/invites_broken_dates_cleanup.sql` is
+  the optional one-off cleanup.
+- **Web invite card** (`MembersPage.tsx`, `components/QrCode.tsx`): QR (SVG via
+  `qrcode-generator`, dark on light), max-uses stepper (floor at `use_count`,
+  ceiling 20) and expiry picker (1 hour, 1 day, 7 days, 30 days), the same as
+  Android's `InviteToGroupPage`. Only `max_uses`/`expires_at` are editable
+  (`protect_invite_columns`).
+- **Join preview**: `preview_invite(p_token)` (`supabase/invite_preview.sql`,
+  `security definer`, read-only) returns a status plus, for `ok` and
+  `already_member` only, the group name/currency/member count and the claimed
+  phantom's name. It mirrors `redeem_invite()`'s checks in the same order; change
+  both together. Web `JoinGroupPage` and Android `JoinGroupPage` show the card
+  before Join and translate every redeem error (`lib/invitePreview.ts`,
+  `Models/InvitePreview.cs`). A failed or unrecognised preview just means no
+  card; deep links still only prefill the code.
+- Blank group names are refused by both clients and by
+  `groups_name_not_blank` (`supabase/group_name_not_blank.sql`, `NOT VALID`).
 
 ## Stats tab
 

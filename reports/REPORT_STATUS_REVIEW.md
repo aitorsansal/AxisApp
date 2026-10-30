@@ -1,5 +1,17 @@
 # Combined report status review — 28 October 2026
 
+## Invitations, join flow and currencies — 30 October 2026
+
+Work after the 28 October checkpoint, recorded in [CHANGELOG.md](../CHANGELOG.md) ("Invitations and join flow" and "Zero-decimal currencies"). Statuses are in the combined report; this is the summary and the evidence limits.
+
+- **W17 guest and clipboard — fixed.** Adding a guest only adds the member on both clients; copying a link is an explicit tap with a manual-copy fallback; Enter adds the member. Found and fixed on the way: Android wrote `created_at = 0001-01-01` on every invite insert, so reuse picked arbitrary (often dead) rows and every visit minted another invite. Both clients now reuse the newest usable invite per group and target.
+- **W18 join preview and W12 join errors — implemented.** `preview_invite()` feeds a card on both join screens; every `redeem_invite()` error is translated. Verified against a second QA account and the phone; the web claim card and the `used`/`inviter_gone` statuses were not rendered live.
+- **W6, W8 (web event screen), W15 — fixed on web.** Blank group names are refused by the client and by `groups_name_not_blank`; the event screen shows a settlement's saved description; the event screen has an explicit Copy link button.
+- **Web invite card.** QR code, max-uses stepper and expiry picker like Android's invite page; the QR was scanned by the user.
+- **W14 and zero-decimal currencies.** JPY, KRW and ISK are now real zero-decimal currencies on both clients and in the database (one minor-units table with drift tests, `amount_precision`, conversion rounding to the group currency's units, whole-unit equal-split fairness). Verified on web, on the phone and with a throwaway JPY group; rows written earlier keep fractional values.
+- **Not covered:** concurrent edits, receipt and other raw server errors (W12 is partial), default repayment descriptions still saved in the creator's language (W8/A7 partial), categories (W5/A3/A4), relative times (A5) and accessibility remain open.
+- **Deployment:** none of the above was deployed when this was written; see CHANGELOG.md for the deploy record.
+
 ## Live attendance and seats — F02
 
 Repeated production web checks passed across two tabs and event-detail/list
