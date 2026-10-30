@@ -71,3 +71,7 @@ Run the complete [`split_mode.sql`](./split_mode.sql) before deploying the web s
 ## Converted-amount limit (existing projects)
 
 Run [`converted_amount_limit.sql`](./converted_amount_limit.sql) once (applied to the live project 2026-10-29). Conversions above `numeric(12,2)` now raise `converted_amount_too_large` (SQLSTATE 22003), which both clients translate, and `materialize_recurring_expenses()` isolates each template so one failure no longer aborts the daily run: an over-limit template is paused, other errors skip it for the day. Rerunnable (`create or replace`). Fresh projects already include this in `schema.sql`.
+
+Run [`invite_preview.sql`](./invite_preview.sql) once (not yet applied to the live project). Adds `preview_invite(p_token)`, a read-only `security definer` function the Join screen uses to show the group (name, currency, member count) or the phantom being claimed before joining; dead tokens return a status only. It mirrors `redeem_invite()`'s checks, so change both together. Rerunnable. Fresh projects already include this in `schema.sql`.
+
+Run [`group_name_not_blank.sql`](./group_name_not_blank.sql) once (not yet applied to the live project). Adds `groups_name_not_blank`, `check (btrim(name) <> '')`, as `NOT VALID` so existing rows can't make it fail; both clients already refuse blank names. The file explains how to find and rename any blank-named group and then `validate constraint`. Fresh projects already include this in `schema.sql`.

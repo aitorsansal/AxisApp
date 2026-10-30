@@ -17,6 +17,7 @@
     <Compile Include="../../AxisApp/Models/DateFormats.cs" Link="DateFormats.cs" />
     <Compile Include="../../AxisApp/Models/PairBreakdown.cs" Link="PairBreakdown.cs" />
     <Compile Include="../../AxisApp/Models/RecurringSchedule.cs" Link="RecurringSchedule.cs" />
+    <Compile Include="../../AxisApp/Models/InvitePreview.cs" Link="InvitePreview.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="../amount-input-cases.json" Link="amount-input-cases.json" CopyToOutputDirectory="PreserveNewest" />

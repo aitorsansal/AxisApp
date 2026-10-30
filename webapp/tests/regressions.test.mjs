@@ -452,3 +452,30 @@ test('invite reuse mirrors the Android rule and Enter never selects a phantom ma
   assert.equal(canAddByName('Ana', [{ account_id: 'x' }]), true)
   assert.equal(canAddByName('Ana', [{ account_id: null }]), false)
 })
+
+test('invite preview parsing and redeem error mapping cover every server status', async () => {
+  const { parseInvitePreview, redeemErrorStatus, isJoinable, inviteErrorKey, looksLikeInviteCode } =
+    await import('../src/lib/invitePreview.ts')
+  assert.equal(parseInvitePreview({ status: 'ok', group_name: 'G' })?.status, 'ok')
+  assert.equal(parseInvitePreview({ status: 'surprise' }), null)
+  assert.equal(parseInvitePreview(null), null)
+  assert.equal(isJoinable('ok'), true)
+  assert.equal(isJoinable('already_member'), true)
+  assert.equal(isJoinable('expired'), false)
+  const cases = {
+    'Invalid invite code': 'invalid',
+    'Invite expired': 'expired',
+    'Invite already used': 'used',
+    'This invite is no longer valid — ask a current group member for a new one': 'inviter_gone',
+    'This invite has already been claimed': 'claimed',
+    "You're already in a group with this person, so this invite isn't for you": 'shared_group',
+  }
+  for (const [message, status] of Object.entries(cases)) {
+    assert.equal(redeemErrorStatus(message), status)
+    for (const lang of ['en', 'es']) assert.ok(strings[lang][inviteErrorKey(status)], `${lang} ${status}`)
+  }
+  assert.equal(redeemErrorStatus('Not signed in'), null)
+  assert.equal(looksLikeInviteCode('XhLXnvGa9d5Y'), true)
+  assert.equal(looksLikeInviteCode('abc'), false)
+  assert.equal(looksLikeInviteCode('https://x'), false)
+})

@@ -88,4 +88,18 @@ public class SupabaseInvitesRepository : IInvitesRepository
             ?? throw new InvalidOperationException("redeem_invite returned no group id.");
         return Guid.Parse(raw);
     }
+
+    public async Task<InvitePreview?> PreviewAsync(string token)
+    {
+        try
+        {
+            var response = await client.Rpc("preview_invite", new Dictionary<string, object> { { "p_token", token } });
+            return InvitePreview.Parse(response.Content);
+        }
+        catch
+        {
+            // A failed preview must never block joining; see IInvitesRepository.PreviewAsync.
+            return null;
+        }
+    }
 }

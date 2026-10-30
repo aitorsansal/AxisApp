@@ -1,4 +1,6 @@
+using System.Text.RegularExpressions;
 using AxisApp.Localization;
+using AxisApp.Models;
 using AxisApp.Services;
 using CommunityToolkit.Maui.Alerts;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -20,6 +22,23 @@ public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private string joinCodeInput = "";
     [ObservableProperty] private bool isBusy;
 
+    // Preview card (preview_invite). A failed or missing preview leaves all of this empty and
+    // Join enabled; redeem_invite then reports its own error.
+    [ObservableProperty] private bool hasPreviewCard;
+    [ObservableProperty] private string previewTitle = "";
+    [ObservableProperty] private string previewDetail = "";
+    [ObservableProperty] private string previewNote = "";
+    [ObservableProperty] private bool hasPreviewNote;
+    [ObservableProperty] private bool hasBlockedMessage;
+    [ObservableProperty] private string blockedMessage = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanJoin))] private bool isBlocked;
+    [ObservableProperty] private string joinButtonText = LocalizationResourceManager.Instance["Common_Join"];
+
+    public bool CanJoin => !IsBlocked;
+
+    private InvitePreview? preview;
+    private int previewGeneration;
+
     public JoinGroupViewModel(IInvitesRepository invitesRepository)
     {
         this.invitesRepository = invitesRepository;
@@ -31,16 +50,86 @@ public partial class JoinGroupViewModel : BaseViewModel, IQueryAttributable
             JoinCodeInput = Uri.UnescapeDataString(codeValue?.ToString() ?? "");
     }
 
+    private static string ExtractCode(string input)
+    {
+        var trimmed = input.Trim();
+        return AppConstants.Links.TryExtractCode(trimmed) ?? trimmed;
+    }
+
+    /// <summary>Debounced like the phantom-name search: the generation counter drops a response
+    /// the person has already typed past.</summary>
+    partial void OnJoinCodeInputChanged(string value)
+    {
+        var generation = ++previewGeneration;
+        ApplyPreview(null);
+        _ = LoadPreviewAsync(ExtractCode(value), generation);
+    }
+
+    private async Task LoadPreviewAsync(string code, int generation)
+    {
+        // A real token is 12 base64url characters; don't hit the server for partial input.
+        if (!Regex.IsMatch(code, "^[A-Za-z0-9_-]{8,}$")) return;
+        await Task.Delay(400);
+        if (generation != previewGeneration) return;
+        var result = await invitesRepository.PreviewAsync(code);
+        if (generation != previewGeneration) return;
+        ApplyPreview(result);
+    }
+
+    private void ApplyPreview(InvitePreview? result)
+    {
+        preview = result;
+        var loc = LocalizationResourceManager.Instance;
+        HasPreviewCard = result is { IsJoinable: true } && result.Status == InvitePreview.Ok;
+        IsBlocked = result is { IsJoinable: false };
+        HasBlockedMessage = IsBlocked;
+        BlockedMessage = result is { IsJoinable: false } ? loc[InvitePreview.ErrorKey(result.Status)] : "";
+        JoinButtonText = result?.Status == InvitePreview.AlreadyMember ? loc["JoinGroup_OpenGroup"] : loc["Common_Join"];
+
+        if (result?.Status == InvitePreview.AlreadyMember)
+        {
+            HasPreviewCard = true;
+            PreviewTitle = loc.Format("JoinGroup_PreviewAlready", result.GroupName ?? "");
+            PreviewDetail = "";
+            PreviewNote = "";
+        }
+        else if (HasPreviewCard && result is not null)
+        {
+            PreviewTitle = result.TargetName is { } target
+                ? loc.Format("JoinGroup_PreviewClaim", target, result.GroupName ?? "")
+                : loc.Format("JoinGroup_PreviewJoin", result.GroupName ?? "");
+            PreviewDetail = loc.Format("JoinGroup_PreviewMeta", result.MemberCount, result.GroupCurrency ?? "");
+            PreviewNote = result.TargetName is null ? "" : loc["JoinGroup_PreviewClaimNote"];
+        }
+        else
+        {
+            PreviewTitle = "";
+            PreviewDetail = "";
+            PreviewNote = "";
+        }
+        HasPreviewNote = PreviewNote.Length > 0;
+    }
+
     [RelayCommand]
     private Task JoinByCode() => RunSafeAsync(async () =>
     {
         if (string.IsNullOrWhiteSpace(JoinCodeInput)) return;
+        if (preview is { IsJoinable: false }) return;
         IsBusy = true;
         try
         {
-            var trimmed = JoinCodeInput.Trim();
-            var code = AppConstants.Links.TryExtractCode(trimmed) ?? trimmed;
-            var joinedGroupId = await invitesRepository.RedeemAsync(code);
+            var code = ExtractCode(JoinCodeInput);
+            Guid joinedGroupId;
+            try
+            {
+                joinedGroupId = await invitesRepository.RedeemAsync(code);
+            }
+            catch (Exception ex) when (InvitePreview.StatusFromRedeemMessage(ex.Message) is not null)
+            {
+                ErrorMessage = LocalizationResourceManager.Instance[
+                    InvitePreview.ErrorKey(InvitePreview.StatusFromRedeemMessage(ex.Message)!)];
+                return;
+            }
             await TryShowToast(LocalizationResourceManager.Instance["JoinGroup_Joined"]);
             await Shell.Current.GoToAsync($"{AppConstants.Routes.GroupDetails}?groupId={joinedGroupId}");
         }

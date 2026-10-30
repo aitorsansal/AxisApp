@@ -46,10 +46,18 @@ What's actually left, in rough order:
    Done: (1) monetary safeguards (converted-amount limit, cross-client stale
    repayments refused), (2) dependable updates (Group Detail auto refresh,
    honest web push state), (3) event context on both clients, plus
-   date-only activity labels on Android. Next: (4) invitations and everyday
-   clarity — guest-add vs. clipboard, explicit copy, join preview, aligned
-   categories/repayment descriptions/dates, translated errors, Enter to add a
-   member, zero-decimal currencies (JPY/KRW/ISK; app assumes two decimals
+   date-only activity labels on Android. (4) invitations and everyday
+   clarity, in progress. Done 2026-10-30 (committed except the join preview;
+   web not yet deployed): guest-add no longer touches the clipboard, explicit
+   copy-link with invite reuse (`Invite.CreatedAt` no longer written as
+   0001-01-01), Enter adds a member, join preview (`preview_invite`,
+   `supabase/invite_preview.sql`, applied) with translated join errors on both
+   clients. Still to do: web Invite screen has no QR code and no invite
+   editor (max uses / expiry) like Android's `InviteToGroupPage` — the web
+   Members page only has Copy link, so this is a real parity gap despite the
+   "no remaining gaps" note below; aligned categories/repayment
+   descriptions/dates, desktop event Copy link, whitespace-only group name,
+   zero-decimal currencies (JPY/KRW/ISK; app assumes two decimals
    everywhere, design: one minor-units table in SQL mirrored by both
    clients); (5) accessibility and evidence gaps. The 2026-10-29 web changes
    are not deployed yet (`npm run deploy --prefix webapp`).

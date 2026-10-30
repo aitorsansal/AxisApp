@@ -23,10 +23,22 @@
                     </Border>
                     <Button
                         Grid.Column="1"
-                        Text="{loc:Translate Common_Join}"
+                        Text="{Binding JoinButtonText}"
                         Command="{Binding JoinByCodeCommand}"
+                        IsEnabled="{Binding CanJoin}"
                         Style="{StaticResource BtnPrimaryStyle}" />
                 </Grid>
+
+                <!-- What this invite does (preview_invite): group to join / phantom to claim. -->
+                <Border Style="{StaticResource ListItemCard}" IsVisible="{Binding HasPreviewCard}">
+                    <VerticalStackLayout Spacing="{StaticResource SpacingS}">
+                        <Label Text="{Binding PreviewTitle}" FontAttributes="Bold" />
+                        <Label Text="{Binding PreviewDetail}" Style="{StaticResource LabelTertiary}" />
+                        <Label Text="{Binding PreviewNote}" Style="{StaticResource LabelTertiary}" IsVisible="{Binding HasPreviewNote}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="{Binding BlockedMessage}" TextColor="{DynamicResource Danger}" IsVisible="{Binding HasBlockedMessage}" />
 
             </VerticalStackLayout>
         </ScrollView>

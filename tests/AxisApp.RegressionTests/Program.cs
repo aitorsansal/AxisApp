@@ -170,3 +170,17 @@ Check(repaymentSnapshot == FormEditorSnapshots.Settlement(repaymentEditor with {
 foreach (var changed in new[] { repaymentEditor with { Amount = "8," }, repaymentEditor with { Note = "Partial" }, repaymentEditor with { Date = DateTime.Today.AddDays(1) }, repaymentEditor with { Payer = Guid.NewGuid() }, repaymentEditor with { Recipient = Guid.NewGuid() }, repaymentEditor with { Currency = "USD" } })
     Check(repaymentSnapshot != FormEditorSnapshots.Settlement(changed), "All repayment fields are protected");
 Console.WriteLine("Event/repayment snapshot regressions passed: fields, invalid amounts, equivalent formatting and disabled end times.");
+
+var okPreview = InvitePreview.Parse("""{"status":"ok","group_name":"Trip","group_currency":"EUR","member_count":3,"target_name":"Dad"}""");
+Check(okPreview is { IsJoinable: true, GroupName: "Trip", MemberCount: 3, TargetName: "Dad" }, "Preview parses group and claim target");
+Check(InvitePreview.Parse("""{"status":"expired"}""") is { IsJoinable: false }, "Dead status is not joinable");
+Check(InvitePreview.Parse("""{"status":"already_member","group_name":"G"}""")?.IsJoinable == true, "Already a member is joinable");
+Check(InvitePreview.Parse("""{"status":"from_the_future"}""") is null, "Unknown status degrades to no preview");
+Check(InvitePreview.Parse("not json") is null && InvitePreview.Parse(null) is null, "Malformed preview degrades to none");
+Check(InvitePreview.StatusFromRedeemMessage("Invite expired") == "expired", "Redeem expired");
+Check(InvitePreview.StatusFromRedeemMessage("Invalid invite code") == "invalid", "Redeem invalid");
+Check(InvitePreview.StatusFromRedeemMessage("Invite already used") == "used", "Redeem used");
+Check(InvitePreview.StatusFromRedeemMessage("This invite has already been claimed") == "claimed", "Redeem claimed");
+Check(InvitePreview.StatusFromRedeemMessage("You're already in a group with this person, so this invite isn't for you") == "shared_group", "Redeem shared group");
+Check(InvitePreview.StatusFromRedeemMessage("This invite is no longer valid — ask a current group member for a new one") == "inviter_gone", "Redeem inviter gone");
+Check(InvitePreview.StatusFromRedeemMessage("Not signed in") is null, "Unknown redeem message stays raw");

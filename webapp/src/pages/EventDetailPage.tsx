@@ -166,6 +166,19 @@ export function EventDetailPage() {
     seatWrites.set(eventId, seats)
   }
 
+  // Desktop browsers expose navigator.share too (the Windows share sheet), which has no plain
+  // "copy" path, so copying the link is its own button.
+  async function handleCopyLink() {
+    if (!groupId || !eventId) return
+    try {
+      await navigator.clipboard.writeText(buildEventUrl(groupId, eventId))
+    } catch {
+      return
+    }
+    setNotice(t('EventDetail_LinkCopied'))
+    setTimeout(() => setNotice(null), 2000)
+  }
+
   async function handleShare() {
     if (!event || !groupId || !eventId) return
     const text = t('EventDetail_ShareText', event.title,
@@ -281,6 +294,9 @@ export function EventDetailPage() {
         )}
         <button type="button" className="btn btn-outline" onClick={handleShare}>
           {t('EventDetail_Share')}
+        </button>
+        <button type="button" className="btn btn-outline" onClick={handleCopyLink}>
+          {t('EventDetail_CopyLink')}
         </button>
       </div>
 
@@ -434,9 +450,7 @@ export function EventDetailPage() {
                 </span>
                 <div className="activity-body">
                   <div className="activity-desc">
-                    {exp.is_settlement
-                      ? t('GroupDetail_SettleUp')
-                      : exp.description || t('GroupDetail_ExpenseFallback')}
+                    {exp.description || t(exp.is_settlement ? 'GroupDetail_SettleUp' : 'GroupDetail_ExpenseFallback')}
                     {exp.receipt_path && (
                       <span className="receipt-badge" title={t('AddExpense_ReceiptPhoto')}>
                         📎

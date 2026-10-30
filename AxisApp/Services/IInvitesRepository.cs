@@ -20,4 +20,9 @@ public interface IInvitesRepository
     /// Returns the joined group's id.
     /// </summary>
     Task<Guid> RedeemAsync(string token);
+
+    /// <summary>Read-only look at what redeeming this token would do (server-side
+    /// preview_invite). Null when the lookup fails or returns something unrecognised — callers
+    /// treat that as "no preview" and let RedeemAsync report its own error.</summary>
+    Task<InvitePreview?> PreviewAsync(string token);
 }

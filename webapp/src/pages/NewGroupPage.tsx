@@ -19,9 +19,12 @@ export function NewGroupPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    const trimmedName = name.trim()
+    // `required` accepts a name of only spaces; Android rejects it the same way.
+    if (!trimmedName) return setError(t('NewGroup_EnterName'))
     setBusy(true)
     const { data, error } = await supabase.rpc('create_group', {
-      p_name: name,
+      p_name: trimmedName,
       p_currency: currency,
     })
     if (error) {
