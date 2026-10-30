@@ -31,10 +31,13 @@ function Workspace() {
           <BrandMark />
           Axis
         </NavLink>
-        <nav className="sidebar-navigation" aria-label={t('Groups_YourGroups')}>
-          <NavLink to="/" end className="sidebar-section-link">
-            {t('Groups_YourGroups')}
-          </NavLink>
+        <nav className="sidebar-navigation" aria-label={t('Overview_Navigation')}>
+          <div className="sidebar-primary-navigation">
+            <NavLink to="/" end><Icon name="home" />{t('Overview_NavOverview')}</NavLink>
+            <NavLink to="/agenda"><Icon name="calendar" />{t('Overview_Agenda')}</NavLink>
+            <NavLink to="/profile"><Icon name="user" />{t('Groups_Profile')}</NavLink>
+          </div>
+          <span className="sidebar-section-label">{t('Groups_YourGroups')}</span>
           {groups === null && !error && (
             <p className="sidebar-status" role="status">
               {t('Common_Loading')}
@@ -59,11 +62,12 @@ function Workspace() {
                   name={group.name}
                   size={30}
                 />
-                <span>{group.name}</span>
+                <span>{group.name}<small>{group.currency} · {t('Groups_MemberCount', group.members.length)}</small></span>
               </NavLink>
             ))}
           </div>
           <div className="sidebar-actions">
+            <NavLink to="/groups">{t('Overview_ManageGroups')}</NavLink>
             <NavLink to="/new-group">
               <Icon name="plus" />
               {t('Groups_NewGroup').replace(/^\+\s*/, '')}
@@ -101,6 +105,11 @@ function Workspace() {
       <main id="main-content" className="app-main" tabIndex={-1}>
         <Outlet key={location.pathname} />
       </main>
+      <nav className="mobile-navigation" aria-label={t('Overview_Navigation')}>
+        <NavLink to="/" end><Icon name="home" size={20} />{t('Overview_NavOverview')}</NavLink>
+        <NavLink to="/agenda"><Icon name="calendar" size={20} />{t('Overview_Agenda')}</NavLink>
+        <NavLink to="/profile"><Icon name="user" size={20} />{t('Groups_Profile')}</NavLink>
+      </nav>
     </div>
   )
 }

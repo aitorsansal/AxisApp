@@ -11,7 +11,7 @@ import type { CalendarSubscription, MyMember } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
 import { DateField } from '../components/DateField'
 import { PasswordInput } from '../components/PasswordInput'
-import { ACCENT_PRESETS, accentSwatch, getAccent, setAccent, type AccentPreset } from '../lib/accent'
+import { ACCENT_PRESETS, accentSwatch, getAccent, setAccent, getSurfaceTreatment, setSurfaceTreatment, type AccentPreset, type SurfaceTreatment } from '../lib/accent'
 import { getShowConverted, setShowConverted } from '../lib/amountDisplay'
 import './ProfilePage.css'
 
@@ -21,6 +21,7 @@ export function ProfilePage() {
   const { session } = useAuth()
   const { t, override, setOverride } = useLocale()
   const [accent, setAccentState] = useState<AccentPreset>(getAccent)
+  const [surfaceTreatment, setSurfaceTreatmentState] = useState<SurfaceTreatment>(getSurfaceTreatment)
   const [showConverted, setShowConvertedState] = useState(getShowConverted)
   const navigate = useNavigate()
   const { installed, canPrompt, promptInstall, showIosInstructions } = useInstallPrompt()
@@ -416,6 +417,14 @@ export function ProfilePage() {
             )
           })}
         </div>
+        <fieldset className="surface-treatment-options">
+          <legend>{t('Profile_SurfaceTreatment')}</legend>
+          {(['neutral', 'subtle'] as const).map(value => <label key={value} className="language-option">
+            <input type="radio" name="surface-treatment" value={value} checked={surfaceTreatment === value} onChange={() => { setSurfaceTreatment(value); setSurfaceTreatmentState(value) }} />
+            <span>{t(value === 'subtle' ? 'Profile_SubtleSurfaces' : 'Profile_ControlsOnly')}</span>
+          </label>)}
+          <p className="field-hint">{t('Profile_SurfaceHint')}</p>
+        </fieldset>
       </section>
 
       <section className="card profile-section">

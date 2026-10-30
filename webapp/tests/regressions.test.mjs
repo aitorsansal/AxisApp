@@ -21,11 +21,26 @@ import { strings } from '../src/lib/i18n/strings.ts'
 import { assertSupabaseConfig } from '../src/lib/runtimeConfig.ts'
 import { eventEditorSnapshot, settlementEditorSnapshot } from '../src/lib/formEditorSnapshots.ts'
 import { RefreshRevision } from '../src/lib/refreshRevision.ts'
+import { respondToEvent, toggleEventTransport } from '../src/lib/eventAttendance.ts'
 import { resolveConfig } from 'vite'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+test('inline event replies preserve ride requests and clear incompatible transport', () => {
+  const row = { event_id: 'walk', member_id: 'me', response: 'going', car_status: 'offering', car_offered_seats: 3 }
+  assert.deepEqual(respondToEvent(row, 'maybe'), { ...row, response: 'maybe', car_status: 'none', car_offered_seats: null })
+  assert.deepEqual(respondToEvent(row, 'not_going'), { ...row, response: 'not_going', car_status: 'none', car_offered_seats: null })
+  const rider = { ...row, car_status: 'needs_ride', car_offered_seats: null }
+  assert.equal(respondToEvent(rider, 'maybe').car_status, 'needs_ride')
+  assert.equal(respondToEvent(rider, 'not_going').car_status, 'none')
+  assert.equal(toggleEventTransport({ ...row, response: 'maybe' }, 'offering', 2).response, 'maybe')
+  assert.equal(toggleEventTransport({ ...rider, response: 'not_going', car_status: 'none' }, 'needs_ride', 2).car_status, 'none')
+  assert.deepEqual(toggleEventTransport(rider, 'offering', 2), { ...row, car_offered_seats: 2 })
+  assert.equal(toggleEventTransport(row, 'offering', 2).car_status, 'none')
+  assert.deepEqual(toggleEventTransport(row, 'needs_ride', 2), rider)
+})
 
 test('late attendance responses cannot replace a newer read or a local seat/RSVP edit', () => {
   const revision = new RefreshRevision()

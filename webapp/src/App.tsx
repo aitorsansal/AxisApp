@@ -7,6 +7,7 @@ import { AppLayout } from './components/AppLayout'
 import { NavigationTracker } from './lib/navigation'
 import { LoginPage } from './pages/LoginPage'
 import { GroupsPage } from './pages/GroupsPage'
+import { OverviewPage } from './pages/OverviewPage'
 import { NewGroupPage } from './pages/NewGroupPage'
 import { JoinGroupPage } from './pages/JoinGroupPage'
 import { GroupDetailPage } from './pages/GroupDetailPage'
@@ -39,7 +40,9 @@ const router = createBrowserRouter(createRoutesFromElements(
     <Route path="/login" element={<LoginPage />} />
     <Route element={<ProtectedRoute />}>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<GroupsPage />} />
+        <Route path="/" element={<OverviewPage />} />
+        <Route path="/agenda" element={<OverviewPage agenda />} />
+        <Route path="/groups" element={<GroupsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/new-group" element={<NewGroupPage />} />
         <Route path="/join" element={<JoinGroupPage />} />

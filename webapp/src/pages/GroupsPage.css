@@ -117,8 +117,8 @@
   background: color-mix(in srgb, var(--success) 13%, transparent);
 }
 .balance-negative strong {
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 13%, transparent);
+  color: var(--balance-negative);
+  background: color-mix(in srgb, var(--balance-negative) 10%, transparent);
 }
 .balance-settled {
   align-self: center;

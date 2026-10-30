@@ -1,99 +1,73 @@
 .balance-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 28px;
+  gap: 20px;
+  padding: 24px 0;
+  margin-bottom: 24px;
+  border-block: 1px solid var(--border);
 }
 .summary-block {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 18px;
-  border-radius: var(--radius-lg);
-  background: var(--surface-elevated);
-  border: 1px solid transparent;
-}
-/* "You're owed" is the accent block. Its label stays >= 18.66px bold (WCAG large text) because
-   dark text on the Blue/Red presets is just under 4.5:1. */
-.summary-owed:not(.empty) {
-  background: var(--primary);
-  color: var(--text-on-accent);
+  gap: 6px;
 }
 .summary-label {
-  font-size: 19px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 .summary-amount {
-  font-size: 34px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1.1;
-  margin-top: 6px;
+  font-size: clamp(30px, 3.4vw, 46px);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 1.3;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
-.summary-amount.secondary {
-  font-size: 22px;
-  margin-top: 2px;
+.summary-owed .summary-amount {
+  color: var(--balance-positive);
 }
 .summary-owe .summary-amount {
-  color: var(--danger);
+  color: var(--balance-negative);
+}
+.summary-amount.secondary {
+  font-size: 15px;
+  letter-spacing: 0;
+  color: var(--text-secondary);
 }
 .summary-detail {
-  margin-top: 6px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
   color: var(--text-tertiary);
   overflow-wrap: anywhere;
 }
-.summary-owed:not(.empty) .summary-detail {
-  color: inherit;
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
-}
 .summary-nothing {
-  margin-top: 10px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-tertiary);
-}
-.summary-block.empty .summary-label {
+  margin-top: 8px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 .balance-summary.settled {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 18px;
-  border-radius: var(--radius-lg);
-  background: var(--surface-elevated);
+  align-items: center;
+  gap: 10px;
+  padding: 13px 0;
 }
 .balance-summary.settled strong {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--balance-positive);
 }
 .balance-summary.settled span {
-  color: var(--text-tertiary);
-  font-size: 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
-@media (min-width: 1000px) {
-  .summary-block {
-    padding: 22px 24px;
-  }
-  .summary-amount {
-    font-size: 48px;
-  }
-  .summary-amount.secondary {
-    font-size: 26px;
+@media (max-width: 600px) {
+  .balance-summary.settled span {
+    display: none;
   }
 }
 @media (max-width: 370px) {
   .summary-amount {
-    font-size: 26px;
+    font-size: 27px;
   }
 }

@@ -1,6 +1,7 @@
 // Read-only mocked Supabase backend for visual review: several groups, members, expenses,
 // balances and events so every main screen renders populated without a real account.
-// Writes are acknowledged and discarded. Never loaded by the production config.
+// Writes are acknowledged and discarded, except the opt-in qaOverview scenarios which keep
+// attendance changes in this tab's in-memory fixture. Never loaded by the production config.
 const backend = new URL(import.meta.env.VITE_SUPABASE_URL)
 const userId = '00000000-0000-0000-0000-000000000001'
 const id = (n) => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`
@@ -100,6 +101,19 @@ const tables = {
   calendar_subscriptions: [{ id: 'visual-subscription', member_id: me.id, token: 'synthetic-not-a-real-token', created_at: day(-40), last_accessed_at: null }],
 }
 
+const overviewScenario = params.get('qaOverview')
+if (overviewScenario === 'settled') tables.my_pairwise_balances = pairwise.map(row => ({ ...row, balance: 0 }))
+if (overviewScenario === 'owe-zero') tables.my_pairwise_balances = pairwise.filter(row => row.balance >= 0)
+if (overviewScenario === 'empty') {
+  tables.groups = []; tables.group_members = []; tables.my_pairwise_balances = []; tables.my_group_balances = []
+}
+if (overviewScenario === 'no-events') tables.events = []
+if (overviewScenario === 'mixed') {
+  groups[2].currency = 'GBP'
+  tables.my_pairwise_balances = [...pairwise, { group_id: viaje, other_member_id: marta.id, balance: 15 }, { group_id: viaje, other_member_id: alex.id, balance: -20 }]
+}
+if (overviewScenario) window.__axisOverviewWrites = []
+
 // Applies PostgREST eq./in. filters on top-level columns; everything else (order, embedded
 // filters, select lists) is ignored, which is enough for rendering.
 function filterRows(rows, searchParams) {
@@ -107,6 +121,7 @@ function filterRows(rows, searchParams) {
     for (const [key, value] of searchParams) {
       if (key.includes('.') || !(key in row)) continue
       if (value.startsWith('eq.') && String(row[key]) !== value.slice(3)) return false
+      if (value.startsWith('gte.') && row[key] < value.slice(4)) return false
       if (value.startsWith('in.(')) {
         const set = value.slice(4, -1).split(',').map((v) => v.replace(/"/g, ''))
         if (!set.includes(String(row[key]))) return false
@@ -135,12 +150,36 @@ window.fetch = async (input, init) => {
     if (scenario === 'used' || scenario === 'inviter_gone') return reply({ status: scenario }, request)
   }
   if (url.pathname.includes('/rpc/')) return reply(null, request)
+  if (overviewScenario && url.pathname.endsWith('/event_attendees') && request.method === 'POST') {
+    const payload = await request.json()
+    if (overviewScenario === 'save-error') return new Response(JSON.stringify({ message: 'Synthetic save failure' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+    for (const row of (Array.isArray(payload) ? payload : [payload])) {
+      const index = attendees.findIndex(a => a.event_id === row.event_id && a.member_id === row.member_id)
+      if (index < 0) attendees.push(row)
+      else attendees[index] = row
+      window.__axisOverviewWrites.push({ ...row })
+    }
+    return reply([], request)
+  }
   if (request.method !== 'GET' && request.method !== 'HEAD') return reply([], request)
   if (url.searchParams.get('limit') === '0') return reply([], request)
   const table = url.pathname.split('/').pop()
+  if (overviewScenario === 'events-error' && table === 'events') return new Response(JSON.stringify({ message: 'Synthetic events failure' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+  if (overviewScenario === 'activity-error' && table === 'expenses') return new Response(JSON.stringify({ message: 'Synthetic activity failure' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
   const rows = filterRows(tables[table] ?? [], url.searchParams)
-  const ordered = table === 'expenses' ? [...rows].sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)) : rows
-  return reply(ordered, request)
+  const order = url.searchParams.get('order')
+  const ordered = [...rows].sort((a, b) => {
+    for (const part of (order || '').split(',')) {
+      const [column, direction] = part.split('.')
+      if (!column) continue
+      const comparison = String(a[column] ?? '').localeCompare(String(b[column] ?? ''))
+      if (comparison) return direction === 'desc' ? -comparison : comparison
+    }
+    return 0
+  })
+  const offset = Number(url.searchParams.get('offset') || 0)
+  const limit = Number(url.searchParams.get('limit') || ordered.length)
+  return reply(ordered.slice(offset, offset + limit), request)
 }
 // ?qaTab=1|2 opens Group Detail's Events/Stats tab, which has no route of its own.
 // A MutationObserver rather than polling: timers would burn headless virtual time.

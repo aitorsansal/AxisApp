@@ -1,6 +1,6 @@
 // Accent colour presets — the same 8 as Android's Services/AccentPalettes.cs (values copied from
-// there, not recomputed). Every accent colour on the web app goes through these CSS variables in
-// index.css; backgrounds, surfaces and status colours stay fixed for every preset, as on Android.
+// there, not recomputed). The optional web surface tint uses this same primary colour; status
+// colours and the main background remain fixed.
 // Per-browser choice, never synced (same "viewing preference, not account state" reasoning as
 // AppConstants.Preferences.AccentPreset).
 
@@ -29,14 +29,28 @@ const VALUES: Record<AccentPreset, AccentValues> = {
 }
 
 const STORAGE_KEY = 'axis.accent'
+const SURFACE_STORAGE_KEY = 'axis.surfaceTreatment'
+export type SurfaceTreatment = 'neutral' | 'subtle'
 
 export function accentSwatch(preset: AccentPreset): { color: string; onColor: string } {
   return { color: VALUES[preset].primary, onColor: VALUES[preset].textOnAccent }
 }
 
 export function getAccent(): AccentPreset {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  return (ACCENT_PRESETS as readonly string[]).includes(stored ?? '') ? (stored as AccentPreset) : 'Blue'
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return (ACCENT_PRESETS as readonly string[]).includes(stored ?? '') ? (stored as AccentPreset) : 'Blue'
+  } catch { return 'Blue' }
+}
+
+export function getSurfaceTreatment(): SurfaceTreatment {
+  try { return localStorage.getItem(SURFACE_STORAGE_KEY) === 'neutral' ? 'neutral' : 'subtle' }
+  catch { return 'subtle' }
+}
+
+export function setSurfaceTreatment(value: SurfaceTreatment) {
+  try { localStorage.setItem(SURFACE_STORAGE_KEY, value) } catch { /* Keep the session preference. */ }
+  document.documentElement.dataset.surfaceTreatment = value
 }
 
 export function applyAccent(preset: AccentPreset) {
@@ -50,9 +64,11 @@ export function applyAccent(preset: AccentPreset) {
   style.setProperty('--focus', v.focus)
   style.setProperty('--secondary', v.secondary)
   style.setProperty('--text-on-accent', v.textOnAccent)
+  if (!document.documentElement.dataset.surfaceTreatment)
+    document.documentElement.dataset.surfaceTreatment = getSurfaceTreatment()
 }
 
 export function setAccent(preset: AccentPreset) {
-  localStorage.setItem(STORAGE_KEY, preset)
+  try { localStorage.setItem(STORAGE_KEY, preset) } catch { /* Keep the session preference. */ }
   applyAccent(preset)
 }

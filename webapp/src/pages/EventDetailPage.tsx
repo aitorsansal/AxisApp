@@ -8,12 +8,12 @@ import { SerializedUpdates } from '../lib/serializedUpdates'
 import { useCoalescedWrites } from '../lib/useCoalescedWrites'
 import { useLiveRefresh } from '../lib/useLiveRefresh'
 import { RefreshRevision } from '../lib/refreshRevision'
+import { respondToEvent, toggleEventTransport } from '../lib/eventAttendance'
 import { activityDate, formatEventRange } from '../lib/dates'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import type {
-  CarStatus,
   EventAttendee,
   EventRow,
   ExpenseWithPayer,
@@ -136,26 +136,15 @@ export function EventDetailPage() {
   }
 
   function setRsvp(response: RsvpResponse) {
-    queueRsvp((current) => {
-      const carStatus: CarStatus = response === 'not_going' || (response === 'maybe' && current.car_status === 'offering')
-        ? 'none' : current.car_status
-      return { ...current, response, car_status: carStatus, car_offered_seats: carStatus === 'offering' ? current.car_offered_seats : null }
-    })
+    queueRsvp(current => respondToEvent(current, response))
   }
 
   function toggleCarOffering() {
-    queueRsvp((current) => {
-      if (current.response !== 'going') return current
-      const offering = current.car_status !== 'offering'
-      return { ...current, car_status: offering ? 'offering' : 'none', car_offered_seats: offering ? (myCarExtraSeats ?? 0) : null }
-    })
+    queueRsvp(current => toggleEventTransport(current, 'offering', myCarExtraSeats ?? 0))
   }
 
   function toggleCarNeedsRide() {
-    queueRsvp((current) => {
-      if (current.response === 'not_going') return current
-      return { ...current, car_status: current.car_status === 'needs_ride' ? 'none' : 'needs_ride', car_offered_seats: null }
-    })
+    queueRsvp(current => toggleEventTransport(current, 'needs_ride', myCarExtraSeats ?? 0))
   }
 
   function adjustSeats(delta: number) {

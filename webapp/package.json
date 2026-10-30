@@ -14,7 +14,7 @@
     "test": "node --experimental-strip-types --test tests/regressions.test.mjs"
   },
   "dependencies": {
-    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/manrope": "^5.3.0",
     "@supabase/supabase-js": "^2.115.0",
     "firebase": "^12.19.0",
     "qrcode-generator": "^2.0.4",

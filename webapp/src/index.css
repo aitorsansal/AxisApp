@@ -3,8 +3,7 @@
   src: url('/fonts/axis-lucide.woff') format('woff');
   font-display: block;
 }
-/* "Bloque" style: neutral near-black, one heavy grotesque, filled surfaces instead of borders.
-   Accent variables are overwritten per preset by lib/accent.ts; everything else is fixed. */
+/* Together: neutral dark foundations with optional, low-strength accent surface tints. */
 :root {
   --primary: #6177d8;
   --primary-hover: #7387dc;
@@ -12,23 +11,25 @@
   --action-text: #b1bcec;
   --primary-soft: #232d50;
   --secondary: #cba257;
-  --bg-primary: #0e0e10;
+  --bg-primary: #19191f;
   --bg-deep: #09090b;
-  --surface: #141417;
-  --surface-elevated: #1b1b1f;
-  --surface-emphasis: #26262b;
-  --surface-hover: #303036;
+  --surface: #202027;
+  --surface-elevated: #2a2a32;
+  --surface-emphasis: #34343e;
+  --surface-hover: #40404c;
   --text-primary: #f6f5f1;
   --text-secondary: #c4c3bd;
-  --text-tertiary: #8f8e88;
+  --text-tertiary: #b4afbe;
   --text-on-accent: #050b16;
-  --border: #2a2a30;
-  --border-subtle: #1f1f24;
-  --divider: #222227;
+  --border: #514e5d;
+  --border-subtle: #45424e;
+  --divider: #45424e;
   --focus: #b1bcec;
   --success: #38d998;
+  --balance-positive: #a9ddce;
+  --balance-negative: #f5c2a6;
   --warning: #f2c94c;
-  --danger: #ff5c6c;
+  --danger: #ff8f9b;
   --danger-soft: #3a1a20;
   --radius-sm: 12px;
   --radius-md: 18px;
@@ -39,10 +40,16 @@
   --space-m: 16px;
   --space-l: 24px;
   --space-xl: 40px;
-  --font-sans: 'Bricolage Grotesque Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+  --font-sans: 'Manrope Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
   color-scheme: dark;
   font-synthesis: none;
+}
+:root[data-surface-treatment='subtle'] {
+  --surface: color-mix(in srgb, var(--primary) 10%, #202027);
+  --surface-elevated: color-mix(in srgb, var(--primary) 11%, #2a2a32);
+  --surface-emphasis: color-mix(in srgb, var(--primary) 15%, #34343e);
+  --surface-hover: color-mix(in srgb, var(--primary) 16%, #40404c);
 }
 * {
   box-sizing: border-box;
@@ -396,3 +403,8 @@ input[type='radio'] {
   white-space: nowrap;
   border: 0;
 }
+
+/* Linked spaces: the mark follows the selected accent. */
+.brand-mark { position:relative; display:inline-block; flex:none; vertical-align:middle; filter:none; }
+.brand-mark::before,.brand-mark::after { content:''; position:absolute; width:57%; height:57%; border:2px solid var(--action-text); border-radius:24%; transform:rotate(22deg); top:15%; left:4%; }
+.brand-mark::after { top:27%; left:33%; }

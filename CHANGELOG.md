@@ -2605,3 +2605,14 @@ shared/copied/redeemed. Wi-Fi was cycled off/on and restored, but no controlled
 second-client change was made, so refresh-on-reconnect is not proven by that check.
 Register toggles and Recurring pencil remain device-unverified (the inspected
 recurring list is empty). Real event push tap / authenticated web push remain open.
+
+## Together web overview — 2026-10-30 (local, not deployed)
+
+The approved Together direction replaces the home directory with a cross-group overview: separate pairwise owed/owing totals per currency, compact settled state, the next five plans with inline RSVP/transport, recent financial activity and upcoming automatic ledger entries. `/agenda` adds a fuller upcoming list using the same controls; `/groups` keeps the reorderable directory under Manage groups. Desktop retains group links in its sidebar, while mobile uses labelled navigation and an overview group section.
+
+Manrope and neutral dark tokens establish the shared foundation; Profile keeps the eight accent presets and adds controls-only/subtle-surface treatment. `eventAttendance.ts` shares existing attendance transitions across all three event surfaces; the overview hook uses serialized writes, coalesced seats and refresh revisions. No migration or live write was required. Existing expense/repayment editors and checks remain in place; Review balances links into the owning group.
+
+Verification: web build and 32 regression tests pass; lint has no new-file warnings or errors. Isolated browser checks cover inline writes/failures, late-response rejection, mixed currencies and settled states, preference persistence, widths 320–1440, and zero axe violations across 32 Profile palette/surface combinations plus ten mobile routes. No live multi-client or physical-device validation was performed. See `reports/OVERVIEW_REVIEW.md`. Not deployed; remaining page layouts still await their design pass.
+
+
+Together deploy record — 2026-10-30: deployed with `npm run deploy --prefix webapp`, Worker `axisapp-webapp`, version `f27da25f-a7d7-4a63-8cdd-9cbebc15e8c8`. Build and post-deploy smoke checks passed for `/`, `/profile` and the expected JavaScript entry. The first Together slice above is now live. Authenticated live-data and multi-client verification remain outstanding.

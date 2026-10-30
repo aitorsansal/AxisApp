@@ -128,3 +128,7 @@
 .field-hint {
   overflow-wrap: anywhere;
 }
+
+.surface-treatment-options { border:0; margin:22px 0 0; padding:16px 0 0; border-top:1px solid var(--border); min-width:0; }
+.surface-treatment-options legend { padding:0; font-size:13px; color:var(--text-secondary); }
+.surface-treatment-options .field-hint { margin-bottom:0; }
