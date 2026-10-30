@@ -479,3 +479,14 @@ test('invite preview parsing and redeem error mapping cover every server status'
   assert.equal(looksLikeInviteCode('abc'), false)
   assert.equal(looksLikeInviteCode('https://x'), false)
 })
+
+test('invite expiry picker snaps to the closest preset like Android', async () => {
+  const { closestExpiryIndex, EXPIRY_HOURS } = await import('../src/lib/inviteReuse.ts')
+  const hour = 3_600_000
+  assert.deepEqual(EXPIRY_HOURS, [1, 24, 168, 720])
+  assert.equal(closestExpiryIndex(30 * 60_000), 0)
+  assert.equal(closestExpiryIndex(20 * hour), 1)
+  assert.equal(closestExpiryIndex(7 * 24 * hour - 5 * 60_000), 2)
+  assert.equal(closestExpiryIndex(25 * 24 * hour), 3)
+  assert.equal(closestExpiryIndex(-hour), 0)
+})

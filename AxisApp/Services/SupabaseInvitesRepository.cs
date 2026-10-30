@@ -29,10 +29,12 @@ public class SupabaseInvitesRepository : IInvitesRepository
     /// by (group, target member) so the group's general QR/code invite (target_member_id null)
     /// is never mixed up with a phantom-claim invite. There's no single PostgREST filter for
     /// "use_count less than max_uses" (that compares two columns, not a column to a literal), so
-    /// this fetches the latest-expiring candidates and picks the first still-usable one
-    /// client-side. Ordered by expires_at, not created_at: rows written before the Invite.CreatedAt
-    /// fix all carry created_at = 0001-01-01, so they tie and "newest" was an arbitrary (often
-    /// used or expired) row, which made every visit mint another invite.</summary>
+    /// this fetches the newest candidates and picks the first still-usable one client-side.
+    /// Ordered by created_at, then expires_at: rows written before the Invite.CreatedAt fix all
+    /// carry created_at = 0001-01-01, so they tie and expires_at breaks it. Ordering by created_at
+    /// alone picked an arbitrary (often used or expired) row, which made every visit mint another
+    /// invite; ordering by expires_at alone made an invite stop being "the" invite as soon as
+    /// its own expiry was shortened.</summary>
     public async Task<Invite> GetOrCreateAsync(Guid groupId, Guid? targetMemberId = null)
     {
         var query = client.From<Invite>()
@@ -41,7 +43,10 @@ public class SupabaseInvitesRepository : IInvitesRepository
             ? query.Filter("target_member_id", Constants.Operator.Equals, tid.ToString())
             : query.Filter("target_member_id", Constants.Operator.Is, "null");
 
-        var result = await query.Order("expires_at", Constants.Ordering.Descending).Limit(20).Get();
+        var result = await query
+            .Order("created_at", Constants.Ordering.Descending)
+            .Order("expires_at", Constants.Ordering.Descending)
+            .Limit(20).Get();
         var existing = result.Models.FirstOrDefault(i => i.UseCount < i.MaxUses && i.ExpiresAt > DateTime.UtcNow);
         if (existing is not null)
             return existing;

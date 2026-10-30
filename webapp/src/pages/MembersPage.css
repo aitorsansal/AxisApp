@@ -5,6 +5,57 @@
   gap: 12px;
 }
 
+.invite-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.invite-qr {
+  border-radius: 12px;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.invite-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.invite-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+.invite-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stepper-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.invite-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.invite-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  text-align: center;
+  user-select: all;
+}
+
 .add-by-name {
   display: flex;
   flex-direction: column;

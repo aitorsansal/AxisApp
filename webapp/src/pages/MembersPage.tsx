@@ -5,10 +5,18 @@ import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import type { Group, MemberInfo, MemberRow } from '../lib/types'
-import { canAddByName, pickReusableInvite } from '../lib/inviteReuse'
+import {
+  canAddByName,
+  closestExpiryIndex,
+  EXPIRY_HOURS,
+  MAX_USES_CEILING,
+  pickReusableInvite,
+  type ReusableInvite,
+} from '../lib/inviteReuse'
 import { AppHeader } from '../components/AppHeader'
 import { Avatar } from '../components/Avatar'
 import { Icon } from '../components/Icon'
+import { QrCode } from '../components/QrCode'
 import './MembersPage.css'
 
 // Same URL as AppConstants.Links.BuildInviteUrl: this app's own /join page, which the Android app
@@ -28,6 +36,11 @@ function generateToken(): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
+const INVITE_COLUMNS = 'id, token, expires_at, max_uses, use_count'
+const EXPIRY_KEYS = ['Members_Expires1Hour', 'Members_Expires1Day', 'Members_Expires7Days', 'Members_Expires30Days']
+
+type InviteRow = ReusableInvite & { id: string }
+
 export function MembersPage() {
   const { groupId } = useParams<{ groupId: string }>()
   const { session } = useAuth()
@@ -44,6 +57,8 @@ export function MembersPage() {
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
   const [manualLink, setManualLink] = useState<string | null>(null)
+  const [generalInvite, setGeneralInvite] = useState<InviteRow | null>(null)
+  const [inviteSaving, setInviteSaving] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameInput, setRenameInput] = useState('')
   const renameButtonsRef = useRef(new Map<string, HTMLButtonElement>())
@@ -90,40 +105,86 @@ export function MembersPage() {
     return () => clearTimeout(handle)
   }, [nameInput, members])
 
+  // Mirrors SupabaseInvitesRepository.GetOrCreateAsync: reuse a still-usable invite for this
+  // (group, target) pair, otherwise mint one. Null (with `error` set) on failure.
+  async function fetchOrCreateInvite(targetMemberId?: string): Promise<InviteRow | null> {
+    let query = supabase.from('invites').select(INVITE_COLUMNS).eq('group_id', groupId)
+    query = targetMemberId ? query.eq('target_member_id', targetMemberId) : query.is('target_member_id', null)
+    // created_at first so an invite keeps being the one shown after its own expiry is edited;
+    // rows written before the Invite.CreatedAt fix all tie at 0001-01-01, so expires_at breaks ties.
+    const { data: existing, error: lookupError } = await query
+      .order('created_at', { ascending: false })
+      .order('expires_at', { ascending: false })
+      .limit(20)
+    if (lookupError) {
+      setError(lookupError.message)
+      return null
+    }
+    const reusable = pickReusableInvite(existing as InviteRow[] | null, Date.now())
+    if (reusable) return reusable as InviteRow
+
+    const { data: created, error: insertError } = await supabase
+      .from('invites')
+      .insert({
+        group_id: groupId,
+        target_member_id: targetMemberId ?? null,
+        token: generateToken(),
+        created_by: session?.user.id,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+      .select(INVITE_COLUMNS)
+      .single()
+    if (insertError) {
+      setError(insertError.message)
+      return null
+    }
+    return created as InviteRow
+  }
+
+  // Like the Android invite page, opening this screen shows (and if needed creates) the group's
+  // general invite; reuse keeps repeated visits from minting new ones.
+  useEffect(() => {
+    if (!groupId || !session) return
+    let cancelled = false
+    fetchOrCreateInvite().then((invite) => {
+      if (!cancelled && invite) setGeneralInvite(invite)
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId, session?.user.id])
+
+  // max_uses/expires_at are the only invite columns a member may change (protect_invite_columns).
+  async function updateGeneralInvite(patch: { max_uses?: number; expires_at?: string }) {
+    if (!generalInvite) return
+    setError(null)
+    setInviteSaving(true)
+    const { data, error } = await supabase
+      .from('invites')
+      .update(patch)
+      .eq('id', generalInvite.id)
+      .select(INVITE_COLUMNS)
+      .single()
+    setInviteSaving(false)
+    if (error) return setError(error.message)
+    setGeneralInvite(data as InviteRow)
+  }
+
   // Only runs from an explicit copy click; adding a guest never mints an invite or writes the
-  // clipboard. Mirrors SupabaseInvitesRepository.GetOrCreateAsync: reuse a still-usable invite.
+  // clipboard.
   async function copyInvite(target?: MemberRow['members']) {
     setError(null)
     setNotice(null)
     setManualLink(null)
-    const targetMemberId = target?.id
-    let query = supabase
-      .from('invites')
-      .select('token, expires_at, max_uses, use_count')
-      .eq('group_id', groupId)
-    query = targetMemberId ? query.eq('target_member_id', targetMemberId) : query.is('target_member_id', null)
-    const { data: existing, error: lookupError } = await query
-      .order('expires_at', { ascending: false })
-      .limit(20)
-    if (lookupError) return setError(lookupError.message)
+    const invite =
+      !target && generalInvite && pickReusableInvite([generalInvite], Date.now())
+        ? generalInvite
+        : await fetchOrCreateInvite(target?.id)
+    if (!invite) return
+    if (!target) setGeneralInvite(invite)
 
-    let token: string
-    const reusable = pickReusableInvite(existing, Date.now())
-    if (reusable) {
-      token = reusable.token
-    } else {
-      token = generateToken()
-      const { error } = await supabase.from('invites').insert({
-        group_id: groupId,
-        target_member_id: targetMemberId ?? null,
-        token,
-        created_by: session?.user.id,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      })
-      if (error) return setError(error.message)
-    }
-
-    const url = buildInviteUrl(token)
+    const url = buildInviteUrl(invite.token)
     try {
       await navigator.clipboard.writeText(url)
     } catch {
@@ -258,6 +319,65 @@ export function MembersPage() {
 
       <section className="card members-section">
         <h2 className="section-title">{t('Members_InvitePeople')}</h2>
+        {generalInvite && (
+          <div className="invite-card">
+            <div className="invite-qr">
+              <QrCode value={buildInviteUrl(generalInvite.token)} label={t('Members_QrLabel')} />
+            </div>
+            <div className="invite-editor">
+              <span className="invite-label" id="inviteUsesLabel">
+                {t('Members_UsesLabel')}
+              </span>
+              <div className="invite-stepper" role="group" aria-labelledby="inviteUsesLabel">
+                <button
+                  type="button"
+                  className="btn btn-outline stepper-btn"
+                  aria-label={t('Members_FewerUses')}
+                  disabled={inviteSaving || generalInvite.max_uses <= Math.max(1, generalInvite.use_count)}
+                  onClick={() => updateGeneralInvite({ max_uses: generalInvite.max_uses - 1 })}
+                >
+                  −
+                </button>
+                <strong aria-live="polite">{generalInvite.max_uses}</strong>
+                <button
+                  type="button"
+                  className="btn btn-outline stepper-btn"
+                  aria-label={t('Members_MoreUses')}
+                  disabled={inviteSaving || generalInvite.max_uses >= MAX_USES_CEILING}
+                  onClick={() => updateGeneralInvite({ max_uses: generalInvite.max_uses + 1 })}
+                >
+                  +
+                </button>
+              </div>
+              <span className="invite-hint">
+                {t('Members_UsedCount', generalInvite.use_count, generalInvite.max_uses)}
+              </span>
+
+              <label className="invite-label" htmlFor="inviteExpiry">
+                {t('Members_ExpiresLabel')}
+              </label>
+              <div className="field">
+                <select
+                  id="inviteExpiry"
+                  disabled={inviteSaving}
+                  value={closestExpiryIndex(Date.parse(generalInvite.expires_at) - Date.now())}
+                  onChange={(e) =>
+                    updateGeneralInvite({
+                      expires_at: new Date(Date.now() + EXPIRY_HOURS[Number(e.target.value)] * 3_600_000).toISOString(),
+                    })
+                  }
+                >
+                  {EXPIRY_KEYS.map((key, i) => (
+                    <option key={key} value={i}>
+                      {t(key)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+        {generalInvite && <div className="invite-code">{generalInvite.token}</div>}
         <button type="button" className="btn btn-outline" onClick={() => copyInvite()}>
           {t('Members_CopyLink')}
         </button>
