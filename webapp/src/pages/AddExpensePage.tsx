@@ -481,7 +481,6 @@ export function AddExpensePage() {
           initial={settlementDraft}
           groupId={group.id}
           members={members}
-          myMemberId={members.find((m) => m.members.account_id === session?.user.id)?.member_id}
           canDelete={canDelete}
           onDraftChange={setSettlementDraft}
           onBusyChange={setBusy}

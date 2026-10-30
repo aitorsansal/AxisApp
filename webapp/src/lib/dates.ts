@@ -44,3 +44,25 @@ export function formatEventRange(start: string, end: string | null, language: st
     : options
   return `${result} – ${new Date(end).toLocaleString(locale, endOptions)}`
 }
+
+// Activity-row date, same rule as Android's GroupExpensesViewModel.FormatRelative: occurred_at
+// is a calendar day, so compare local days (never elapsed hours) and show the year only when
+// it isn't this year.
+export function activityDate(
+  iso: string,
+  language: string,
+  labels: { today: string; yesterday: string },
+  now: Date = new Date(),
+): string {
+  const day = localDateInput(iso)
+  if (day === localDateInput(now)) return labels.today
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (day === localDateInput(yesterday)) return labels.yesterday
+  const date = new Date(iso)
+  return date.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+  })
+}

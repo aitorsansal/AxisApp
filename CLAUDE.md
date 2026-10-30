@@ -52,13 +52,15 @@ What's actually left, in rough order:
    preview and translated join errors, the web invite card (QR code and
    max-uses/expiry editor), blank group names refused, event Copy link,
    settlement descriptions on the event screen, and zero-decimal currencies
-   (see "Invitations" and "Currencies and decimals" below). Still to do in
-   step 4: aligned categories (web offers rent/utilities that Android can't
-   label; Android shows the cart icon for every category), relative times and
-   date formats (A5/F09), and default repayment descriptions being stored
-   localized (W8/A7); (5) accessibility and evidence gaps. Nothing since the
-   2026-10-29 web changes is deployed yet (`npm run deploy --prefix webapp`),
-   and Android is still 1.1.1 (build 11) in the repo.
+   (see "Invitations" and "Currencies and decimals" below). The rest of step 4
+   was done 2026-10-30 (web deployed, phone-checked, cleanup SQL run): one shared category list with rent/utilities and
+   per-category icons on both clients, Today/Yesterday activity dates on web,
+   and empty repayment descriptions instead of stored localized defaults
+   (CHANGELOG.md "Categories, activity dates and repayment descriptions");
+   (5) accessibility and evidence gaps. The web app was
+   deployed 2026-10-30 with everything above; Android is still 1.1.1 (build
+   11) in the repo and needs a release build before installed copies stop
+   hitting `amount_precision` on JPY/KRW/ISK groups.
 1. **Phase 2.5 — Google Calendar sync**, not started at all — per-user
    Google OAuth separate from Supabase Auth, encrypted token storage/
    refresh, a sync strategy, and reconciling Axis's recurrence model
@@ -143,11 +145,15 @@ Android repayments now use `SettlementPage`/`SettlementViewModel` at
 `AppConstants.Routes.Settlement`, for both balance-action creation and
 activity editing. Creation shows a payer/recipient summary, full debt by
 default, editable partial amount/date and an optional note; editing has
-one payer and one recipient instead of expense split controls. Empty notes
-save "Settlement with {person}" / "Saldar deuda con {person}" in the
-creator's language. These are deliberately stored descriptions, just like
-custom notes; editing the payment direction does not regenerate existing
-text. Web uses the same description policy and its own dedicated form.
+one payer and one recipient instead of expense split controls. An empty
+note saves an empty description (`SettlementRules.Description`, web
+`settlementPayload`, and the Android push "settle" action), and every
+reader shows the viewer's own localized `GroupDetail_SettleUp` label for it.
+Don't reintroduce generated description text: until 2026-10-30 it was frozen
+in the creator's language and point of view ("Settlement with Bea" shown to
+Bea). `supabase/settlement_descriptions_cleanup.sql` clears the old stored
+defaults. Custom notes are stored as typed. Web uses the same policy and its
+own dedicated form.
 
 `SettlementRules` preserves unchanged date timestamps and delegates money
 validation to `Models/AmountInput.cs`. The same parser is used for ordinary
@@ -304,7 +310,11 @@ this area again:
   decorating every bar of a single magnitude chart. A category keeps the
   same palette slot everywhere via its position in
   `AppConstants.Categories.Keys`, never by a chart's own per-render sort
-  order.
+  order. There are 10 categories and 8 slots: keys past slot 8 (utilities),
+  `other`, empty and unknown keys fold into one neutral "Other" line in the
+  trend (`TrendKey`/web `trendKey`). Never generate extra hues. The category
+  list and glyphs (`AppConstants.Categories.Glyph`, web `categoryIcon`) are
+  checked against each other by a web drift test.
 - **`CategoryDisplay.Label`/`Services/MemberDisplay.cs`** are the shared
   resolvers for a category key → localized label and a member → display
   name — both `GroupStatsViewModel` and `MemberProfileViewModel` (and

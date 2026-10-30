@@ -50,7 +50,9 @@ public partial class GroupStatsViewModel : BaseViewModel
     /// all 8 slots pass lightness/chroma/CVD-separation/normal-vision/contrast checks in that
     /// exact order. Never reassign slots per-chart-instance or cycle them — a category's color
     /// must stay the same slot every time it appears, so index by position in
-    /// AppConstants.Categories.Keys, not by sort order within a single render.</summary>
+    /// AppConstants.Categories.Keys, not by sort order within a single render. There are more
+    /// categories than slots, and the skill forbids generating a 9th hue: the first 8 keys own a
+    /// slot, the rest fold into the trend's neutral "Other" line (TrendKey).</summary>
     private static readonly SKColor[] CategoricalPalette =
     [
         new(0x39, 0x87, 0xE5), new(0xD9, 0x59, 0x26), new(0x19, 0x9E, 0x70), new(0xC9, 0x85, 0x00),
@@ -106,10 +108,21 @@ public partial class GroupStatsViewModel : BaseViewModel
     private static ObservableCollection<Axis> LabelAxis(string[] labels) =>
         [new Axis { Labels = labels, ShowSeparatorLines = false }];
 
+    /// <summary>Neutral for the folded "Other" line: the skill's muted ink, not a categorical hue.</summary>
+    private static readonly SKColor OtherColor = new(0x89, 0x87, 0x81);
+
+    /// <summary>The category's own key if it owns a palette slot, otherwise "other" (empty,
+    /// unknown and beyond-the-palette keys all fold there). Mirrors web lib/stats.ts's trendKey.</summary>
+    private static string TrendKey(string? key)
+    {
+        var index = string.IsNullOrEmpty(key) ? -1 : AppConstants.Categories.Keys.ToList().IndexOf(key);
+        return index >= 0 && index < CategoricalPalette.Length && key != "other" ? key! : "other";
+    }
+
     private static SKColor CategoryColor(string key)
     {
-        var index = Array.IndexOf(AppConstants.Categories.Keys.ToArray(), string.IsNullOrEmpty(key) ? "other" : key);
-        return CategoricalPalette[Math.Max(0, index) % CategoricalPalette.Length];
+        var trendKey = TrendKey(key);
+        return trendKey == "other" ? OtherColor : CategoricalPalette[AppConstants.Categories.Keys.ToList().IndexOf(trendKey)];
     }
 
     private Guid groupId;
@@ -404,7 +417,8 @@ public partial class GroupStatsViewModel : BaseViewModel
     /// (each category is its own LineSeries, sharing one month axis), so it's the one place the
     /// validated categorical palette applies. A category keeps the same palette slot every time it
     /// appears (CategoryColor indexes by position in AppConstants.Categories.Keys, not by this
-    /// chart's own sort order) — "color follows the entity, never its rank" per the dataviz skill.</summary>
+    /// chart's own sort order) — "color follows the entity, never its rank" per the dataviz skill.
+    /// Categories past the palette's 8 slots are drawn inside the "Other" line.</summary>
     private void RebuildCategoryTrend()
     {
         var nonSettlement = NonSettlementExpenses;
@@ -418,7 +432,7 @@ public partial class GroupStatsViewModel : BaseViewModel
         var monthIndex = months.Select((m, i) => (m, i)).ToDictionary(x => x.m, x => x.i);
 
         var series = new List<ISeries>();
-        foreach (var categoryGroup in nonSettlement.GroupBy(e => e.Category).OrderBy(g => Array.IndexOf(AppConstants.Categories.Keys.ToArray(), string.IsNullOrEmpty(g.Key) ? "other" : g.Key)))
+        foreach (var categoryGroup in nonSettlement.GroupBy(e => TrendKey(e.Category)).OrderBy(g => AppConstants.Categories.Keys.ToList().IndexOf(g.Key)))
         {
             var values = new double[months.Count];
             foreach (var monthGroup in categoryGroup.GroupBy(e => new DateTime(e.OccurredAt.ToLocalTime().Year, e.OccurredAt.ToLocalTime().Month, 1)))

@@ -3,6 +3,7 @@
 // tests/regressions.test.mjs can run it directly.
 
 import { amountText } from './currencyUnits.ts'
+import { CATEGORY_KEYS } from './types.ts'
 
 export type StatsRange = 'all' | '3m' | '6m' | '12m'
 export type MemberMode = 'paid' | 'share'
@@ -30,21 +31,28 @@ export interface Bar {
   value: number
 }
 
-// Same order as AppConstants.Categories.Keys: a category's palette slot is its position here,
-// never its rank in one chart. Legacy keys outside the list fall back to slot 0, as on Android.
-export const CATEGORY_ORDER = ['food', 'drinks', 'transport', 'travel', 'entertainment', 'shopping', 'subscriptions', 'other']
-
 // Validated against the dark surface #0B1220 (dataviz validate_palette.js), same as Android's
-// GroupStatsViewModel.CategoricalPalette.
+// GroupStatsViewModel.CategoricalPalette. A category's slot is its position in CATEGORY_KEYS,
+// never its rank in one chart. There are more categories than slots and a 9th hue is never
+// generated: keys past the palette (and unknown ones) fold into a neutral "other".
 export const CATEGORY_PALETTE = ['#3987E5', '#D95926', '#199E70', '#C98500', '#D55181', '#008300', '#9085E9', '#E66767']
+export const OTHER_COLOR = '#898781'
+
+const CATEGORY_ORDER: readonly string[] = CATEGORY_KEYS
 
 export function categoryKey(category: string | null): string {
   return category ? category : 'other'
 }
 
-export function categoryColor(category: string | null): string {
+// The category's own key if it owns a palette slot, otherwise 'other'. Mirrors Android's TrendKey.
+export function trendKey(category: string | null): string {
   const index = CATEGORY_ORDER.indexOf(categoryKey(category))
-  return CATEGORY_PALETTE[Math.max(0, index) % CATEGORY_PALETTE.length]
+  return index >= 0 && index < CATEGORY_PALETTE.length && category !== 'other' ? CATEGORY_ORDER[index] : 'other'
+}
+
+export function categoryColor(category: string | null): string {
+  const key = trendKey(category)
+  return key === 'other' ? OTHER_COLOR : CATEGORY_PALETTE[CATEGORY_ORDER.indexOf(key)]
 }
 
 const RANGE_MONTHS: Record<StatsRange, number> = { all: 0, '3m': 3, '6m': 6, '12m': 12 }
@@ -113,14 +121,14 @@ export function categoryTrend(expenses: StatsExpense[]): Trend {
   const months = [...new Set(spend.map((e) => monthKey(e.occurred_at)))].sort()
   const byCategory = new Map<string, number[]>()
   for (const e of spend) {
-    const key = categoryKey(e.category)
+    const key = trendKey(e.category)
     const values = byCategory.get(key) ?? months.map(() => 0)
     values[months.indexOf(monthKey(e.occurred_at))] += Number(e.amount_in_group_currency)
     byCategory.set(key, values)
   }
   const series = [...byCategory]
     .map(([key, values]) => ({ key, values }))
-    .sort((a, b) => Math.max(0, CATEGORY_ORDER.indexOf(a.key)) - Math.max(0, CATEGORY_ORDER.indexOf(b.key)))
+    .sort((a, b) => CATEGORY_ORDER.indexOf(a.key) - CATEGORY_ORDER.indexOf(b.key))
   return { months, series }
 }
 

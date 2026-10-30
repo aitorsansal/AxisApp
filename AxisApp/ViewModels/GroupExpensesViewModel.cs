@@ -42,6 +42,9 @@ public partial class ActivityItem : ObservableObject
     /// "On" default (the only mode built so far — no ProfilePage toggle to turn it off yet).</summary>
     public string SecondaryAmountText { get; init; } = "";
     public bool IsSettlement { get; init; }
+
+    /// <summary>Category glyph, or the arrow for a settle-up (AppConstants.Categories.Glyph).</summary>
+    public string Icon { get; init; } = "";
     public DateTime OccurredAt { get; init; }
 
     /// <summary>Tiebreaker for same-day ordering — OccurredAt only carries a date (no time of
@@ -271,6 +274,7 @@ public partial class GroupExpensesViewModel : BaseViewModel
                 AmountText = amountText,
                 SecondaryAmountText = secondaryAmountText,
                 IsSettlement = expense.IsSettlement,
+                Icon = AppConstants.Categories.Glyph(expense.Category, expense.IsSettlement),
                 OccurredAt = expense.OccurredAt,
                 CreatedAt = expense.CreatedAt,
                 RelativeDate = FormatRelative(expense.OccurredAt),

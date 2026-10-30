@@ -70,9 +70,9 @@ foreach (var (text, amount) in new[] { ("8.50", 8.50m), ("8,50", 8.50m), (" 0,01
     Check(SettlementRules.TryAmount(text, "EUR", out var parsed) && parsed == amount, $"Settlement amount: {text}");
 foreach (var text in new[] { "", " ", "0", "-1", "1.001", "1,234.56", "1.234,56", "1e3", "Infinity", "10000000000" })
     Check(!SettlementRules.TryAmount(text, "EUR", out _), $"Reject invalid settlement amount: {text}");
-Check(SettlementRules.Description("  ", "Settlement with Alex") == "Settlement with Alex", "Empty note saves English placeholder");
-Check(SettlementRules.Description("", "Saldar deuda con Alex") == "Saldar deuda con Alex", "Empty note saves Spanish placeholder");
-Check(SettlementRules.Description("  Bizum  ", "fallback") == "Bizum", "Custom note is preserved");
+Check(SettlementRules.Description("  ") == "", "Empty note saves no generated description");
+Check(SettlementRules.Description(null) == "", "Missing note saves no generated description");
+Check(SettlementRules.Description("  Bizum  ") == "Bizum", "Custom note is preserved");
 Check(SettlementRules.Timestamp(utcStart.ToLocalTime().Date, utcStart) == utcStart, "Unchanged repayment date preserves its instant");
 foreach (var balance in new[] { 20m, -20m })
 foreach (var repayment in new[] { 20m, 7.50m })

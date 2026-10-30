@@ -88,8 +88,8 @@ export const RECURRING_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as
 // constraint, so a mismatched key here silently fails to resolve a label in
 // the MAUI app. Labels are resolved per-viewer via Category_<key> in the i18n
 // dictionary (lib/i18n/strings.ts), never stored as text — same reasoning
-// AppConstants.Categories' own doc comment gives.
-// Legacy rent/utilities keys remain selectable so existing expenses can be edited safely.
+// AppConstants.Categories' own doc comment gives. Same order too: it is the picker order and
+// the Stats palette slot order, with "other" last (tests/regressions.test.mjs checks the drift).
 export const CATEGORY_KEYS = [
   'food',
   'drinks',
@@ -98,9 +98,9 @@ export const CATEGORY_KEYS = [
   'entertainment',
   'shopping',
   'subscriptions',
-  'other',
   'rent',
   'utilities',
+  'other',
 ] as const
 
 export interface MyMember {

@@ -135,17 +135,11 @@
                                     <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="{StaticResource SpacingS}">
                                         <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="{StaticResource AvatarSizeM}" HeightRequest="{StaticResource AvatarSizeM}">
                                             <Label
-                                                Text="{x:Static local:AppConstants+Icons.ShoppingCart}"
+                                                Text="{Binding Icon}"
                                                 FontFamily="Lucide"
                                                 FontSize="{StaticResource TypeBody}"
                                                 HorizontalOptions="Center"
-                                                VerticalOptions="Center">
-                                                <Label.Triggers>
-                                                    <DataTrigger TargetType="Label" Binding="{Binding IsSettlement}" Value="True">
-                                                        <Setter Property="Text" Value="{x:Static local:AppConstants+Icons.ArrowRight}" />
-                                                    </DataTrigger>
-                                                </Label.Triggers>
-                                            </Label>
+                                                VerticalOptions="Center" />
                                         </Border>
                                         <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                                             <Label Text="{Binding Description}" FontAttributes="Bold" LineBreakMode="TailTruncation" />

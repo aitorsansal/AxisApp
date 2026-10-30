@@ -10,8 +10,11 @@ public static class SettlementRules
     public static (Guid Payer, Guid Recipient) Parties(Guid me, Guid other, decimal balance) =>
         balance > 0 ? (other, me) : (me, other);
 
-    public static string Description(string? note, string fallback) =>
-        string.IsNullOrWhiteSpace(note) ? fallback : note.Trim();
+    /// <summary>An empty note saves an empty description, never a generated one: clients show
+    /// the viewer's own localized "Settle up" label for it, so nothing is frozen in the creator's
+    /// language or point of view.</summary>
+    public static string Description(string? note) =>
+        string.IsNullOrWhiteSpace(note) ? "" : note.Trim();
 
     public static DateTime Timestamp(DateTime date, DateTime? original) =>
         original is { } value && value.ToLocalTime().Date == date.Date

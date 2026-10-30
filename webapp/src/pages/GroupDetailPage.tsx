@@ -19,7 +19,7 @@ import { RefreshRevision } from '../lib/refreshRevision'
 import { settlementEditorSnapshot } from '../lib/formEditorSnapshots'
 import type { SettlementDraft } from '../lib/settlements'
 import { GroupBalanceHero } from '../components/GroupBalanceHero'
-import { localDateInput } from '../lib/dates'
+import { activityDate, localDateInput } from '../lib/dates'
 import { settlementParties } from '../lib/settlements'
 import { Avatar } from '../components/Avatar'
 import { Icon } from '../components/Icon'
@@ -319,7 +319,6 @@ export function GroupDetailPage() {
     )
   }
 
-  const dateLocale = language === 'es' ? 'es-ES' : 'en-US'
   const showConverted = getShowConverted()
 
   return (
@@ -403,7 +402,6 @@ export function GroupDetailPage() {
             }}
             groupId={group.id}
             members={members}
-            myMemberId={myMemberId}
             otherMemberId={settlement.other_member_id}
             expectedBalance={settlement.balance}
             onBusyChange={setSettlementBusy}
@@ -648,10 +646,7 @@ export function GroupDetailPage() {
                             )
                           })()}
                           <span className="activity-date">
-                            {new Date(exp.occurred_at).toLocaleDateString(dateLocale, {
-                              day: 'numeric',
-                              month: 'short',
-                            })}
+                            {activityDate(exp.occurred_at, language, { today: t('Common_Today'), yesterday: t('Common_Yesterday') })}
                           </span>
                         </div>
                       </Link>

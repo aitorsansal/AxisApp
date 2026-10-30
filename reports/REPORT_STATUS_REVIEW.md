@@ -1,5 +1,15 @@
 # Combined report status review — 28 October 2026
 
+## Stabilisation step 4 — 30 October 2026
+
+Recorded in [CHANGELOG.md](../CHANGELOG.md) ("Categories, activity dates and repayment descriptions"); card statuses come from `STEP4_STATUS.json`.
+
+- **W5/A3, A4, "Other is not last":** one category list on both clients, rent and utilities included, Other last, and the same icon per category. Utilities and Other share the neutral "Other" line in the Stats trend, because the palette has eight slots and no 9th hue is generated.
+- **A5/F09 and event-expense dates:** Android already used calendar days; web Group Detail and the event screen now use the same Today/Yesterday/short-date rule.
+- **W8/A7:** empty repayment notes save an empty description and each viewer sees their own localized label. `supabase/settlement_descriptions_cleanup.sql` cleared old stored defaults (run by the user on 30 October).
+- **Status catch-up:** W11, A6, F04 and "Enter does not add a named member" were already fixed (CHANGELOG W11/F06 and invitations entries); their cards now say so.
+- **Evidence:** both test suites, web typecheck/build and the Android build pass. The user checked the step on the physical phone (clean Debug build). Web deployed on 30 October with smoke checks passing; the web UI itself was not separately walked through. Android not released.
+
 ## Invitations, join flow and currencies — 30 October 2026
 
 Work after the 28 October checkpoint, recorded in [CHANGELOG.md](../CHANGELOG.md) ("Invitations and join flow" and "Zero-decimal currencies"). Statuses are in the combined report; this is the summary and the evidence limits.
@@ -10,7 +20,7 @@ Work after the 28 October checkpoint, recorded in [CHANGELOG.md](../CHANGELOG.md
 - **Web invite card.** QR code, max-uses stepper and expiry picker like Android's invite page; the QR was scanned by the user.
 - **W14 and zero-decimal currencies.** JPY, KRW and ISK are now real zero-decimal currencies on both clients and in the database (one minor-units table with drift tests, `amount_precision`, conversion rounding to the group currency's units, whole-unit equal-split fairness). Verified on web, on the phone and with a throwaway JPY group; rows written earlier keep fractional values.
 - **Not covered:** concurrent edits, receipt and other raw server errors (W12 is partial), default repayment descriptions still saved in the creator's language (W8/A7 partial), categories (W5/A3/A4), relative times (A5) and accessibility remain open.
-- **Deployment:** none of the above was deployed when this was written; see CHANGELOG.md for the deploy record.
+- **Deployment:** the web app was deployed on 30 October 2026 (smoke checks passed; the live bundle carries the new strings). Android is not released: older installed builds hit `amount_precision` on JPY, KRW and ISK groups until a new version ships. See CHANGELOG.md for the deploy record.
 
 ## Live attendance and seats — F02
 

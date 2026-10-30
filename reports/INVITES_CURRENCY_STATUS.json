@@ -1,6 +1,6 @@
 {
   "W6": [
-    "Fixed; verified on web, not deployed",
+    "Fixed and deployed; verified on web",
     "The web new-group form now trims the name and refuses a blank one with a localized message (Android already did). groups_name_not_blank (supabase/group_name_not_blank.sql, applied) backs it at the database as a NOT VALID check, so existing rows cannot make it fail. Checked locally by submitting three spaces: the page stayed put, showed the message and created no group. See CHANGELOG.md, \"Invitations and join flow\"."
   ],
   "W8 / A7": [
@@ -16,15 +16,15 @@
     "Input limits were verified in production on 28 October, and supabase/converted_amount_limit.sql (applied 29 October) rejects conversions above numeric(12,2) with converted_amount_too_large on both clients. Since 30 October the same cap applies in whole units for JPY, KRW and ISK (9999999999), and new amounts or shares with more decimals than their currency allows are refused by the database with amount_precision, translated on both clients. Checked on a throwaway JPY group: 100.5 JPY refused, EUR 10.00 split 3.34/3.33/3.33 converted to whole-yen shares 588/586/586 (total 1760). Rows written before the change keep fractional values."
   ],
   "W15": [
-    "Implemented; verified on web, not deployed",
+    "Implemented and deployed; verified on web",
     "The event screen has a Copy link button next to Share that copies only the event URL, so desktop users no longer depend on the Windows share sheet. A write the browser blocks does nothing visible. Checked locally with the clipboard call recorded: it received the correct app URL and the page showed the localized confirmation."
   ],
   "W17": [
-    "Fixed; verified on web and phone, not deployed",
+    "Fixed and deployed; verified on web and phone",
     "Adding a guest by name now only adds the member on both clients: no invite is minted and the clipboard is untouched (checked on web with the clipboard call recorded, and on the phone by pasting after the add). Copying a link is an explicit tap, with a manual-copy field when the browser blocks the clipboard. Resend no longer multiplies tokens: both clients reuse the newest usable invite. Reuse exposed a separate bug, Android writing created_at = 0001-01-01 on every invite insert, which made \"newest\" arbitrary; it is fixed (Invite.CreatedAt ignored on insert, candidates ordered by created_at then expires_at) and an optional cleanup for old rows is in supabase/invites_broken_dates_cleanup.sql. Enter now adds a named member on both clients."
   ],
   "W18": [
-    "Implemented; verified on web and phone, not deployed",
+    "Implemented and deployed; verified on web and phone",
     "A read-only preview_invite() function (supabase/invite_preview.sql, applied) drives a card on both join screens: \"Join X\" with member count and currency, \"Claim Y in X\" with a note that their history becomes yours, or \"You're already in X\" with an Open button; dead invites show a translated message and disable Join. Checked with a second QA account: the server returned ok, already_member, shared_group, claimed, expired and invalid; the web showed the ok card and the phone showed both the plain-join and claim cards. The web claim card and the used/inviter_gone statuses were not rendered live. Nothing was redeemed."
   ]
 }

@@ -50,9 +50,9 @@ public partial class SettlementViewModel(
     [ObservableProperty] private string remainingMessage = "";
     [ObservableProperty] private ObservableCollection<SettlementMemberOption> memberOptions = [];
     [ObservableProperty] private ObservableCollection<SettlementMemberOption> recipientOptions = [];
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(PayerName), nameof(NotePlaceholder))]
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(PayerName))]
     private SettlementMemberOption? selectedPayer;
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(RecipientName), nameof(NotePlaceholder))]
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(RecipientName))]
     private SettlementMemberOption? selectedRecipient;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(AmountLabel))]
     private int selectedCurrencyIndex;
@@ -68,9 +68,8 @@ public partial class SettlementViewModel(
     private string Currency => SelectedCurrencyIndex >= 0 && SelectedCurrencyIndex < CurrencyOptions.Count
         ? CurrencyOptions[SelectedCurrencyIndex] : groupCurrency;
     public string AmountLabel => $"{loc["AddExpense_AmountLabel"]} ({Currency})";
-    public string NotePlaceholder => loc.Format("Settlement_DefaultDescription",
-        SelectedPayer?.Member.Id == myMemberId ? RecipientName
-        : SelectedRecipient?.Member.Id == myMemberId ? PayerName : RecipientName);
+    /// <summary>What the activity row shows when the note is left empty.</summary>
+    public string NotePlaceholder => loc["GroupDetail_SettleUp"];
 
     partial void OnSelectedPayerChanged(SettlementMemberOption? value)
     {
@@ -194,7 +193,7 @@ public partial class SettlementViewModel(
                 PaidByMemberId = SelectedPayer.Member.Id,
                 Amount = amount,
                 Currency = Currency,
-                Description = SettlementRules.Description(Note, NotePlaceholder),
+                Description = SettlementRules.Description(Note),
                 Category = "",
                 OccurredAt = SettlementRules.Timestamp(OccurredOn, original?.OccurredAt),
                 IsSettlement = true,

@@ -127,7 +127,6 @@ public class NotificationActionReceiver : BroadcastReceiver
                     PaidByMemberId = me.Id,
                     Amount = amount,
                     Currency = loadGroup.Result.Currency,
-                    Description = LocalizationResourceManager.Instance["GroupDetail_SettleUp"],
                     OccurredAt = DateTime.UtcNow,
                     IsSettlement = true,
                 };

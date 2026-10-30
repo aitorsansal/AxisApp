@@ -38,22 +38,25 @@ export const iconGlyphs = {
   eye: '\uE0BA',
   eye_off: '\uE0BB',
   calendar: '\uE063',
+  repeat: '\uE146',
+  zap: '\uE1B4',
 } as const
 
 export type IconName = keyof typeof iconGlyphs
 
-export function categoryIcon(category: string, settlement = false): IconName {
+// Same mapping as AppConstants.Categories.Glyph on Android.
+export function categoryIcon(category: string | null, settlement = false): IconName {
   if (settlement) return 'arrow_right'
   const icons: Record<string, IconName> = {
-    food: 'shopping_cart',
+    food: 'utensils_crossed',
     drinks: 'beer',
     transport: 'car',
     travel: 'plane',
     entertainment: 'ticket',
     shopping: 'shopping_cart',
-    subscriptions: 'wallet',
+    subscriptions: 'repeat',
     rent: 'home',
-    utilities: 'home',
+    utilities: 'zap',
   }
-  return icons[category] ?? 'wallet'
+  return icons[category ?? ''] ?? 'wallet'
 }

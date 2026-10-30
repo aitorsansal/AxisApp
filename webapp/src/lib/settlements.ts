@@ -27,7 +27,6 @@ export function settlementParties(myId: string, otherId: string, balance: number
 export function settlementPayload(
   draft: SettlementDraft,
   groupId: string,
-  fallbackDescription: string,
   occurredAt: string,
 ) {
   const cents = settlementCents(draft.amount, draft.currency)
@@ -41,7 +40,8 @@ export function settlementPayload(
       paid_by_member_id: draft.payerId,
       amount,
       currency: draft.currency,
-      description: draft.note.trim() || fallbackDescription,
+      // Empty stays empty: each viewer sees their own localized GroupDetail_SettleUp label.
+      description: draft.note.trim(),
       category: '',
       occurred_at: occurredAt,
       receipt_path: draft.receiptPath ?? null,

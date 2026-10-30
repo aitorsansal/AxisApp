@@ -12,8 +12,10 @@ import { nextDue } from '../src/lib/recurringSchedule.ts'
 import { formatExpenseAmount } from '../src/lib/amountDisplay.ts'
 import { pairBreakdown } from '../src/lib/pairBreakdown.ts'
 import { isSettled, summarizeBalances } from '../src/lib/balanceSummary.ts'
-import { categoryColor, categoryFrequency, categoryTrend, expensesCsv, filterByRange, rangeCutoff, settlementsByMonth, spendByCategory, spendByMember } from '../src/lib/stats.ts'
-import { expenseTimestamp, isCalendarDate, localDateInput, localDateTimeToIso, formatEventRange } from '../src/lib/dates.ts'
+import { OTHER_COLOR, categoryColor, categoryFrequency, categoryTrend, expensesCsv, filterByRange, rangeCutoff, settlementsByMonth, spendByCategory, spendByMember } from '../src/lib/stats.ts'
+import { CATEGORY_KEYS } from '../src/lib/types.ts'
+import { categoryIcon, iconGlyphs } from '../src/lib/icons.ts'
+import { activityDate, expenseTimestamp, isCalendarDate, localDateInput, localDateTimeToIso, formatEventRange } from '../src/lib/dates.ts'
 import { isSettlementDate, settlementCents, settlementParties, settlementPayload } from '../src/lib/settlements.ts'
 import { strings } from '../src/lib/i18n/strings.ts'
 import { assertSupabaseConfig } from '../src/lib/runtimeConfig.ts'
@@ -130,7 +132,7 @@ test('full and partial repayments reduce the correct pairwise debt in either dir
   for (const balance of [20, -20]) {
     const parties = settlementParties('me', 'alex', balance)
     for (const amount of ['20', '7,50']) {
-      const payload = settlementPayload({ ...parties, amount, currency: 'EUR', note: '', date: '2026-10-27' }, 'group', 'Settlement with Alex', '2026-10-27T00:00:00Z')
+      const payload = settlementPayload({ ...parties, amount, currency: 'EUR', note: '', date: '2026-10-27' }, 'group', '2026-10-27T00:00:00Z')
       assert.equal(payload.p_shares.length, 1)
       assert.equal(payload.p_shares[0].share_amount, payload.p_expense.amount)
       const basePayer = balance > 0 ? 'me' : 'alex'
@@ -147,22 +149,19 @@ test('full and partial repayments reduce the correct pairwise debt in either dir
   }
 })
 
-test('settlements persist the displayed default or a custom note and retain edit metadata', () => {
+test('settlements save an empty note as empty (never generated text) and retain edit metadata', () => {
   const draft = { id: 'saved', payerId: 'me', recipientId: 'alex', amount: '4.20', currency: 'EUR', date: '2026-10-27', note: '   ', receiptPath: 'receipt.webp', eventId: 'event' }
-  for (const language of ['en', 'es']) {
-    const fallback = strings[language].Settlement_DefaultDescription.replace('{0}', 'Alex')
-    const payload = settlementPayload(draft, 'group', fallback, 'original-timestamp')
-    assert.equal(payload.p_expense.description, language === 'en' ? 'Settlement with Alex' : 'Saldar deuda con Alex')
-    assert.equal(payload.p_expense.id, 'saved')
-    assert.equal(payload.p_expense.receipt_path, 'receipt.webp')
-    assert.equal(payload.p_expense.event_id, 'event')
-    assert.equal(payload.p_expense.occurred_at, 'original-timestamp')
-    assert.equal(payload.p_expense.is_settlement, true)
-    assert.equal(payload.p_expense.created_at, undefined)
-    assert.equal(payload.p_expense.created_by, undefined)
-  }
-  assert.equal(settlementPayload({ ...draft, note: '  Bank transfer  ' }, 'group', 'fallback', 'timestamp').p_expense.description, 'Bank transfer')
-  assert.throws(() => settlementPayload({ ...draft, recipientId: 'me' }, 'group', 'fallback', 'timestamp'))
+  const payload = settlementPayload(draft, 'group', 'original-timestamp')
+  assert.equal(payload.p_expense.description, '')
+  assert.equal(payload.p_expense.id, 'saved')
+  assert.equal(payload.p_expense.receipt_path, 'receipt.webp')
+  assert.equal(payload.p_expense.event_id, 'event')
+  assert.equal(payload.p_expense.occurred_at, 'original-timestamp')
+  assert.equal(payload.p_expense.is_settlement, true)
+  assert.equal(payload.p_expense.created_at, undefined)
+  assert.equal(payload.p_expense.created_by, undefined)
+  assert.equal(settlementPayload({ ...draft, note: '  Bank transfer  ' }, 'group', 'timestamp').p_expense.description, 'Bank transfer')
+  assert.throws(() => settlementPayload({ ...draft, recipientId: 'me' }, 'group', 'timestamp'))
 })
 
 test('equal splits conserve every cent and differ by at most one cent', () => {
@@ -281,10 +280,22 @@ test('stats aggregations mirror GroupStatsViewModel', () => {
   assert.deepEqual(trend.months, ['2026-09', '2026-10'])
   assert.deepEqual(trend.series, [{ key: 'food', values: [9, 4] }, { key: 'drinks', values: [10, 0] }])
 
-  // Colour follows the category's fixed slot; null category is "other"; legacy keys fall to slot 0.
+  // Colour follows the category's fixed slot; null, unknown and past-the-palette keys are the
+  // neutral "other".
   assert.equal(categoryColor('drinks'), '#D95926')
-  assert.equal(categoryColor(null), '#E66767')
-  assert.equal(categoryColor('rent'), '#3987E5')
+  assert.equal(categoryColor('rent'), '#E66767')
+  assert.equal(categoryColor('utilities'), OTHER_COLOR)
+  assert.equal(categoryColor(null), OTHER_COLOR)
+  assert.equal(categoryColor('legacy'), OTHER_COLOR)
+
+  // Utilities and unknown keys share the trend's "other" line, which sorts last.
+  const folded = categoryTrend([
+    e('u', 'm1', 30, 'utilities', '2026-09-10T12:00:00Z'),
+    e('o', 'm1', 5, 'other', '2026-09-11T12:00:00Z'),
+    e('r', 'm1', 400, 'rent', '2026-09-12T12:00:00Z'),
+    e('f', 'm1', 2, 'food', '2026-09-13T12:00:00Z'),
+  ])
+  assert.deepEqual(folded.series, [{ key: 'food', values: [2] }, { key: 'rent', values: [400] }, { key: 'other', values: [35] }])
 
   // AddMonths(-n) clamps the day instead of overflowing.
   assert.equal(rangeCutoff('3m', new Date('2026-05-31T10:00:00Z')).toISOString(), '2026-02-28T10:00:00.000Z')
@@ -518,8 +529,41 @@ test('minor units table matches the SQL function and drives parsing, splits, bal
   const yen = pairBreakdown([{ id: 'a', paid_by_member_id: 'me', is_settlement: false, description: '', category: '', occurred_at: '2026-10-01' }],
     [{ expense_id: 'a', member_id: 'them', share_amount_in_group_currency: 750 }], 'me', 'them', 'JPY')
   assert.equal(yen.balance, 750)
-  const payload = settlementPayload({ payerId: 'me', recipientId: 'them', amount: '1500', currency: 'JPY', note: '', date: '2026-10-27' }, 'g', 'fallback', 'ts')
+  const payload = settlementPayload({ payerId: 'me', recipientId: 'them', amount: '1500', currency: 'JPY', note: '', date: '2026-10-27' }, 'g', 'ts')
   assert.equal(payload.p_expense.amount, 1500)
   assert.equal(payload.p_shares[0].share_amount, 1500)
   assert.equal(settlementEditorSnapshot({ payerId: 'me', recipientId: 'them', amount: '1500', currency: 'JPY', note: '', date: 'd' }), settlementEditorSnapshot({ payerId: 'me', recipientId: 'them', amount: ' 1500 ', currency: 'JPY', note: '', date: 'd' }))
+})
+
+test('category keys and icons match Android AppConstants.Categories', () => {
+  const cs = readFileSync(new URL('../../AxisApp/AppConstants.cs', import.meta.url), 'utf8')
+  const keys = /class Categories[\s\S]*?Keys =\s*\[([^\]]*)\]/.exec(cs)[1].match(/"([a-z]+)"/g).map((k) => k.slice(1, -1))
+  assert.deepEqual([...CATEGORY_KEYS], keys)
+  assert.equal(keys.at(-1), 'other')
+
+  // Resolve each Glyph() switch arm to its constant's codepoint (raw PUA character or \u escape).
+  const glyphBody = /public static string Glyph\([\s\S]*?\n {8}\}/.exec(cs)[0]
+  const codepoint = (constName) => {
+    const value = new RegExp(`const string ${constName} = "([^"]+)"`).exec(cs)[1]
+    return value.startsWith('\\u') ? parseInt(value.slice(2), 16) : value.codePointAt(0)
+  }
+  for (const key of keys) {
+    const arm = new RegExp(`"${key}" => \\w+\\.(\\w+)`).exec(glyphBody)
+    const constName = arm ? arm[1] : /_ => \w+\.(\w+)/.exec(glyphBody)[1]
+    assert.equal(iconGlyphs[categoryIcon(key)].codePointAt(0), codepoint(constName), key)
+  }
+})
+
+test('activity dates compare local calendar days, like Android FormatRelative', () => {
+  const labels = { today: 'Today', yesterday: 'Yesterday' }
+  const now = new Date(2026, 9, 30, 0, 30)
+  // Stored as a midnight timestamp: an hour ago is still "Today", never "1h ago".
+  assert.equal(activityDate(new Date(2026, 9, 30).toISOString(), 'en', labels, now), 'Today')
+  assert.equal(activityDate(new Date(2026, 9, 29).toISOString(), 'en', labels, now), 'Yesterday')
+  // Yesterday across a month and year boundary.
+  assert.equal(activityDate(new Date(2025, 11, 31).toISOString(), 'en', labels, new Date(2026, 0, 1, 9)), 'Yesterday')
+  assert.equal(activityDate(new Date(2026, 9, 28).toISOString(), 'en', labels, now), 'Oct 28')
+  assert.equal(activityDate(new Date(2026, 9, 28).toISOString(), 'es', labels, now), '28 oct')
+  assert.equal(activityDate(new Date(2025, 9, 28).toISOString(), 'en', labels, now), 'Oct 28, 2025')
+  assert.equal(activityDate(new Date(2025, 9, 28).toISOString(), 'es', labels, now), '28 oct 2025')
 })

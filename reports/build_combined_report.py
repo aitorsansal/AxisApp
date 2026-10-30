@@ -177,6 +177,12 @@ for issue in issues:
  if issue['key']=='W10':
   issue['sources'].append({'author':'Android device verification','ref':'28 October 2026','url':'ANDROID_SPLIT_MODE_REVIEW.md','priority':status,'parts':[{'label':'Verified on the connected phone','text':note}],'images':[{'src':'android-split-mode-review/01-equal-reopened.png','alt':'Saved Equal split reopened on the connected Android phone.'}]})
  if issue['key'] not in session_status:issue['sources'].append({'author':'Repository status review','ref':'28 October 2026','url':'REPORT_STATUS_REVIEW.md','priority':status,'parts':[{'label':'Current implementation and verification', 'text':note}],'images':[{'src':'date-validation-expense.png','alt':'Local web expense form retains 31/02/2026 and blocks saving with an inline date error.'}] if issue['key']=='W2' else []})
+step4_status=json.loads((ROOT/'STEP4_STATUS.json').read_text(encoding='utf-8'))
+for issue in issues:
+ entry=step4_status.get(issue['key']) or step4_status.get(issue['title'])
+ if not entry:continue
+ issue['status'],issue['resolution']=entry
+ issue['sources'].append({'author':'Stabilisation step 4 and status catch-up','ref':'30 October 2026','url':'../CHANGELOG.md','priority':entry[0],'parts':[{'label':'Current implementation and verification','text':entry[1]}],'images':[]})
 issues.sort(key=lambda x:(0,order[x['key']]) if x['key'] in order else (1 if x['priority']=='next' else 2, x['id']))
 payload=json.dumps(issues,ensure_ascii=False).replace('</','<\\/')
 template=(ROOT/'review_template.html').read_text(encoding='utf-8')

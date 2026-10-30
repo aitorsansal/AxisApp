@@ -41,7 +41,6 @@ const en: Dictionary = {
   Settlement_To: 'Paid to',
   Settlement_ChooseRecipient: 'Choose one recipient',
   Settlement_Note: 'Note (optional)',
-  Settlement_DefaultDescription: 'Settlement with {0}',
   Settlement_PartialHint: 'Change the amount to record a partial repayment.',
   Settlement_InvalidAmount: 'Enter a positive amount with up to two decimal places (maximum 9,999,999,999.99).',
   Settlement_InvalidDate: 'Enter a valid date.',
@@ -140,6 +139,7 @@ const en: Dictionary = {
   Common_Remove: 'Remove',
   Common_Add: 'Add',
   Common_Today: 'Today',
+  Common_Yesterday: 'Yesterday',
 
   // Categories
   Category_food: 'Food',
@@ -512,7 +512,6 @@ const es: Dictionary = {
   Settlement_To: 'Pagado a',
   Settlement_ChooseRecipient: 'Elige un destinatario',
   Settlement_Note: 'Nota (opcional)',
-  Settlement_DefaultDescription: 'Saldar deuda con {0}',
   Settlement_PartialHint: 'Cambia el importe para registrar un pago parcial.',
   Settlement_InvalidAmount: 'Introduce un importe positivo con hasta dos decimales (máximo 9.999.999.999,99).',
   Settlement_InvalidDate: 'Introduce una fecha válida.',
@@ -611,6 +610,7 @@ const es: Dictionary = {
   Common_Remove: 'Eliminar',
   Common_Add: 'Añadir',
   Common_Today: 'Hoy',
+  Common_Yesterday: 'Ayer',
 
   // Categories
   Category_food: 'Comida',

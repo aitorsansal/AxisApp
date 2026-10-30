@@ -17,7 +17,7 @@ The responsive web client follows the Android client's visual language. The rece
 - `Icon` / `lib/icons.ts`: existing Android Lucide codepoints. The font is subsetted to about 10KB; see `public/fonts/README.md` and the bundled license.
 - `Modal`: native modal dialog semantics, keyboard focus containment and Escape dismissal.
 - `formatMoney`: locale-aware display only. Editable values and split calculations retain their existing cent-based semantics.
-- Expense categories include the current Android keys and legacy web rent/utilities keys so editing older records preserves their category.
+- Expense categories are the same ordered list as Android's `AppConstants.Categories.Keys` (rent/utilities included since 2026-10-30, Other last), with the same icon per category; a regression test checks both against `AppConstants.cs`.
 
 ## Validation on 26 October 2026
 

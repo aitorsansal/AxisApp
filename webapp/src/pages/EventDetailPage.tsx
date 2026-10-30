@@ -8,7 +8,7 @@ import { SerializedUpdates } from '../lib/serializedUpdates'
 import { useCoalescedWrites } from '../lib/useCoalescedWrites'
 import { useLiveRefresh } from '../lib/useLiveRefresh'
 import { RefreshRevision } from '../lib/refreshRevision'
-import { formatEventRange } from '../lib/dates'
+import { activityDate, formatEventRange } from '../lib/dates'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
@@ -211,7 +211,6 @@ export function EventDetailPage() {
     )
   }
 
-  const dateLocale = language === 'es' ? 'es-ES' : 'en-US'
   const showConverted = getShowConverted()
   const subParts = [formatEventRange(event.starts_at, event.ends_at, language)]
   if (event.location) subParts.push(event.location)
@@ -464,7 +463,7 @@ export function EventDetailPage() {
                         display_name: t('GroupDetail_SomeoneCapitalized'),
                       },
                     )}{' '}
-                    · {new Date(exp.occurred_at).toLocaleDateString(dateLocale)}
+                    · {activityDate(exp.occurred_at, language, { today: t('Common_Today'), yesterday: t('Common_Yesterday') })}
                   </div>
                 </div>
                 <div className="activity-value">

@@ -44,7 +44,6 @@ public static class AppStrings
         ["Settlement_To"] = "Paid to",
         ["Settlement_ChooseRecipient"] = "Choose one recipient",
         ["Settlement_Note"] = "Note (optional)",
-        ["Settlement_DefaultDescription"] = "Settlement with {0}",
         ["Settlement_PartialHint"] = "Change the amount to record a partial repayment.",
         ["Settlement_InvalidAmount"] = "Enter a positive amount with up to two decimal places (maximum 9,999,999,999.99).",
         ["Settlement_InvalidParties"] = "Choose a payer and one different recipient.",
@@ -284,6 +283,8 @@ public static class AppStrings
         ["Category_entertainment"] = "Entertainment",
         ["Category_shopping"] = "Shopping",
         ["Category_subscriptions"] = "Subscriptions",
+        ["Category_rent"] = "Rent",
+        ["Category_utilities"] = "Utilities",
         ["Category_other"] = "Other",
 
         // Join group (redeem someone else's code)
@@ -413,7 +414,6 @@ public static class AppStrings
         ["Settlement_To"] = "Pagado a",
         ["Settlement_ChooseRecipient"] = "Elige un destinatario",
         ["Settlement_Note"] = "Nota (opcional)",
-        ["Settlement_DefaultDescription"] = "Saldar deuda con {0}",
         ["Settlement_PartialHint"] = "Cambia el importe para registrar un pago parcial.",
         ["Settlement_InvalidAmount"] = "Introduce un importe positivo con hasta dos decimales (máximo 9.999.999.999,99).",
         ["Settlement_InvalidParties"] = "Elige quién paga y un destinatario diferente.",
@@ -654,6 +654,8 @@ public static class AppStrings
         ["Category_entertainment"] = "Ocio",
         ["Category_shopping"] = "Compras",
         ["Category_subscriptions"] = "Suscripciones",
+        ["Category_rent"] = "Alquiler",
+        ["Category_utilities"] = "Suministros",
         ["Category_other"] = "Otros",
 
         // Join group (redeem someone else's code)

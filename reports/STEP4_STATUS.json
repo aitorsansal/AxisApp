@@ -1,0 +1,42 @@
+{
+  "W5 / A3": [
+    "Implemented and deployed; verified on the phone",
+    "Both clients share one category list (food, drinks, transport, travel, entertainment, shopping, subscriptions, rent, utilities, other); Android now labels rent and utilities (Alquiler / Suministros). A web test reads AppConstants.cs and fails if the lists drift. User-checked on the phone; web deployed 30 October."
+  ],
+  "A4": [
+    "Implemented; verified on the phone",
+    "Android activity rows (group and event screens) show a per-category icon from AppConstants.Categories.Glyph, the same mapping as web categoryIcon (food fork-knife, subscriptions repeat, rent home, utilities zap, other wallet, settlements arrow). The drift test also compares each category's glyph codepoint. User-checked on the phone."
+  ],
+  "Other is not the last category": [
+    "Implemented and deployed; verified on the phone",
+    "Other is now last in the shared category order on both clients. In the Stats trend, categories past the eight palette slots (utilities) fold into a neutral Other line instead of reusing a colour."
+  ],
+  "A5": [
+    "Fixed; web aligned and deployed 2026-10-30",
+    "Android already labels activity rows by local calendar day (Today / Yesterday / short date), never elapsed hours. Web Group Detail and the web event screen now use the same rule (lib/dates.ts activityDate), covered by tests across month and year boundaries. Deployed; the web screens were not separately walked through."
+  ],
+  "Dates look different inside event expenses": [
+    "Implemented and deployed",
+    "The web event screen used a numeric date (30/10/2026) while Group Detail used 30 oct. Both now share activityDate(), matching Android."
+  ],
+  "W8 / A7": [
+    "Implemented and deployed; cleanup SQL run; verified on the phone",
+    "An empty repayment note now saves an empty description on web, Android and the Android push settle action, and every client shows the viewer's own localized label. supabase/settlement_descriptions_cleanup.sql cleared previously stored defaults (run 30 October). User-checked on the phone; web deployed."
+  ],
+  "W11": [
+    "Fixed and verified on web and phone",
+    "Group Detail's tab is in the URL (?tab=events|stats) on web and Android accepts tab=events, so saving or deleting an event, Back and reload land on Events. See CHANGELOG.md, the W11/F06 entry."
+  ],
+  "A6": [
+    "Fixed and verified on the phone",
+    "Android event links and push taps navigate Groups, then that group's Events tab, then the event, so Back reaches the event's own group. Checked with a link opened from another group; a real push tap was not sent. See CHANGELOG.md, the W11/F06 entry."
+  ],
+  "F04": [
+    "Fixed and verified on web and phone",
+    "Event-linked expenses on both clients list every member as participant and payer, with Going attendees preselected (everyone if nobody is Going). See CHANGELOG.md, the W11/F06 entry."
+  ],
+  "Enter does not add a named member": [
+    "Fixed and deployed; verified on web and phone",
+    "Enter adds a named member on both clients, gated like the Add button (nothing happens while a phantom suggestion is showing; IME composition Enter is ignored). See CHANGELOG.md, \"Invitations and join flow\"."
+  ]
+}

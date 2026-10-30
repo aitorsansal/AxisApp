@@ -43,11 +43,34 @@ public static class AppConstants
     /// is resolved per-viewer via AppStrings.Get($"Category_{key}", ...), never stored as text.
     /// Storing the localized label itself would mean whichever language the expense's creator
     /// happened to be using becomes baked into the data for every other viewer, forever — the
-    /// exact failure mode localizing a shared ledger has to avoid.</summary>
+    /// exact failure mode localizing a shared ledger has to avoid.
+    /// Keep in sync with webapp/src/lib/types.ts's CATEGORY_KEYS (same order; a web test reads
+    /// this file and fails on drift). "other" stays last: it's the picker's catch-all and the
+    /// Stats trend's fold bucket.</summary>
     public static class Categories
     {
         public static readonly IReadOnlyList<string> Keys =
-            ["food", "drinks", "transport", "travel", "entertainment", "shopping", "subscriptions", "other"];
+            ["food", "drinks", "transport", "travel", "entertainment", "shopping", "subscriptions", "rent", "utilities", "other"];
+
+        /// <summary>Lucide glyph for an activity row. Same mapping as web lib/icons.ts's
+        /// categoryIcon; an unknown or empty key gets Other's wallet.</summary>
+        public static string Glyph(string? key, bool isSettlement)
+        {
+            if (isSettlement) return Icons.ArrowRight;
+            return key switch
+            {
+                "food" => GroupAppearanceIcons.UtensilsCrossed,
+                "drinks" => GroupAppearanceIcons.Beer,
+                "transport" => Icons.Car,
+                "travel" => Icons.Plane,
+                "entertainment" => Icons.Ticket,
+                "shopping" => Icons.ShoppingCart,
+                "subscriptions" => Icons.Repeat,
+                "rent" => GroupAppearanceIcons.Home,
+                "utilities" => Icons.Zap,
+                _ => GroupAppearanceIcons.Wallet
+            };
+        }
     }
 
     /// <summary>The fixed 30-currency list this app supports — tied 1:1 to the DB check
@@ -104,6 +127,10 @@ public static class AppConstants
         public const string Clock = "";    // clock-3
         public const string Camera = "";
         public const string Copy = "";
+
+        // Category icons (2026-10-30), checked against the vendored lucide.ttf's cmap by glyph name.
+        public const string Repeat = "\uE146";
+        public const string Zap = "\uE1B4";
     }
 
     /// <summary>Added for group appearance (AppConstants.GroupIcons below) - verified present in

@@ -12,14 +12,13 @@ import { toMinor } from '../lib/currencyUnits'
 import './SettlementForm.css'
 
 export function SettlementForm({
-  initial, groupId, members, myMemberId, expectedBalance, otherMemberId,
+  initial, groupId, members, expectedBalance, otherMemberId,
   canDelete = false, onCancel, onSaved, onDeleted, onBusyChange,
   onDraftChange, onCommitted,
 }: {
   initial: SettlementDraft
   groupId: string
   members: MemberRow[]
-  myMemberId?: string
   expectedBalance?: number
   otherMemberId?: string
   canDelete?: boolean
@@ -42,9 +41,7 @@ export function SettlementForm({
     const member = members.find((m) => m.member_id === id)
     return member ? displayName(member.members) : t('GroupDetail_SomeoneCapitalized')
   }
-  const counterparty = draft.payerId === myMemberId ? draft.recipientId
-    : draft.recipientId === myMemberId ? draft.payerId : draft.recipientId
-  const placeholder = t('Settlement_DefaultDescription', name(counterparty))
+  const placeholder = t('GroupDetail_SettleUp')
   const update = <K extends keyof SettlementDraft>(key: K, value: SettlementDraft[K]) =>
     setDraft((previous) => ({ ...previous, [key]: value }))
 
@@ -81,7 +78,7 @@ export function SettlementForm({
         }
       }
       const result = await supabase.rpc('save_expense', settlementPayload(
-        draft, groupId, placeholder, expenseTimestamp(draft.date, draft.originalOccurredAt ?? null),
+        draft, groupId, expenseTimestamp(draft.date, draft.originalOccurredAt ?? null),
       ))
       if (result.error) throw result.error
       saved = true
