@@ -36,6 +36,8 @@ public class Invite : BaseModel
     [Column("use_count")]
     public int UseCount { get; set; }
 
-    [Column("created_at")]
+    // Server-set. Sent at its C# default it wrote 0001-01-01 on every insert (same shape as the
+    // Token/ExpiresAt bugs noted in SupabaseInvitesRepository), so ordering by it never worked.
+    [Column("created_at", ignoreOnInsert: true, ignoreOnUpdate: true)]
     public DateTime CreatedAt { get; set; }
 }

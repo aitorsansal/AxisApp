@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import type { Group, MemberInfo, MemberRow } from '../lib/types'
+import { canAddByName, pickReusableInvite } from '../lib/inviteReuse'
 import { AppHeader } from '../components/AppHeader'
 import { Avatar } from '../components/Avatar'
 import { Icon } from '../components/Icon'
@@ -41,6 +42,8 @@ export function MembersPage() {
   const [nameInput, setNameInput] = useState('')
   const [matches, setMatches] = useState<MemberInfo[]>([])
   const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
+  const [manualLink, setManualLink] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameInput, setRenameInput] = useState('')
   const renameButtonsRef = useRef(new Map<string, HTMLButtonElement>())
@@ -87,51 +90,76 @@ export function MembersPage() {
     return () => clearTimeout(handle)
   }, [nameInput, members])
 
-  async function copyInvite(targetMemberId?: string) {
+  // Only runs from an explicit copy click; adding a guest never mints an invite or writes the
+  // clipboard. Mirrors SupabaseInvitesRepository.GetOrCreateAsync: reuse a still-usable invite.
+  async function copyInvite(target?: MemberRow['members']) {
     setError(null)
     setNotice(null)
-    const token = generateToken()
-    const { error } = await supabase.from('invites').insert({
-      group_id: groupId,
-      target_member_id: targetMemberId ?? null,
-      token,
-      created_by: session?.user.id,
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    })
-    if (error) return setError(error.message)
-    await navigator.clipboard.writeText(buildInviteUrl(token))
-    setNotice(targetMemberId ? t('Members_NewLinkCopied') : t('Members_LinkCopied'))
+    setManualLink(null)
+    const targetMemberId = target?.id
+    let query = supabase
+      .from('invites')
+      .select('token, expires_at, max_uses, use_count')
+      .eq('group_id', groupId)
+    query = targetMemberId ? query.eq('target_member_id', targetMemberId) : query.is('target_member_id', null)
+    const { data: existing, error: lookupError } = await query
+      .order('expires_at', { ascending: false })
+      .limit(20)
+    if (lookupError) return setError(lookupError.message)
+
+    let token: string
+    const reusable = pickReusableInvite(existing, Date.now())
+    if (reusable) {
+      token = reusable.token
+    } else {
+      token = generateToken()
+      const { error } = await supabase.from('invites').insert({
+        group_id: groupId,
+        target_member_id: targetMemberId ?? null,
+        token,
+        created_by: session?.user.id,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+      if (error) return setError(error.message)
+    }
+
+    const url = buildInviteUrl(token)
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      setManualLink(url)
+      return
+    }
+    setNotice(target ? t('Members_NewLinkCopied', displayName(target)) : t('Members_LinkCopied'))
   }
 
   async function handleAddPhantom() {
     const trimmed = nameInput.trim()
-    if (!trimmed || !groupId) return
+    if (!trimmed || !groupId || busyRef.current) return
+    busyRef.current = true
     setBusy(true)
     setError(null)
     setNotice(null)
-    const { data: phantom, error: memberError } = await supabase
-      .from('members')
-      .insert({ display_name: trimmed, created_by: session?.user.id })
-      .select('id')
-      .single()
-    if (memberError) {
-      setError(memberError.message)
+    setManualLink(null)
+    try {
+      const { data: phantom, error: memberError } = await supabase
+        .from('members')
+        .insert({ display_name: trimmed, created_by: session?.user.id })
+        .select('id')
+        .single()
+      if (memberError) return setError(memberError.message)
+      const { error: joinError } = await supabase
+        .from('group_members')
+        .insert({ group_id: groupId, member_id: phantom.id })
+      if (joinError) return setError(joinError.message)
+      setNameInput('')
+      setMatches([])
+      setNotice(t('Members_GuestAdded', trimmed))
+      await load()
+    } finally {
+      busyRef.current = false
       setBusy(false)
-      return
     }
-    const { error: joinError } = await supabase
-      .from('group_members')
-      .insert({ group_id: groupId, member_id: phantom.id })
-    if (joinError) {
-      setError(joinError.message)
-      setBusy(false)
-      return
-    }
-    setBusy(false)
-    setNameInput('')
-    setMatches([])
-    await copyInvite(phantom.id)
-    await load()
   }
 
   async function handleLinkExisting(member: MemberInfo) {
@@ -234,16 +262,39 @@ export function MembersPage() {
           {t('Members_CopyLink')}
         </button>
 
-        <div className="field name-search">
-          <label htmlFor="memberName">{t('Members_AddByName')}</label>
-          <input
-            id="memberName"
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            placeholder={t('Members_NamePlaceholder')}
-            disabled={busy}
-          />
-        </div>
+        {manualLink && (
+          <div className="field">
+            <label htmlFor="manualInviteLink">{t('Members_CopyManually')}</label>
+            <input
+              id="manualInviteLink"
+              readOnly
+              value={manualLink}
+              onFocus={(e) => e.currentTarget.select()}
+            />
+          </div>
+        )}
+
+        <form
+          className="add-by-name"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (canAddByName(nameInput, matches)) handleAddPhantom()
+          }}
+        >
+          <div className="field name-search">
+            <label htmlFor="memberName">{t('Members_AddByName')}</label>
+            <input
+              id="memberName"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter that confirms an IME composition must not add the member.
+                if (e.key === 'Enter' && (e.nativeEvent.isComposing || e.keyCode === 229)) e.preventDefault()
+              }}
+              placeholder={t('Members_NamePlaceholder')}
+              disabled={busy}
+            />
+          </div>
 
         {matches.length > 0 && (
           <ul className="match-list">
@@ -268,16 +319,12 @@ export function MembersPage() {
           </ul>
         )}
 
-        {nameInput.trim().length >= 2 && matches.every((m) => m.account_id) && (
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy}
-            onClick={handleAddPhantom}
-          >
+        {canAddByName(nameInput, matches) && (
+          <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy ? t('Common_Saving') : t('Common_Add')}
           </button>
         )}
+        </form>
 
         {phantoms.length > 0 && (
           <>
@@ -290,7 +337,7 @@ export function MembersPage() {
                   <button
                     type="button"
                     className="btn btn-outline match-btn"
-                    onClick={() => copyInvite(row.member_id)}
+                    onClick={() => copyInvite(row.members)}
                   >
                     {t('Members_Resend')}
                   </button>

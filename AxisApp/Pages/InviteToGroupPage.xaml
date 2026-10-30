@@ -101,10 +101,15 @@
                     <Label Text="{loc:Translate InviteToGroup_AddMemberByName}" Style="{StaticResource SectionHeaderTertiary}" />
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource SpacingS}">
                         <Border Grid.Column="0" Style="{StaticResource InputBorderStyle}">
-                            <Entry Text="{Binding NewPhantomName}" Placeholder="{loc:Translate InviteToGroup_NamePlaceholder}" />
+                            <Entry
+                                Text="{Binding NewPhantomName}"
+                                Placeholder="{loc:Translate InviteToGroup_NamePlaceholder}"
+                                ReturnType="Done"
+                                ReturnCommand="{Binding AddPhantomMemberCommand}" />
                         </Border>
                         <Button
                             Grid.Column="1"
+                            IsVisible="{Binding CanAddPhantom}"
                             Text="{loc:Translate Common_Add}"
                             Command="{Binding AddPhantomMemberCommand}"
                             Style="{StaticResource BtnPrimaryStyle}" />

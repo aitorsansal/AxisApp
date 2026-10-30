@@ -70,8 +70,8 @@ public partial class InviteToGroupViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty] private string usedCountText = "";
     [ObservableProperty] private int selectedExpiryIndex = 2; // 7 days
     [ObservableProperty] private bool isBusy;
-    [ObservableProperty] private string newPhantomName = "";
-    [ObservableProperty] private ObservableCollection<MemberMatchItem> nameMatches = [];
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanAddPhantom))] private string newPhantomName = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanAddPhantom))] private ObservableCollection<MemberMatchItem> nameMatches = [];
     [ObservableProperty] private bool hasNameMatches;
     [ObservableProperty] private ObservableCollection<PendingInviteItem> pendingInvites = [];
 
@@ -272,13 +272,18 @@ public partial class InviteToGroupViewModel : BaseViewModel, IQueryAttributable
         HasNameMatches = NameMatches.Count > 0;
     }
 
+    /// <summary>Same gate as the web's canAddByName: a phantom suggestion must be a deliberate
+    /// "Link" tap, so Add (and the keyboard's Done key) is unavailable while one is showing.</summary>
+    public bool CanAddPhantom => NewPhantomName.Trim().Length >= 2 && NameMatches.All(m => m.IsRealAccount);
+
     /// <summary>Adds a phantom (name-only) member directly to the active group, then mints an
     /// invite targeting them so they show up in Pending invites for a real person to redeem later.
+    /// Never touches the clipboard — copying a link is always an explicit Resend/CopyLink tap.
     /// Only reached once the user has confirmed this isn't one of the NameMatches suggestions.</summary>
     [RelayCommand]
     private Task AddPhantomMember() => RunSafeAsync(async () =>
     {
-        if (string.IsNullOrWhiteSpace(NewPhantomName) || groupId is not { } id) return;
+        if (IsBusy || !CanAddPhantom || groupId is not { } id) return;
         IsBusy = true;
         try
         {

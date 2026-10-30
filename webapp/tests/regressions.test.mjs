@@ -436,3 +436,19 @@ test('unsaved expense snapshots compare persisted intent and ignore display-only
   assert.notEqual(expenseEditorSnapshot({ ...recurring, startDate: '' }), expenseEditorSnapshot(recurring))
   assert.equal(expenseEditorSnapshot({ ...form, description: 'Changed', amount: '13', ...form }), baseline)
 })
+
+test('invite reuse mirrors the Android rule and Enter never selects a phantom match', async () => {
+  const { pickReusableInvite, canAddByName } = await import('../src/lib/inviteReuse.ts')
+  const now = Date.parse('2026-10-30T12:00:00Z')
+  const live = { token: 'a', expires_at: '2026-10-31T00:00:00Z', max_uses: 1, use_count: 0 }
+  const used = { ...live, token: 'u', use_count: 1, expires_at: '2026-12-01T00:00:00Z' }
+  const expired = { ...live, token: 'e', expires_at: '2026-10-30T11:59:59Z' }
+  assert.equal(pickReusableInvite([live], now)?.token, 'a')
+  assert.equal(pickReusableInvite([used, expired, live], now)?.token, 'a')
+  assert.equal(pickReusableInvite([used, expired], now), undefined)
+  assert.equal(pickReusableInvite(undefined, now), undefined)
+  assert.equal(canAddByName('Ana', []), true)
+  assert.equal(canAddByName(' A ', []), false)
+  assert.equal(canAddByName('Ana', [{ account_id: 'x' }]), true)
+  assert.equal(canAddByName('Ana', [{ account_id: null }]), false)
+})

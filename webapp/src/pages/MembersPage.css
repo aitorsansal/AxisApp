@@ -5,6 +5,12 @@
   gap: 12px;
 }
 
+.add-by-name {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .name-search {
   margin: 8px 0 0;
 }
