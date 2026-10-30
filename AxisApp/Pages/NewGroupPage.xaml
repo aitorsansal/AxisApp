@@ -47,7 +47,7 @@
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="vm:GroupColorSwatch">
                             <Border
-                                Style="{StaticResource AccentSwatchBorder}"
+                                Style="{StaticResource AccentSwatchBorder}" SemanticProperties.Description="{Binding A11yName}"
                                 BackgroundColor="{Binding Color}"
                                 controls:Juice.PressScale="0.85"
                                 controls:Juice.Selected="{Binding IsSelected}">
@@ -76,7 +76,7 @@
                                         Command="{Binding Source={RelativeSource AncestorType={x:Type vm:NewGroupViewModel}}, Path=SelectIconCommand}"
                                         CommandParameter="{Binding .}" />
                                 </Border.GestureRecognizers>
-                                <Label
+                                <Label SemanticProperties.Description="{Binding A11yName}"
                                     Text="{Binding Glyph}"
                                     FontFamily="Lucide"
                                     TextColor="{DynamicResource TextPrimary}"

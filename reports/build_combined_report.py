@@ -183,6 +183,12 @@ for issue in issues:
  if not entry:continue
  issue['status'],issue['resolution']=entry
  issue['sources'].append({'author':'Stabilisation step 4 and status catch-up','ref':'30 October 2026','url':'../CHANGELOG.md','priority':entry[0],'parts':[{'label':'Current implementation and verification','text':entry[1]}],'images':[]})
+step5_status=json.loads((ROOT/'STEP5_STATUS.json').read_text(encoding='utf-8'))
+for issue in issues:
+ entry=step5_status.get(issue['title']) or step5_status.get(issue['key'])
+ if not entry:continue
+ issue['status'],issue['resolution']=entry
+ issue['sources'].append({'author':'Stabilisation step 5 accessibility checks','ref':'30 October 2026','url':'ACCESSIBILITY_REVIEW.md','priority':entry[0],'parts':[{'label':'Current implementation and verification','text':entry[1]}],'images':[]})
 issues.sort(key=lambda x:(0,order[x['key']]) if x['key'] in order else (1 if x['priority']=='next' else 2, x['id']))
 payload=json.dumps(issues,ensure_ascii=False).replace('</','<\\/')
 template=(ROOT/'review_template.html').read_text(encoding='utf-8')

@@ -2,6 +2,7 @@
 <ContentView
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:loc="clr-namespace:AxisApp.Localization"
     x:Class="AxisApp.Controls.PageHeaderBar"
     x:Name="Root">
 
@@ -22,7 +23,7 @@
             <Border.GestureRecognizers>
                 <TapGestureRecognizer Tapped="OnBackTapped" />
             </Border.GestureRecognizers>
-            <Label
+            <Label SemanticProperties.Description="{loc:Translate Common_Back}"
                 Text="&#8249;"
                 FontSize="{StaticResource TypeIcon}"
                 TextColor="{DynamicResource TextPrimary}"
@@ -43,7 +44,7 @@
             Grid.Column="2"
             IsVisible="{Binding ShowOverflow, Source={x:Reference Root}}"
             BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
-            <Label
+            <Label SemanticProperties.Description="{loc:Translate Common_MoreOptions}"
                 Text="&#8942;"
                 FontSize="{StaticResource TypeTitle}"
                 TextColor="{DynamicResource TextPrimary}"

@@ -18,7 +18,8 @@
         <Border.StrokeShape>
             <RoundRectangle CornerRadius="{StaticResource ShapePill}" />
         </Border.StrokeShape>
-        <Grid>
+        <!-- Decorative: every place this circle appears already shows the group's name. -->
+        <Grid AutomationProperties.ExcludedWithChildren="True">
             <Label
                 Text="{Binding Initials, Source={x:Reference Root}}"
                 TextColor="{Binding IconForegroundColor, Source={x:Reference Root}}"

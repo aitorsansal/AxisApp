@@ -70,6 +70,12 @@
                                     </DataTrigger>
                                 </Border.Triggers>
                                 <Label Text="{loc:Translate Stats_RangeAllTime}" FontSize="{StaticResource TypeCaption}" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center">
+                                    <SemanticProperties.Description>
+                                        <MultiBinding Converter="{StaticResource SelectedNameConverter}" ConverterParameter="AllTime">
+                                            <Binding Path="Text" Source="{RelativeSource Self}" />
+                                            <Binding Path="SelectedDateRange" />
+                                        </MultiBinding>
+                                    </SemanticProperties.Description>
                                     <Label.Triggers>
                                         <DataTrigger TargetType="Label" Binding="{Binding SelectedDateRange}" Value="AllTime">
                                             <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
@@ -88,6 +94,12 @@
                                     </DataTrigger>
                                 </Border.Triggers>
                                 <Label Text="{loc:Translate Stats_Range3Months}" FontSize="{StaticResource TypeCaption}" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center">
+                                    <SemanticProperties.Description>
+                                        <MultiBinding Converter="{StaticResource SelectedNameConverter}" ConverterParameter="Last3Months">
+                                            <Binding Path="Text" Source="{RelativeSource Self}" />
+                                            <Binding Path="SelectedDateRange" />
+                                        </MultiBinding>
+                                    </SemanticProperties.Description>
                                     <Label.Triggers>
                                         <DataTrigger TargetType="Label" Binding="{Binding SelectedDateRange}" Value="Last3Months">
                                             <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
@@ -106,6 +118,12 @@
                                     </DataTrigger>
                                 </Border.Triggers>
                                 <Label Text="{loc:Translate Stats_Range6Months}" FontSize="{StaticResource TypeCaption}" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center">
+                                    <SemanticProperties.Description>
+                                        <MultiBinding Converter="{StaticResource SelectedNameConverter}" ConverterParameter="Last6Months">
+                                            <Binding Path="Text" Source="{RelativeSource Self}" />
+                                            <Binding Path="SelectedDateRange" />
+                                        </MultiBinding>
+                                    </SemanticProperties.Description>
                                     <Label.Triggers>
                                         <DataTrigger TargetType="Label" Binding="{Binding SelectedDateRange}" Value="Last6Months">
                                             <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
@@ -124,6 +142,12 @@
                                     </DataTrigger>
                                 </Border.Triggers>
                                 <Label Text="{loc:Translate Stats_Range12Months}" FontSize="{StaticResource TypeCaption}" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center">
+                                    <SemanticProperties.Description>
+                                        <MultiBinding Converter="{StaticResource SelectedNameConverter}" ConverterParameter="Last12Months">
+                                            <Binding Path="Text" Source="{RelativeSource Self}" />
+                                            <Binding Path="SelectedDateRange" />
+                                        </MultiBinding>
+                                    </SemanticProperties.Description>
                                     <Label.Triggers>
                                         <DataTrigger TargetType="Label" Binding="{Binding SelectedDateRange}" Value="Last12Months">
                                             <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
@@ -138,6 +162,7 @@
                             <lvc:CartesianChart
                                 HeightRequest="220"
                                 Series="{Binding CategorySpendSeries}"
+                                SemanticProperties.Description="{Binding CategorySpendSummary}"
                                 YAxes="{Binding CategorySpendYAxes}"
                                 XAxes="{Binding CategorySpendXAxes}"
                                 TooltipPosition="Hidden" />
@@ -151,6 +176,7 @@
                             <lvc:CartesianChart
                                 HeightRequest="260"
                                 Series="{Binding CategoryTrendSeries}"
+                                SemanticProperties.Description="{Binding CategoryTrendSummary}"
                                 XAxes="{Binding CategoryTrendXAxes}"
                                 YAxes="{Binding CategoryTrendYAxes}"
                                 TooltipPosition="Hidden"
@@ -162,6 +188,7 @@
                             <lvc:CartesianChart
                                 HeightRequest="220"
                                 Series="{Binding CategoryFrequencySeries}"
+                                SemanticProperties.Description="{Binding CategoryFrequencySummary}"
                                 YAxes="{Binding CategoryFrequencyYAxes}"
                                 XAxes="{Binding CategoryFrequencyXAxes}"
                                 TooltipPosition="Hidden" />
@@ -187,6 +214,7 @@
                             <lvc:CartesianChart
                                 HeightRequest="220"
                                 Series="{Binding MemberSpendSeries}"
+                                SemanticProperties.Description="{Binding MemberSpendSummary}"
                                 YAxes="{Binding MemberSpendYAxes}"
                                 XAxes="{Binding MemberSpendXAxes}"
                                 TooltipPosition="Hidden" />
@@ -197,6 +225,7 @@
                             <lvc:CartesianChart
                                 HeightRequest="200"
                                 Series="{Binding SettlementCadenceSeries}"
+                                SemanticProperties.Description="{Binding SettlementCadenceSummary}"
                                 XAxes="{Binding SettlementCadenceXAxes}"
                                 YAxes="{Binding SettlementCadenceYAxes}"
                                 TooltipPosition="Hidden" />

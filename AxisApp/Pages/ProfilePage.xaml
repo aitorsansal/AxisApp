@@ -30,7 +30,7 @@
                             <Label
                                 Grid.Column="0"
                                 Text="{loc:Translate Profile_ChangePhoto}"
-                                TextColor="{DynamicResource Primary}"
+                                TextColor="{DynamicResource Focus}"
                                 FontSize="{StaticResource TypeCaption}">
                                 <Label.GestureRecognizers>
                                     <TapGestureRecognizer Command="{Binding ChangePhotoCommand}" />
@@ -64,7 +64,7 @@
                         <Border Style="{StaticResource InputBorderStyle}" IsVisible="{Binding HasBirthday}">
                             <Grid>
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                                    <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
+                                    <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" AutomationProperties.IsInAccessibleTree="False" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                                     <Label Grid.Column="1" Text="{Binding BirthdayDisplay}" VerticalOptions="Center" />
                                     <Label Grid.Column="2" Text="{loc:Translate Profile_ClearBirthday}" TextColor="{DynamicResource Danger}" VerticalOptions="Center">
                                         <Label.GestureRecognizers>
@@ -173,7 +173,7 @@
                             <CollectionView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:AccentSwatch">
                                     <Border
-                                        Style="{StaticResource AccentSwatchBorder}"
+                                        Style="{StaticResource AccentSwatchBorder}" SemanticProperties.Description="{Binding A11yName}"
                                         BackgroundColor="{Binding Color}"
                                         controls:Juice.PressScale="0.85"
                                         controls:Juice.Selected="{Binding IsSelected}">

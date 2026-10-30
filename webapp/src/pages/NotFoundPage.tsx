@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 import { useLocale } from '../context/LocaleContext'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 export function NotFoundPage() {
   const { t } = useLocale()
+  useDocumentTitle(t('NotFound_Title'))
   return (
     <main className="page">
       <h1>{t('NotFound_Title')}</h1>

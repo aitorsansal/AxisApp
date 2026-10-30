@@ -218,7 +218,7 @@ export function GroupEventsTab({ groupId, members }: Props) {
 
       {monthGroups.map((group) => (
         <div key={group.header} className="event-month-group">
-          <h3 className="event-month-header">{group.header}</h3>
+          <h2 className="event-month-header">{group.header}</h2>
           <div className="event-list">
             {group.events.map((ev) => {
               const attendees = attendeesByEvent[ev.id] ?? []

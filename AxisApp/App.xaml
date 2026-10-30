@@ -15,6 +15,8 @@
                     <conv:InverseBoolConverter x:Key="InverseBoolConverter"/>
                     <conv:StringEqualsConverter x:Key="StringEqualsConverter"/>
                     <conv:PasswordEyeConverter x:Key="PasswordEyeConverter"/>
+                    <conv:PasswordToggleNameConverter x:Key="PasswordToggleNameConverter"/>
+                    <conv:SelectedNameConverter x:Key="SelectedNameConverter"/>
                 </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

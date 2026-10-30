@@ -16,7 +16,10 @@ public partial class AccentSwatch : ObservableObject
     public AccentPreset Preset { get; init; }
     public Color Color { get; init; } = Colors.Transparent;
 
-    [ObservableProperty] private bool isSelected;
+    /// <summary>Same colour names as the group colour picker (GroupColor_*).</summary>
+    public string A11yName => A11y.Selectable(LocalizationResourceManager.Instance[$"GroupColor_{Preset}"], IsSelected);
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(A11yName))] private bool isSelected;
 }
 
 /// <summary>Everything that used to live directly in GroupsPage's floating account menu beyond

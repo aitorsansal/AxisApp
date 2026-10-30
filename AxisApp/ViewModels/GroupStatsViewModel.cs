@@ -152,6 +152,14 @@ public partial class GroupStatsViewModel : BaseViewModel
     [ObservableProperty] private ObservableCollection<ISeries> categoryTrendSeries = [];
     [ObservableProperty] private ObservableCollection<Axis> categoryTrendXAxes = [];
 
+    // TalkBack summaries: each chart is a Skia canvas with nothing in the accessibility tree, so
+    // its values are read from these instead (QA F05). Largest first, full member names.
+    [ObservableProperty] private string categorySpendSummary = "";
+    [ObservableProperty] private string categoryFrequencySummary = "";
+    [ObservableProperty] private string memberSpendSummary = "";
+    [ObservableProperty] private string settlementCadenceSummary = "";
+    [ObservableProperty] private string categoryTrendSummary = "";
+
     // One Axis instance per chart — LiveCharts binds an axis to a single chart.
     public ObservableCollection<Axis> CategorySpendXAxes { get; } = ValueAxis(isCount: false);
     public ObservableCollection<Axis> CategoryFrequencyXAxes { get; } = ValueAxis(isCount: true);
@@ -329,6 +337,9 @@ public partial class GroupStatsViewModel : BaseViewModel
     /// group_balances/pairwise_balances give it server-side.</summary>
     private List<Expense> NonSettlementExpenses => FilteredExpenses.Where(e => !e.IsSettlement).ToList();
 
+    private static string Summary(IEnumerable<(string Label, double Value)> items, Func<double, string> format) =>
+        string.Join(", ", items.Select(i => $"{i.Label} {format(i.Value)}"));
+
     private void RebuildCategorySpend()
     {
         var byCategory = NonSettlementExpenses
@@ -341,6 +352,7 @@ public partial class GroupStatsViewModel : BaseViewModel
         FitValueAxis(CategorySpendXAxes, amounts);
         CategorySpendYAxes = LabelAxis(byCategory.Select(x => x.Label).ToArray());
         CategorySpendSeries = new ObservableCollection<ISeries> { Bars(amounts, Money) };
+        CategorySpendSummary = Summary(byCategory.Select(x => (x.Label, x.Amount)).Reverse(), Money);
     }
 
     private void RebuildCategoryFrequency()
@@ -355,6 +367,7 @@ public partial class GroupStatsViewModel : BaseViewModel
         FitValueAxis(CategoryFrequencyXAxes, counts);
         CategoryFrequencyYAxes = LabelAxis(byCategory.Select(x => x.Label).ToArray());
         CategoryFrequencySeries = new ObservableCollection<ISeries> { Bars(counts, Count) };
+        CategoryFrequencySummary = Summary(byCategory.Select(x => (x.Label, x.Count)).Reverse(), Count);
     }
 
     private void RebuildMemberSpend()
@@ -367,7 +380,7 @@ public partial class GroupStatsViewModel : BaseViewModel
             byMember = allShares
                 .Where(s => nonSettlementIds.Contains(s.ExpenseId))
                 .GroupBy(s => s.MemberId)
-                .Select(g => (Label: MemberName(g.Key), Value: (double)g.Sum(s => s.ShareAmountInGroupCurrency)))
+                .Select(g => (Label: FullMemberName(g.Key), Value: (double)g.Sum(s => s.ShareAmountInGroupCurrency)))
                 .OrderBy(x => x.Value)
                 .ToList();
         }
@@ -375,15 +388,16 @@ public partial class GroupStatsViewModel : BaseViewModel
         {
             byMember = NonSettlementExpenses
                 .GroupBy(e => e.PaidByMemberId)
-                .Select(g => (Label: MemberName(g.Key), Value: (double)g.Sum(e => e.AmountInGroupCurrency)))
+                .Select(g => (Label: FullMemberName(g.Key), Value: (double)g.Sum(e => e.AmountInGroupCurrency)))
                 .OrderBy(x => x.Value)
                 .ToList();
         }
 
         var values = byMember.Select(x => x.Value).ToArray();
         FitValueAxis(MemberSpendXAxes, values);
-        MemberSpendYAxes = LabelAxis(byMember.Select(x => x.Label).ToArray());
+        MemberSpendYAxes = LabelAxis(byMember.Select(x => ChartLabel(x.Label)).ToArray());
         MemberSpendSeries = new ObservableCollection<ISeries> { Bars(values, Money) };
+        MemberSpendSummary = Summary(Enumerable.Reverse(byMember), Money);
     }
 
     /// <summary>Chart axis labels have no room for a long name — a member added by their email
@@ -392,11 +406,11 @@ public partial class GroupStatsViewModel : BaseViewModel
     /// alongside the value.</summary>
     private const int MaxChartLabelLength = 11;
 
-    private string MemberName(Guid memberId)
-    {
-        var name = membersById.TryGetValue(memberId, out var member) ? MemberDisplay.Name(member, aliases) : "?";
-        return name.Length > MaxChartLabelLength ? name[..MaxChartLabelLength] + "…" : name;
-    }
+    private string FullMemberName(Guid memberId) =>
+        membersById.TryGetValue(memberId, out var member) ? MemberDisplay.Name(member, aliases) : "?";
+
+    private static string ChartLabel(string name) =>
+        name.Length > MaxChartLabelLength ? name[..MaxChartLabelLength] + "…" : name;
 
     private void RebuildSettlementCadence()
     {
@@ -411,6 +425,7 @@ public partial class GroupStatsViewModel : BaseViewModel
         FitValueAxis(SettlementCadenceYAxes, monthCounts);
         SettlementCadenceXAxes = LabelAxis(byMonth.Select(x => x.Label).ToArray());
         SettlementCadenceSeries = new ObservableCollection<ISeries> { Columns(monthCounts, Count) };
+        SettlementCadenceSummary = Summary(byMonth.Select(x => (x.Label, x.Count)), Count);
     }
 
     /// <summary>Spend by category, per month — the one genuinely multi-series chart on this tab
@@ -432,12 +447,14 @@ public partial class GroupStatsViewModel : BaseViewModel
         var monthIndex = months.Select((m, i) => (m, i)).ToDictionary(x => x.m, x => x.i);
 
         var series = new List<ISeries>();
+        var totals = new List<(string Label, double Value)>();
         foreach (var categoryGroup in nonSettlement.GroupBy(e => TrendKey(e.Category)).OrderBy(g => AppConstants.Categories.Keys.ToList().IndexOf(g.Key)))
         {
             var values = new double[months.Count];
             foreach (var monthGroup in categoryGroup.GroupBy(e => new DateTime(e.OccurredAt.ToLocalTime().Year, e.OccurredAt.ToLocalTime().Month, 1)))
                 values[monthIndex[monthGroup.Key]] = (double)monthGroup.Sum(e => e.AmountInGroupCurrency);
 
+            totals.Add((CategoryDisplay.Label(categoryGroup.Key), values.Sum()));
             var color = CategoryColor(categoryGroup.Key);
             series.Add(new LineSeries<double>
             {
@@ -453,5 +470,7 @@ public partial class GroupStatsViewModel : BaseViewModel
 
         CategoryTrendXAxes = new ObservableCollection<Axis> { new() { Labels = monthLabels } };
         CategoryTrendSeries = new ObservableCollection<ISeries>(series);
+        var span = monthLabels.Length > 1 ? $"{monthLabels[0]} – {monthLabels[^1]}" : monthLabels.FirstOrDefault() ?? "";
+        CategoryTrendSummary = span.Length == 0 ? "" : $"{span}: {Summary(totals.OrderByDescending(t => t.Value), Money)}";
     }
 }

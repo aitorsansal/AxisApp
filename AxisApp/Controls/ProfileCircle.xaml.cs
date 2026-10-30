@@ -19,6 +19,17 @@ public partial class ProfileCircle : ContentView
     public static readonly BindableProperty DiameterProperty =
         BindableProperty.Create(nameof(Diameter), typeof(double), typeof(ProfileCircle), 36.0);
 
+    /// <summary>Optional TalkBack name when the circle is itself a control (the account button);
+    /// unset, TalkBack reads the initials.</summary>
+    public static readonly BindableProperty AccessibleNameProperty =
+        BindableProperty.Create(nameof(AccessibleName), typeof(string), typeof(ProfileCircle));
+
+    public string? AccessibleName
+    {
+        get => (string?)GetValue(AccessibleNameProperty);
+        set => SetValue(AccessibleNameProperty, value);
+    }
+
     public string? ImageUrl
     {
         get => (string?)GetValue(ImageUrlProperty);

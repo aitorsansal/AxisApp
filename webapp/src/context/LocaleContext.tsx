@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { strings, SUPPORTED_LANGUAGES, type Language } from '../lib/i18n/strings'
 
 export type { Language }
@@ -39,6 +39,11 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [override, setOverrideState] = useState<Language | ''>(readStoredOverride)
 
   const language = override || deviceLanguage()
+
+  // Screen readers pick their voice from <html lang>; index.html ships "en".
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
 
   function setOverride(lang: Language | '') {
     setOverrideState(lang)

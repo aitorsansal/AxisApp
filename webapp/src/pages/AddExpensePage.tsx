@@ -625,7 +625,7 @@ export function AddExpensePage() {
                       inputMode="decimal"
                       aria-label={t('AmountInput_ShareLabel', displayName(m.members))}
                       aria-invalid={!useEqualSplit && !!shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null}
-                      aria-describedby={`share-error-${m.member_id}`}
+                      aria-describedby={!useEqualSplit && shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null ? `share-error-${m.member_id}` : undefined}
                       placeholder={minorUnits(currency) === 0 ? '0' : '0.00'}
                       value={
                         useEqualSplit
@@ -713,7 +713,7 @@ export function AddExpensePage() {
             <label>{t('AddExpense_ReceiptPhoto')}</label>
             {receiptUrl && (
               <a href={receiptUrl} target="_blank" rel="noreferrer" className="receipt-preview">
-                <img src={receiptUrl} alt="" />
+                <img src={receiptUrl} alt={t('AddExpense_ReceiptPhoto')} />
               </a>
             )}
             <div className="receipt-actions">

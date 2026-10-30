@@ -18,9 +18,9 @@ interface AccentValues {
 }
 
 const VALUES: Record<AccentPreset, AccentValues> = {
-  Blue: { primary: '#5B72D6', primaryHover: '#7387DC', primaryPressed: '#4A5EB4', primarySoft: '#232A48', focus: '#B1BCEC', secondary: '#CBA257', textOnAccent: '#08101F' },
+  Blue: { primary: '#6177D8', primaryHover: '#7387DC', primaryPressed: '#4A5EB4', primarySoft: '#232A48', focus: '#B1BCEC', secondary: '#CBA257', textOnAccent: '#08101F' },
   Green: { primary: '#4C8F63', primaryHover: '#57A371', primaryPressed: '#42664E', primarySoft: '#234830', focus: '#C0DDCA', secondary: '#814B77', textOnAccent: '#08101F' },
-  Red: { primary: '#C25450', primaryHover: '#CA6A67', primaryPressed: '#954C4A', primarySoft: '#482523', focus: '#E6B9B7', secondary: '#4CB6A8', textOnAccent: '#08101F' },
+  Red: { primary: '#C55D59', primaryHover: '#CA6A67', primaryPressed: '#954C4A', primarySoft: '#482523', focus: '#E6B9B7', secondary: '#4CB6A8', textOnAccent: '#08101F' },
   Purple: { primary: '#7C5FBF', primaryHover: '#8E75C8', primaryPressed: '#685299', primarySoft: '#2E2348', focus: '#C6BAE3', secondary: '#A8B45A', textOnAccent: '#F2F5FA' },
   Pink: { primary: '#C15A87', primaryHover: '#C97097', primaryPressed: '#994F6F', primarySoft: '#482333', focus: '#E5B9CC', secondary: '#56B67C', textOnAccent: '#08101F' },
   Amber: { primary: '#A97A22', primaryHover: '#C28C27', primaryPressed: '#6F5729', primarySoft: '#483B23', focus: '#EFD8AE', secondary: '#275F94', textOnAccent: '#08101F' },

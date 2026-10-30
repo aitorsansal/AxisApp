@@ -27,7 +27,7 @@
             <Label
                 Grid.Column="1"
                 Text="{loc:Translate Update_Action}"
-                TextColor="{DynamicResource Primary}"
+                TextColor="{DynamicResource Focus}"
                 FontAttributes="Bold"
                 VerticalOptions="Center">
                 <Label.GestureRecognizers>
@@ -38,6 +38,7 @@
             <Label
                 Grid.Column="2"
                 Text="✕"
+                SemanticProperties.Description="{loc:Translate Common_Dismiss}"
                 Style="{StaticResource LabelTertiary}"
                 VerticalOptions="Center">
                 <Label.GestureRecognizers>

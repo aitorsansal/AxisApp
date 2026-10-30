@@ -45,6 +45,9 @@ public partial class ActivityItem : ObservableObject
 
     /// <summary>Category glyph, or the arrow for a settle-up (AppConstants.Categories.Glyph).</summary>
     public string Icon { get; init; } = "";
+
+    /// <summary>What TalkBack says for the icon: the category, or "Settle up".</summary>
+    public string IconDescription { get; init; } = "";
     public DateTime OccurredAt { get; init; }
 
     /// <summary>Tiebreaker for same-day ordering — OccurredAt only carries a date (no time of
@@ -275,6 +278,7 @@ public partial class GroupExpensesViewModel : BaseViewModel
                 SecondaryAmountText = secondaryAmountText,
                 IsSettlement = expense.IsSettlement,
                 Icon = AppConstants.Categories.Glyph(expense.Category, expense.IsSettlement),
+                IconDescription = expense.IsSettlement ? loc["GroupDetail_SettleUp"] : CategoryDisplay.Label(expense.Category),
                 OccurredAt = expense.OccurredAt,
                 CreatedAt = expense.CreatedAt,
                 RelativeDate = FormatRelative(expense.OccurredAt),

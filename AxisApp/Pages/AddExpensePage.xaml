@@ -42,7 +42,7 @@
                 Command="{Binding SaveCommand}"
                 IsEnabled="{Binding CanSave}"
                 Style="{StaticResource BtnTextStyle}"
-                TextColor="{DynamicResource Primary}"
+                TextColor="{DynamicResource Focus}"
                 MinimumWidthRequest="76"
                 MinimumHeightRequest="44"
                 VerticalOptions="Center" />
@@ -322,9 +322,9 @@
                 <Border Style="{StaticResource InputBorderStyle}" IsVisible="{Binding IsRecurringMode, Converter={StaticResource InverseBoolConverter}}">
                     <Grid>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                            <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
+                            <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" AutomationProperties.IsInAccessibleTree="False" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                             <Label Grid.Column="1" Text="{Binding OccurredOnDisplay}" VerticalOptions="Center" />
-                            <Label Grid.Column="2" Text="&#8250;" TextColor="{DynamicResource TextTertiary}" VerticalOptions="Center" />
+                            <Label Grid.Column="2" Text="&#8250;" AutomationProperties.IsInAccessibleTree="False" TextColor="{DynamicResource TextTertiary}" VerticalOptions="Center" />
                         </Grid>
                         <DatePicker Date="{Binding OccurredOn}" Opacity="0" />
                     </Grid>
@@ -335,9 +335,9 @@
                     <Border Style="{StaticResource InputBorderStyle}">
                         <Grid>
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                                <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
+                                <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" AutomationProperties.IsInAccessibleTree="False" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                                 <Label Grid.Column="1" Text="{Binding StartDateDisplay}" VerticalOptions="Center" />
-                                <Label Grid.Column="2" Text="&#8250;" TextColor="{DynamicResource TextTertiary}" VerticalOptions="Center" />
+                                <Label Grid.Column="2" Text="&#8250;" AutomationProperties.IsInAccessibleTree="False" TextColor="{DynamicResource TextTertiary}" VerticalOptions="Center" />
                             </Grid>
                             <DatePicker Date="{Binding StartDate}" Opacity="0" />
                         </Grid>
@@ -390,7 +390,7 @@
                     </Border.GestureRecognizers>
                     <Grid>
                         <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="{StaticResource SpacingXS}">
-                            <Label Text="{x:Static local:AppConstants+Icons.Camera}" FontFamily="Lucide" TextColor="{DynamicResource TextTertiary}" HorizontalOptions="Center" FontSize="{StaticResource TypeEmojiLg}" />
+                            <Label Text="{x:Static local:AppConstants+Icons.Camera}" FontFamily="Lucide" AutomationProperties.IsInAccessibleTree="False" TextColor="{DynamicResource TextTertiary}" HorizontalOptions="Center" FontSize="{StaticResource TypeEmojiLg}" />
                             <Label
                                 Text="{loc:Translate AddExpense_ReceiptPhoto}"
                                 Style="{StaticResource LabelTertiary}"

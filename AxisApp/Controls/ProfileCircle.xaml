@@ -25,6 +25,7 @@
         <Grid>
             <Label
                 Text="{Binding Initials, Source={x:Reference Root}}"
+                SemanticProperties.Description="{Binding AccessibleName, Source={x:Reference Root}}"
                 Style="{StaticResource AvatarInitialsLabel}" />
             <Image
                 Source="{Binding ImageUrl, Source={x:Reference Root}}"

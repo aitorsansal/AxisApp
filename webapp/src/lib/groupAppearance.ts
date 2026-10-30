@@ -3,9 +3,9 @@ import { iconGlyphs, type IconName } from './icons'
 // Group appearance keys and glyphs match the Android client's curated Lucide set.
 
 export const GROUP_COLORS = [
-  { key: 'Blue', hex: '#5B72D6', textOnAccent: '#08101F' },
+  { key: 'Blue', hex: '#6177D8', textOnAccent: '#08101F' },
   { key: 'Green', hex: '#4C8F63', textOnAccent: '#08101F' },
-  { key: 'Red', hex: '#C25450', textOnAccent: '#08101F' },
+  { key: 'Red', hex: '#C55D59', textOnAccent: '#08101F' },
   { key: 'Purple', hex: '#7C5FBF', textOnAccent: '#F2F5FA' },
   { key: 'Pink', hex: '#C15A87', textOnAccent: '#08101F' },
   { key: 'Amber', hex: '#A97A22', textOnAccent: '#08101F' },

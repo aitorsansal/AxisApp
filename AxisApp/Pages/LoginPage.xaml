@@ -46,6 +46,7 @@
                         <Label
                             Grid.Column="1"
                             Text="{Binding IsPasswordVisible, Converter={StaticResource PasswordEyeConverter}}"
+                            SemanticProperties.Description="{Binding IsPasswordVisible, Converter={StaticResource PasswordToggleNameConverter}}"
                             FontFamily="Lucide"
                             FontSize="{StaticResource TypeBody}"
                             TextColor="{DynamicResource TextSecondary}"
@@ -59,7 +60,7 @@
 
                 <Label
                     Text="{Binding StatusMessage}"
-                    TextColor="{DynamicResource Primary}"
+                    TextColor="{DynamicResource Focus}"
                     FontSize="{StaticResource TypeCaption}"
                     IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 

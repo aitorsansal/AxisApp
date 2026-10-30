@@ -46,6 +46,9 @@
                     <Label Text="{loc:Translate GroupDetail_Balances}" Style="{StaticResource SectionHeaderTertiary}" Margin="0" />
 
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding Balances}" Spacing="{StaticResource SpacingS}">
+                        <BindableLayout.EmptyView>
+                            <Label Text="{loc:Translate GroupDetail_BalancesEmpty}" Style="{StaticResource LabelTertiary}" />
+                        </BindableLayout.EmptyView>
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:MemberBalanceItem">
                                 <Border Style="{StaticResource BalanceTileSettled}">
@@ -136,6 +139,7 @@
                                         <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="{StaticResource AvatarSizeM}" HeightRequest="{StaticResource AvatarSizeM}">
                                             <Label
                                                 Text="{Binding Icon}"
+                                                SemanticProperties.Description="{Binding IconDescription}"
                                                 FontFamily="Lucide"
                                                 FontSize="{StaticResource TypeBody}"
                                                 HorizontalOptions="Center"

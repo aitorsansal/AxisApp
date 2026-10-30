@@ -42,6 +42,7 @@
                                     <Button
                                         Text="&#8722;"
                                         Command="{Binding DecrementMaxUsesCommand}"
+                                        SemanticProperties.Description="{loc:Translate Members_FewerUses}"
                                         Style="{StaticResource BtnOutlinePrimary}"
                                         WidthRequest="36" HeightRequest="36" Padding="0"
                                         CornerRadius="{StaticResource RadiusPill}" />
@@ -49,6 +50,7 @@
                                     <Button
                                         Text="+"
                                         Command="{Binding IncrementMaxUsesCommand}"
+                                        SemanticProperties.Description="{loc:Translate Members_MoreUses}"
                                         Style="{StaticResource BtnOutlinePrimary}"
                                         WidthRequest="36" HeightRequest="36" Padding="0"
                                         CornerRadius="{StaticResource RadiusPill}" />
@@ -68,7 +70,7 @@
                                 FontAttributes="Bold"
                                 VerticalOptions="Center" />
                             <Border BackgroundColor="Transparent" StrokeThickness="0" WidthRequest="44" HeightRequest="44" Padding="0">
-                                <Label Text="{x:Static local:AppConstants+Icons.Copy}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" FontSize="{StaticResource TypeTitle}" HorizontalOptions="Center" VerticalOptions="Center">
+                                <Label Text="{x:Static local:AppConstants+Icons.Copy}" SemanticProperties.Description="{loc:Translate InviteToGroup_CopyLink}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" FontSize="{StaticResource TypeTitle}" HorizontalOptions="Center" VerticalOptions="Center">
                                     <Label.GestureRecognizers>
                                         <TapGestureRecognizer Command="{Binding CopyLinkCommand}" />
                                     </Label.GestureRecognizers>

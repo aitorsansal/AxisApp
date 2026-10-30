@@ -5,6 +5,7 @@ import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useLocale } from '../context/LocaleContext'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import './LoginPage.css'
 
 // Static "email confirmed" page, public/confirm/ — same page the MAUI app's sign-up points at
@@ -20,6 +21,7 @@ export function LoginPage() {
   const { session } = useAuth()
   const { t } = useLocale()
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  useDocumentTitle(t(mode === 'signin' ? 'Login_SignIn' : 'Login_SignUp'))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -111,7 +113,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="page login-page">
+    <main className="page login-page">
       <h1 className="login-title">
         <BrandMark size={64} />
         Axis
@@ -192,7 +194,7 @@ export function LoginPage() {
       >
         {mode === 'signin' ? t('Login_ToggleToSignup') : t('Login_ToggleToSignin')}
       </button>
-    </div>
+    </main>
   )
 }
 

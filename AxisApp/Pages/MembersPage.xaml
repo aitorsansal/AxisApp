@@ -78,7 +78,7 @@
                                                     Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MembersViewModel}}, Path=OpenRenameOverlayCommand}"
                                                     CommandParameter="{Binding .}" />
                                             </Border.GestureRecognizers>
-                                            <Label Text="{x:Static local:AppConstants+Icons.Pencil}" FontFamily="Lucide" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{DynamicResource TextTertiary}" />
+                                            <Label SemanticProperties.Description="{Binding RenameDescription}" Text="{x:Static local:AppConstants+Icons.Pencil}" FontFamily="Lucide" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{DynamicResource TextTertiary}" />
                                         </Border>
                                         <Button
                                             Grid.Column="3"

@@ -6,7 +6,7 @@
 /* "Bloque" style: neutral near-black, one heavy grotesque, filled surfaces instead of borders.
    Accent variables are overwritten per preset by lib/accent.ts; everything else is fixed. */
 :root {
-  --primary: #5b72d6;
+  --primary: #6177d8;
   --primary-hover: #7387dc;
   --primary-pressed: #4a5eb4;
   --action-text: #b1bcec;

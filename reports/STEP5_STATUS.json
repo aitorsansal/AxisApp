@@ -1,0 +1,22 @@
+{
+  "F05": [
+    "Implemented; device names/state verified; manual walkthrough excluded",
+    "Android names icon-only actions, appearance options and selection, hides decorative glyphs, marks section headings, and exposes summaries for five stats charts. Group tabs, Upcoming/Past and stats range chips now include selected in their localized accessible names. Earlier device-tree checks and the continuation evidence are recorded in ACCESSIBILITY_REVIEW.md. The user removed the spoken TalkBack walkthrough from scope while retaining the fixes. Do not treat hierarchy inspection as a screen-reader usability audit. Continuation trees verify Perfil, group tabs, Upcoming/Past, All/3-month ranges, event actions, seat stepper and invite controls. Register toggles and the recurring pencil remain device-unverified; the inspected group has no templates. Web changes deployed."
+  ],
+  "A12": [
+    "Implemented; device tree checked",
+    "Balances and Going now explain their empty states with localized text (Todos están al día / Todavía no va nadie). The earlier physical-device pass inspected these screens. Manual spoken walkthrough excluded by the user."
+  ],
+  "Web form controls have weak accessible labels": [
+    "Implemented; automated and browser checks; deployed",
+    "Receipt preview links now have image alt text, calendar-feed fields have accessible names, and share inputs reference error descriptions only while those errors exist. UI language sets html lang, pages set localized document titles, Login is a main landmark and event month headers are h2. The handoff records axe-core with zero violations on 13 routes × 8 accents plus Login; that audit was not rerun in this continuation. This does not replace keyboard/screen-reader testing."
+  ],
+  "The green balance theme has weak contrast": [
+    "Fixed; measured and browser checked; deployed",
+    "The member-profile balance card used dark TextOnAccent on a neutral dark card after the web restyle (about 1.1:1). It now uses primary light text, with success/danger colours only on amounts. The Green fixture renders #F6F5F1 and #38D998 on #1B1B1F. Blue and Red primary fills were also adjusted on both clients to exceed 4.5:1 with #08101F. See ACCESSIBILITY_REVIEW.md."
+  ],
+  "U03": [
+    "Fresh startup checked; delivery evidence pending",
+    "A fresh production browser reached Login without Firebase warnings/errors. Source config includes projectId in both firebase.ts and sw.js. This unsigned startup does not exercise authenticated messaging/token registration or delivery, so it does not close U03. The existing authenticated Brave session could not be inspected because browser control timed out."
+  ]
+}

@@ -34,7 +34,7 @@
             <Border.GestureRecognizers>
                 <TapGestureRecognizer Command="{Binding EditEventCommand}" />
             </Border.GestureRecognizers>
-            <Label
+            <Label SemanticProperties.Description="{loc:Translate EventDetail_EditEvent}"
                 Text="{x:Static local:AppConstants+Icons.Pencil}"
                 FontFamily="Lucide"
                 FontSize="{StaticResource TypeTitle}"
@@ -58,7 +58,7 @@
             <Border.GestureRecognizers>
                 <TapGestureRecognizer Command="{Binding ShareEventCommand}" />
             </Border.GestureRecognizers>
-            <Label
+            <Label SemanticProperties.Description="{loc:Translate EventDetail_Share}"
                 Text="{x:Static local:AppConstants+Icons.Share}"
                 FontFamily="Lucide"
                 FontSize="{StaticResource TypeTitle}"
@@ -183,13 +183,13 @@
                                             <Setter Property="IsVisible" Value="True" />
                                         </DataTrigger>
                                     </HorizontalStackLayout.Triggers>
-                                    <Label Text="&#8722;" FontAttributes="Bold" WidthRequest="28" HorizontalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}">
+                                    <Label Text="&#8722;" FontAttributes="Bold" WidthRequest="44" HeightRequest="44" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}" SemanticProperties.Description="{loc:Translate GroupEvents_FewerSeats}">
                                         <Label.GestureRecognizers>
                                             <TapGestureRecognizer Command="{Binding DecrementCarSeatsCommand}" />
                                         </Label.GestureRecognizers>
                                     </Label>
                                     <Label Text="{Binding CarOfferedSeats}" FontAttributes="Bold" WidthRequest="20" HorizontalTextAlignment="Center" VerticalOptions="Center" />
-                                    <Label Text="+" FontAttributes="Bold" WidthRequest="28" HorizontalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}">
+                                    <Label Text="+" FontAttributes="Bold" WidthRequest="44" HeightRequest="44" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}" SemanticProperties.Description="{loc:Translate GroupEvents_MoreSeats}">
                                         <Label.GestureRecognizers>
                                             <TapGestureRecognizer Command="{Binding IncrementCarSeatsCommand}" />
                                         </Label.GestureRecognizers>
@@ -203,6 +203,9 @@
                         <VerticalStackLayout Spacing="{StaticResource SpacingS}">
                             <Label Text="{loc:Translate EventDetail_Going}" Style="{StaticResource SectionHeaderTertiary}" />
                             <VerticalStackLayout BindableLayout.ItemsSource="{Binding GoingAttendees}" Spacing="{StaticResource SpacingXS}">
+                                <BindableLayout.EmptyView>
+                                    <Label Text="{loc:Translate EventDetail_NoOneGoing}" Style="{StaticResource LabelTertiary}" />
+                                </BindableLayout.EmptyView>
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="vm:EventAttendeeRowItem">
                                         <Grid ColumnDefinitions="36,*" ColumnSpacing="{StaticResource SpacingS}">
@@ -298,6 +301,7 @@
                                                 <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" WidthRequest="{StaticResource AvatarSizeM}" HeightRequest="{StaticResource AvatarSizeM}">
                                                     <Label
                                                         Text="{Binding Icon}"
+                                                        SemanticProperties.Description="{Binding IconDescription}"
                                                         FontFamily="Lucide"
                                                         FontSize="{StaticResource TypeBody}"
                                                         HorizontalOptions="Center"

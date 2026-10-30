@@ -16,17 +16,23 @@
   gap: 8px;
 }
 
-/* Same colours as Group Detail's balance tiles (balance-receive/-pay/-neutral). */
+/* Same treatment as Group Detail's flat balance rows since the "Bloque" restyle: neutral card,
+   primary text, only the amount coloured. (It used --text-on-accent for a coloured tile that no
+   longer exists, which left 1.1:1 dark-on-dark text.) */
 .pair-balance {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: var(--text-on-accent);
+  color: var(--text-primary);
 }
 
-.pair-balance.balance-neutral {
-  color: var(--text-primary);
+.pair-balance.balance-receive .pair-balance-value strong {
+  color: var(--success);
+}
+
+.pair-balance.balance-pay .pair-balance-value strong {
+  color: var(--danger);
 }
 
 .pair-group-name {
@@ -51,6 +57,7 @@
 
 .pair-balance-value span {
   font-size: 12px;
+  color: var(--text-tertiary);
 }
 
 .pair-lines {

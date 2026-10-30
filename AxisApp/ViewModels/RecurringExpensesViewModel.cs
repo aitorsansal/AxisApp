@@ -19,6 +19,8 @@ public partial class RecurringExpenseRowItem : ObservableObject
     public string FrequencyLabel { get; init; } = "";
     public string DueDateText { get; init; } = "";
 
+    public string EditDescription => LocalizationResourceManager.Instance.Format("Recurring_EditTemplate", Description);
+
     public string NextDueText => IsActive
         ? string.Format(LocalizationResourceManager.Instance["RecurringExpenses_NextDue"], DueDateText)
         : LocalizationResourceManager.Instance["RecurringExpenses_Paused"];

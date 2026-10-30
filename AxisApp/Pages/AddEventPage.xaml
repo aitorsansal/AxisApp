@@ -43,7 +43,7 @@
                 Command="{Binding SaveCommand}"
                 IsEnabled="{Binding CanSave}"
                 Style="{StaticResource BtnTextStyle}"
-                TextColor="{DynamicResource Primary}"
+                TextColor="{DynamicResource Focus}"
                 MinimumWidthRequest="76"
                 MinimumHeightRequest="44"
                 VerticalOptions="Center" />
@@ -87,7 +87,7 @@
                         <Border Grid.Column="0" Style="{StaticResource InputBorderStyle}">
                             <Grid>
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                                    <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
+                                    <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" AutomationProperties.IsInAccessibleTree="False" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                                     <Label Grid.Column="1" Text="{Binding StartDateDisplay}" VerticalOptions="Center" LineBreakMode="TailTruncation" />
                                 </Grid>
                                 <DatePicker Date="{Binding StartDate}" Opacity="0" />
@@ -96,7 +96,7 @@
                         <Border Grid.Column="1" Style="{StaticResource InputBorderStyle}">
                             <Grid>
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                                    <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Clock}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
+                                    <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Clock}" FontFamily="Lucide" AutomationProperties.IsInAccessibleTree="False" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                                     <Label Grid.Column="1" Text="{Binding StartTimeDisplay}" VerticalOptions="Center" />
                                 </Grid>
                                 <TimePicker Time="{Binding StartTime}" Opacity="0" />
@@ -117,7 +117,7 @@
                     <Border Grid.Column="0" Style="{StaticResource InputBorderStyle}">
                         <Grid>
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                                <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
+                                <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Calendar}" FontFamily="Lucide" AutomationProperties.IsInAccessibleTree="False" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                                 <Label Grid.Column="1" Text="{Binding EndDateDisplay}" VerticalOptions="Center" LineBreakMode="TailTruncation" />
                             </Grid>
                             <DatePicker Date="{Binding EndDate}" Opacity="0" />
@@ -126,7 +126,7 @@
                     <Border Grid.Column="1" Style="{StaticResource InputBorderStyle}">
                         <Grid>
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource SpacingS}" InputTransparent="True">
-                                <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Clock}" FontFamily="Lucide" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
+                                <Label Grid.Column="0" Text="{x:Static local:AppConstants+Icons.Clock}" FontFamily="Lucide" AutomationProperties.IsInAccessibleTree="False" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" />
                                 <Label Grid.Column="1" Text="{Binding EndTimeDisplay}" VerticalOptions="Center" />
                             </Grid>
                             <TimePicker Time="{Binding EndTime}" Opacity="0" />

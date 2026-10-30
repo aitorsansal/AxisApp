@@ -19,6 +19,8 @@ public partial class MemberRowItem : ObservableObject
     public string? AvatarUrl { get; init; }
     public bool IsYou { get; init; }
     public bool IsPhantom { get; init; }
+
+    public string RenameDescription => LocalizationResourceManager.Instance.Format("Members_RenameMember", Name);
 }
 
 public partial class MembersViewModel : BaseViewModel, IQueryAttributable

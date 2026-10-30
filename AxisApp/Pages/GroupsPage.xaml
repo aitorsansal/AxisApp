@@ -35,6 +35,7 @@
                 <controls:ProfileCircle
                     ImageUrl="{Binding MyAvatarUrl}"
                     Initials="{Binding UserInitials}"
+                    AccessibleName="{loc:Translate Groups_Profile}"
                     Kind="Primary"
                     Diameter="{StaticResource AvatarSizeM}" />
             </Border>
@@ -62,7 +63,7 @@
                                 <Border Grid.Column="1" BackgroundColor="Transparent" StrokeThickness="0" Padding="{StaticResource SpacingS}" VerticalOptions="Center">
                                     <Label
                                         Text="{loc:Translate Groups_JoinWithCode}"
-                                        TextColor="{DynamicResource Primary}"
+                                        TextColor="{DynamicResource Focus}"
                                         FontSize="{StaticResource TypeCaption}"
                                         FontAttributes="Bold"
                                         VerticalOptions="Center">
@@ -205,6 +206,7 @@
             <Button
                 Text="+"
                 Command="{Binding NewGroupCommand}"
+                SemanticProperties.Description="{loc:Translate NewGroup_Title}"
                 Style="{StaticResource FabButtonStyle}"
                 controls:Juice.PressScale="0.88" />
         </Grid>

@@ -477,7 +477,7 @@ export function ProfilePage() {
         <p className="field-hint">{t('Profile_CalendarFeedDescription')}</p>
         {calendarSubscription && (
           <div className="field">
-            <input readOnly value={calendarFeedUrl(calendarSubscription.token)} onFocus={(e) => e.target.select()} />
+            <input readOnly aria-label={t('Profile_CalendarFeedSection')} value={calendarFeedUrl(calendarSubscription.token)} onFocus={(e) => e.target.select()} />
           </div>
         )}
         {copyNotice && <p className="notice-text">{t('Profile_CalendarLinkCopied')}</p>}

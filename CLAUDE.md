@@ -807,3 +807,26 @@ Android is clean-built/installed, but native tap-through QA remains pending.
 The earlier paragraphs below record expense/recurring implementation history.
 
 AddExpensePage subscribes to Shell.Navigating while visible and uses GetDeferral/DisplayAlertAsync to protect ordinary/recurring edits. ExpenseEditorSnapshot normalizes actual editable values; UnsavedEditGuard captures only fully loaded data and compares on navigation. MarkCommitted is called only after confirmed repository success before leaving. Pending operations cancel attempted navigation and show a wait alert without holding a deferral. Keep or native-dialog dismissal cancels the original route; Discard completes it. Never start a second GoToAsync while a navigation deferral is pending. Native 1.1.0 (10) was installed and tested on the connected phone; details/data inventory are in `reports/ANDROID_UNSAVED_REVIEW.md`. Events, repayments and crash-recovery drafts remain separate work. No additional SQL is required.
+
+
+## Accessibility rules (stabilisation step 5, 2026-10-30)
+
+Icon-only actions need localized SemanticProperties.Description on their inner Label;
+a name on its wrapping Border does not reach Android TalkBack. Border-only colour
+swatches are the verified exception. Use AutomationProperties.ExcludedWithChildren
+for decorative containers; IsInAccessibleTree=False alone does not hide descendants.
+Every XAML file using loc:Translate must declare xmlns:loc, even if XamlC succeeds.
+Tab and range accessible names include localized Common_Selected through
+SelectedNameConverter; appearance pickers use A11y.Selectable. ProfileCircle's
+AccessibleName names the Groups account control while ordinary avatars retain initials.
+
+Use DynamicResource Focus for accent-coloured text on dark surfaces; Primary is a
+fill and can fail text contrast. Blue Primary is now #6177D8, Red #C55D59 (mirrored
+in web accent/groupAppearance/index.css), to reach 4.5:1 with TextOnAccent #08101F.
+SectionHeader is a semantic heading; stats expose textual chart summaries.
+See reports/ACCESSIBILITY_REVIEW.md for evidence and remaining manual checks.
+For adb-only Debug installs, build with -p:EmbedAssembliesIntoApk=true: a normal
+Fast Deployment APK contains no assemblies and will abort without IDE deployment.
+
+The manual TalkBack walkthrough was explicitly removed from scope by the user; keep
+the accessibility fixes, but do not list that walkthrough as a release requirement.

@@ -5,6 +5,7 @@ import { useGroups } from '../context/useGroups'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import { useGoBackTo } from '../lib/navigation'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { BrandMark } from './BrandMark'
 import { Avatar } from './Avatar'
 import { Icon } from './Icon'
@@ -22,6 +23,7 @@ export function AppHeader({
   const { currentMember } = useGroups()
   const { initials, avatarUrl } = useAliases()
   const { t } = useLocale()
+  useDocumentTitle(title)
   const navigate = useNavigate()
   const goBackTo = useGoBackTo()
   const [accountOpen, setAccountOpen] = useState(false)

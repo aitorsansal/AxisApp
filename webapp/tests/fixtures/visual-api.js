@@ -128,6 +128,12 @@ window.fetch = async (input, init) => {
   if (url.origin === location.origin) return realFetch(input, init)
   if (url.origin !== backend.origin) return reply({ message: 'External requests disabled in visual fixture' }, request, 503)
   if (url.pathname.includes('/auth/v1/')) return reply({ user, ...user }, request)
+  // Synthetic preview states exercise rendering without creating or redeeming real invites.
+  if (url.pathname.endsWith('/rpc/preview_invite')) {
+    const scenario = params.get('qaInvite')
+    if (scenario === 'claim') return reply({ status: 'ok', group_name: 'Preview QA', group_currency: 'EUR', member_count: 3, target_name: 'Preview Guest' }, request)
+    if (scenario === 'used' || scenario === 'inviter_gone') return reply({ status: scenario }, request)
+  }
   if (url.pathname.includes('/rpc/')) return reply(null, request)
   if (request.method !== 'GET' && request.method !== 'HEAD') return reply([], request)
   if (url.searchParams.get('limit') === '0') return reply([], request)

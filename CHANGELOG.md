@@ -2556,3 +2556,52 @@ Activity dates: Android already labelled activity rows by local calendar day (To
 Repayment descriptions (W8/A7): an empty note used to be saved as "Settlement with {person}" / "Saldar deuda con {person}" in the creator's language and from the creator's side (the recipient read "Settlement with" their own name), and the Android push "settle" action saved "Settle up"/"Saldar cuenta". All three writers now save an empty description (the column is `not null default ''`), and every reader already falls back to the viewer's localized `GroupDetail_SettleUp` label. The note field's placeholder shows that label. `Settlement_DefaultDescription` is removed from both clients. `supabase/settlement_descriptions_cleanup.sql` clears stored defaults (preview query first; pauses the `expense_history` update trigger inside its transaction). CSV exports show an empty description for those repayments; the Settlement column still says Yes.
 
 Verification: web suite 31/31 (new: category drift, trend fold, activity dates across month/year boundaries, empty settlement description), C# regressions pass, web `tsc -b` + build pass. The cleanup SQL was run by the user on the live database. A clean Debug build was installed on the physical phone and the user confirmed the icons, rent/utilities labels, category order, repayment titles and the stats trend. Web deployed 2026-10-30 (Worker version `b6368baf-e656-40b9-8c14-20ba40b1ef8b`, smoke checks passed). Android not released (still 1.1.1).
+
+
+## Accessibility and evidence pass (stabilisation step 5) — 2026-10-30
+
+Android F05: localized names for icon-only actions (headers, event Edit/Share,
+add buttons, seats/invite uses/copy, member/recurring pencils, password visibility,
+update dismissal), named icon/colour choices including selection, decorative glyph
+exclusion, section headings and five stats chart summaries. Seat controls are 44dp.
+Group Detail tabs, Upcoming/Past and stats ranges include localized selected text;
+ProfileCircle accepts an accessible account-control name instead of initials.
+Balances/Going now explain empty states (A12). Accent text uses Focus where Primary
+failed contrast. Put names on the inner Label, not a wrapping Border; hide
+containers with ExcludedWithChildren (not IsInAccessibleTree alone).
+
+Web: language-correct html lang, localized document titles, Login main landmark,
+receipt alt text, calendar-feed label, month headings and conditional share-error
+references. Member-profile balance text had become dark on a dark card after the
+Bloque restyle (1.1:1); it is now light, with only amounts using status colours.
+Blue/Red fills changed to #6177D8/#C55D59 in both clients (4.65:1/4.60:1 against
+#08101F). Green member-card text/positive amount measure 15.74:1/9.44:1.
+
+Evidence: handoff reported axe zero violations on 13 routes × 8 accents plus
+Login and physical accessibility trees on core screens. Continuation web suite
+31/31, TypeScript and lint pass (existing warnings). Added read-only synthetic
+claim/used/inviter-gone previews to the isolated visual fixture; browser confirms
+claim history note and disabled Join for both dead statuses. Fresh signed-out
+production startup logged no Firebase warning; authenticated registration and
+push delivery remain unverified. Android build passes and is installed on the
+phone (debug 1.1.1 build 11). A standalone adb install requires
+-p:EmbedAssembliesIntoApk=true; the default Fast Deployment APK aborted without
+assemblies. No app data was cleared, but the installed build opened signed out.
+Login password toggle names were checked in both directions. The user explicitly
+removed a manual TalkBack walkthrough from scope and retained all fixes.
+
+See reports/ACCESSIBILITY_REVIEW.md and STEP5_STATUS.json for precise remaining
+checks; the combined report is rebuilt without closing unrelated W21–32 findings.
+Web deployed with npm run deploy --prefix webapp, Worker version
+5b250b41-27fb-4169-ade7-76335e470e07, smoke checks passed for /, /profile and the
+expected JavaScript entry. Android is not a store release.
+
+
+Continuation device evidence: after user sign-in, Perfil, selected group tabs,
+Upcoming/Past, All/3-month ranges, event actions, seat controls and invite controls
+all appear correctly in compressed trees (reports/accessibility-review). A brief
+car-offer test was restored to needs_ride with the original totals. No invite was
+shared/copied/redeemed. Wi-Fi was cycled off/on and restored, but no controlled
+second-client change was made, so refresh-on-reconnect is not proven by that check.
+Register toggles and Recurring pencil remain device-unverified (the inspected
+recurring list is empty). Real event push tap / authenticated web push remain open.

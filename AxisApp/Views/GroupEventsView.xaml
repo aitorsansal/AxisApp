@@ -44,6 +44,12 @@
                             Text="{loc:Translate GroupEvents_Upcoming}"
                             Command="{Binding ShowUpcomingCommand}"
                             Style="{StaticResource SegmentButtonUnselected}">
+                            <SemanticProperties.Description>
+                                <MultiBinding Converter="{StaticResource SelectedNameConverter}" ConverterParameter="False">
+                                    <Binding Path="Text" Source="{RelativeSource Self}" />
+                                    <Binding Path="IsPastSelected" />
+                                </MultiBinding>
+                            </SemanticProperties.Description>
                             <Button.Triggers>
                                 <DataTrigger TargetType="Button" Binding="{Binding IsPastSelected}" Value="False">
                                     <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
@@ -55,6 +61,12 @@
                             Text="{loc:Translate GroupEvents_Past}"
                             Command="{Binding ShowPastCommand}"
                             Style="{StaticResource SegmentButtonUnselected}">
+                            <SemanticProperties.Description>
+                                <MultiBinding Converter="{StaticResource SelectedNameConverter}" ConverterParameter="True">
+                                    <Binding Path="Text" Source="{RelativeSource Self}" />
+                                    <Binding Path="IsPastSelected" />
+                                </MultiBinding>
+                            </SemanticProperties.Description>
                             <Button.Triggers>
                                 <DataTrigger TargetType="Button" Binding="{Binding IsPastSelected}" Value="True">
                                     <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
@@ -115,6 +127,7 @@
                                                         <Label
                                                             Grid.Column="1"
                                                             Text="{x:Static constants:AppConstants+Icons.Car}"
+                                                            SemanticProperties.Description="{loc:Translate AddEvent_NeedsTransport}"
                                                             FontFamily="Lucide"
                                                             TextColor="{DynamicResource TextPrimary}"
                                                             IsVisible="{Binding NeedsTransport}"
@@ -125,7 +138,7 @@
                                                         </Label>
                                                         <Label
                                                             Grid.Column="2"
-                                                            Text="&#8250;"
+                                                            Text="&#8250;" AutomationProperties.IsInAccessibleTree="False"
                                                             TextColor="{DynamicResource TextTertiary}"
                                                             VerticalOptions="Center"
                                                             IsVisible="{Binding IsBirthday, Converter={StaticResource InverseBoolConverter}}" />
@@ -251,7 +264,7 @@
                                                                         <Setter Property="IsVisible" Value="True" />
                                                                     </DataTrigger>
                                                                 </HorizontalStackLayout.Triggers>
-                                                                <Label Text="&#8722;" FontAttributes="Bold" WidthRequest="28" HorizontalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}">
+                                                                <Label Text="&#8722;" FontAttributes="Bold" WidthRequest="44" HeightRequest="44" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}" SemanticProperties.Description="{loc:Translate GroupEvents_FewerSeats}">
                                                                     <Label.GestureRecognizers>
                                                                         <TapGestureRecognizer
                                                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=DecrementCarSeatsCommand}"
@@ -259,7 +272,7 @@
                                                                     </Label.GestureRecognizers>
                                                                 </Label>
                                                                 <Label Text="{Binding CarOfferedSeats}" FontAttributes="Bold" WidthRequest="20" HorizontalTextAlignment="Center" VerticalOptions="Center" />
-                                                                <Label Text="+" FontAttributes="Bold" WidthRequest="28" HorizontalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}">
+                                                                <Label Text="+" FontAttributes="Bold" WidthRequest="44" HeightRequest="44" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}" SemanticProperties.Description="{loc:Translate GroupEvents_MoreSeats}">
                                                                     <Label.GestureRecognizers>
                                                                         <TapGestureRecognizer
                                                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupEventsViewModel}}, Path=IncrementCarSeatsCommand}"

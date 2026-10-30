@@ -433,6 +433,8 @@
          Section Headers
          ======================= -->
     <Style x:Key="SectionHeader" TargetType="Label">
+        <!-- TalkBack heading, so sections can be jumped between (inherited by SectionHeaderTertiary). -->
+        <Setter Property="SemanticProperties.HeadingLevel" Value="Level2" />
         <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="FontSize" Value="{StaticResource TypeTitle}" />
         <Setter Property="FontAttributes" Value="Bold" />

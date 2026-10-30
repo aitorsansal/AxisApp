@@ -41,7 +41,7 @@
             <Border.GestureRecognizers>
                     <TapGestureRecognizer Command="{Binding ToggleGroupOptionsMenuCommand}" />
             </Border.GestureRecognizers>
-            <Label
+            <Label SemanticProperties.Description="{loc:Translate Common_MoreOptions}"
                 Text="&#8942;"
                 FontSize="{StaticResource TypeTitle}"
                 TextColor="{DynamicResource TextPrimary}"
@@ -80,6 +80,12 @@
                         Style="{StaticResource SegmentButtonUnselected}"
                         FontSize="11"
                         Padding="{StaticResource SpacingS}">
+                        <SemanticProperties.Description>
+                            <MultiBinding Converter="{StaticResource SelectedNameConverter}" ConverterParameter="True">
+                                <Binding Path="Text" Source="{RelativeSource Self}" />
+                                <Binding Path="IsExpensesTabSelected" />
+                            </MultiBinding>
+                        </SemanticProperties.Description>
                         <Button.Triggers>
                             <DataTrigger TargetType="Button" Binding="{Binding IsExpensesTabSelected}" Value="True">
                                 <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
@@ -93,6 +99,12 @@
                         Style="{StaticResource SegmentButtonUnselected}"
                         FontSize="11"
                         Padding="{StaticResource SpacingS}">
+                        <SemanticProperties.Description>
+                            <MultiBinding Converter="{StaticResource SelectedNameConverter}" ConverterParameter="True">
+                                <Binding Path="Text" Source="{RelativeSource Self}" />
+                                <Binding Path="IsEventsTabSelected" />
+                            </MultiBinding>
+                        </SemanticProperties.Description>
                         <Button.Triggers>
                             <DataTrigger TargetType="Button" Binding="{Binding IsEventsTabSelected}" Value="True">
                                 <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
@@ -106,6 +118,12 @@
                         FontSize="11"
                         Padding="{StaticResource SpacingS}"
                         Style="{StaticResource SegmentButtonUnselected}">
+                        <SemanticProperties.Description>
+                            <MultiBinding Converter="{StaticResource SelectedNameConverter}" ConverterParameter="True">
+                                <Binding Path="Text" Source="{RelativeSource Self}" />
+                                <Binding Path="IsStatsTabSelected" />
+                            </MultiBinding>
+                        </SemanticProperties.Description>
                         <Button.Triggers>
                             <DataTrigger TargetType="Button" Binding="{Binding IsStatsTabSelected}" Value="True">
                                 <Setter Property="Style" Value="{StaticResource SegmentButtonSelectedTextOnly}" />
@@ -139,12 +157,14 @@
                 <Button
                     Text="+"
                     Command="{Binding ExpensesVm.AddExpenseCommand}"
+                    SemanticProperties.Description="{loc:Translate AddExpense_Title}"
                     Style="{StaticResource FabButtonStyle}"
                     IsVisible="{Binding IsExpensesTabSelected}"
                     controls:Juice.PressScale="0.88" />
                 <Button
                     Text="+"
                     Command="{Binding EventsVm.AddEventCommand}"
+                    SemanticProperties.Description="{loc:Translate AddEvent_Title}"
                     Style="{StaticResource FabButtonStyle}"
                     IsVisible="{Binding IsEventsTabSelected}"
                     controls:Juice.PressScale="0.88" />
@@ -344,7 +364,7 @@
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="vm:GroupColorSwatch">
                         <Border
-                            Style="{StaticResource AccentSwatchBorder}"
+                            Style="{StaticResource AccentSwatchBorder}" SemanticProperties.Description="{Binding A11yName}"
                             BackgroundColor="{Binding Color}"
                             controls:Juice.PressScale="0.85"
                             controls:Juice.Selected="{Binding IsSelected}">
@@ -374,7 +394,7 @@
                                     Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GroupDetailViewModel}}, Path=SelectAppearanceIconCommand}"
                                     CommandParameter="{Binding .}" />
                             </Border.GestureRecognizers>
-                            <Label
+                            <Label SemanticProperties.Description="{Binding A11yName}"
                                 Text="{Binding Glyph}"
                                 FontFamily="Lucide"
                                 TextColor="{DynamicResource TextPrimary}"
