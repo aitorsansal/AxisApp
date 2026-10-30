@@ -98,24 +98,24 @@ test('the actual Vite build configuration blocks missing env and loads valid dep
 test('expense, share and settlement amounts follow the same cross-client input contract', () => {
   const cases = JSON.parse(readFileSync(new URL('../../tests/amount-input-cases.json', import.meta.url), 'utf8'))
   for (const sample of cases) {
-    const parsed = parseAmountInput(sample.text)
+    const parsed = parseAmountInput(sample.text, sample.currency ?? 'EUR')
     assert.equal(parsed.cents, sample.cents, JSON.stringify(sample.text))
     assert.equal(parsed.error, sample.error ?? null, JSON.stringify(sample.text))
-    assert.equal(amountCents(sample.text), sample.cents)
-    assert.equal(settlementCents(sample.text), sample.cents)
+    assert.equal(amountCents(sample.text, sample.currency ?? 'EUR'), sample.cents)
+    assert.equal(settlementCents(sample.text, sample.currency ?? 'EUR'), sample.cents)
   }
-  const total = amountCents('8,50')
-  assert.equal(amountCents('4.25') + amountCents('4,25'), total)
-  assert.equal(amountCents('4.251'), null)
-  assert.equal(amountCents('4,25.0'), null)
+  const total = amountCents('8,50', 'EUR')
+  assert.equal(amountCents('4.25', 'EUR') + amountCents('4,25', 'EUR'), total)
+  assert.equal(amountCents('4.251', 'EUR'), null)
+  assert.equal(amountCents('4,25.0', 'EUR'), null)
 })
 
 test('settlements accept exact positive cents and reject ambiguous or overflowing amounts', () => {
   for (const [input, cents] of [['8.50', 850], ['8,50', 850], [' 0,01 ', 1], ['12', 1200], ['9999999999.99', 999999999999]]) {
-    assert.equal(settlementCents(input), cents)
+    assert.equal(settlementCents(input, 'EUR'), cents)
   }
   for (const invalid of ['', ' ', '0', '-1', '1.001', '1,234.56', '1.234,56', '1e3', 'Infinity', '10000000000']) {
-    assert.equal(settlementCents(invalid), null, invalid)
+    assert.equal(settlementCents(invalid, 'EUR'), null, invalid)
   }
 })
 
@@ -346,7 +346,7 @@ test('pair breakdown lines add up to the pairwise balance, like PairBreakdown.cs
     { expense_id: 'unrelated', member_id: 'me', share_amount_in_group_currency: 7 },
     { expense_id: 'payback', member_id: 'me', share_amount_in_group_currency: 11 },
   ]
-  const pair = pairBreakdown(expenses, shares, 'me', 'them')
+  const pair = pairBreakdown(expenses, shares, 'me', 'them', 'EUR')
   assert.equal(pair.paidForThem, 16)
   assert.equal(pair.paidForMe, 5)
   assert.equal(pair.settledToMe, 11)
@@ -358,7 +358,7 @@ test('pair breakdown lines add up to the pairwise balance, like PairBreakdown.cs
   const drift = pairBreakdown(
     [exp('a', 'me', false, 1), exp('b', 'me', false, 2), exp('c', 'them', true, 3)],
     [{ expense_id: 'a', member_id: 'them', share_amount_in_group_currency: 0.1 }, { expense_id: 'b', member_id: 'them', share_amount_in_group_currency: 0.2 }, { expense_id: 'c', member_id: 'me', share_amount_in_group_currency: 0.3 }],
-    'me', 'them')
+    'me', 'them', 'EUR')
   assert.equal(drift.balance, 0)
 })
 
@@ -489,4 +489,37 @@ test('invite expiry picker snaps to the closest preset like Android', async () =
   assert.equal(closestExpiryIndex(7 * 24 * hour - 5 * 60_000), 2)
   assert.equal(closestExpiryIndex(25 * 24 * hour), 3)
   assert.equal(closestExpiryIndex(-hour), 0)
+})
+
+test('minor units table matches the SQL function and drives parsing, splits, balances and formatting', async () => {
+  const { minorUnits, toMinor, fromMinor, minorText, amountText, ZERO_DECIMAL_CURRENCIES } = await import('../src/lib/currencyUnits.ts')
+  const { formatMoney } = await import('../src/lib/formatting.ts')
+  // Drift guard: the list in supabase/zero_decimal_currencies.sql is the source of truth.
+  const sql = readFileSync(new URL('../../supabase/zero_decimal_currencies.sql', import.meta.url), 'utf8')
+  const listed = /p_currency in \(([^)]*)\)/.exec(sql)[1].match(/'([A-Z]{3})'/g).map((c) => c.slice(1, 4)).sort()
+  assert.deepEqual([...ZERO_DECIMAL_CURRENCIES].sort(), listed)
+  for (const code of ZERO_DECIMAL_CURRENCIES) assert.equal(minorUnits(code), 0)
+  for (const code of ['EUR', 'USD', 'HUF', 'IDR', 'GBP']) assert.equal(minorUnits(code), 2)
+  assert.equal(toMinor('1500', 'JPY'), 1500)
+  assert.equal(toMinor(0.1 + 0.2, 'EUR'), 30)
+  assert.equal(fromMinor(1500, 'JPY'), 1500)
+  assert.equal(minorText(1500, 'JPY'), '1500')
+  assert.equal(minorText(1550, 'EUR'), '15.50')
+  assert.equal(amountText('1500.00', 'JPY'), '1500')
+  assert.equal(formatMoney(1500, 'JPY', 'en').replace(/\s/g, ''), '¥1,500')
+  assert.equal(formatMoney(1500, 'EUR', 'en'), '€1,500.00')
+  // Equal splits are whole units for yen: 1000 / 3 -> 334 + 333 + 333.
+  assert.deepEqual(Object.values(equalSplitCents(1000, ['a', 'b', 'c'])), [334, 333, 333])
+  // Pairwise balances are summed in the group currency's units.
+  const rows = [{ group_id: 'g', other_member_id: 'x', balance: 1234 }, { group_id: 'g', other_member_id: 'y', balance: -500 }]
+  const summary = summarizeBalances(rows, () => 'JPY')
+  assert.deepEqual(summary.owedToMe.totals, [{ currency: 'JPY', cents: 1234 }])
+  assert.deepEqual(summary.iOwe.totals, [{ currency: 'JPY', cents: 500 }])
+  const yen = pairBreakdown([{ id: 'a', paid_by_member_id: 'me', is_settlement: false, description: '', category: '', occurred_at: '2026-10-01' }],
+    [{ expense_id: 'a', member_id: 'them', share_amount_in_group_currency: 750 }], 'me', 'them', 'JPY')
+  assert.equal(yen.balance, 750)
+  const payload = settlementPayload({ payerId: 'me', recipientId: 'them', amount: '1500', currency: 'JPY', note: '', date: '2026-10-27' }, 'g', 'fallback', 'ts')
+  assert.equal(payload.p_expense.amount, 1500)
+  assert.equal(payload.p_shares[0].share_amount, 1500)
+  assert.equal(settlementEditorSnapshot({ payerId: 'me', recipientId: 'them', amount: '1500', currency: 'JPY', note: '', date: 'd' }), settlementEditorSnapshot({ payerId: 'me', recipientId: 'them', amount: ' 1500 ', currency: 'JPY', note: '', date: 'd' }))
 })

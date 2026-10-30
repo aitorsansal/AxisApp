@@ -121,7 +121,7 @@ public partial class GroupsViewModel : BaseViewModel
                         IconGlyph = AppConstants.GroupIcons.GlyphFor(group.Icon),
                         GroupInitials = Initials(group.Name),
                     };
-                    ApplyBalance(item, balance, AppConstants.Currencies.SymbolFor(group.Currency));
+                    ApplyBalance(item, balance, group.Currency);
                     items.Add(item);
                 }
 
@@ -150,20 +150,21 @@ public partial class GroupsViewModel : BaseViewModel
         }
     });
 
-    private static void ApplyBalance(GroupListItem item, decimal balance, string groupSymbol)
+    private static void ApplyBalance(GroupListItem item, decimal balance, string groupCurrency)
     {
+        var groupSymbol = AppConstants.Currencies.SymbolFor(groupCurrency);
         if (balance > 0)
         {
             item.IsOwed = true;
             item.IsSettled = false;
-            item.BalanceAmountText = $"+{groupSymbol}{balance:0.00}";
+            item.BalanceAmountText = $"+{groupSymbol}{CurrencyUnits.Text(balance, groupCurrency)}";
             item.BalanceCaptionText = LocalizationResourceManager.Instance["Groups_YoureOwed"];
         }
         else if (balance < 0)
         {
             item.IsOwing = true;
             item.IsSettled = false;
-            item.BalanceAmountText = $"-{groupSymbol}{Math.Abs(balance):0.00}";
+            item.BalanceAmountText = $"-{groupSymbol}{CurrencyUnits.Text(Math.Abs(balance), groupCurrency)}";
             item.BalanceCaptionText = LocalizationResourceManager.Instance["Groups_YouOwe"];
         }
     }

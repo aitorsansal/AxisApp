@@ -1,6 +1,7 @@
 import { useLocale } from '../context/LocaleContext'
 import { summarizeBalances, type BalanceSide } from '../lib/balanceSummary'
 import { formatMoney } from '../lib/formatting'
+import { fromMinor } from '../lib/currencyUnits'
 import type { PairwiseBalance } from '../lib/types'
 import './GroupBalanceHero.css'
 
@@ -19,7 +20,7 @@ export function GroupBalanceHero({
   const summary = summarizeBalances(balances, () => currency)
   const owedCents = summary.owedToMe.totals[0]?.cents ?? 0
   const oweCents = summary.iOwe.totals[0]?.cents ?? 0
-  const net = (owedCents - oweCents) / 100
+  const net = fromMinor(owedCents - oweCents, currency)
 
   // Up to two people are named; more are counted.
   function who(side: BalanceSide) {
@@ -31,11 +32,11 @@ export function GroupBalanceHero({
   const parts: string[] = []
   if (owedCents > 0) {
     const key = summary.owedToMe.memberIds.length === 1 ? 'GroupDetail_HeroOwedOne' : 'GroupDetail_HeroOwedMany'
-    parts.push(t(key, who(summary.owedToMe), formatMoney(owedCents / 100, currency, language)))
+    parts.push(t(key, who(summary.owedToMe), formatMoney(fromMinor(owedCents, currency), currency, language)))
   }
   if (oweCents > 0) {
     const key = summary.iOwe.memberIds.length === 1 ? 'GroupDetail_HeroOweOne' : 'GroupDetail_HeroOweMany'
-    parts.push(t(key, who(summary.iOwe), formatMoney(oweCents / 100, currency, language)))
+    parts.push(t(key, who(summary.iOwe), formatMoney(fromMinor(oweCents, currency), currency, language)))
   }
   const state = net > 0 ? 'Groups_YoureOwed' : net < 0 ? 'Groups_YouOwe' : 'Common_SettledUp'
 

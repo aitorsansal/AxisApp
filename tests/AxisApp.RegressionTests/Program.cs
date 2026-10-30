@@ -8,7 +8,7 @@ void Check(bool value, string message)
 for (var count = 1; count <= 30; count++)
 for (var cents = 0; cents <= 1000; cents++)
 {
-    var shares = ExpenseMath.SplitEqually(cents / 100m, count);
+    var shares = ExpenseMath.SplitEqually(cents / 100m, count, "EUR");
     Check(shares.Sum() == cents / 100m, "Split must conserve the total");
     Check(shares.Min() >= 0 && shares.Max() - shares.Min() <= .01m, "Split must be fair and nonnegative");
     if (cents >= count) Check(shares.All(s => s > 0), "Affordable shares must be positive");
@@ -67,9 +67,9 @@ Check(pair.Expenses.Count == 2 && pair.Expenses[0].ExpenseId == taxi.Id && !pair
 Console.WriteLine("Android domain regressions passed: 30,030 split scenarios, schedule boundaries, event instants and ranges.");
 
 foreach (var (text, amount) in new[] { ("8.50", 8.50m), ("8,50", 8.50m), (" 0,01 ", .01m), ("12", 12m), ("9999999999.99", 9999999999.99m) })
-    Check(SettlementRules.TryAmount(text, out var parsed) && parsed == amount, $"Settlement amount: {text}");
+    Check(SettlementRules.TryAmount(text, "EUR", out var parsed) && parsed == amount, $"Settlement amount: {text}");
 foreach (var text in new[] { "", " ", "0", "-1", "1.001", "1,234.56", "1.234,56", "1e3", "Infinity", "10000000000" })
-    Check(!SettlementRules.TryAmount(text, out _), $"Reject invalid settlement amount: {text}");
+    Check(!SettlementRules.TryAmount(text, "EUR", out _), $"Reject invalid settlement amount: {text}");
 Check(SettlementRules.Description("  ", "Settlement with Alex") == "Settlement with Alex", "Empty note saves English placeholder");
 Check(SettlementRules.Description("", "Saldar deuda con Alex") == "Saldar deuda con Alex", "Empty note saves Spanish placeholder");
 Check(SettlementRules.Description("  Bizum  ", "fallback") == "Bizum", "Custom note is preserved");
@@ -92,21 +92,28 @@ using (var cases = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Com
     {
         var text = sample.GetProperty("text").GetString();
         var expected = sample.GetProperty("cents");
-        var error = AmountInput.Parse(text, out var parsed);
+        var currency = sample.TryGetProperty("currency", out var currencyElement) ? currencyElement.GetString() : "EUR";
+        var error = AmountInput.Parse(text, currency, out var parsed);
         if (expected.ValueKind == System.Text.Json.JsonValueKind.Null)
         {
             Check(error != AmountInputError.None && parsed == 0, $"Reject invalid money input: {text}");
-            Check((error == AmountInputError.TooLarge) == (sample.GetProperty("error").GetString() == "tooLarge"), $"Error classification: {text}");
-            Check(!SettlementRules.TryAmount(text, out _), "Settlements use the same parser");
+            var expectedError = sample.GetProperty("error").GetString() switch
+            {
+                "tooLarge" => AmountInputError.TooLarge,
+                "noDecimals" => AmountInputError.NoDecimals,
+                _ => AmountInputError.Invalid
+            };
+            Check(error == expectedError, $"Error classification: {text} {currency}");
+            Check(!SettlementRules.TryAmount(text, currency, out _), "Settlements use the same parser");
         }
         else
         {
-            Check(error == AmountInputError.None && parsed * 100m == expected.GetDecimal(), $"Money input must preserve exact cents: {text}");
-            Check(SettlementRules.TryAmount(text, out var settlementAmount) && settlementAmount == parsed, "Settlement parsing stays consistent");
+            Check(error == AmountInputError.None && parsed * CurrencyUnits.Factor(currency) == expected.GetDecimal(), $"Money input must preserve exact minor units: {text} {currency}");
+            Check(SettlementRules.TryAmount(text, currency, out var settlementAmount) && settlementAmount == parsed, "Settlement parsing stays consistent");
         }
     }
 }
-Console.WriteLine("Shared amount-input fixtures passed: totals, shares and settlements use the same 40 cases as web.");
+Console.WriteLine("Shared amount-input fixtures passed: totals, shares and settlements use the same cases as web, including zero-decimal currencies.");
 
 
 Check(ExpenseSplitMode.IsEqual("equal"), "Explicit Equal restores Equal");
@@ -117,20 +124,20 @@ var savedEqual = new Dictionary<Guid, decimal>
 {
     [splitMembers[0]] = 3.33m, [splitMembers[1]] = 3.34m, [splitMembers[2]] = 3.33m
 };
-Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, savedEqual).SequenceEqual(new[] { 3.33m, 3.34m, 3.33m }), "Opening Equal retains the saved remainder recipient");
-Check(ExpenseSplitMode.AllocateEqual(10m, new[] { splitMembers[1], splitMembers[2], splitMembers[0] }, savedEqual).SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Member ordering preserves keyed shares");
-Check(ExpenseSplitMode.AllocateEqual(12m, splitMembers, savedEqual).All(x => x == 4m), "Changing total recalculates Equal");
-Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers.Take(2).ToArray(), savedEqual).All(x => x == 5m), "Changing participants recalculates Equal");
-Check(ExpenseSplitMode.AllocateEqual(10m, new[] { splitMembers[0], splitMembers[1], Guid.NewGuid() }, savedEqual).SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Replacing a participant recalculates Equal");
-Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, null).SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Explicit Equal allocates fresh integer cents");
+Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, savedEqual, "EUR").SequenceEqual(new[] { 3.33m, 3.34m, 3.33m }), "Opening Equal retains the saved remainder recipient");
+Check(ExpenseSplitMode.AllocateEqual(10m, new[] { splitMembers[1], splitMembers[2], splitMembers[0] }, savedEqual, "EUR").SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Member ordering preserves keyed shares");
+Check(ExpenseSplitMode.AllocateEqual(12m, splitMembers, savedEqual, "EUR").All(x => x == 4m), "Changing total recalculates Equal");
+Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers.Take(2).ToArray(), savedEqual, "EUR").All(x => x == 5m), "Changing participants recalculates Equal");
+Check(ExpenseSplitMode.AllocateEqual(10m, new[] { splitMembers[0], splitMembers[1], Guid.NewGuid() }, savedEqual, "EUR").SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Replacing a participant recalculates Equal");
+Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, null, "EUR").SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Explicit Equal allocates fresh integer cents");
 var unevenSaved = splitMembers.Select((id, i) => (id, value: i == 0 ? 8m : 1m)).ToDictionary(x => x.id, x => x.value);
-Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, unevenSaved).SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Uneven saved values cannot override Equal allocation");
+Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, unevenSaved, "EUR").SequenceEqual(new[] { 3.34m, 3.33m, 3.33m }), "Uneven saved values cannot override Equal allocation");
 Console.WriteLine("Split-mode regressions passed: explicit intent, legacy fallback, saved cents, reordered members, total and participant changes.");
 
 
 var editor = new ExpenseEditorState("12.00", "Dinner", 0, "food", me, false,
     new[] { new ExpenseEditorShare(me, "6.00"), new ExpenseEditorShare(them, "6,00") },
-    false, new DateTime(2026, 10, 28), new DateTime(2026, 10, 28), "Monthly", null, null);
+    false, new DateTime(2026, 10, 28), new DateTime(2026, 10, 28), "Monthly", null, null, "EUR");
 var originalEditor = ExpenseEditorSnapshot.Create(editor);
 Check(ExpenseEditorSnapshot.Create(editor with { Amount = "12,00", Shares = editor.Shares.Reverse().ToArray(), Frequency = "Weekly" }) == originalEditor,
     "Amount display, participant order and hidden frequency do not dirty the form");
@@ -184,3 +191,25 @@ Check(InvitePreview.StatusFromRedeemMessage("This invite has already been claime
 Check(InvitePreview.StatusFromRedeemMessage("You're already in a group with this person, so this invite isn't for you") == "shared_group", "Redeem shared group");
 Check(InvitePreview.StatusFromRedeemMessage("This invite is no longer valid — ask a current group member for a new one") == "inviter_gone", "Redeem inviter gone");
 Check(InvitePreview.StatusFromRedeemMessage("Not signed in") is null, "Unknown redeem message stays raw");
+
+// Zero-decimal currencies: parsing, equal splits and the SQL drift guard.
+Check(CurrencyUnits.MinorUnits("JPY") == 0 && CurrencyUnits.MinorUnits("KRW") == 0 && CurrencyUnits.MinorUnits("ISK") == 0, "Yen, won and krona have no decimals");
+Check(CurrencyUnits.MinorUnits("EUR") == 2 && CurrencyUnits.MinorUnits("HUF") == 2 && CurrencyUnits.MinorUnits("IDR") == 2 && CurrencyUnits.MinorUnits(null) == 2, "Everything else keeps two decimals");
+Check(CurrencyUnits.ToMinor(1500m, "JPY") == 1500 && CurrencyUnits.ToMinor(15.5m, "EUR") == 1550, "Minor-unit conversion");
+Check(CurrencyUnits.Text(1500m, "JPY", System.Globalization.CultureInfo.InvariantCulture) == "1500", "Yen text has no decimals");
+Check(CurrencyUnits.Text(1500m, "EUR", System.Globalization.CultureInfo.InvariantCulture) == "1500.00", "Euro text has two decimals");
+Check(ExpenseMath.SplitEqually(1000m, 3, "JPY").SequenceEqual(new[] { 334m, 333m, 333m }), "Yen splits in whole units, leftover to the first shares");
+Check(ExpenseMath.SplitEqually(1000m, 3, "JPY").Sum() == 1000m, "Yen split conserves the total");
+for (var units = 1; units <= 2000; units++)
+{
+    var yen = ExpenseMath.SplitEqually(units, 7, "JPY");
+    Check(yen.Sum() == units && yen.All(x => x == decimal.Truncate(x)) && yen.Max() - yen.Min() <= 1m, "Whole-unit split must conserve the total and stay fair");
+}
+Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, null, "JPY").SequenceEqual(new[] { 4m, 3m, 3m }), "Explicit Equal in yen uses whole units");
+Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, new Dictionary<Guid, decimal> { [splitMembers[0]] = 3m, [splitMembers[1]] = 4m, [splitMembers[2]] = 3m }, "JPY").SequenceEqual(new[] { 3m, 4m, 3m }), "Saved whole-yen allocation is retained");
+Check(ExpenseSplitMode.AllocateEqual(10m, splitMembers, new Dictionary<Guid, decimal> { [splitMembers[0]] = 3.33m, [splitMembers[1]] = 3.34m, [splitMembers[2]] = 3.33m }, "JPY").SequenceEqual(new[] { 4m, 3m, 3m }), "Fractional saved shares cannot be kept in yen");
+var sqlText = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "zero_decimal_currencies.sql"));
+var sqlList = System.Text.RegularExpressions.Regex.Match(sqlText, @"p_currency in \(([^)]*)\)").Groups[1].Value;
+var sqlCodes = System.Text.RegularExpressions.Regex.Matches(sqlList, "'([A-Z]{3})'").Select(m => m.Groups[1].Value).Order().ToArray();
+Check(sqlCodes.SequenceEqual(CurrencyUnits.ZeroDecimal.Order()), "Zero-decimal list must match supabase/zero_decimal_currencies.sql");
+Console.WriteLine("Zero-decimal currency regressions passed: minor units, parsing fixtures, whole-unit splits and SQL list.");

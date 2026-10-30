@@ -25,9 +25,28 @@ public partial class ExpenseParticipant : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(AmountValidationMessage))]
     private bool showAmountError;
 
-    public bool HasValidAmount => AmountInput.TryParse(OwesText, out _);
+    /// <summary>The expense's currency (set by AddExpenseViewModel): decides how many decimals
+    /// this share's text may carry and how it is formatted.</summary>
+    [ObservableProperty] private string currency = "EUR";
+
+    public bool HasValidAmount => AmountInput.TryParse(OwesText, Currency, out _);
     public string AmountValidationMessage => ShowAmountError && IsIncluded && !HasValidAmount
-        ? LocalizationResourceManager.Instance[AmountInput.MessageKey(OwesText)] : "";
+        ? LocalizationResourceManager.Instance[AmountInput.MessageKey(OwesText, Currency)] : "";
+
+    /// <summary>A currency switch keeps what the person typed, except that a share that is
+    /// exactly representable in the new currency is re-shown with the new number of decimals;
+    /// anything else stays as typed and surfaces its validation message.</summary>
+    partial void OnCurrencyChanged(string value)
+    {
+        if (Owes > 0 && Owes == CurrencyUnits.Round(Owes, value))
+        {
+            syncing = true;
+            try { OwesText = AddExpenseViewModel.FormatAmount(Owes, value); }
+            finally { syncing = false; }
+        }
+        OnPropertyChanged(nameof(HasValidAmount));
+        OnPropertyChanged(nameof(AmountValidationMessage));
+    }
 
     public void ValidateAmount() => ShowAmountError = !HasValidAmount;
 
@@ -43,7 +62,7 @@ public partial class ExpenseParticipant : ObservableObject
         syncing = true;
         try
         {
-            Owes = AmountInput.TryParse(value, out var parsed)
+            Owes = AmountInput.TryParse(value, Currency, out var parsed)
                 ? parsed
                 : 0;
         }
@@ -55,7 +74,7 @@ public partial class ExpenseParticipant : ObservableObject
         if (syncing) return;
         ShowAmountError = false;
         syncing = true;
-        try { OwesText = AddExpenseViewModel.FormatAmount(value); }
+        try { OwesText = AddExpenseViewModel.FormatAmount(value, Currency); }
         finally { syncing = false; }
     }
 }
@@ -137,7 +156,8 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         AmountText, Description, SelectedCurrencyIndex, SelectedCategory, SelectedPayer?.Id,
         IsManualSplit, Participants.Where(p => p.IsIncluded)
             .Select(p => new ExpenseEditorShare(p.Member.Id, p.OwesText)).ToArray(),
-        IsRecurringMode, OccurredOn, StartDate, SelectedFrequency.ToString(), ReceiptPath, editingEventId));
+        IsRecurringMode, OccurredOn, StartDate, SelectedFrequency.ToString(), ReceiptPath, editingEventId,
+        CurrentCurrency));
 
     [ObservableProperty] private ObservableCollection<ExpenseParticipant> participants = [];
     [ObservableProperty] private ObservableCollection<PayerOption> payerOptions = [];
@@ -148,9 +168,19 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     [ObservableProperty, NotifyPropertyChangedFor(nameof(AmountValidationMessage))]
     private bool showAmountError;
 
-    public bool IsAmountInputValid => AmountInput.TryParse(AmountText, out _);
+    /// <summary>The selected currency's code, or EUR before one is chosen. Decides decimals for
+    /// parsing, splitting, formatting and the amount placeholder.</summary>
+    private string CurrentCurrency =>
+        SelectedCurrencyIndex >= 0 ? AppConstants.Currencies.All[SelectedCurrencyIndex].Code : "EUR";
+
+    public string AmountPlaceholder => CurrencyUnits.MinorUnits(CurrentCurrency) == 0 ? "0" : "0.00";
+
+    public string AmountHint => LocalizationResourceManager.Instance[
+        CurrencyUnits.MinorUnits(CurrentCurrency) == 0 ? "AmountInput_FormatHintWhole" : "AmountInput_FormatHint"];
+
+    public bool IsAmountInputValid => AmountInput.TryParse(AmountText, CurrentCurrency, out _);
     public string AmountValidationMessage => ShowAmountError && !IsAmountInputValid
-        ? LocalizationResourceManager.Instance[AmountInput.MessageKey(AmountText)] : "";
+        ? LocalizationResourceManager.Instance[AmountInput.MessageKey(AmountText, CurrentCurrency)] : "";
 
     public void ValidateAmount() => ShowAmountError = !IsAmountInputValid;
     [ObservableProperty] private decimal remaining;
@@ -254,6 +284,22 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         AppConstants.Currencies.All.Select(c => $"{c.Code} {c.Symbol}").ToList();
 
     [ObservableProperty] private int selectedCurrencyIndex = -1;
+
+    /// <summary>Re-evaluates everything that depends on the currency's decimals. The typed amount
+    /// text is left alone (a "100.50" typed for EUR then switched to JPY shows the no-decimals
+    /// message instead of being silently rounded).</summary>
+    partial void OnSelectedCurrencyIndexChanged(int value)
+    {
+        var code = CurrentCurrency;
+        foreach (var participant in Participants) participant.Currency = code;
+        Amount = AmountInput.TryParse(AmountText, code, out var parsed) ? parsed : 0;
+        OnPropertyChanged(nameof(AmountPlaceholder));
+        OnPropertyChanged(nameof(AmountHint));
+        OnPropertyChanged(nameof(IsAmountInputValid));
+        OnPropertyChanged(nameof(AmountValidationMessage));
+        if (!IsManualSplit) RedistributeEqually();
+        else RecalcRemaining();
+    }
 
     public AddExpenseViewModel(
         IMembersRepository membersRepository,
@@ -364,6 +410,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                 var participant = new ExpenseParticipant
                 {
                     Member = member, Name = name, Initials = initials, AvatarUrl = avatarUrl,
+                    Currency = CurrentCurrency,
                     IsIncluded = goingMemberIds is not { Count: > 0 } || goingMemberIds.Contains(member.Id)
                 };
                 participant.PropertyChanged += ParticipantChanged;
@@ -470,7 +517,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         Description = expense.Description;
         editingOccurredAt = expense.OccurredAt;
         OccurredOn = expense.OccurredAt.ToLocalTime().Date;
-        AmountText = FormatAmount(expense.Amount);
+        AmountText = FormatAmount(expense.Amount, expense.Currency);
         ReceiptPath = expense.ReceiptPath;
         SetCurrencyByCode(expense.Currency);
 
@@ -525,7 +572,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
 
         Description = template.Description;
         StartDate = template.StartDate;
-        AmountText = FormatAmount(template.Amount);
+        AmountText = FormatAmount(template.Amount, template.Currency);
         SetCurrencyByCode(template.Currency);
 
         SelectedCategory = template.Category;
@@ -566,7 +613,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     partial void OnAmountTextChanged(string value)
     {
         ShowAmountError = false;
-        Amount = AmountInput.TryParse(value, out var parsed) ? parsed : 0;
+        Amount = AmountInput.TryParse(value, CurrentCurrency, out var parsed) ? parsed : 0;
         OnPropertyChanged(nameof(IsAmountInputValid));
         OnPropertyChanged(nameof(AmountValidationMessage));
         RecalcRemaining();
@@ -689,7 +736,7 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
                 return;
             }
 
-            var shares = ExpenseSplitMode.AllocateEqual(Amount, included.Select(p => p.Member.Id).ToArray(), savedEqualShares);
+            var shares = ExpenseSplitMode.AllocateEqual(Amount, included.Select(p => p.Member.Id).ToArray(), savedEqualShares, CurrentCurrency);
             for (var i = 0; i < included.Count; i++)
                 included[i].Owes = shares[i];
 
@@ -701,17 +748,18 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
         }
     }
 
-    internal static string FormatAmount(decimal value) => value.ToString("0.00", CultureInfo.GetCultureInfo(
-        LocalizationResourceManager.Instance.CurrentLanguage == "es" ? "es-ES" : "en-US"));
+    internal static string FormatAmount(decimal value, string? currency) =>
+        value.ToString(CurrencyUnits.FormatString(currency), CultureInfo.GetCultureInfo(
+            LocalizationResourceManager.Instance.CurrentLanguage == "es" ? "es-ES" : "en-US"));
 
     private void RecalcRemaining()
     {
         var included = Participants.Where(p => p.IsIncluded).ToList();
         var sum = included.Sum(p => p.Owes);
-        Remaining = decimal.Round(Amount - sum, 2);
+        Remaining = CurrencyUnits.Round(Amount - sum, CurrentCurrency);
         var inputsValid = IsAmountInputValid && included.All(p => p.HasValidAmount);
         RemainingText = inputsValid
-            ? LocalizationResourceManager.Instance.Format("AddExpense_Remaining", FormatAmount(Remaining))
+            ? LocalizationResourceManager.Instance.Format("AddExpense_Remaining", FormatAmount(Remaining, CurrentCurrency))
             : LocalizationResourceManager.Instance["AmountInput_IncompleteSplit"];
         CanSave = SelectedPayer is not null
                   && inputsValid && Amount > 0
@@ -724,22 +772,22 @@ public partial class AddExpenseViewModel : BaseViewModel, IQueryAttributable
     private Task Save() => RunSafeAsync(async () =>
     {
         if (IsReceiptBusy || IsBusy) return;
-        if (!AmountInput.TryParse(AmountText, out var validatedAmount))
+        if (!AmountInput.TryParse(AmountText, CurrentCurrency, out var validatedAmount))
         {
             ShowAmountError = true;
-            ErrorMessage = LocalizationResourceManager.Instance[AmountInput.MessageKey(AmountText)];
+            ErrorMessage = LocalizationResourceManager.Instance[AmountInput.MessageKey(AmountText, CurrentCurrency)];
             return;
         }
         var invalidShare = Participants.FirstOrDefault(p => p.IsIncluded && !p.HasValidAmount);
         if (invalidShare is not null)
         {
             invalidShare.ValidateAmount();
-            ErrorMessage = $"{invalidShare.Name}: {LocalizationResourceManager.Instance[AmountInput.MessageKey(invalidShare.OwesText)]}";
+            ErrorMessage = $"{invalidShare.Name}: {LocalizationResourceManager.Instance[AmountInput.MessageKey(invalidShare.OwesText, CurrentCurrency)]}";
             return;
         }
         if (!CanSave || SelectedPayer is null || validatedAmount != Amount) return;
 
-        var currency = SelectedCurrencyIndex >= 0 ? AppConstants.Currencies.All[SelectedCurrencyIndex].Code : "EUR";
+        var currency = CurrentCurrency;
 
         IsBusy = true;
         try

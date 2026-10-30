@@ -2,6 +2,7 @@ import { useLocale } from '../context/LocaleContext'
 import type { DirectoryGroup } from '../context/useGroups'
 import { isSettled, summarizeBalances, type BalanceSide } from '../lib/balanceSummary'
 import { formatMoney } from '../lib/formatting'
+import { fromMinor } from '../lib/currencyUnits'
 import type { PairwiseBalance } from '../lib/types'
 import './BalanceSummary.css'
 
@@ -66,7 +67,7 @@ function SummaryBlock({
           {/* One line per currency: amounts in different currencies are never added together. */}
           {side.totals.map((total, index) => (
             <span key={total.currency} className={index === 0 ? 'summary-amount' : 'summary-amount secondary'}>
-              {formatMoney(total.cents / 100, total.currency, language)}
+              {formatMoney(fromMinor(total.cents, total.currency), total.currency, language)}
             </span>
           ))}
           <span className="summary-detail">

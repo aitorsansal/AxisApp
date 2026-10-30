@@ -84,7 +84,7 @@ public partial class RecurringExpensesViewModel : BaseViewModel, IQueryAttributa
                     Description = string.IsNullOrWhiteSpace(t.Description)
                         ? (string.IsNullOrEmpty(t.Category) ? "" : loc[$"Category_{t.Category}"])
                         : t.Description,
-                    AmountText = $"{AppConstants.Currencies.SymbolFor(t.Currency)}{t.Amount:0.00}",
+                    AmountText = $"{AppConstants.Currencies.SymbolFor(t.Currency)}{CurrencyUnits.Text(t.Amount, t.Currency)}",
                     PayerName = membersById.TryGetValue(t.PaidByMemberId, out var payer)
                         ? MemberDisplay.Name(payer, aliases) : "",
                     FrequencyLabel = loc[$"Recurring_Frequency_{CapitalizeFirst(t.Frequency)}"],

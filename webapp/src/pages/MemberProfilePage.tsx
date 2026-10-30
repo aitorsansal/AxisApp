@@ -42,6 +42,7 @@ export function MemberProfilePage() {
     if (!me || !memberId || !sharedKey) return
     let cancelled = false
     const parties = [me, memberId]
+    const currencyOf = new Map(sharedGroups.map((g) => [g.id, g.currency]))
     Promise.all(sharedKey.split(',').map(async (id): Promise<GroupPair> => {
       const [balanceRes, expenses, shares] = await Promise.all([
         supabase
@@ -71,7 +72,7 @@ export function MemberProfilePage() {
       return {
         groupId: id,
         balance: Number(balanceRes.data?.balance ?? 0),
-        breakdown: pairBreakdown(expenses, shares, me, memberId),
+        breakdown: pairBreakdown(expenses, shares, me, memberId, currencyOf.get(id) ?? 'EUR'),
       }
     }))
       .then((result) => !cancelled && setPairs(result))

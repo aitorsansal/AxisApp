@@ -1,20 +1,45 @@
-export const MAX_AMOUNT_CENTS = 999999999999
+import { minorFactor, minorUnits } from './currencyUnits.ts'
 
-export type AmountInputError = 'invalid' | 'tooLarge' | null
+// The stored cap is 9999999999.99 in every currency, so a zero-decimal currency tops out at
+// 9999999999 whole units.
+export function maxAmountMinor(currency: string): number {
+  return minorUnits(currency) === 0 ? 9999999999 : 999999999999
+}
 
-export function parseAmountInput(text: string): { cents: number | null; error: AmountInputError } {
+export type AmountInputError = 'invalid' | 'tooLarge' | 'noDecimals' | null
+
+// Parses an amount typed in `currency` into integer minor units (cents; whole units for JPY, KRW,
+// ISK). Same contract as AxisApp/Models/AmountInput.cs; the shared cases are in
+// tests/amount-input-cases.json. A currency without decimals rejects a decimal part with its own
+// error rather than rounding it, and "1.000" is rejected the same way (no thousands separators).
+export function parseAmountInput(text: string, currency: string): { cents: number | null; error: AmountInputError } {
   const normalized = text.trim().replace(',', '.')
-  if (!/^(?:[0-9]+(?:\.[0-9]{1,2})?|\.[0-9]{1,2})$/.test(normalized)) return { cents: null, error: 'invalid' }
-  const [whole, fraction = ''] = normalized.split('.')
-  const cents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'))
-  if (!Number.isSafeInteger(cents) || cents > MAX_AMOUNT_CENTS) return { cents: null, error: 'tooLarge' }
+  const units = minorUnits(currency)
+  let whole: string
+  let fraction = ''
+  if (units === 0) {
+    if (/^(?:[0-9]+\.[0-9]+|\.[0-9]+)$/.test(normalized)) return { cents: null, error: 'noDecimals' }
+    if (!/^[0-9]+$/.test(normalized)) return { cents: null, error: 'invalid' }
+    whole = normalized
+  } else {
+    if (!/^(?:[0-9]+(?:\.[0-9]{1,2})?|\.[0-9]{1,2})$/.test(normalized)) return { cents: null, error: 'invalid' }
+    ;[whole, fraction = ''] = normalized.split('.')
+  }
+  const cents = Number(whole) * minorFactor(currency) + (units === 0 ? 0 : Number(fraction.padEnd(2, '0')))
+  if (!Number.isSafeInteger(cents) || cents > maxAmountMinor(currency)) return { cents: null, error: 'tooLarge' }
   return cents > 0 ? { cents, error: null } : { cents: null, error: 'invalid' }
 }
 
-export function amountCents(text: string): number | null {
-  return parseAmountInput(text).cents
+export function amountCents(text: string, currency: string): number | null {
+  return parseAmountInput(text, currency).cents
 }
 
-export function amountErrorKey(error: AmountInputError): string {
-  return error === 'tooLarge' ? 'AmountInput_TooLarge' : 'AmountInput_Invalid'
+export function amountErrorKey(error: AmountInputError, currency: string): string {
+  if (error === 'tooLarge') return 'AmountInput_TooLarge'
+  if (error === 'noDecimals') return 'AmountInput_NoDecimals'
+  return minorUnits(currency) === 0 ? 'AmountInput_InvalidWhole' : 'AmountInput_Invalid'
+}
+
+export function amountHintKey(currency: string): string {
+  return minorUnits(currency) === 0 ? 'AmountInput_FormatHintWhole' : 'AmountInput_FormatHint'
 }

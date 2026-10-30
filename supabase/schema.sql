@@ -799,9 +799,14 @@ declare
   v_rates jsonb;
   v_from_rate numeric;
   v_to_rate numeric;
+  v_units int;
   -- Check an unconstrained numeric before assigning to the numeric(12,2) field.
   v_converted numeric;
 begin
+  if tg_op = 'INSERT' or new.amount is distinct from old.amount or new.currency is distinct from old.currency then
+    perform public.assert_amount_precision(new.amount, new.currency);
+  end if;
+
   if new.group_id is null then
     -- Unscoped expense (its group was dissolved) — no group currency left
     -- to convert against, and group_balances/pairwise_balances already
@@ -812,12 +817,15 @@ begin
     return new;
   end if;
 
+  select currency into v_group_currency from public.groups where id = new.group_id;
+  v_units := public.currency_minor_units(v_group_currency);
+
   -- Same currency as before: reuse the rate the expense was first converted
   -- at, so correcting an old amount doesn't silently apply today's rate.
   -- Safe because groups.currency can't change once a group has expenses.
   if tg_op = 'UPDATE' and new.currency = old.currency then
     new.exchange_rate := old.exchange_rate;
-    v_converted := round(new.amount * new.exchange_rate, 2);
+    v_converted := round(new.amount * new.exchange_rate, v_units);
     if v_converted > 9999999999.99 then
       raise exception using errcode = '22003', message = 'converted_amount_too_large',
         detail = format('Amount %s %s converts to %s (maximum 9999999999.99)', new.amount, new.currency, v_converted);
@@ -825,8 +833,6 @@ begin
     new.amount_in_group_currency := v_converted;
     return new;
   end if;
-
-  select currency into v_group_currency from public.groups where id = new.group_id;
 
   if new.currency = v_group_currency then
     new.exchange_rate := 1;
@@ -848,7 +854,7 @@ begin
   end if;
 
   new.exchange_rate := v_to_rate / v_from_rate;
-  v_converted := round(new.amount * new.exchange_rate, 2);
+  v_converted := round(new.amount * new.exchange_rate, v_units);
   if v_converted > 9999999999.99 then
     raise exception using errcode = '22003', message = 'converted_amount_too_large',
       detail = format('Amount %s %s converts to %s (maximum 9999999999.99)', new.amount, new.currency, v_converted);
@@ -876,11 +882,23 @@ as $$
 declare
   v_rate numeric;
   v_currency char(3);
+  v_group_currency char(3);
   -- Check an unconstrained numeric before assigning to the numeric(12,2) field.
   v_converted numeric;
 begin
-  select exchange_rate, currency into v_rate, v_currency from public.expenses where id = new.expense_id;
-  v_converted := round(new.share_amount * coalesce(v_rate, 1), 2);
+  select e.exchange_rate, e.currency, g.currency
+    into v_rate, v_currency, v_group_currency
+  from public.expenses e
+  left join public.groups g on g.id = e.group_id
+  where e.id = new.expense_id;
+
+  if tg_op = 'INSERT' or new.share_amount is distinct from old.share_amount then
+    perform public.assert_amount_precision(new.share_amount, v_currency);
+  end if;
+
+  -- Converted shares are in the group currency; an unscoped expense (no group) keeps its own.
+  v_converted := round(new.share_amount * coalesce(v_rate, 1),
+                       public.currency_minor_units(coalesce(v_group_currency, v_currency)));
   if v_converted > 9999999999.99 then
     raise exception using errcode = '22003', message = 'converted_amount_too_large',
       detail = format('Share amount %s %s converts to %s (maximum 9999999999.99)', new.share_amount, v_currency, v_converted);
@@ -893,6 +911,40 @@ $$;
 create trigger expense_shares_snapshot_currency_conversion
   before insert or update of share_amount on public.expense_shares
   for each row execute function public.snapshot_expense_share_currency_conversion();
+
+-- Decimals per currency (zero-decimal currencies: JPY, KRW, ISK; HUF/IDR stay at 2). Mirrored by
+-- webapp/src/lib/currencyUnits.ts and AxisApp/Models/CurrencyUnits.cs; tests fail if they drift.
+-- New or changed amounts/shares with more decimals than their currency allows raise
+-- 'amount_precision'; conversions round to the group currency's units (see
+-- supabase/zero_decimal_currencies.sql).
+create or replace function public.currency_minor_units(p_currency text)
+returns int
+language sql
+immutable
+as $$
+  select case when p_currency in ('ISK', 'JPY', 'KRW') then 0 else 2 end;
+$$;
+
+create or replace function public.currency_minor_step(p_currency text)
+returns numeric
+language sql
+immutable
+as $$
+  select case when public.currency_minor_units(p_currency) = 0 then 1::numeric else 0.01 end;
+$$;
+
+create or replace function public.assert_amount_precision(p_amount numeric, p_currency text)
+returns void
+language plpgsql
+as $$
+begin
+  if p_amount is distinct from round(p_amount, public.currency_minor_units(p_currency)) then
+    raise exception using errcode = '22003', message = 'amount_precision',
+      detail = format('%s has more decimals than %s allows (%s)',
+        p_amount, p_currency, public.currency_minor_units(p_currency));
+  end if;
+end;
+$$;
 
 -- expenses: visible/writable by any current group member
 create policy "select expenses in your groups" on public.expenses
@@ -1031,6 +1083,33 @@ create table public.recurring_expense_shares (
 
 create index on public.recurring_expenses (group_id);
 create index on public.recurring_expense_shares (member_id);
+
+create or replace function public.enforce_recurring_amount_precision()
+returns trigger
+language plpgsql
+as $$
+declare
+  v_currency char(3);
+begin
+  if tg_table_name = 'recurring_expenses' then
+    if tg_op = 'INSERT' or new.amount is distinct from old.amount or new.currency is distinct from old.currency then
+      perform public.assert_amount_precision(new.amount, new.currency);
+    end if;
+  elsif tg_op = 'INSERT' or new.share_amount is distinct from old.share_amount then
+    select currency into v_currency from public.recurring_expenses where id = new.recurring_expense_id;
+    perform public.assert_amount_precision(new.share_amount, v_currency);
+  end if;
+  return new;
+end;
+$$;
+
+create trigger recurring_expenses_amount_precision
+  before insert or update of amount, currency on public.recurring_expenses
+  for each row execute function public.enforce_recurring_amount_precision();
+
+create trigger recurring_expense_shares_amount_precision
+  before insert or update of share_amount on public.recurring_expense_shares
+  for each row execute function public.enforce_recurring_amount_precision();
 
 alter table public.recurring_expenses enable row level security;
 alter table public.recurring_expense_shares enable row level security;
@@ -3333,11 +3412,14 @@ begin
     raise exception 'A settlement must have exactly one share';
   end if;
 
+  -- Equal shares may differ by one smallest unit of the expense currency: a cent, or a whole
+  -- yen for JPY, KRW and ISK (public.currency_minor_step).
   if v_split_mode = 'equal' and (
-    select max(share_amount) - min(share_amount) > 0.01
+    select max(share_amount) - min(share_amount) > public.currency_minor_step(
+      (select currency from expenses where id = v_id))
     from expense_shares where expense_id = v_id
   ) then
-    raise exception 'Equal shares may differ by at most one cent';
+    raise exception 'Equal shares may differ by at most one smallest currency unit';
   end if;
 
   return v_id;
@@ -3502,10 +3584,11 @@ begin
   end if;
 
   if v_split_mode = 'equal' and (
-    select max(share_amount) - min(share_amount) > 0.01
+    select max(share_amount) - min(share_amount) > public.currency_minor_step(
+      (select currency from recurring_expenses where id = v_id))
     from recurring_expense_shares where recurring_expense_id = v_id
   ) then
-    raise exception 'Equal shares may differ by at most one cent';
+    raise exception 'Equal shares may differ by at most one smallest currency unit';
   end if;
 
   return v_id;

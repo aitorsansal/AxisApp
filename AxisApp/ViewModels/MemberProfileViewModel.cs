@@ -162,11 +162,12 @@ public partial class MemberProfileViewModel : BaseViewModel, IQueryAttributable
         }
     });
 
-    private static string Money(string symbol, decimal value) => $"{symbol}{value:0.00}";
+    private static string Money(string currency, decimal value) =>
+        $"{AppConstants.Currencies.SymbolFor(currency)}{CurrencyUnits.Text(value, currency)}";
 
     /// <summary>"+€19,50" / "−€5,00", or a plain "€0,00" for zero.</summary>
-    private static string SignedMoney(string symbol, decimal value) =>
-        value > 0 ? $"+{Money(symbol, value)}" : value < 0 ? $"−{Money(symbol, -value)}" : Money(symbol, 0);
+    private static string SignedMoney(string currency, decimal value) =>
+        value > 0 ? $"+{Money(currency, value)}" : value < 0 ? $"−{Money(currency, -value)}" : Money(currency, 0);
 
     /// <summary>Null if the target member isn't actually in this group — not every one of "my"
     /// groups is shared with them.</summary>
@@ -176,7 +177,6 @@ public partial class MemberProfileViewModel : BaseViewModel, IQueryAttributable
         if (!members.Any(m => m.Id == targetMemberId)) return null;
 
         var loc = LocalizationResourceManager.Instance;
-        var symbol = AppConstants.Currencies.SymbolFor(group.Currency);
 
         // The header keeps reading the server's balance (my_pairwise_balances, same as Group
         // Detail); PairBreakdown sums the same edges, so its lines add up to it.
@@ -196,7 +196,7 @@ public partial class MemberProfileViewModel : BaseViewModel, IQueryAttributable
             ExpenseId = line.ExpenseId,
             Description = string.IsNullOrWhiteSpace(line.Description) ? CategoryDisplay.Label(line.Category) : line.Description,
             DateText = DateFormats.ShortDate(line.OccurredAt.ToLocalTime(), includeYear: line.OccurredAt.Year != DateTime.Now.Year),
-            PartText = loc.Format(line.IPaid ? "MemberProfile_TheirPart" : "MemberProfile_YourPart", Money(symbol, line.Amount))
+            PartText = loc.Format(line.IPaid ? "MemberProfile_TheirPart" : "MemberProfile_YourPart", Money(group.Currency, line.Amount))
         }).ToList();
 
         return new MemberProfileGroupItem
@@ -205,13 +205,13 @@ public partial class MemberProfileViewModel : BaseViewModel, IQueryAttributable
             GroupName = group.Name,
             IsOwed = balance > 0,
             IsOwing = balance < 0,
-            AmountText = balance > 0 ? $"+{Money(symbol, balance)}" : balance < 0 ? $"-{Money(symbol, -balance)}" : Money(symbol, 0),
+            AmountText = balance > 0 ? $"+{Money(group.Currency, balance)}" : balance < 0 ? $"-{Money(group.Currency, -balance)}" : Money(group.Currency, 0),
             CaptionText = balance > 0 ? loc["GroupDetail_OwesYou"] : balance < 0 ? loc["GroupDetail_YouOwe"] : loc["Common_SettledUp"],
             PaidForThemLabel = loc.Format("MemberProfile_PaidForThem", MemberName),
-            PaidForThemText = SignedMoney(symbol, breakdown.PaidForThem),
+            PaidForThemText = SignedMoney(group.Currency, breakdown.PaidForThem),
             PaidForYouLabel = loc.Format("MemberProfile_PaidForYou", MemberName),
-            PaidForYouText = SignedMoney(symbol, -breakdown.PaidForMe),
-            SettlementsText = SignedMoney(symbol, breakdown.SettlementsNet),
+            PaidForYouText = SignedMoney(group.Currency, -breakdown.PaidForMe),
+            SettlementsText = SignedMoney(group.Currency, breakdown.SettlementsNet),
             SettlementsLabel = breakdown.SettlementsNet == 0
                 ? loc["MemberProfile_Settlements"]
                 : $"{loc["MemberProfile_Settlements"]} ({loc.Format(breakdown.SettlementsNet < 0 ? "MemberProfile_TheyPaidYou" : "MemberProfile_YouPaidThem", MemberName)})",

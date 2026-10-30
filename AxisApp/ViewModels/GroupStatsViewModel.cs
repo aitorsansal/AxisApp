@@ -83,7 +83,7 @@ public partial class GroupStatsViewModel : BaseViewModel
         DataLabelsFormatter = point => format(point.Model)
     };
 
-    private string Money(double value) => $"{groupSymbol}{value:0.00}";
+    private string Money(double value) => $"{groupSymbol}{CurrencyUnits.Text((decimal)value, groupCurrency)}";
 
     private static string Count(double value) => value.ToString("0", CultureInfo.CurrentCulture);
 
@@ -120,6 +120,7 @@ public partial class GroupStatsViewModel : BaseViewModel
     private Dictionary<Guid, string> aliases = new();
     private string groupName = "";
     private string groupSymbol = "";
+    private string groupCurrency = "EUR";
 
     [ObservableProperty] private bool isBusy;
     /// <summary>True only while the very first load (for this tab instance) is in flight — same
@@ -200,6 +201,7 @@ public partial class GroupStatsViewModel : BaseViewModel
                 aliases = loadAliases.Result;
                 groupName = loadGroup.Result.Name;
                 groupSymbol = AppConstants.Currencies.SymbolFor(loadGroup.Result.Currency);
+                groupCurrency = loadGroup.Result.Currency;
 
                 var expenseIds = allExpenses.Select(e => e.Id).ToList();
                 allShares = await expensesRepository.GetSharesForExpensesAsync(expenseIds);
@@ -256,7 +258,7 @@ public partial class GroupStatsViewModel : BaseViewModel
         else if (choice == loc["Stats_ExportPdf"])
         {
             var path = await StatsExporter.ExportStatsPdfAsync(
-                groupName, DateRangeLabel(), groupSymbol, FilteredExpenses, allShares, membersById, aliases);
+                groupName, DateRangeLabel(), groupSymbol, groupCurrency, FilteredExpenses, allShares, membersById, aliases);
             await Share.Default.RequestAsync(new ShareFileRequest { Title = loc["Stats_ExportPdf"], File = new ShareFile(path) });
         }
     });

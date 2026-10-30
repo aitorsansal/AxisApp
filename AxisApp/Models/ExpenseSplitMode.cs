@@ -8,13 +8,14 @@ public static class ExpenseSplitMode
     public static bool IsEqual(string? mode) => mode == Equal;
 
     public static decimal[] AllocateEqual(decimal amount, IReadOnlyList<Guid> members,
-        IReadOnlyDictionary<Guid, decimal>? saved)
+        IReadOnlyDictionary<Guid, decimal>? saved, string? currency)
     {
+        var factor = CurrencyUnits.Factor(currency);
         if (saved is not null && members.Count > 0 && saved.Count == members.Count
-            && members.All(id => saved.TryGetValue(id, out var value) && value > 0 && value * 100 == decimal.Truncate(value * 100))
+            && members.All(id => saved.TryGetValue(id, out var value) && value > 0 && value * factor == decimal.Truncate(value * factor))
             && members.Sum(id => saved[id]) == amount
-            && members.Max(id => saved[id]) - members.Min(id => saved[id]) <= .01m)
+            && members.Max(id => saved[id]) - members.Min(id => saved[id]) <= 1m / factor)
             return members.Select(id => saved[id]).ToArray();
-        return ExpenseMath.SplitEqually(amount, members.Count);
+        return ExpenseMath.SplitEqually(amount, members.Count, currency);
     }
 }

@@ -1,3 +1,4 @@
+using AxisApp.Models;
 using Android.App;
 using Android.Appwidget;
 using Android.Content;
@@ -70,7 +71,7 @@ public class BalancesWidgetRemoteViewsFactory : Java.Lang.Object, RemoteViewsSer
         else
         {
             var verb = row.Balance > 0 ? "owes you" : "you owe";
-            views.SetTextViewText(Resource.Id.widget_row_amount, $"{verb} {Math.Abs(row.Balance):0.00}{row.Currency}");
+            views.SetTextViewText(Resource.Id.widget_row_amount, $"{verb} {CurrencyUnits.Text(Math.Abs(row.Balance), row.Currency)}{row.Currency}");
             views.SetTextColor(Resource.Id.widget_row_amount, row.Balance > 0 ? OwedToMeColor : IOweColor);
         }
 

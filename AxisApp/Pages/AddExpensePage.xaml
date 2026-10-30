@@ -95,7 +95,7 @@
                             controls:DecimalInput.IsEnabled="True"
                             Unfocused="OnAmountUnfocused"
                             AutomationId="ExpenseAmount"
-                            Placeholder="0.00"
+                            Placeholder="{Binding AmountPlaceholder}"
                             SemanticProperties.Description="{loc:Translate AddExpense_AmountLabel}"
                             FontSize="{StaticResource TypeAmountHero}"
                             FontAttributes="Bold"
@@ -107,7 +107,7 @@
                     <BoxView HeightRequest="2" WidthRequest="120" Color="{DynamicResource Primary}" HorizontalOptions="Center" />
                 </VerticalStackLayout>
 
-                <Label Text="{loc:Translate AmountInput_FormatHint}" Style="{StaticResource LabelSecondary}" />
+                <Label Text="{Binding AmountHint}" Style="{StaticResource LabelSecondary}" />
                 <Label Text="{Binding AmountValidationMessage}" TextColor="{DynamicResource Danger}"
                        IsVisible="{Binding AmountValidationMessage, Converter={StaticResource StringNotEmptyConverter}}" />
 

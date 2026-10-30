@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useGoBackTo } from '../lib/navigation'
 import { supabase } from '../lib/supabaseClient'
-import { isConvertedAmountTooLarge } from '../lib/dbErrors'
+import { amountDbErrorKey } from '../lib/dbErrors'
 import { useAuth } from '../context/AuthContext'
 import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
@@ -22,7 +22,8 @@ import { DateField } from '../components/DateField'
 import { SettlementForm } from '../components/SettlementForm'
 import type { SettlementDraft } from '../lib/settlements'
 import { settlementEditorSnapshot } from '../lib/formEditorSnapshots'
-import { amountErrorKey, parseAmountInput } from '../lib/amountInput'
+import { amountErrorKey, amountHintKey, parseAmountInput } from '../lib/amountInput'
+import { fromMinor, minorText, minorUnits, toMinor } from '../lib/currencyUnits'
 import { expenseEditorSnapshot } from '../lib/expenseEditorSnapshot'
 import { useUnsavedChanges } from '../lib/useUnsavedChanges'
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
@@ -30,7 +31,7 @@ import './AddExpensePage.css'
 
 const RECEIPTS_BUCKET = 'receipts'
 
-const formatCents = (cents: number) => (cents / 100).toFixed(2)
+const formatMinor = (minor: number, currency: string) => minorText(minor, currency)
 
 export function AddExpensePage() {
   const { groupId, expenseId, recurringId } = useParams<{
@@ -157,7 +158,7 @@ export function AddExpensePage() {
         )
         setReceiptPath(expense.receipt_path)
         setLinkedEventId(expense.event_id)
-        loadShares(sharesRes.data ?? [])
+        loadShares(sharesRes.data ?? [], expense.currency)
         // A settlement is always one share for the full amount — keep it derived.
         setIsManualSplit(!expense.is_settlement && restoredSplitMode(expense.split_mode) === 'manual')
         if (expense.receipt_path) {
@@ -189,7 +190,7 @@ export function AddExpensePage() {
         setStartDate(tpl.start_date)
         setFrequency(tpl.frequency)
         setPaidBy(tpl.paid_by_member_id)
-        loadShares(sharesRes.data ?? [])
+        loadShares(sharesRes.data ?? [], tpl.currency)
         setIsManualSplit(restoredSplitMode(tpl.split_mode) === 'manual')
       } else {
         setCurrency(groupData.currency)
@@ -227,22 +228,22 @@ export function AddExpensePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, expenseId, recurringId, editorKey])
 
-  function loadShares(rows: { member_id: string; share_amount: number }[]) {
-    setSavedEqualShares(Object.fromEntries(rows.map((s) => [s.member_id, Math.round(Number(s.share_amount) * 100)])))
+  function loadShares(rows: { member_id: string; share_amount: number }[], rowCurrency: string) {
+    setSavedEqualShares(Object.fromEntries(rows.map((s) => [s.member_id, toMinor(s.share_amount, rowCurrency)])))
     setParticipants(new Set(rows.map((s) => s.member_id)))
     setShareInputs(
       Object.fromEntries(rows.map((s) => [s.member_id, Number(s.share_amount).toLocaleString(language === 'es' ? 'es-ES' : 'en-US', {
-        useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2,
+        useGrouping: false, minimumFractionDigits: minorUnits(rowCurrency), maximumFractionDigits: minorUnits(rowCurrency),
       })])),
     )
   }
 
   // Member-list order, so "last participant" (who absorbs the leftover cent) is stable.
   const includedIds = members.map((m) => m.member_id).filter((id) => participants.has(id))
-  const parsedAmount = parseAmountInput(amount)
+  const parsedAmount = parseAmountInput(amount, currency)
   const totalCents = parsedAmount.cents ?? 0
   const useEqualSplit = !isManualSplit || isSettlement
-  const parsedShares = Object.fromEntries(includedIds.map((id) => [id, parseAmountInput(shareInputs[id] ?? '')]))
+  const parsedShares = Object.fromEntries(includedIds.map((id) => [id, parseAmountInput(shareInputs[id] ?? '', currency)]))
   const shareCents: Record<string, number> = useEqualSplit
     ? editableEqualSplitCents(totalCents, includedIds, savedEqualShares)
     : Object.fromEntries(includedIds.map((id) => [id, parsedShares[id].cents ?? 0]))
@@ -250,7 +251,7 @@ export function AddExpensePage() {
   const shareInputsValid = useEqualSplit || includedIds.every((id) => parsedShares[id].cents !== null)
   const isSplitValid = parsedAmount.cents !== null && shareInputsValid && remainingCents === 0
     && includedIds.every((id) => shareCents[id] > 0)
-  const displayCents = (cents: number) => formatCents(cents).replace('.', language === 'es' ? ',' : '.')
+  const displayCents = (cents: number) => formatMinor(cents, currency).replace('.', language === 'es' ? ',' : '.')
 
   const unsaved = useUnsavedChanges(editorKey,
     expenseLoaded && loadedEditorKey === editorKey && !isSettlement ? expenseEditorSnapshot({
@@ -297,7 +298,7 @@ export function AddExpensePage() {
   }
 
   function buildShares() {
-    return includedIds.map((id) => ({ member_id: id, share_amount: shareCents[id] / 100 }))
+    return includedIds.map((id) => ({ member_id: id, share_amount: fromMinor(shareCents[id], currency) }))
   }
 
   async function handleReceiptChange(e: ChangeEvent<HTMLInputElement>) {
@@ -339,10 +340,10 @@ export function AddExpensePage() {
 
     if (parsedAmount.cents === null) {
       setShowAmountError(true)
-      setError(t(amountErrorKey(parsedAmount.error)))
+      setError(t(amountErrorKey(parsedAmount.error, currency)))
       return
     }
-    const total = parsedAmount.cents / 100
+    const total = fromMinor(parsedAmount.cents, currency)
     if (participants.size === 0) {
       setError(t('AddExpense_PickParticipant'))
       return
@@ -394,7 +395,7 @@ export function AddExpensePage() {
           },
           p_shares: buildShares(),
         })
-        if (saveError) return setError(isConvertedAmountTooLarge(saveError) ? t('AmountInput_ConvertedTooLarge') : saveError.message)
+        if (saveError) return setError(amountDbErrorKey(saveError) ? t(amountDbErrorKey(saveError)!) : saveError.message)
         unsaved.markSaved()
         goBackTo(`/groups/${groupId}/recurring`)
         return
@@ -417,12 +418,12 @@ export function AddExpensePage() {
         },
         p_shares: buildShares(),
       })
-      if (saveError) return setError(isConvertedAmountTooLarge(saveError) ? t('AmountInput_ConvertedTooLarge') : saveError.message)
+      if (saveError) return setError(amountDbErrorKey(saveError) ? t(amountDbErrorKey(saveError)!) : saveError.message)
 
       unsaved.markSaved()
       goBackTo(parentPath)
     } catch (error) {
-      setError(t(isConvertedAmountTooLarge(error) ? 'AmountInput_ConvertedTooLarge' : 'Common_SaveFailed'))
+      setError(t(amountDbErrorKey(error) ?? 'Common_SaveFailed'))
     } finally {
       setBusy(false)
     }
@@ -513,7 +514,7 @@ export function AddExpensePage() {
               id="amount"
               type="text"
               inputMode="decimal"
-              placeholder="0.00"
+              placeholder={minorUnits(currency) === 0 ? '0' : '0.00'}
               required
               value={amount}
               aria-invalid={showAmountError && parsedAmount.cents === null}
@@ -534,9 +535,9 @@ export function AddExpensePage() {
           </div>
         </div>
 
-        <p id="amount-format-hint" className="amount-format-hint">{t('AmountInput_FormatHint')}</p>
+        <p id="amount-format-hint" className="amount-format-hint">{t(amountHintKey(currency))}</p>
         <p id="amount-error" className="error-text" role="status">
-          {showAmountError && parsedAmount.cents === null ? t(amountErrorKey(parsedAmount.error)) : ''}
+          {showAmountError && parsedAmount.cents === null ? t(amountErrorKey(parsedAmount.error, currency)) : ''}
         </p>
 
         <div className="field">
@@ -626,7 +627,7 @@ export function AddExpensePage() {
                       aria-label={t('AmountInput_ShareLabel', displayName(m.members))}
                       aria-invalid={!useEqualSplit && !!shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null}
                       aria-describedby={`share-error-${m.member_id}`}
-                      placeholder="0.00"
+                      placeholder={minorUnits(currency) === 0 ? '0' : '0.00'}
                       value={
                         useEqualSplit
                           ? displayCents(shareCents[m.member_id])
@@ -638,7 +639,7 @@ export function AddExpensePage() {
                   )}
                   {!useEqualSplit && included && shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null && (
                     <p id={`share-error-${m.member_id}`} className="error-text share-error" role="status">
-                      {t(amountErrorKey(parsedShares[m.member_id].error))}
+                      {t(amountErrorKey(parsedShares[m.member_id].error, currency))}
                     </p>
                   )}
                 </div>

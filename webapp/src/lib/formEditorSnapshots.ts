@@ -4,7 +4,7 @@ import type { SettlementDraft } from './settlements'
 export function settlementEditorSnapshot(draft: SettlementDraft): string {
   return JSON.stringify({
     payer: draft.payerId, recipient: draft.recipientId, currency: draft.currency,
-    amount: amountCents(draft.amount) ?? `invalid:${draft.amount}`,
+    amount: amountCents(draft.amount, draft.currency) ?? `invalid:${draft.amount}`,
     date: draft.date, note: draft.note,
   })
 }

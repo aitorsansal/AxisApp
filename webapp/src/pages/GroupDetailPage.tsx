@@ -26,6 +26,7 @@ import { Icon } from '../components/Icon'
 import { categoryIcon } from '../lib/icons'
 import { categoryColor } from '../lib/stats'
 import { formatMoney } from '../lib/formatting'
+import { amountText } from '../lib/currencyUnits'
 import { formatExpenseAmount, getShowConverted } from '../lib/amountDisplay'
 import { useGroups } from '../context/useGroups'
 import './GroupDetailPage.css'
@@ -395,7 +396,7 @@ export function GroupDetailPage() {
           <SettlementForm
             initial={{
               ...settlementParties(myMemberId, settlement.other_member_id, settlement.balance),
-              amount: Math.abs(settlement.balance).toFixed(2),
+              amount: amountText(Math.abs(settlement.balance), group.currency),
               currency: group.currency,
               date: localDateInput(),
               note: '',

@@ -1,3 +1,5 @@
+import { minorUnits } from './currencyUnits.ts'
+
 export function formatMoney(
   amount: number,
   currency: string,
@@ -7,8 +9,8 @@ export function formatMoney(
   return new Intl.NumberFormat(language === 'es' ? 'es-ES' : 'en-US', {
     style: 'currency',
     currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: minorUnits(currency),
+    maximumFractionDigits: minorUnits(currency),
     signDisplay: signed ? 'exceptZero' : 'auto',
   }).format(amount)
 }

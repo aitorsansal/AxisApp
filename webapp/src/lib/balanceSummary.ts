@@ -1,9 +1,10 @@
 import type { PairwiseBalance } from './types'
+import { toMinor } from './currencyUnits.ts'
 
 // "You're owed" / "You owe" totals built from pairwise balances, never from group nets: a group
 // net already cancels what one person owes you against what you owe someone else, which would
 // hide real debts. Positive and negative rows are summed separately, per currency (no
-// conversion), in integer cents.
+// conversion), in integer minor units (cents; whole yen for JPY, KRW, ISK).
 
 export interface CurrencyTotal {
   currency: string
@@ -43,7 +44,7 @@ export function summarizeBalances(
   for (const row of rows) {
     const currency = currencyOf(row.group_id)
     if (!currency) continue
-    const cents = Math.round(row.balance * 100)
+    const cents = toMinor(row.balance, currency)
     if (cents > 0) add(summary.owedToMe, row, currency, cents)
     else if (cents < 0) add(summary.iOwe, row, currency, -cents)
   }

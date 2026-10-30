@@ -40,7 +40,7 @@ public static class StatsExporter
                 CsvField(e.OccurredAt.ToLocalTime().ToString("yyyy-MM-dd")),
                 CsvField(e.Description),
                 CsvField(CategoryDisplay.Label(e.Category)),
-                CsvField(e.Amount.ToString("0.00", CultureInfo.InvariantCulture)),
+                CsvField(CurrencyUnits.Text(e.Amount, e.Currency, CultureInfo.InvariantCulture)),
                 CsvField(e.Currency),
                 CsvField(paidBy),
                 CsvField(e.IsSettlement ? "Yes" : "No")));
@@ -60,6 +60,7 @@ public static class StatsExporter
         string groupName,
         string rangeLabel,
         string groupSymbol,
+        string groupCurrency,
         IReadOnlyList<Expense> expenses,
         IReadOnlyList<ExpenseShare> shares,
         IReadOnlyDictionary<Guid, Member> membersById,
@@ -84,7 +85,7 @@ public static class StatsExporter
             nonSettlement.GroupBy(e => e.Category)
                 .Select(g => (Label: CategoryDisplay.Label(g.Key), Total: g.Sum(e => e.AmountInGroupCurrency)))
                 .OrderByDescending(x => x.Total)
-                .Select(x => (x.Label, $"{groupSymbol}{x.Total:0.00}")));
+                .Select(x => (x.Label, $"{groupSymbol}{CurrencyUnits.Text(x.Total, groupCurrency)}")));
 
         writer.SectionHeader(loc["Stats_CategoryFrequency"]);
         writer.Table(
@@ -98,7 +99,7 @@ public static class StatsExporter
             nonSettlement.GroupBy(e => e.PaidByMemberId)
                 .Select(g => (Label: MemberName(g.Key, membersById, aliases), Total: g.Sum(e => e.AmountInGroupCurrency)))
                 .OrderByDescending(x => x.Total)
-                .Select(x => (x.Label, $"{groupSymbol}{x.Total:0.00}")));
+                .Select(x => (x.Label, $"{groupSymbol}{CurrencyUnits.Text(x.Total, groupCurrency)}")));
 
         writer.SectionHeader(loc["Stats_SettleUpCadence"]);
         writer.Table(

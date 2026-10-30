@@ -132,7 +132,7 @@ public partial class SettlementViewModel(
                 payerId = expense.PaidByMemberId;
                 recipientId = shares[0].MemberId;
                 currency = expense.Currency;
-                AmountText = expense.Amount.ToString("0.00", CultureInfo.InvariantCulture);
+                AmountText = CurrencyUnits.Text(expense.Amount, expense.Currency, CultureInfo.InvariantCulture);
                 Note = expense.Description;
                 OccurredOn = expense.OccurredAt.ToLocalTime().Date;
                 CanDelete = expense.CreatedBy == authService.CurrentAccountId || group.CreatedBy == authService.CurrentAccountId
@@ -147,7 +147,7 @@ public partial class SettlementViewModel(
                 expectedBalance = balance;
                 (payerId, recipientId) = SettlementRules.Parties(myMemberId, otherId.Value, balance);
                 currency = group.Currency;
-                AmountText = Math.Abs(balance).ToString("0.00", CultureInfo.InvariantCulture);
+                AmountText = CurrencyUnits.Text(Math.Abs(balance), currency, CultureInfo.InvariantCulture);
                 Note = "";
                 OccurredOn = DateTime.Today;
                 OutstandingText = loc.Format("Settlement_Outstanding", Money(Math.Abs(balance)));
@@ -165,14 +165,14 @@ public partial class SettlementViewModel(
         finally { IsBusy = false; }
     });
 
-    private string Money(decimal amount) => $"{amount.ToString("N2", CultureInfo.GetCultureInfo(loc.CurrentLanguage == "es" ? "es-ES" : "en-US"))} {groupCurrency}";
+    private string Money(decimal amount) => $"{amount.ToString(CurrencyUnits.MinorUnits(groupCurrency) == 0 ? "N0" : "N2", CultureInfo.GetCultureInfo(loc.CurrentLanguage == "es" ? "es-ES" : "en-US"))} {groupCurrency}";
 
     [RelayCommand]
     private Task Save() => RunSafeAsync(async () =>
     {
         if (!CanInteract) return;
-        if (!SettlementRules.TryAmount(AmountText, out var amount))
-        { ErrorMessage = loc[AmountInput.MessageKey(AmountText)]; return; }
+        if (!SettlementRules.TryAmount(AmountText, Currency, out var amount))
+        { ErrorMessage = loc[AmountInput.MessageKey(AmountText, Currency)]; return; }
         if (SelectedPayer is null || SelectedRecipient is null || SelectedPayer.Member.Id == SelectedRecipient.Member.Id)
         { ErrorMessage = loc["Settlement_InvalidParties"]; return; }
         if (expectedBalance is { } maximum && amount > Math.Abs(maximum))

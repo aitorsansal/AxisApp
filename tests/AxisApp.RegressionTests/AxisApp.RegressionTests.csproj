@@ -12,6 +12,7 @@
     <Compile Include="../../AxisApp/Models/ExpenseSplitMode.cs" Link="ExpenseSplitMode.cs" />
     <Compile Include="../../AxisApp/Models/ExpenseMath.cs" Link="ExpenseMath.cs" />
     <Compile Include="../../AxisApp/Models/SettlementRules.cs" Link="SettlementRules.cs" />
+    <Compile Include="../../AxisApp/Models/CurrencyUnits.cs" Link="CurrencyUnits.cs" />
     <Compile Include="../../AxisApp/Models/AmountInput.cs" Link="AmountInput.cs" />
     <Compile Include="../../AxisApp/Models/EventTimes.cs" Link="EventTimes.cs" />
     <Compile Include="../../AxisApp/Models/DateFormats.cs" Link="DateFormats.cs" />
@@ -21,5 +22,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="../amount-input-cases.json" Link="amount-input-cases.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../supabase/zero_decimal_currencies.sql" Link="zero_decimal_currencies.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

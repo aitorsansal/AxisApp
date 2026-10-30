@@ -21,7 +21,7 @@ public static class FormEditorSnapshots
 
     public static string Settlement(SettlementEditorState state) => JsonSerializer.Serialize(new
     {
-        Amount = AmountInput.TryParse(state.Amount, out var amount)
+        Amount = AmountInput.TryParse(state.Amount, state.Currency, out var amount)
             ? amount.ToString("0.##", CultureInfo.InvariantCulture) : "invalid:" + state.Amount,
         state.Note, Date = state.Date.Date, state.Payer, state.Recipient, state.Currency
     });

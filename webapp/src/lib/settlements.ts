@@ -1,4 +1,5 @@
 import { amountCents } from './amountInput.ts'
+import { fromMinor } from './currencyUnits.ts'
 
 export interface SettlementDraft {
   id?: string
@@ -29,10 +30,10 @@ export function settlementPayload(
   fallbackDescription: string,
   occurredAt: string,
 ) {
-  const cents = settlementCents(draft.amount)
+  const cents = settlementCents(draft.amount, draft.currency)
   if (cents === null || !draft.payerId || !draft.recipientId || draft.payerId === draft.recipientId)
     throw new Error('Invalid settlement')
-  const amount = cents / 100
+  const amount = fromMinor(cents, draft.currency)
   return {
     p_expense: {
       id: draft.id ?? null,

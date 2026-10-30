@@ -170,7 +170,7 @@ public partial class GroupExpensesViewModel : BaseViewModel
         var page = loadExpenses.Result;
         var groupSymbol = AppConstants.Currencies.SymbolFor(nextGroup.Currency);
         var loadShares = expensesRepository.GetSharesForExpensesAsync(page.Select(e => e.Id).ToList());
-        var loadBalances = BuildPairwiseItemsAsync(groupSymbol, targetGroup, nextMembers, nextAliases);
+        var loadBalances = BuildPairwiseItemsAsync(groupSymbol, nextGroup.Currency, targetGroup, nextMembers, nextAliases);
         await Task.WhenAll(loadShares, loadBalances);
         if (generation != loadGeneration) return;
         // Search or paging may have started while a quiet reload was in flight.
@@ -225,7 +225,7 @@ public partial class GroupExpensesViewModel : BaseViewModel
     private async Task RefreshBalancesAsync(int generation)
     {
         var groupSymbol = AppConstants.Currencies.SymbolFor(currentGroup!.Currency);
-        var items = await BuildPairwiseItemsAsync(groupSymbol, groupId, membersById, aliases);
+        var items = await BuildPairwiseItemsAsync(groupSymbol, currentGroup!.Currency, groupId, membersById, aliases);
         if (generation != loadGeneration) return;
         Balances = new ObservableCollection<MemberBalanceItem>(items);
         loadedAtUtc = DateTime.UtcNow;
@@ -364,7 +364,7 @@ public partial class GroupExpensesViewModel : BaseViewModel
     /// The old Simplified (DebtSimplifier) mode was removed 2026-10-27: settling one of its
     /// suggested transfers between two people who never shared an expense left made-up debts in
     /// this pairwise view.</summary>
-    private async Task<List<MemberBalanceItem>> BuildPairwiseItemsAsync(string groupSymbol, Guid targetGroup,
+    private async Task<List<MemberBalanceItem>> BuildPairwiseItemsAsync(string groupSymbol, string groupCurrency, Guid targetGroup,
         IReadOnlyDictionary<Guid, Member> members, IReadOnlyDictionary<Guid, string> memberAliases)
     {
         var pairwise = await balancesRepository.GetMyPairwiseForGroupAsync(targetGroup);
@@ -384,14 +384,14 @@ public partial class GroupExpensesViewModel : BaseViewModel
             {
                 item.IsOwed = true;
                 item.IsSettled = false;
-                item.AmountText = $"+{groupSymbol}{row.Balance:0.00}";
+                item.AmountText = $"+{groupSymbol}{CurrencyUnits.Text(row.Balance, groupCurrency)}";
                 item.CaptionText = LocalizationResourceManager.Instance["GroupDetail_OwesYou"];
             }
             else if (row.Balance < 0)
             {
                 item.IsOwing = true;
                 item.IsSettled = false;
-                item.AmountText = $"-{groupSymbol}{Math.Abs(row.Balance):0.00}";
+                item.AmountText = $"-{groupSymbol}{CurrencyUnits.Text(Math.Abs(row.Balance), groupCurrency)}";
                 item.CaptionText = LocalizationResourceManager.Instance["GroupDetail_YouOwe"];
             }
             items.Add(item);
@@ -409,12 +409,14 @@ public partial class GroupExpensesViewModel : BaseViewModel
         Expense expense, string groupSymbol, string groupCurrency, bool showConverted)
     {
         if (expense.Currency == groupCurrency)
-            return ($"{groupSymbol}{expense.AmountInGroupCurrency:0.00}", "");
+            return ($"{groupSymbol}{CurrencyUnits.Text(expense.AmountInGroupCurrency, groupCurrency)}", "");
 
         var originalSymbol = AppConstants.Currencies.SymbolFor(expense.Currency);
+        var converted = CurrencyUnits.Text(expense.AmountInGroupCurrency, groupCurrency);
+        var original = CurrencyUnits.Text(expense.Amount, expense.Currency);
         return showConverted
-            ? ($"{groupSymbol}{expense.AmountInGroupCurrency:0.00}", $"({originalSymbol}{expense.Amount:0.00})")
-            : ($"{originalSymbol}{expense.Amount:0.00}", $"(≈{groupSymbol}{expense.AmountInGroupCurrency:0.00})");
+            ? ($"{groupSymbol}{converted}", $"({originalSymbol}{original})")
+            : ($"{originalSymbol}{original}", $"(≈{groupSymbol}{converted})");
     }
 
     /// <summary>Internal rather than private so EventDetailViewModel can reuse it — same reasoning

@@ -2,6 +2,8 @@
 // tables in AxisApp/Services/StatsExporter.cs. Pure (no React/Supabase) so
 // tests/regressions.test.mjs can run it directly.
 
+import { amountText } from './currencyUnits.ts'
+
 export type StatsRange = 'all' | '3m' | '6m' | '12m'
 export type MemberMode = 'paid' | 'share'
 
@@ -144,7 +146,7 @@ export function expensesCsv(
       localDate(e.occurred_at),
       e.description ?? '',
       categoryLabel(categoryKey(e.category)),
-      Number(e.amount).toFixed(2),
+      amountText(e.amount, e.currency),
       e.currency,
       memberName(e.paid_by_member_id),
       e.is_settlement ? 'Yes' : 'No',

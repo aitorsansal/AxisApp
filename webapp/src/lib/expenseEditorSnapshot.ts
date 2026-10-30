@@ -18,18 +18,18 @@ interface ExpenseEditorState {
   eventId: string | null
 }
 
-function amountValue(text: string) {
-  const parsed = parseAmountInput(text)
+function amountValue(text: string, currency: string) {
+  const parsed = parseAmountInput(text, currency)
   return parsed.cents ?? { invalid: text }
 }
 
 export function expenseEditorSnapshot(state: ExpenseEditorState): string {
   return JSON.stringify({
-    amount: amountValue(state.amount), description: state.description,
+    amount: amountValue(state.amount, state.currency), description: state.description,
     currency: state.currency, category: state.category, paidBy: state.paidBy,
     manual: state.manual,
     shares: [...state.includedIds].sort().map(id => [id,
-      state.manual ? amountValue(state.shareInputs[id] ?? '') : state.shareCents[id]]),
+      state.manual ? amountValue(state.shareInputs[id] ?? '', state.currency) : state.shareCents[id]]),
     recurring: state.recurring,
     date: state.recurring ? state.startDate : state.occurredOn,
     frequency: state.recurring ? state.frequency : null,

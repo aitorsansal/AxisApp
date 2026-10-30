@@ -2,12 +2,13 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocale } from '../context/LocaleContext'
 import { useAliases } from '../context/AliasesContext'
 import { supabase } from '../lib/supabaseClient'
-import { isConvertedAmountTooLarge } from '../lib/dbErrors'
+import { amountDbErrorKey } from '../lib/dbErrors'
 import { expenseTimestamp } from '../lib/dates'
 import { formatMoney } from '../lib/formatting'
 import { CURRENCIES, type MemberRow } from '../lib/types'
 import { isSettlementDate, settlementCents, settlementPayload, type SettlementDraft } from '../lib/settlements'
 import { amountErrorKey, parseAmountInput } from '../lib/amountInput'
+import { toMinor } from '../lib/currencyUnits'
 import './SettlementForm.css'
 
 export function SettlementForm({
@@ -57,14 +58,14 @@ export function SettlementForm({
     event.preventDefault()
     if (inFlight.current) return
     setError(null)
-    const cents = settlementCents(draft.amount)
-    if (cents === null) return setError(t(amountErrorKey(parseAmountInput(draft.amount).error)))
+    const cents = settlementCents(draft.amount, draft.currency)
+    if (cents === null) return setError(t(amountErrorKey(parseAmountInput(draft.amount, draft.currency).error, draft.currency)))
     if (!isSettlementDate(draft.date)) return setError(t('Settlement_InvalidDate'))
     if (!draft.payerId || !draft.recipientId || draft.payerId === draft.recipientId ||
       !members.some((m) => m.member_id === draft.payerId) ||
       !members.some((m) => m.member_id === draft.recipientId))
       return setError(t('Settlement_InvalidParties'))
-    if (expectedBalance !== undefined && cents > Math.round(Math.abs(expectedBalance) * 100))
+    if (expectedBalance !== undefined && cents > toMinor(Math.abs(expectedBalance), draft.currency))
       return setError(t('Settlement_ExceedsBalance'))
 
     setSaving(true)
@@ -74,7 +75,7 @@ export function SettlementForm({
         const result = await supabase.from('my_pairwise_balances').select('balance')
           .eq('group_id', groupId).eq('other_member_id', otherMemberId).maybeSingle()
         if (result.error) throw result.error
-        if (Math.round(Number(result.data?.balance ?? 0) * 100) !== Math.round(expectedBalance * 100)) {
+        if (toMinor(result.data?.balance ?? 0, draft.currency) !== toMinor(expectedBalance, draft.currency)) {
           setError(t('Settlement_BalanceChanged'))
           return
         }
@@ -86,7 +87,7 @@ export function SettlementForm({
       saved = true
       onCommitted()
     } catch (error) {
-      setError(t(isConvertedAmountTooLarge(error) ? 'AmountInput_ConvertedTooLarge' : 'Settlement_SaveFailed'))
+      setError(t(amountDbErrorKey(error) ?? 'Settlement_SaveFailed'))
     } finally {
       if (!saved) setSaving(false)
     }

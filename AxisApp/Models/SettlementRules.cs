@@ -4,8 +4,8 @@ public static class SettlementRules
 {
     public const decimal MaximumAmount = AmountInput.MaximumAmount;
 
-    public static bool TryAmount(string? text, out decimal amount)
-        => AmountInput.TryParse(text, out amount);
+    public static bool TryAmount(string? text, string? currency, out decimal amount)
+        => AmountInput.TryParse(text, currency, out amount);
 
     public static (Guid Payer, Guid Recipient) Parties(Guid me, Guid other, decimal balance) =>
         balance > 0 ? (other, me) : (me, other);

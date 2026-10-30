@@ -2,6 +2,8 @@
 // my_pairwise_balances sums (payer vs. share holder, settlements included), split into the lines
 // the balance is made of, so they always add up to it. Positive balance = they owe me.
 
+import { fromMinor, toMinor } from './currencyUnits.ts'
+
 export interface PairExpense {
   id: string
   paid_by_member_id: string
@@ -36,10 +38,16 @@ export interface PairBreakdown {
   expenses: PairExpenseLine[]
 }
 
-// Sums in cents so 0.1 + 0.2 style float drift can't leave a "−0,00" line.
-const cents = (value: number) => Math.round(Number(value) * 100)
-
-export function pairBreakdown(expenses: PairExpense[], shares: PairShare[], me: string, them: string): PairBreakdown {
+export function pairBreakdown(
+  expenses: PairExpense[],
+  shares: PairShare[],
+  me: string,
+  them: string,
+  currency: string,
+): PairBreakdown {
+  // Sums in minor units so 0.1 + 0.2 style float drift can't leave a "−0,00" line.
+  const cents = (value: number) => toMinor(value, currency)
+  const back = (minor: number) => fromMinor(minor, currency)
   const sharesByExpense = new Map<string, PairShare[]>()
   for (const share of shares) {
     const list = sharesByExpense.get(share.expense_id) ?? []
@@ -77,18 +85,18 @@ export function pairBreakdown(expenses: PairExpense[], shares: PairShare[], me: 
       category: e.category ?? '',
       occurredAt: e.occurred_at,
       iPaid,
-      amount: amount / 100,
+      amount: back(amount),
     })
   }
 
   lines.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
   return {
-    paidForThem: paidForThem / 100,
-    paidForMe: paidForMe / 100,
-    settledToThem: settledToThem / 100,
-    settledToMe: settledToMe / 100,
-    settlementsNet: (settledToThem - settledToMe) / 100,
-    balance: (paidForThem - paidForMe + settledToThem - settledToMe) / 100,
+    paidForThem: back(paidForThem),
+    paidForMe: back(paidForMe),
+    settledToThem: back(settledToThem),
+    settledToMe: back(settledToMe),
+    settlementsNet: back(settledToThem - settledToMe),
+    balance: back(paidForThem - paidForMe + settledToThem - settledToMe),
     expenses: lines,
   }
 }
