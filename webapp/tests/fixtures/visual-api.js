@@ -101,6 +101,110 @@ const tables = {
   calendar_subscriptions: [{ id: 'visual-subscription', member_id: me.id, token: 'synthetic-not-a-real-token', created_at: day(-40), last_accessed_at: null }],
 }
 
+
+const groupScenario = params.get('qaGroup')
+if (groupScenario === 'offset') {
+  tables.my_pairwise_balances = [
+    { group_id: piso, other_member_id: marta.id, balance: 30 },
+    { group_id: piso, other_member_id: joan.id, balance: -30 },
+  ]
+}
+if (groupScenario === 'owed-only') tables.my_pairwise_balances = pairwise.filter(row => row.balance > 0)
+if (groupScenario === 'settled' || groupScenario === 'empty') tables.my_pairwise_balances = []
+if (groupScenario === 'empty') tables.expenses = []
+if (groupScenario === 'large') {
+  groups[0].name = 'A long group name for a holiday with friends and family'
+  marta.display_name = 'A very long member name that needs to wrap on a phone'
+  tables.my_pairwise_balances = [
+    { group_id: piso, other_member_id: marta.id, balance: 9999999999.99 },
+    { group_id: piso, other_member_id: joan.id, balance: -9999999999.99 },
+  ]
+  expenses[0].amount = 9999999999.99
+  expenses[0].amount_in_group_currency = 9999999999.99
+  expenses[0].description = 'A long expense description that should remain readable on narrow screens'
+}
+if (groupScenario === 'jpy') {
+  groups[0].currency = 'JPY'
+  tables.my_pairwise_balances = [
+    { group_id: piso, other_member_id: marta.id, balance: 1501 },
+    { group_id: piso, other_member_id: joan.id, balance: -750 },
+  ]
+}
+
+
+const pageScenario = params.get('qaPages')
+if (pageScenario) {
+  window.__axisPageWrites = []
+  window.__axisCopiedPageLink = null
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+    writeText: async value => { window.__axisCopiedPageLink = value },
+  } })
+  tables.invites = [{ id: id(600), group_id: piso, token: 'SYNTHETIC-PREVIEW-ONLY',
+    target_member_id: null, created_by: userId, created_at: day(-1),
+    expires_at: day(7), max_uses: 5, use_count: 1 }]
+  tables.recurring_expenses = [...recurring, { ...recurring[0], id: id(401),
+    description: 'Weekend groceries', amount: 45, is_active: false }]
+  expenses[0].event_id = id(301)
+  expenses[1].event_id = id(301)
+
+  expenses.push(expense(piso, me, 12, 'Shared lunch QA', 'food', -3), expense(piso, marta, 8, 'Museum QA', 'entertainment', -5))
+  if (pageScenario === 'many') for (let i = 0; i < 6; i++) expenses.push(expense(piso, me, 8, 'Shared plan ' + (i + 1), 'entertainment', -i - 8))
+  tables.expense_shares = expenses.flatMap(expense => {
+    if (expense.is_settlement) return [{ expense_id: expense.id, member_id: me.id,
+      share_amount: expense.amount, share_amount_in_group_currency: expense.amount,
+      expenses: { group_id: expense.group_id } }]
+    const people = groupMembers.filter(row => row.group_id === expense.group_id)
+    const cents = Math.round(expense.amount_in_group_currency * 100)
+    return people.map((row, index) => {
+      const amount = (Math.floor(cents / people.length) + (index < cents % people.length ? 1 : 0)) / 100
+      return { expense_id: expense.id, member_id: row.member_id, share_amount: amount,
+        share_amount_in_group_currency: amount, expenses: { group_id: expense.group_id } }
+    })
+  })
+  const edges = new Map()
+  for (const expense of expenses) {
+    for (const share of tables.expense_shares.filter(row => row.expense_id === expense.id)) {
+      let other, delta
+      if (expense.paid_by_member_id === me.id && share.member_id !== me.id) {
+        other = share.member_id; delta = Math.round(share.share_amount_in_group_currency * 100)
+      } else if (expense.paid_by_member_id !== me.id && share.member_id === me.id) {
+        other = expense.paid_by_member_id; delta = -Math.round(share.share_amount_in_group_currency * 100)
+      } else continue
+      const key = expense.group_id + ':' + other
+      const row = edges.get(key) ?? { group_id: expense.group_id, other_member_id: other, cents: 0 }
+      row.cents += delta; edges.set(key, row)
+    }
+  }
+  tables.my_pairwise_balances = [...edges.values()].map(({ cents, ...row }) => ({ ...row, balance: cents / 100 }))
+  tables.my_group_balances = groups.map(group => ({ group_id: group.id,
+    balance: [...edges.values()].filter(row => row.group_id === group.id).reduce((sum, row) => sum + row.cents, 0) / 100 }))
+
+  if (pageScenario === 'empty') {
+    tables.recurring_expenses = []
+    tables.event_attendees = []
+    tables.expenses = []
+    tables.my_pairwise_balances = []
+    tables.my_group_balances = groups.map(group => ({ group_id: group.id, balance: 0 }))
+  }
+  if (pageScenario === 'long') {
+    groups[0].name = 'A long group name for a weekend away with friends and family'
+    marta.display_name = 'A very long member name that should remain readable on a phone'
+    events[1].title = 'A long event title for a full day together in the mountains'
+    events[1].location = 'A long meeting-point address with details for the whole group'
+    events[1].description = 'Bring lunch and comfortable shoes.\nWe will agree the route when everyone arrives.'
+    tables.recurring_expenses[0].description = 'A long recurring expense description for a shared household'
+    tables.recurring_expenses[0].amount = 9999999999.99
+  }
+}
+let pageWriteId = 900
+
+const formScenario = params.get('qaForms')
+if (formScenario) {
+  window.__axisFormWrites = []
+  tables.recurring_expense_shares = [me, marta, joan, lucia].map(member => ({
+    recurring_expense_id: id(400), member_id: member.id, share_amount: 162.5,
+  }))
+}
 const overviewScenario = params.get('qaOverview')
 if (overviewScenario === 'settled') tables.my_pairwise_balances = pairwise.map(row => ({ ...row, balance: 0 }))
 if (overviewScenario === 'owe-zero') tables.my_pairwise_balances = pairwise.filter(row => row.balance >= 0)
@@ -121,6 +225,7 @@ function filterRows(rows, searchParams) {
     for (const [key, value] of searchParams) {
       if (key.includes('.') || !(key in row)) continue
       if (value.startsWith('eq.') && String(row[key]) !== value.slice(3)) return false
+      if (value.startsWith('ilike.') && !String(row[key] ?? '').toLowerCase().includes(value.slice(6).replace(/^%|%$/g, '').toLowerCase())) return false
       if (value.startsWith('gte.') && row[key] < value.slice(4)) return false
       if (value.startsWith('in.(')) {
         const set = value.slice(4, -1).split(',').map((v) => v.replace(/"/g, ''))
@@ -149,6 +254,12 @@ window.fetch = async (input, init) => {
     if (scenario === 'claim') return reply({ status: 'ok', group_name: 'Preview QA', group_currency: 'EUR', member_count: 3, target_name: 'Preview Guest' }, request)
     if (scenario === 'used' || scenario === 'inviter_gone') return reply({ status: scenario }, request)
   }
+  if (formScenario && /\/rpc\/save_(recurring_)?expense$/.test(url.pathname)) {
+    window.__axisFormWrites.push({ rpc: url.pathname.split('/').pop(), payload: await request.json() })
+    if (formScenario === 'pending') await new Promise(resolve => { window.__axisReleaseFormWrite = resolve })
+    if (formScenario === 'save-error') return reply({ message: 'Synthetic save failure' }, request, 500)
+    return reply(id(999), request)
+  }
   if (url.pathname.includes('/rpc/')) return reply(null, request)
   if (overviewScenario && url.pathname.endsWith('/event_attendees') && request.method === 'POST') {
     const payload = await request.json()
@@ -160,6 +271,39 @@ window.fetch = async (input, init) => {
       window.__axisOverviewWrites.push({ ...row })
     }
     return reply([], request)
+  }
+  if (pageScenario && !['GET', 'HEAD'].includes(request.method) && url.pathname.includes('/rest/v1/') && !url.pathname.includes('/rpc/')) {
+    const table = url.pathname.split('/').pop()
+    const payload = request.method === 'DELETE' ? null : await request.json()
+    window.__axisPageWrites.push({ table, method: request.method, payload })
+    if (pageScenario === 'save-error') return reply({ message: 'Synthetic page write failure' }, request, 500)
+    const rows = tables[table] ?? []
+    const matched = filterRows(rows, url.searchParams)
+    if (request.method === 'PATCH') {
+      matched.forEach(row => Object.assign(row, payload))
+      return reply(matched, request)
+    }
+    if (request.method === 'DELETE') {
+      tables[table] = rows.filter(row => !matched.includes(row))
+      return reply(matched, request)
+    }
+    const inserted = (Array.isArray(payload) ? payload : [payload]).map(item => {
+      if (table === 'event_attendees') {
+        const row = rows.find(row => row.event_id === item.event_id && row.member_id === item.member_id)
+        if (row) { Object.assign(row, item); return row }
+      }
+      if (table === 'member_aliases') {
+        const row = rows.find(row => row.member_id === item.member_id && row.owner_id === item.owner_id)
+        if (row) { Object.assign(row, item); return row }
+      }
+      const row = ['members', 'events', 'invites', 'recurring_expenses'].includes(table)
+        ? { id: id(pageWriteId++), created_at: day(0), ...item } : { ...item }
+      if (table === 'group_members') row.members = tables.members.find(member => member.id === item.member_id)
+      rows.push(row)
+      return row
+    })
+    tables[table] = rows
+    return reply(inserted, request, 201)
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') return reply([], request)
   if (url.searchParams.get('limit') === '0') return reply([], request)

@@ -1,218 +1,124 @@
-.participant-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: var(--surface-elevated);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
+.expense-page .app-header {
+  align-items: flex-start;
+  margin-bottom: 10px;
 }
-
-.participant-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.95rem;
+.expense-page .app-header h1 {
+  font-size: clamp(28px, 3vw, 36px);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.04em;
 }
-
-.participant-item {
-  justify-content: space-between;
-  min-height: 36px;
-  flex-wrap: wrap;
-}
-
-.participant-item .share-error {
-  flex: 1 1 100%;
-  margin: 0 0 8px;
-}
-
-.amount-format-hint {
-  margin: -12px 0 12px;
+.editor-context {
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 13px;
+  margin: 0 0 28px;
+  overflow-wrap: anywhere;
 }
-
-.participant-name {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
+.editor-context > span {
+  margin: 0 6px;
+}
+.expense-form {
+  padding: 0;
+}
+.expense-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
   min-width: 0;
 }
-
-.participant-name input {
-  width: auto;
+.expense-layout {
+  display: grid;
+  gap: 20px;
 }
-
-.participant-item .share-input {
-  width: 96px;
-  flex-shrink: 0;
-  text-align: right;
-  padding: 6px 8px;
+.expense-section {
+  background: var(--surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  min-width: 0;
 }
-
-.split-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.expense-section h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 0 0 24px;
 }
-
-.split-equally-btn {
-  width: auto;
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--primary);
-  font-size: 0.85rem;
-  cursor: pointer;
+.expense-section > .field:last-child {
+  margin-bottom: 0;
 }
-
-.split-remaining {
-  margin: 6px 0 0;
-  font-size: 0.85rem;
-  color: var(--text-tertiary);
+.expense-page .field label,
+.expense-page .payer-picker legend {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
 }
-
-.split-remaining-off {
-  color: var(--danger);
-}
-
-.amount-row {
-  display: flex;
-  gap: 12px;
-}
-
-.amount-field {
-  flex: 2;
-}
-
-.currency-field {
-  flex: 1;
-}
-
-.repeat-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.95rem;
-  margin-bottom: 16px;
-}
-
-.repeat-toggle input {
-  width: auto;
-}
-
-.receipt-preview {
-  display: block;
-  margin-bottom: 10px;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-
-.receipt-preview img {
-  display: block;
-  width: 100%;
-  max-height: 220px;
-  object-fit: cover;
-}
-
-.receipt-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.receipt-upload-btn {
-  text-align: center;
-  cursor: pointer;
-  flex: 1;
-}
-
-.delete-btn {
-  margin-top: 12px;
-}
-
-.linked-event-hint {
-  color: var(--text-tertiary);
-  font-size: 0.85rem;
-  margin: 0 0 16px;
-}
-
-.expense-form {
-  padding-top: 8px;
+.expense-page .field input,
+.expense-page .field select {
+  border-color: transparent;
+  background: var(--surface-elevated);
 }
 .expense-page .amount-row {
-  display: flex;
-  flex-direction: row-reverse;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 8px;
-  max-width: 340px;
-  margin: 0 auto 32px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid var(--primary);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  align-items: end;
+  gap: 12px;
+  margin: 0 0 12px;
 }
-.expense-page .amount-field {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-}
+.expense-page .amount-field,
 .expense-page .currency-field {
-  flex: 0 0 90px;
   margin: 0;
-}
-.expense-page .amount-field label,
-.expense-page .currency-field label {
-  font-size: 12px;
-  color: var(--text-tertiary);
 }
 .expense-page .amount-field input {
-  background: transparent;
-  border-color: transparent;
-  font-size: 40px;
-  font-weight: 700;
-  padding: 0;
-  line-height: 1.2;
-  height: 60px;
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
+  min-height: 64px;
+  padding: 8px 12px;
 }
 .expense-page .currency-field select {
-  background: transparent;
-  border-color: transparent;
-  height: 60px;
-  font-weight: 600;
+  min-height: 64px;
+  padding: 10px;
+}
+.amount-format-hint,
+.expense-split-hint {
   color: var(--text-secondary);
-  padding: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0 0 18px;
+}
+.expense-page #amount-error:empty {
+  display: none;
 }
 .payer-picker {
-  min-width: 0;
   border: 0;
-  margin: 24px 0;
+  margin: 0 0 24px;
   padding: 0;
+  min-width: 0;
 }
 .payer-picker legend {
-  color: var(--text-tertiary);
-  font-size: 13px;
   padding: 0;
   margin-bottom: 12px;
 }
 .payer-options {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding: 4px 4px 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 .payer-option {
   position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  width: 80px;
-  flex: 0 0 80px;
+  gap: 10px;
+  min-height: 60px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
   cursor: pointer;
-  color: var(--text-tertiary);
-  font-size: 12px;
 }
 .payer-option > input {
   position: absolute;
@@ -221,32 +127,35 @@
   opacity: 0;
 }
 .payer-option > span {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
 }
 .payer-option.selected {
+  border-color: var(--focus);
+  background: var(--primary-soft);
   color: var(--text-primary);
-  font-weight: 600;
 }
-.payer-option.selected .avatar {
-  box-shadow:
-    0 0 0 2px var(--bg-primary),
-    0 0 0 4px var(--primary);
-}
-.payer-option:has(input:focus-visible) .avatar {
+.payer-option:has(input:focus-visible) {
   outline: 2px solid var(--focus);
-  outline-offset: 5px;
+  outline-offset: 3px;
 }
 .expense-page .split-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
   flex-wrap: wrap;
+  margin: 0 0 14px;
+}
+.split-header h3 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
 }
 .split-mode {
   display: flex;
-  padding: 4px;
+  padding: 3px;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   background: var(--surface-elevated);
@@ -255,67 +164,169 @@
   border: 0;
   border-radius: var(--radius-pill);
   padding: 8px 12px;
-  min-height: 36px;
+  min-height: 44px;
   background: transparent;
   color: var(--text-secondary);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .split-mode button.active {
   background: var(--primary);
   color: var(--text-on-accent);
 }
-.expense-page .participant-list {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  gap: 8px;
+.participant-list {
+  display: grid;
 }
-.expense-page .participant-item {
-  min-height: 52px;
-  gap: 12px;
+.participant-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 60px;
+  padding: 10px 0;
 }
-.expense-page .participant-name {
-  cursor: pointer;
-  min-height: 48px;
+.participant-item + .participant-item {
+  border-top: 1px solid var(--divider);
+}
+.participant-name {
+  display: flex;
+  align-items: center;
   gap: 10px;
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  cursor: pointer;
 }
-.expense-page .participant-name > span {
+.participant-name > span {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 14px;
+  font-size: 13px;
+}
+.participant-name input {
+  width: 18px;
 }
 .expense-page .participant-item .share-input {
-  width: 96px;
+  width: 110px;
+  max-width: 44%;
   min-height: 44px;
-  font-size: 14px;
+  text-align: right;
   padding: 10px;
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
-.expense-page .repeat-toggle {
+.participant-item .share-error {
+  flex: 1 1 100%;
+  margin: 0 0 8px;
+}
+.split-remaining {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  margin: 14px 0 0;
+}
+.split-remaining-off {
+  color: var(--danger);
+}
+.repeat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   min-height: 44px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0 0 20px;
+  cursor: pointer;
 }
-.expense-page .split-remaining {
-  font-variant-numeric: tabular-nums;
+.repeat-toggle input {
+  width: 18px;
 }
-@media (max-width: 360px) {
-  .expense-page .participant-name .avatar {
+.linked-event-hint {
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  margin: 0 0 18px;
+}
+.receipt-preview {
+  display: block;
+  overflow: hidden;
+  margin-bottom: 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+.receipt-preview img {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  background: var(--bg-primary);
+}
+.receipt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.expense-form-footer {
+  min-width: 0;
+}
+.expense-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.expense-page .expense-form-actions .btn {
+  flex: 1;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+}
+.expense-page .receipt-actions .btn {
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+}
+.expense-page .delete-btn {
+  margin-top: 24px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+}
+@media (max-width: 400px) {
+  .expense-section {
+    padding: 18px;
+  }
+  .expense-page .amount-field input {
+    font-size: 28px;
+  }
+  .participant-name .avatar {
     display: none;
   }
-  .expense-page .participant-item .share-input {
-    width: 82px;
+}
+@media (max-width: 360px) {
+  .payer-options {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
-@media (min-width: 1000px) {
-  .expense-form {
-    padding: 24px;
-    border: 1px solid transparent;
-    border-radius: var(--radius-lg);
-    background: var(--surface);
+@media (min-width: 1200px) {
+  .app-main > .page.expense-page.page-wide {
+    max-width: 1120px;
   }
-  .payer-option.selected .avatar {
-    box-shadow:
-      0 0 0 2px var(--surface),
-      0 0 0 4px var(--primary);
+  .expense-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'details people' 'extras people' 'footer footer';
+    align-items: start;
+    gap: 24px;
+  }
+  .expense-details { grid-area: details; }
+  .expense-people { grid-area: people; }
+  .expense-extras { grid-area: extras; }
+  .expense-form-footer { grid-area: footer; }
+  .expense-page .expense-form-actions .btn {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 140px;
+  }
+  .expense-page .delete-btn {
+    width: auto;
   }
 }

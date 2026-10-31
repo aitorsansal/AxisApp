@@ -9,6 +9,7 @@ import { AppHeader } from '../components/AppHeader'
 import { Icon } from '../components/Icon'
 import { categoryIcon } from '../lib/icons'
 import { nextDue } from '../lib/recurringSchedule'
+import '../components/TogetherPage.css'
 import './RecurringExpensesPage.css'
 
 export function RecurringExpensesPage() {
@@ -83,7 +84,7 @@ export function RecurringExpensesPage() {
 
   if (!group) {
     return (
-      <div className="page">
+      <div className="page page-wide together-page recurring-page">
         <AppHeader title={t('RecurringExpenses_Title')} backTo={`/groups/${groupId}`} />
         {error ? (
           <p className="error-text" role="alert">
@@ -99,7 +100,7 @@ export function RecurringExpensesPage() {
   }
 
   return (
-    <div className="page">
+    <div className="page page-wide together-page recurring-page">
       <AppHeader title={t('RecurringExpenses_Title')} backTo={`/groups/${groupId}`} />
       <p className="page-context">{group.name}</p>
       {error && (
@@ -108,9 +109,13 @@ export function RecurringExpensesPage() {
         </p>
       )}
 
+      <div className="together-toolbar recurring-toolbar">
+        <p className="recurring-explanation">{t('Overview_AutomaticHint')}</p>
       <Link to={`/groups/${groupId}/recurring/new`} className="btn btn-primary recurring-add-btn">
-        {t('RecurringExpenses_Add')}
+        <Icon name="plus" size={18} />
+        {t('RecurringExpenses_Add').replace(/^\+\s*/, '')}
       </Link>
+      </div>
 
       {templates.length === 0 && (
         <p className="empty-state small">{t('RecurringExpenses_Empty')}</p>
@@ -127,6 +132,7 @@ export function RecurringExpensesPage() {
                 {tpl.description ||
                   (tpl.category ? t(`Category_${tpl.category}`) : t('GroupDetail_ExpenseFallback'))}
               </div>
+              <span className={`recurring-status${tpl.is_active ? '' : ' paused'}`}>{t(tpl.is_active ? 'RecurringExpenses_Active' : 'RecurringExpenses_Paused')}</span>
               <div className="recurring-meta">
                 {payerName(tpl.paid_by_member_id)} · {t(`Recurring_Frequency_${tpl.frequency}`)} ·{' '}
                 {scheduleLabel(tpl)}
@@ -136,10 +142,14 @@ export function RecurringExpensesPage() {
               {formatMoney(tpl.amount, tpl.currency, language)}
             </strong>
             <div className="recurring-actions">
-              <button type="button" className="link-btn" onClick={() => toggleActive(tpl)}>
+              <button type="button" className="link-btn"
+                aria-label={`${t(tpl.is_active ? 'RecurringExpenses_Pause' : 'RecurringExpenses_Resume')}: ${tpl.description || t('GroupDetail_ExpenseFallback')}`}
+                onClick={() => toggleActive(tpl)}>
                 {tpl.is_active ? t('RecurringExpenses_Pause') : t('RecurringExpenses_Resume')}
               </button>
-              <button type="button" className="link-btn danger" onClick={() => handleDelete(tpl)}>
+              <button type="button" className="link-btn danger"
+                aria-label={`${t('RecurringExpenses_Delete')}: ${tpl.description || t('GroupDetail_ExpenseFallback')}`}
+                onClick={() => handleDelete(tpl)}>
                 {t('RecurringExpenses_Delete')}
               </button>
             </div>

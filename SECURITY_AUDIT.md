@@ -48,6 +48,10 @@ outside the repo, and what's still open. Update the "Still open" list as items g
 
 ---
 
+## Event authorization follow-up ? 2026-10-31
+
+A live two-account pass completed 56 targeted checks against production PostgREST using ordinary authenticated sessions. Cross-group event/attendance access, RSVP impersonation, non-organizer event deletion, ownership takeover and access after leaving (including the departed original organizer) were refused. Positive controls confirmed legitimate reads, own RSVPs and collaborative event edits. Temporary groups and all dependent fixtures were removed; existing records were untouched. See `reports/EVENT_RLS_REVIEW.md` and its sanitized `EVENT_RLS_RESULTS.json` receipt. This closes the previously recorded event RLS evidence gap for these paths; it is not an exhaustive security audit.
+
 ## Fixed
 
 ### Database / RLS — `supabase/rls_hardening.sql` (commit `47ebfe1`, applied live)

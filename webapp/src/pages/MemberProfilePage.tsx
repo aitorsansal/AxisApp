@@ -9,6 +9,7 @@ import { useAliases } from '../context/AliasesContext'
 import { useLocale } from '../context/LocaleContext'
 import { AppHeader } from '../components/AppHeader'
 import { Avatar } from '../components/Avatar'
+import '../components/TogetherPage.css'
 import './MemberProfilePage.css'
 
 // Collapsed list length per group; "Show all" reveals the rest.
@@ -90,7 +91,7 @@ export function MemberProfilePage() {
 
   if (groups && !target) {
     return (
-      <div className="page">
+      <div className="page together-page member-profile-page">
         <AppHeader title={title} backTo={backTo} />
         <p className="empty-state">{t('MemberProfile_Empty')}</p>
       </div>
@@ -98,12 +99,13 @@ export function MemberProfilePage() {
   }
 
   return (
-    <div className="page member-profile-page">
+    <div className="page page-wide together-page member-profile-page">
       <AppHeader title={title} backTo={backTo} />
       {error && <p className="error-text" role="alert">{error}</p>}
       {target && (
         <div className="member-profile-avatar">
-          <Avatar url={avatarUrl(target)} initials={initials(target)} seed={target.id} size={64} />
+          <Avatar url={avatarUrl(target)} initials={initials(target)} seed={target.id} size={48} />
+          <p className="page-context">{t(sharedGroups.length === 1 ? 'MemberProfile_OneSharedGroup' : 'MemberProfile_SharedGroups', sharedGroups.length)}</p>
         </div>
       )}
       {!pairs ? (
@@ -120,16 +122,16 @@ export function MemberProfilePage() {
               ? t('MemberProfile_Settlements')
               : `${t('MemberProfile_Settlements')} (${t(breakdown.settlementsNet < 0 ? 'MemberProfile_TheyPaidYou' : 'MemberProfile_YouPaidThem', name)})`
             return (
-              <section key={id} className="pair-group">
-                <div className={`card pair-balance ${balance > 0 ? 'balance-receive' : balance < 0 ? 'balance-pay' : 'balance-neutral'}`}>
-                  <span className="pair-group-name">{group.name}</span>
+              <section key={id} className="together-panel pair-group">
+                <div className={`pair-balance ${balance > 0 ? 'balance-receive' : balance < 0 ? 'balance-pay' : 'balance-neutral'}`}>
+                  <h2 className="pair-group-name"><Link to={`/groups/${id}`}>{group.name}</Link></h2>
                   <span className="pair-balance-value">
-                    <strong>{money(balance, true)}</strong>
+                    <strong>{money(Math.abs(balance))}</strong>
                     <span>{t(balance > 0 ? 'GroupDetail_OwesYou' : balance < 0 ? 'GroupDetail_YouOwe' : 'Common_SettledUp')}</span>
                   </span>
                 </div>
 
-                <div className="card pair-details">
+                <div className="pair-details">
                   <dl className="pair-lines">
                     <dt>{t('MemberProfile_PaidForThem', name)}</dt>
                     <dd>{money(breakdown.paidForThem, true)}</dd>
@@ -139,7 +141,7 @@ export function MemberProfilePage() {
                     <dd>{money(breakdown.settlementsNet, true)}</dd>
                   </dl>
 
-                  <h2 className="section-title">{t('MemberProfile_SharedExpenses')}</h2>
+                  <h3 className="section-title">{t('MemberProfile_SharedExpenses')}</h3>
                   {breakdown.expenses.length === 0 ? (
                     <p className="empty-state small">{t('MemberProfile_NoSharedExpenses')}</p>
                   ) : (

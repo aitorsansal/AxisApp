@@ -10,6 +10,8 @@ import { isCalendarDate, localDateTimeToIso } from '../lib/dates'
 import { eventEditorSnapshot } from '../lib/formEditorSnapshots'
 import { useUnsavedChanges } from '../lib/useUnsavedChanges'
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
+import { useGroups } from '../context/useGroups'
+import '../components/TogetherPage.css'
 import './AddEventPage.css'
 
 function toLocalDateInput(iso: string): string {
@@ -26,6 +28,8 @@ export function AddEventPage() {
   const { groupId, eventId } = useParams<{ groupId: string; eventId?: string }>()
   const { session } = useAuth()
   const { t } = useLocale()
+  const { groups } = useGroups()
+  const groupName = groups?.find((group) => group.id === groupId)?.name
   const goBackTo = useGoBackTo()
   const parentPath = eventId ? `/groups/${groupId}/events/${eventId}` : `/groups/${groupId}?tab=events`
 
@@ -188,7 +192,7 @@ export function AddEventPage() {
 
   if (!loaded || loadedKey !== editorKey) {
     return (
-      <div className="page">
+      <div className="page together-page event-editor-page">
         <AppHeader title={title_} backTo={parentPath} />
         {error ? <p className="error-text">{error}</p> : <div className="spinner">{t('Common_Loading')}</div>}
       </div>
@@ -196,71 +200,83 @@ export function AddEventPage() {
   }
 
   return (
-    <div className="page">
+    <div className="page together-page event-editor-page">
       <AppHeader title={title_} backTo={parentPath} />
-      <UnsavedChangesDialog blocker={unsaved.blocker} keepEditing={unsaved.keepEditing} pending={busy} />
-      <form onSubmit={handleSubmit}>
-        <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-        <div className="field">
-          <label htmlFor="title">{t('AddEvent_TitleLabel')}</label>
-          <input id="title" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('AddEvent_TitlePlaceholder')} />
-        </div>
-
-        <div className="field">
-          <label htmlFor="description">{t('AddEvent_DescriptionLabel')}</label>
-          <input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('AddEvent_DescriptionPlaceholder')} />
-        </div>
-
-        <div className="field">
-          <label htmlFor="location">{t('AddEvent_LocationLabel')}</label>
-          <input id="location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t('AddEvent_LocationPlaceholder')} />
-        </div>
-
-        <div className="datetime-row">
-          <div className="field">
-            <label htmlFor="startDate">{t('AddEvent_StartDate')}</label>
-            <DateField id="startDate" required value={startDate} onChange={setStartDate} />
-          </div>
-          <div className="field">
-            <label htmlFor="startTime">{t('AddEvent_StartTime')}</label>
-            <input id="startTime" type="time" required value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-          </div>
-        </div>
-
-        <label className="repeat-toggle">
-          <input type="checkbox" checked={hasEndTime} onChange={(e) => setHasEndTime(e.target.checked)} />
-          {t('AddEvent_HasEndTime')}
-        </label>
-
-        {hasEndTime && (
-          <div className="datetime-row">
+      {groupName && <p className="page-context">{groupName}</p>}
+      <UnsavedChangesDialog blocker={unsaved.blocker} keepEditing={unsaved.keepEditing} pending={busy}
+        open={unsaved.confirmingClose} onDiscard={unsaved.discardChanges} />
+      <form className="event-editor-form" onSubmit={handleSubmit}>
+        <fieldset className="event-editor-fields" disabled={busy}>
+          <section className="together-panel" aria-labelledby="event-details-heading">
+            <h2 id="event-details-heading">{t('AddEvent_DetailsTitle')}</h2>
             <div className="field">
-              <label htmlFor="endDate">{t('AddEvent_EndDate')}</label>
-              <DateField id="endDate" required value={endDate} onChange={setEndDate} />
+              <label htmlFor="title">{t('AddEvent_TitleLabel')}</label>
+              <input id="title" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('AddEvent_TitlePlaceholder')} />
             </div>
+
             <div className="field">
-              <label htmlFor="endTime">{t('AddEvent_EndTime')}</label>
-              <input id="endTime" type="time" required value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+              <label htmlFor="description">{t('AddEvent_DescriptionLabel')}</label>
+              <input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('AddEvent_DescriptionPlaceholder')} />
             </div>
-          </div>
-        )}
 
-        <label className="repeat-toggle">
-          <input type="checkbox" checked={needsTransport} onChange={(e) => setNeedsTransport(e.target.checked)} />
-          {t('AddEvent_NeedsTransport')}
-        </label>
+            <div className="field">
+              <label htmlFor="location">{t('AddEvent_LocationLabel')}</label>
+              <input id="location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t('AddEvent_LocationPlaceholder')} />
+            </div>
 
-        {error && <p className="error-text">{error}</p>}
+          </section>
+          <section className="together-panel" aria-labelledby="event-time-heading">
+            <h2 id="event-time-heading">{t('AddEvent_WhenTitle')}</h2>
+            <div className="datetime-row">
+              <div className="field">
+                <label htmlFor="startDate">{t('AddEvent_StartDate')}</label>
+                <DateField id="startDate" required value={startDate} onChange={setStartDate} />
+              </div>
+              <div className="field">
+                <label htmlFor="startTime">{t('AddEvent_StartTime')}</label>
+                <input id="startTime" type="time" required value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+              </div>
+            </div>
 
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? t('Common_Saving') : t('AddEvent_SaveEvent')}
-        </button>
+            <label className="repeat-toggle">
+              <input type="checkbox" checked={hasEndTime} onChange={(e) => setHasEndTime(e.target.checked)} />
+              {t('AddEvent_HasEndTime')}
+            </label>
 
-        {canDelete && (
-          <button type="button" className="btn btn-danger delete-btn" onClick={handleDelete} disabled={busy}>
-            {t('AddEvent_DeleteEvent')}
+            {hasEndTime && (
+              <div className="datetime-row">
+                <div className="field">
+                  <label htmlFor="endDate">{t('AddEvent_EndDate')}</label>
+                  <DateField id="endDate" required value={endDate} onChange={setEndDate} />
+                </div>
+                <div className="field">
+                  <label htmlFor="endTime">{t('AddEvent_EndTime')}</label>
+                  <input id="endTime" type="time" required value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+                </div>
+              </div>
+            )}
+
+            <label className="repeat-toggle">
+              <input type="checkbox" checked={needsTransport} onChange={(e) => setNeedsTransport(e.target.checked)} />
+              {t('AddEvent_NeedsTransport')}
+            </label>
+
+          </section>
+          {error && <p className="error-text" role="alert">{error}</p>}
+
+          <div className="together-form-actions">
+          <button type="button" className="btn btn-outline" disabled={busy}
+            onClick={() => unsaved.requestClose(() => goBackTo(parentPath))}>{t('Common_Cancel')}</button>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? t('Common_Saving') : t('AddEvent_SaveEvent')}
           </button>
-        )}
+          </div>
+
+          {canDelete && (
+            <button type="button" className="btn btn-danger delete-btn" onClick={handleDelete} disabled={busy}>
+              {t('AddEvent_DeleteEvent')}
+            </button>
+          )}
         </fieldset>
       </form>
     </div>

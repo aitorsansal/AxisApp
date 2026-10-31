@@ -1,0 +1,23 @@
+{
+  "expandedRows": 12,
+  "checks": [
+    {
+      "group": "Piso Gràcia",
+      "amount": 185.53,
+      "breakdownSum": 185.53,
+      "matches": true
+    },
+    {
+      "group": "Familia",
+      "amount": 6,
+      "breakdownSum": -6,
+      "matches": true
+    },
+    {
+      "group": "Asturias 2026",
+      "amount": 19.28,
+      "breakdownSum": 19.28,
+      "matches": true
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "dialog": false,
+  "writes": [
+    {
+      "rpc": "save_expense",
+      "payload": {
+        "p_expense": {
+          "id": null,
+          "group_id": "00000000-0000-0000-0000-000000000100",
+          "paid_by_member_id": "00000000-0000-0000-0000-000000000011",
+          "amount": 12.5,
+          "currency": "EUR",
+          "description": "",
+          "category": "",
+          "occurred_at": "2026-10-30T23:00:00.000Z",
+          "receipt_path": null,
+          "event_id": null,
+          "is_settlement": true
+        },
+        "p_shares": [
+          {
+            "member_id": "00000000-0000-0000-0000-000000000010",
+            "share_amount": 12.5
+          }
+        ]
+      }
+    }
+  ]
+}

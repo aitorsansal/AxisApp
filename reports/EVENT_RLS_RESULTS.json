@@ -1,0 +1,450 @@
+{
+  "date": "2026-10-31",
+  "project": "foepkovwmwyygulbdahv",
+  "fixtures": {
+    "a": {
+      "account": "aafb5f02-79ed-4758-b647-00e8288df4b5",
+      "member": "23308922-5239-460b-bc98-34126f6b8631",
+      "group": "0575632d-3304-4edd-8792-ed4d65159a99",
+      "event": "1b64ff14-c94e-4511-9ce5-a28a9dc01d5b",
+      "initialTitle": "Isolated two-account RLS A"
+    },
+    "b": {
+      "account": "68cbab32-93ad-4f0c-9fb4-4f81ad0030db",
+      "member": "f2f4d6dc-84f2-4b47-9fa5-f9e9d89a0743",
+      "group": "9b2c2d17-fcab-4dc2-b964-7e719b6cf652",
+      "event": "86baa03e-2d99-4220-9881-fa7bd369e750",
+      "initialTitle": "Isolated two-account RLS B"
+    }
+  },
+  "checks": [
+    {
+      "phase": "rlsCrossA",
+      "name": "Non-member cannot read known event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossA",
+      "name": "Non-member cannot read known attendance",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossA",
+      "name": "Non-member cannot insert event",
+      "passed": true,
+      "http": 403,
+      "code": "42501"
+    },
+    {
+      "phase": "rlsCrossA",
+      "name": "Non-member cannot update event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossA",
+      "name": "Non-member cannot delete event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossA",
+      "name": "Non-member cannot directly RSVP with own member ID",
+      "passed": true,
+      "http": 403,
+      "code": "42501"
+    },
+    {
+      "phase": "rlsCrossA",
+      "name": "Non-member cannot RPC RSVP with own member ID",
+      "passed": true,
+      "http": 403,
+      "code": "42501"
+    },
+    {
+      "phase": "rlsCrossA",
+      "name": "Non-member cannot update existing other attendee",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossA",
+      "name": "Non-member cannot delete existing other attendee",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossA",
+      "name": "Own RSVP cannot be moved into inaccessible group",
+      "passed": true,
+      "http": 200,
+      "rows": 1
+    },
+    {
+      "phase": "rlsCrossB",
+      "name": "Non-member cannot read known event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossB",
+      "name": "Non-member cannot read known attendance",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossB",
+      "name": "Non-member cannot insert event",
+      "passed": true,
+      "http": 403,
+      "code": "42501"
+    },
+    {
+      "phase": "rlsCrossB",
+      "name": "Non-member cannot update event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossB",
+      "name": "Non-member cannot delete event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossB",
+      "name": "Non-member cannot directly RSVP with own member ID",
+      "passed": true,
+      "http": 403,
+      "code": "42501"
+    },
+    {
+      "phase": "rlsCrossB",
+      "name": "Non-member cannot RPC RSVP with own member ID",
+      "passed": true,
+      "http": 403,
+      "code": "42501"
+    },
+    {
+      "phase": "rlsCrossB",
+      "name": "Non-member cannot update existing other attendee",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossB",
+      "name": "Non-member cannot delete existing other attendee",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsCrossB",
+      "name": "Own RSVP cannot be moved into inaccessible group",
+      "passed": true,
+      "http": 200,
+      "rows": 1
+    },
+    {
+      "phase": "rlsMemberResults",
+      "name": "Invited account can join isolated group",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "phase": "rlsMemberResults",
+      "name": "Joined member can read event",
+      "passed": true,
+      "http": 200,
+      "rows": 1
+    },
+    {
+      "phase": "rlsMemberResults",
+      "name": "Joined member can read attendance",
+      "passed": true,
+      "http": 200,
+      "rows": 1
+    },
+    {
+      "phase": "rlsMemberResults",
+      "name": "Group member cannot update another attendee",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsMemberResults",
+      "name": "Group member cannot delete another attendee",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsMemberResults",
+      "name": "Group member cannot RPC update another attendee",
+      "passed": true,
+      "http": 403,
+      "code": "42501"
+    },
+    {
+      "phase": "rlsMemberResults",
+      "name": "Non-organizer group member cannot delete event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsMemberResults",
+      "name": "Group member cannot steal event ownership",
+      "passed": true,
+      "http": 200,
+      "rows": 1
+    },
+    {
+      "phase": "rlsMemberResults",
+      "name": "Ownership forgery does not enable event deletion",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsMemberResults",
+      "name": "Joined member can write own RSVP",
+      "passed": true,
+      "http": 200
+    },
+    {
+      "phase": "rlsMemberResults",
+      "name": "Group member can edit normal event details by design",
+      "passed": true,
+      "http": 200,
+      "rows": 1
+    },
+    {
+      "phase": "rlsOwnerResults",
+      "name": "Group owner cannot update another member RSVP",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsOwnerResults",
+      "name": "Group owner cannot delete another member RSVP",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsOwnerResults",
+      "name": "Group owner cannot RPC change another member RSVP",
+      "passed": true,
+      "http": 403,
+      "code": "42501"
+    },
+    {
+      "phase": "rlsOwnerResults",
+      "name": "Both legitimate RSVPs preserved after member and owner attacks",
+      "passed": true,
+      "http": 200,
+      "rows": 2
+    },
+    {
+      "phase": "rlsOwnerResults",
+      "name": "Organizer and event preserved after cross-account attacks",
+      "passed": true,
+      "http": 200,
+      "rows": 1
+    },
+    {
+      "phase": "rlsDepartedResults",
+      "name": "Member can leave debt-free isolated group",
+      "passed": true,
+      "http": 204
+    },
+    {
+      "phase": "rlsDepartedResults",
+      "name": "Departed member cannot read formerly visible event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsDepartedResults",
+      "name": "Departed member cannot read formerly visible attendance",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsDepartedResults",
+      "name": "Departed member cannot update event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsDepartedResults",
+      "name": "Departed member cannot delete event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsDepartedResults",
+      "name": "Departed member cannot directly reinsert own RSVP",
+      "passed": true,
+      "http": 403,
+      "code": "42501"
+    },
+    {
+      "phase": "rlsDepartedResults",
+      "name": "Departed member cannot RPC reinsert own RSVP",
+      "passed": true,
+      "http": 403,
+      "code": "42501"
+    },
+    {
+      "phase": "rlsDepartedResults",
+      "name": "Departed member update affects no attendance",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsDepartedResults",
+      "name": "Departed member cannot move surviving RSVP into former group",
+      "passed": true,
+      "http": 200,
+      "rows": 1
+    },
+    {
+      "phase": "rlsDepartedResults",
+      "name": "Second private fixture remains intact",
+      "passed": true,
+      "http": 200,
+      "rows": 1
+    },
+    {
+      "phase": "rlsDepartedOrganizerResults",
+      "name": "Departed organizer cannot read own original event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsDepartedOrganizerResults",
+      "name": "Departed organizer cannot update own original event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsDepartedOrganizerResults",
+      "name": "Departed organizer cannot delete own original event",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsDepartedOrganizerResults",
+      "name": "Departed organizer cannot rejoin event via own RSVP",
+      "passed": true,
+      "http": 403,
+      "code": "42501"
+    },
+    {
+      "phase": "rlsFinalIntegrityResults",
+      "name": "First event preserved after departed-member attacks",
+      "passed": true,
+      "http": 200,
+      "rows": 1
+    },
+    {
+      "phase": "rlsFinalIntegrityResults",
+      "name": "Leaving removed member RSVP from first group",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsFinalIntegrityResults",
+      "name": "Both leave operations removed second-account memberships",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsFinalIntegrityResults",
+      "name": "Second event preserved after departed-organizer attacks",
+      "passed": true,
+      "http": 200,
+      "rows": 1
+    },
+    {
+      "phase": "rlsFinalIntegrityResults",
+      "name": "New group owner cannot delete another organizer event directly",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    },
+    {
+      "phase": "rlsFinalIntegrityResults",
+      "name": "Leaving removed original organizer RSVP from second group",
+      "passed": true,
+      "http": 200,
+      "rows": 0
+    }
+  ],
+  "cleanup": [
+    {
+      "kind": "group delete",
+      "group": "0575632d-3304-4edd-8792-ed4d65159a99",
+      "http": 200,
+      "deleted": 1
+    },
+    {
+      "kind": "group delete",
+      "group": "9b2c2d17-fcab-4dc2-b964-7e719b6cf652",
+      "http": 200,
+      "deleted": 1
+    },
+    {
+      "kind": "groups",
+      "http": 200,
+      "remaining": 0
+    },
+    {
+      "kind": "events",
+      "http": 200,
+      "remaining": 0
+    },
+    {
+      "kind": "attendance",
+      "http": 200,
+      "remaining": 0
+    },
+    {
+      "kind": "memberships",
+      "http": 200,
+      "remaining": 0
+    },
+    {
+      "kind": "invites",
+      "http": 200,
+      "remaining": 0
+    }
+  ]
+}

@@ -1,140 +1,143 @@
 .member-profile-avatar {
   display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 28px;
 }
-
+.member-profile-avatar .page-context {
+  margin: 0;
+}
 .pair-groups {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 24px;
+  align-items: start;
 }
-
 .pair-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  gap: 22px;
 }
-
-/* Same treatment as Group Detail's flat balance rows since the "Bloque" restyle: neutral card,
-   primary text, only the amount coloured. (It used --text-on-accent for a coloured tile that no
-   longer exists, which left 1.1:1 dark-on-dark text.) */
 .pair-balance {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  color: var(--text-primary);
+  flex-wrap: wrap;
+  gap: 14px;
 }
-
 .pair-balance.balance-receive .pair-balance-value strong {
-  color: var(--success);
+  color: var(--balance-positive);
 }
-
 .pair-balance.balance-pay .pair-balance-value strong {
-  color: var(--danger);
+  color: var(--balance-negative);
 }
-
 .pair-group-name {
-  font-weight: 700;
+  margin: 0;
+  flex: 1 1 120px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
 }
-
+.pair-group-name a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.pair-group-name a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .pair-balance-value {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  white-space: nowrap;
+  gap: 5px;
+  max-width: 100%;
   font-variant-numeric: tabular-nums;
 }
-
 .pair-balance-value strong {
-  font-size: 20px;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
 }
-
 .pair-balance-value span {
   font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.pair-lines {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px 12px;
-  margin: 0 0 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.pair-lines dt {
   color: var(--text-secondary);
 }
-
+.pair-lines {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) fit-content(45%);
+  gap: 12px;
+  margin: 0 0 22px;
+  padding: 0 0 22px;
+  border-bottom: 1px solid var(--divider);
+  font-size: 13px;
+}
+.pair-lines dt {
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
 .pair-lines dd {
   margin: 0;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
-
 .pair-details .section-title {
-  margin: 0 0 6px;
+  font-size: 16px;
 }
-
 .pair-expenses {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-
 .pair-expenses a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 60px;
+  padding: 14px 0;
   color: inherit;
   text-decoration: none;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--divider);
 }
-
 .pair-expenses li:last-child a {
   border-bottom: 0;
 }
-
 .pair-expenses a:hover .pair-expense-desc {
-  color: var(--action-text);
+  text-decoration: underline;
 }
-
 .pair-expense-main {
+  flex: 1 1 140px;
   display: flex;
   flex-direction: column;
+  gap: 5px;
   min-width: 0;
 }
-
 .pair-expense-desc {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pair-expense-date {
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-
-.pair-expense-part {
-  color: var(--text-secondary);
-  font-size: 14px;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.pair-show-all {
-  width: auto;
-  margin-top: 10px;
-  padding: 8px 14px;
   font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.pair-expense-date {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.pair-expense-part {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.member-profile-page .pair-show-all {
+  width: auto;
+  margin-top: 14px;
+}
+@media (min-width: 1200px) {
+  .pair-groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

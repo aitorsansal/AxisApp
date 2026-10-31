@@ -59,9 +59,10 @@ What's actually left, in rough order:
    against Google's RRULE.
 2. **iOS/MacCatalyst**, not in the active `TargetFrameworks` (no Mac to
    build/test against).
-3. Small known gaps: a live RLS-enforcement pass on the `events`/
-   `event_attendees` policies (structurally verified, not yet exercised
-   under a real adversarial session). The web app has receipts, recurring expenses,
+3. **Event authorization verified live 2026-10-31**: 56 targeted checks with
+   two authenticated accounts passed for cross-group isolation, RSVP ownership,
+   event column locks, non-organizer deletion and access after leaving. See
+   `reports/EVENT_RLS_REVIEW.md` for evidence and limits. The web app has receipts, recurring expenses,
    the members roster/add-by-name flow, calendar feeds and group appearance;
    it has no remaining feature-parity gaps vs. Android (the list from
    `review-artifacts/APP_REVIEW.md` was closed 2026-10-27). PWA install + web push are implemented and live
@@ -508,7 +509,14 @@ Group Detail balances/activity (2026-10-29) refresh without Realtime on both cli
   do not replace it with bare upserts. `eventAttendance.ts` shares response/transport
   transitions with the existing group and event pages. See
   `reports/OVERVIEW_REVIEW.md` for scope and verification. This first design slice
-  is deployed; the remaining page layouts still await their design pass.
+  is deployed. Group Detail was extended locally on 2026-10-31 (not deployed):
+  directional balances, lighter header/tabs and clearer activity. See
+  `reports/GROUP_DETAIL_DESIGN_REVIEW.md`. Expense/recurring and repayment forms
+  were extended locally the same day (not deployed); see `reports/FORMS_DESIGN_REVIEW.md`.
+  Their financial rules are unchanged. Event Detail/forms, Group Events, Members,
+  recurring lists and member profiles were also extended locally on 2026-10-31
+  (not deployed); see `reports/REMAINING_PAGES_DESIGN_REVIEW.md`. Standalone
+  account/setup pages retain their existing structures.
   Visual fixture: `npm run dev --prefix webapp -- --config tests/visual.vite.config.ts`
   (port 5175; `?qaLanguage=en&qaOverview=interactive` enables in-memory attendance
   writes; `qaOverview=settled|owe-zero|mixed|no-events|empty|events-error|activity-error|save-error`

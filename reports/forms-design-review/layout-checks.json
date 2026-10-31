@@ -1,0 +1,226 @@
+[
+  {
+    "route": "new",
+    "width": 320,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "",
+    "title": "Add expense"
+  },
+  {
+    "route": "new",
+    "width": 390,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "",
+    "title": "Add expense"
+  },
+  {
+    "route": "new",
+    "width": 768,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "",
+    "title": "Add expense"
+  },
+  {
+    "route": "new",
+    "width": 1024,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "",
+    "title": "Add expense"
+  },
+  {
+    "route": "new",
+    "width": 1440,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "",
+    "title": "Add expense"
+  },
+  {
+    "route": "expense-edit",
+    "width": 320,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "64.3",
+    "title": "Edit expense"
+  },
+  {
+    "route": "expense-edit",
+    "width": 390,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "64.3",
+    "title": "Edit expense"
+  },
+  {
+    "route": "expense-edit",
+    "width": 768,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "64.3",
+    "title": "Edit expense"
+  },
+  {
+    "route": "expense-edit",
+    "width": 1024,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "64.3",
+    "title": "Edit expense"
+  },
+  {
+    "route": "expense-edit",
+    "width": 1440,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "64.3",
+    "title": "Edit expense"
+  },
+  {
+    "route": "repayment-edit",
+    "width": 320,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "15",
+    "title": "Edit settlement"
+  },
+  {
+    "route": "repayment-edit",
+    "width": 390,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "15",
+    "title": "Edit settlement"
+  },
+  {
+    "route": "repayment-edit",
+    "width": 768,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "15",
+    "title": "Edit settlement"
+  },
+  {
+    "route": "repayment-edit",
+    "width": 1024,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "15",
+    "title": "Edit settlement"
+  },
+  {
+    "route": "repayment-edit",
+    "width": 1440,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "15",
+    "title": "Edit settlement"
+  },
+  {
+    "route": "recurring-edit",
+    "width": 320,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "650",
+    "title": "Edit repeating expense"
+  },
+  {
+    "route": "recurring-edit",
+    "width": 390,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "650",
+    "title": "Edit repeating expense"
+  },
+  {
+    "route": "recurring-edit",
+    "width": 768,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "650",
+    "title": "Edit repeating expense"
+  },
+  {
+    "route": "recurring-edit",
+    "width": 1024,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "650",
+    "title": "Edit repeating expense"
+  },
+  {
+    "route": "recurring-edit",
+    "width": 1440,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "650",
+    "title": "Edit repeating expense"
+  },
+  {
+    "route": "linked-event",
+    "width": 320,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "",
+    "title": "Add expense"
+  },
+  {
+    "route": "linked-event",
+    "width": 390,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "",
+    "title": "Add expense"
+  },
+  {
+    "route": "linked-event",
+    "width": 768,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "",
+    "title": "Add expense"
+  },
+  {
+    "route": "linked-event",
+    "width": 1024,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "",
+    "title": "Add expense"
+  },
+  {
+    "route": "linked-event",
+    "width": 1440,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "",
+    "title": "Add expense"
+  },
+  {
+    "route": "large",
+    "width": 320,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "9999999999.99",
+    "title": "Edit expense"
+  },
+  {
+    "route": "jpy",
+    "width": 320,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "64.3",
+    "title": "Edit expense"
+  },
+  {
+    "route": "spanish-new",
+    "width": 320,
+    "overflow": [],
+    "documentOverflow": false,
+    "amount": "",
+    "title": "Añadir gasto"
+  }
+]

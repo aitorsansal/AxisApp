@@ -1,60 +1,95 @@
-.recurring-add-btn {
-  margin-bottom: 24px;
+.recurring-toolbar {
+  justify-content: space-between;
+  align-items: flex-start;
+  margin: 0 0 24px;
+}
+.recurring-explanation {
+  flex: 1 1 260px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 0;
+}
+.recurring-page .recurring-add-btn {
+  width: auto;
 }
 .recurring-list {
   list-style: none;
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 8px;
+  gap: 16px;
 }
-.recurring-row {
+.recurring-row.card {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
+  padding: 22px;
+}
+.recurring-icon.activity-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface-elevated);
 }
 .recurring-info {
   min-width: 0;
-  text-decoration: none;
   color: inherit;
+  text-decoration: none;
   border-radius: var(--radius-sm);
 }
 .recurring-info:hover .recurring-desc {
-  color: var(--action-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .recurring-desc {
+  font-size: 15px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+.recurring-status {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--balance-positive);
+  margin-top: 7px;
+}
+.recurring-status.paused {
+  color: var(--text-secondary);
+}
 .recurring-meta {
   font-size: 12px;
-  color: var(--text-tertiary);
+  line-height: 1.7;
+  color: var(--text-secondary);
   overflow-wrap: anywhere;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 .recurring-amount {
-  font-size: 15px;
+  max-width: 100%;
+  font-size: 18px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .recurring-actions {
   grid-column: 2 / -1;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
+  gap: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--divider);
 }
-@media (max-width: 360px) {
-  .recurring-icon {
-    display: none;
+@media (max-width: 500px) {
+  .recurring-row.card {
+    grid-template-columns: 30px minmax(0, 1fr);
+    padding: 18px;
   }
-  .recurring-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
+  .recurring-amount {
+    grid-column: 2;
   }
-  .recurring-actions {
-    grid-column: 1 / -1;
+  .recurring-icon.activity-icon {
+    width: 30px;
+    height: 30px;
   }
 }

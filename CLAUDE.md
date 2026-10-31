@@ -67,9 +67,10 @@ What's actually left, in rough order:
    against Google's RRULE.
 2. **iOS/MacCatalyst**, not in the active `TargetFrameworks` (no Mac to
    build/test against).
-3. Small known gaps: a live RLS-enforcement pass on the `events`/
-   `event_attendees` policies (structurally verified, not yet exercised
-   under a real adversarial session). The web app has receipts, recurring expenses,
+3. **Event authorization verified live 2026-10-31**: 56 targeted checks with
+   two authenticated accounts passed for cross-group isolation, RSVP ownership,
+   event column locks, non-organizer deletion and access after leaving. See
+   `reports/EVENT_RLS_REVIEW.md` for evidence and limits. The web app has receipts, recurring expenses,
    the members roster/add-by-name flow, calendar feeds and group appearance;
    it has no remaining feature-parity gaps vs. Android (the list from
    `review-artifacts/APP_REVIEW.md` was closed 2026-10-27). PWA install + web push are implemented and live
@@ -586,18 +587,30 @@ Group Detail balances/activity (2026-10-29) refresh without Realtime on both cli
   to respond to the accent picker must be consumed as `{DynamicResource
   ...}`, not `{StaticResource ...}` — the latter resolves once at load and
   never picks up a preset change.
-- **Web visual style ("Bloque", 2026-10-28) diverges from Android on purpose**:
-  neutral near-black surfaces, self-hosted Bricolage Grotesque
-  (`@fontsource-variable/bricolage-grotesque`, imported in `main.tsx`), no
-  borders (filled surfaces; `.card`/controls keep a transparent border so
-  forced-colors still outlines them), large text tabs, flat balance rows.
-  Tokens live in `webapp/src/index.css`; Android has not been ported. On
-  desktop the home `AppHeader` is visually hidden (sidebar has brand,
-  profile and logout) — any action added to that header needs a sidebar
-  equivalent. Visual review fixture: `npx vite webapp --config
-  webapp/tests/visual.vite.config.ts` (mocked read-only data, port 5175;
-  `?qaTab=1|2`, `?qaAccent=`, `?qaSignedOut=1`,
-  `/tests/fixtures/mobile-frame.html#<path>` for a true 390px viewport).
+- **Web visual style ("Together", 2026-10-30)**: the approved overview uses
+  neutral dark surfaces, self-hosted Manrope, separate directional balances per
+  currency, inline RSVP/transport on upcoming events, and recent financial activity.
+  Desktop has persistent group links; mobile has an overview group section and
+  labelled bottom navigation. `/` is Overview, `/agenda` lists upcoming events,
+  and `/groups` retains the reorderable group directory under Manage groups.
+  Tokens live in `webapp/src/index.css`. Appearance stays in Profile; all eight
+  accents remain, with controls-only or subtly tinted surfaces stored per browser.
+  `useUpcomingEvents` uses serialized/coalesced attendance writes and refresh revisions;
+  do not replace it with bare upserts. `eventAttendance.ts` shares response/transport
+  transitions with the existing group and event pages. See
+  `reports/OVERVIEW_REVIEW.md` for scope and verification. This first design slice
+  is deployed. Group Detail was extended locally on 2026-10-31 (not deployed):
+  directional balances, lighter header/tabs and clearer activity. See
+  `reports/GROUP_DETAIL_DESIGN_REVIEW.md`. Expense/recurring and repayment forms
+  were extended locally the same day (not deployed); see `reports/FORMS_DESIGN_REVIEW.md`.
+  Their financial rules are unchanged. Event Detail/forms, Group Events, Members,
+  recurring lists and member profiles were also extended locally on 2026-10-31
+  (not deployed); see `reports/REMAINING_PAGES_DESIGN_REVIEW.md`. Standalone
+  account/setup pages retain their existing structures.
+  Visual fixture: `npm run dev --prefix webapp -- --config tests/visual.vite.config.ts`
+  (port 5175; `?qaLanguage=en&qaOverview=interactive` enables in-memory attendance
+  writes; `qaOverview=settled|owe-zero|mixed|no-events|empty|events-error|activity-error|save-error`
+  exercises overview states). Never use the fixture config for deployment.
 - **Web accent presets** (`webapp/src/lib/accent.ts`) copy the same 8 presets'
   values from `AccentPalettes.cs` into the accent CSS variables in
   `index.css`, applied in `main.tsx` before the first render. Every web accent

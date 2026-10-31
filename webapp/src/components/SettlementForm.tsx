@@ -9,6 +9,7 @@ import { CURRENCIES, type MemberRow } from '../lib/types'
 import { isSettlementDate, settlementCents, settlementPayload, type SettlementDraft } from '../lib/settlements'
 import { amountErrorKey, parseAmountInput } from '../lib/amountInput'
 import { toMinor } from '../lib/currencyUnits'
+import { Avatar } from './Avatar'
 import './SettlementForm.css'
 
 export function SettlementForm({
@@ -30,7 +31,7 @@ export function SettlementForm({
   onCommitted: () => void
 }) {
   const { t, language } = useLocale()
-  const { displayName } = useAliases()
+  const { displayName, initials, avatarUrl } = useAliases()
   const [draft, setDraft] = useState(initial)
   useEffect(() => { onDraftChange(draft) }, [draft, onDraftChange])
   const [busy, setBusy] = useState(false)
@@ -121,10 +122,10 @@ export function SettlementForm({
 
   return (
     <form className="settlement-form" onSubmit={handleSubmit}>
-      <p className="settlement-hint">{t('Settlement_Hint')}</p>
+      <p className="settlement-hint settlement-intro">{t('Settlement_Hint')}</p>
       <fieldset disabled={busy}>
         {isEdit ? (
-          <div className="settlement-fields">
+          <div className="settlement-fields settlement-party-fields">
             <div className="field">
               <label htmlFor="settlement-payer">{t('Settlement_From')}</label>
               <select id="settlement-payer" value={draft.payerId} onChange={(e) => {
@@ -146,38 +147,51 @@ export function SettlementForm({
           </div>
         ) : (
           <div className="settlement-parties">
-            <dl><dt>{t('Settlement_From')}</dt><dd>{name(draft.payerId)}</dd></dl>
-            <span className="settlement-direction" aria-hidden="true">→</span>
-            <dl><dt>{t('Settlement_To')}</dt><dd>{name(draft.recipientId)}</dd></dl>
+            {([['Settlement_From', draft.payerId], ['Settlement_To', draft.recipientId]] as const).map(([label, id], index) => {
+              const person = members.find((row) => row.member_id === id)?.members
+              return (
+                <div className="settlement-party" key={label}>
+                  {index === 1 && <span className="settlement-direction" aria-hidden="true">→</span>}
+                  <div className="settlement-person">
+                    <Avatar url={person ? avatarUrl(person) : null} initials={person ? initials(person) : '?'} seed={id} size={36} />
+                    <dl><dt>{t(label)}</dt><dd>{name(id)}</dd></dl>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
-        <div className="settlement-fields">
-          <div className="field">
-            <label htmlFor="settlement-amount">{t('AddExpense_AmountLabel')} ({draft.currency})</label>
-            <input id="settlement-amount" type="text" inputMode="decimal" required value={draft.amount}
-              onChange={(e) => update('amount', e.target.value)} aria-describedby="settlement-amount-hint" />
-            <p id="settlement-amount-hint" className="settlement-hint">{t('Settlement_PartialHint')}</p>
+        <div className="settlement-details">
+          <div className="settlement-amount-row">
+            <div className="field settlement-amount-field">
+              <label htmlFor="settlement-amount">{t('AddExpense_AmountLabel')} ({draft.currency})</label>
+              <input id="settlement-amount" type="text" inputMode="decimal" required value={draft.amount}
+                onChange={(e) => update('amount', e.target.value)} aria-describedby="settlement-amount-hint" />
+            </div>
+            {isEdit && <div className="field settlement-currency-field">
+              <label htmlFor="settlement-currency">{t('AddExpense_Currency')}</label>
+              <select id="settlement-currency" value={draft.currency} onChange={(e) => update('currency', e.target.value)}>
+                {CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+              </select>
+            </div>}
           </div>
-          <div className="field">
-            <label htmlFor="settlement-date">{t('AddExpense_DateLabel')}</label>
-            <input id="settlement-date" type="date" required value={draft.date} onChange={(e) => update('date', e.target.value)} />
-          </div>
-        </div>
-        {isEdit && <div className="field">
-          <label htmlFor="settlement-currency">{t('AddExpense_Currency')}</label>
-          <select id="settlement-currency" value={draft.currency} onChange={(e) => update('currency', e.target.value)}>
-            {CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
-          </select>
-        </div>}
-        <div className="field">
-          <label htmlFor="settlement-note">{t('Settlement_Note')}</label>
-          <input id="settlement-note" value={draft.note} placeholder={placeholder} onChange={(e) => update('note', e.target.value)} />
-        </div>
-        {error && <p className="error-text" role="alert">{error}</p>}
-        <div className="settlement-footer">
+          <p id="settlement-amount-hint" className="settlement-hint">{t('Settlement_PartialHint')}</p>
           {expectedBalance !== undefined && <p className="settlement-hint settlement-outstanding">
             {t('Settlement_Outstanding', formatMoney(Math.abs(expectedBalance), initial.currency, language))}
           </p>}
+          <div className="settlement-fields">
+            <div className="field">
+              <label htmlFor="settlement-date">{t('AddExpense_DateLabel')}</label>
+              <input id="settlement-date" type="date" required value={draft.date} onChange={(e) => update('date', e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="settlement-note">{t('Settlement_Note')}</label>
+              <input id="settlement-note" value={draft.note} placeholder={placeholder} onChange={(e) => update('note', e.target.value)} />
+            </div>
+          </div>
+        </div>
+        {error && <p className="error-text" role="alert">{error}</p>}
+        <div className="settlement-footer">
           <div className="settlement-actions">
             <button type="button" className="btn btn-outline" onClick={onCancel}>{t('Common_Cancel')}</button>
             <button type="submit" className="btn btn-primary">{busy ? t('Common_Saving') : t(isEdit ? 'Settlement_Save' : 'Settlement_Record')}</button>

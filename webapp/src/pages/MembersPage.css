@@ -1,220 +1,204 @@
-.members-section {
-  margin-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.members-layout {
+  display: grid;
+  align-items: start;
+  gap: 24px;
 }
-
+.members-section {
+  display: grid;
+  gap: 16px;
+}
+.members-section > .section-title {
+  margin-bottom: 0;
+}
 .invite-card {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
   align-items: flex-start;
+  gap: 18px;
 }
-
 .invite-qr {
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   line-height: 0;
 }
-
+.invite-qr svg {
+  max-width: 100%;
+  height: auto;
+}
 .invite-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 160px;
+  display: grid;
+  gap: 10px;
+  flex: 1 1 150px;
+  min-width: 0;
 }
-
-.invite-label {
-  font-size: 0.85rem;
+.invite-label,
+.invite-hint,
+.subsection-title {
+  font-size: 12px;
   color: var(--text-secondary);
-  margin-top: 6px;
 }
-
 .invite-stepper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-
-.stepper-btn {
-  width: 36px;
-  height: 36px;
+.members-page .stepper-btn {
+  width: 44px;
+  height: 44px;
   padding: 0;
-  border-radius: 999px;
 }
-
-.invite-hint {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
 .invite-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-weight: 700;
-  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
   user-select: all;
+  overflow-wrap: anywhere;
+  background: var(--surface-elevated);
+  border-radius: var(--radius-sm);
+  padding: 12px;
 }
-
 .add-by-name {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--divider);
 }
-
 .name-search {
-  margin: 8px 0 0;
+  margin: 0;
 }
-
 .subsection-title {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin: 8px 0 0;
+  font-weight: 500;
+  margin: 10px 0 0;
 }
-
 .match-list,
 .pending-list,
 .roster-list {
   list-style: none;
-  margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  margin: 0;
 }
-
 .match-row,
 .pending-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+  min-height: 60px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--divider);
 }
-
 .match-name {
   flex: 1;
-  font-weight: 500;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
-
 .match-hint {
-  color: var(--text-tertiary);
-  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
-
-.match-btn {
+.members-page .match-btn,
+.members-page .remove-btn {
   width: auto;
-  padding: 6px 12px;
-  font-size: 0.85rem;
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 12px;
 }
-
 .roster-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--divider);
 }
-
+.roster-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.roster-row:first-child {
+  padding-top: 0;
+}
 .roster-info {
-  flex: 1;
   min-width: 0;
 }
-
 .roster-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  padding: 8px 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
-
-.roster-caption {
-  color: var(--text-tertiary);
-  font-size: 0.8rem;
-}
-
-.rename-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rename-row input {
-  flex: 1;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  padding: 6px 8px;
-}
-
-.profile-link {
-  width: 44px;
-  min-height: 44px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  text-decoration: none;
-}
-
-.remove-btn {
-  width: auto;
-  padding: 6px 12px;
-  font-size: 0.85rem;
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.roster-row {
-  min-height: 80px;
-}
-.roster-name {
-  display: block;
-  min-height: 44px;
-  width: 100%;
-  background: transparent;
-  border: 0;
-  padding: 8px 0;
-  text-align: left;
-  color: var(--text-primary);
-  font: inherit;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
+.roster-name > span {
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+.roster-name svg {
+  flex-shrink: 0;
+  color: var(--text-secondary);
 }
 .roster-name:hover {
   color: var(--action-text);
 }
 .roster-caption {
+  color: var(--text-secondary);
   font-size: 12px;
-}
-.match-name,
-.match-hint,
-.roster-info {
-  min-width: 0;
   overflow-wrap: anywhere;
 }
-.match-row,
-.pending-row {
-  min-height: 56px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-}
-.match-name {
-  font-size: 14px;
-}
-.match-hint {
-  font-size: 12px;
-}
 .rename-row {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 .rename-row input {
   flex: 1 0 100%;
   width: 100%;
+  min-width: 0;
   min-height: 44px;
-  padding: 10px 12px;
+  background: var(--surface-elevated);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
   font-size: 16px;
+  padding: 10px 12px;
 }
-.match-btn,
-.remove-btn {
-  flex-shrink: 0;
+.members-page .profile-link {
+  width: 44px;
   min-height: 44px;
-  font-size: 13px;
+  padding: 0;
+}
+.members-page .remove-btn {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+@media (min-width: 1200px) {
+  .members-layout {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 500px) {
+  .roster-row {
+    grid-template-columns: 40px minmax(0, 1fr) 44px;
+  }
+  .roster-row > .avatar { grid-column: 1; grid-row: 1; }
+  .roster-info { grid-column: 2; grid-row: 1; }
+  .roster-row .profile-link { grid-column: 3; grid-row: 1; }
+  .roster-row .remove-btn { grid-column: 2 / -1; justify-self: start; }
+  .pending-row .match-btn {
+    margin-left: 42px;
+  }
 }

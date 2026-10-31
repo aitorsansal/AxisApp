@@ -2616,3 +2616,27 @@ Verification: web build and 32 regression tests pass; lint has no new-file warni
 
 
 Together deploy record — 2026-10-30: deployed with `npm run deploy --prefix webapp`, Worker `axisapp-webapp`, version `f27da25f-a7d7-4a63-8cdd-9cbebc15e8c8`. Build and post-deploy smoke checks passed for `/`, `/profile` and the expected JavaScript entry. The first Together slice above is now live. Authenticated live-data and multi-client verification remain outstanding.
+
+## Live two-account event authorization verification ? 2026-10-31
+
+Used the production test account and the separate account signed into localhost to exercise production event/attendance authorization through direct PostgREST requests. All 56 checks passed: cross-group reads/writes, own-ID RSVP insertion outside a group, other-attendee writes, non-organizer deletion, ownership forgery, and access after leaving, including an event's original organizer after transferring the group. Legitimate member reads, own RSVPs and collaborative event edits succeeded. No application or policy changes were needed.
+
+Two isolated groups, their events, RSVPs, memberships and temporary invites were cleaned up; pre-existing data was untouched. `reports/EVENT_RLS_REVIEW.md` describes the cases and limits; `reports/EVENT_RLS_RESULTS.json` records sanitized assertions and cleanup receipts. `AGENTS.md` and `CLAUDE.md` no longer describe the event RLS pass as unexercised.
+
+## Together Group Detail — 2026-10-31 (local, not deployed)
+
+Extended the Together dashboard's design to Group Detail: lighter headings and tabs, member/currency context, a visible recurring shortcut, quieter pairwise balance rows and a filled activity list with viewer-localized payer copy. The balance headline now shows owed and owing separately. Previously, equal opposite debts could produce a misleading "Settled up" headline; that state now requires both directions to be empty.
+
+Existing financial save flows and backend policies are unchanged. Build, 32 web regressions and lint pass; 25 fixture layout/state/accent combinations fit without horizontal overflow. Search, Events/Stats URLs and repayment opening/cancellation were checked; no real data was changed. See `reports/GROUP_DETAIL_DESIGN_REVIEW.md`. Not deployed.
+
+## Together expense and repayment forms — 2026-10-31 (local, not deployed)
+
+Extended Together to ordinary/recurring/event-linked expense editors and repayment creation/editing: neutral sections, clearer amount/currency controls, wrapping payer choices, group context and consistent actions. Explicit expense Cancel uses the existing unsaved-change guard. Receipt previews contain the whole image. Financial validation, payloads, freshness and backend permissions are unchanged.
+
+Build, 32 web regressions and lint pass. Browser fixtures cover 28 layout cases, repayment modal sizes, split/payer/recurrence interactions, Cancel protection, mocked ordinary/recurring/partial-repayment saves, pending duplicate prevention and failure recovery. No live data was changed. Desktop and phone screenshots were inspected through a separate headless preview after the normal capture path timed out; see reports/FORMS_DESIGN_REVIEW.md for evidence and limits.
+
+## Remaining Together pages — 2026-10-31 (local, not deployed)
+
+Extended Together to Event Detail and event forms, Group Events cards, Members, recurring expenses and pairwise member profiles. Common typography/panels/actions live in TogetherPage.css. Event forms gain guarded Cancel; birthday detail omits RSVP/attendee sections. Members presents the roster first with visible name-edit icons; recurring schedules expose Active/Paused status; pairwise cards retain signed explanations and link to their groups.
+
+Build, 32 regressions and lint pass. 62 responsive/state/language fixture checks fit without horizontal overflow; desktop/phone screenshots were inspected. Mocked interaction checks cover RSVP/transport transitions, event validation/editing, clipboard-free guest adds, explicit copying, recurring pause/resume and profile expansion/reconciliation. No live data or native code was changed. See reports/REMAINING_PAGES_DESIGN_REVIEW.md.

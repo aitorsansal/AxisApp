@@ -17,6 +17,7 @@ import { AppHeader } from '../components/AppHeader'
 import { Avatar } from '../components/Avatar'
 import { Icon } from '../components/Icon'
 import { QrCode } from '../components/QrCode'
+import '../components/TogetherPage.css'
 import './MembersPage.css'
 
 // Same URL as AppConstants.Links.BuildInviteUrl: this app's own /join page, which the Android app
@@ -285,7 +286,7 @@ export function MembersPage() {
 
   if (!group) {
     return (
-      <div className="page">
+      <div className="page page-wide together-page members-page">
         <AppHeader title={t('Members_Title')} backTo={`/groups/${groupId}`} />
         {error ? (
           <p className="error-text" role="alert">
@@ -303,7 +304,7 @@ export function MembersPage() {
   const phantoms = members.filter((m) => !m.members.account_id)
 
   return (
-    <div className="page">
+    <div className="page page-wide together-page members-page">
       <AppHeader title={t('Members_Title')} backTo={`/groups/${groupId}`} />
       <p className="page-context">{group.name}</p>
       {error && (
@@ -317,230 +318,236 @@ export function MembersPage() {
         </p>
       )}
 
-      <section className="card members-section">
-        <h2 className="section-title">{t('Members_InvitePeople')}</h2>
-        {generalInvite && (
-          <div className="invite-card">
-            <div className="invite-qr">
-              <QrCode value={buildInviteUrl(generalInvite.token)} label={t('Members_QrLabel')} />
-            </div>
-            <div className="invite-editor">
-              <span className="invite-label" id="inviteUsesLabel">
-                {t('Members_UsesLabel')}
-              </span>
-              <div className="invite-stepper" role="group" aria-labelledby="inviteUsesLabel">
-                <button
-                  type="button"
-                  className="btn btn-outline stepper-btn"
-                  aria-label={t('Members_FewerUses')}
-                  disabled={inviteSaving || generalInvite.max_uses <= Math.max(1, generalInvite.use_count)}
-                  onClick={() => updateGeneralInvite({ max_uses: generalInvite.max_uses - 1 })}
-                >
-                  −
-                </button>
-                <strong aria-live="polite">{generalInvite.max_uses}</strong>
-                <button
-                  type="button"
-                  className="btn btn-outline stepper-btn"
-                  aria-label={t('Members_MoreUses')}
-                  disabled={inviteSaving || generalInvite.max_uses >= MAX_USES_CEILING}
-                  onClick={() => updateGeneralInvite({ max_uses: generalInvite.max_uses + 1 })}
-                >
-                  +
-                </button>
-              </div>
-              <span className="invite-hint">
-                {t('Members_UsedCount', generalInvite.use_count, generalInvite.max_uses)}
-              </span>
-
-              <label className="invite-label" htmlFor="inviteExpiry">
-                {t('Members_ExpiresLabel')}
-              </label>
-              <div className="field">
-                <select
-                  id="inviteExpiry"
-                  disabled={inviteSaving}
-                  value={closestExpiryIndex(Date.parse(generalInvite.expires_at) - Date.now())}
-                  onChange={(e) =>
-                    updateGeneralInvite({
-                      expires_at: new Date(Date.now() + EXPIRY_HOURS[Number(e.target.value)] * 3_600_000).toISOString(),
-                    })
-                  }
-                >
-                  {EXPIRY_KEYS.map((key, i) => (
-                    <option key={key} value={i}>
-                      {t(key)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-        {generalInvite && <div className="invite-code">{generalInvite.token}</div>}
-        <button type="button" className="btn btn-outline" onClick={() => copyInvite()}>
-          {t('Members_CopyLink')}
-        </button>
-
-        {manualLink && (
-          <div className="field">
-            <label htmlFor="manualInviteLink">{t('Members_CopyManually')}</label>
-            <input
-              id="manualInviteLink"
-              readOnly
-              value={manualLink}
-              onFocus={(e) => e.currentTarget.select()}
-            />
-          </div>
-        )}
-
-        <form
-          className="add-by-name"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (canAddByName(nameInput, matches)) handleAddPhantom()
-          }}
-        >
-          <div className="field name-search">
-            <label htmlFor="memberName">{t('Members_AddByName')}</label>
-            <input
-              id="memberName"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => {
-                // Enter that confirms an IME composition must not add the member.
-                if (e.key === 'Enter' && (e.nativeEvent.isComposing || e.keyCode === 229)) e.preventDefault()
-              }}
-              placeholder={t('Members_NamePlaceholder')}
-              disabled={busy}
-            />
-          </div>
-
-        {matches.length > 0 && (
-          <ul className="match-list">
-            {matches.map((m) => (
-              <li key={m.id} className="match-row">
-                <Avatar url={avatarUrl(m)} initials={initials(m)} seed={m.id} size={32} />
-                <span className="match-name">{displayName(m)}</span>
-                {m.account_id ? (
-                  <span className="match-hint">{t('Members_AlreadyOnAxis')}</span>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn-outline match-btn"
-                    disabled={busy}
-                    onClick={() => handleLinkExisting(m)}
-                  >
-                    {t('Members_Link')}
-                  </button>
-                )}
-              </li>
-            ))}
+      <div className="members-layout">
+        <section className="together-panel members-roster">
+          <h2 className="section-title">{t('Members_Title')}</h2>
+          <ul className="roster-list">
+            {members.map((row) => {
+              const isYou = row.members.account_id === session?.user.id
+              const isPhantom = !row.members.account_id
+              return (
+                <li key={row.member_id} className="roster-row">
+                  <Avatar url={avatarUrl(row.members)} initials={initials(row.members)} seed={row.member_id} size={40} />
+                  <div className="roster-info">
+                    {renamingId === row.member_id ? (
+                      <div className="rename-row">
+                        <input
+                          autoFocus
+                          aria-label={t('Members_RenamePrompt')}
+                          value={renameInput}
+                          onChange={(e) => setRenameInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') confirmRename()
+                            if (e.key === 'Escape') closeRename()
+                          }}
+                        />
+                        <button type="button" className="link-btn" onClick={confirmRename}>
+                          {t('Common_Save')}
+                        </button>
+                        <button type="button" className="link-btn" onClick={() => closeRename()}>
+                          {t('Common_Cancel')}
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="roster-name"
+                          ref={(element) => {
+                            if (element) renameButtonsRef.current.set(row.member_id, element)
+                            else renameButtonsRef.current.delete(row.member_id)
+                          }}
+                          onClick={() => openRename(row)}
+                          aria-label={`${t('Members_RenamePrompt')}: ${displayName(row.members)}`}
+                        >
+                          <span>{displayName(row.members)}</span>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                            <path d="m16 3 5 5L9 20l-6 1 1-6L16 3Z M13 6l5 5" />
+                          </svg>
+                        </button>
+                        <div className="roster-caption">
+                          {isYou ? t('Members_You') : isPhantom ? t('Members_Phantom') : ''}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {!isYou && (
+                    <Link
+                      to={`/groups/${groupId}/members/${row.member_id}`}
+                      className="btn btn-outline profile-link"
+                      aria-label={t('Members_ViewProfile', displayName(row.members))}
+                      title={t('Members_ViewProfile', displayName(row.members))}
+                    >
+                      <Icon name="arrow_right" size={18} />
+                    </Link>
+                  )}
+                  {isPhantom && (
+                    <button
+                      type="button"
+                      className="btn btn-outline remove-btn"
+                      onClick={() => handleRemove(row)}
+                    >
+                      {t('Members_Remove')}
+                    </button>
+                  )}
+                </li>
+              )
+            })}
           </ul>
-        )}
+        </section>
 
-        {canAddByName(nameInput, matches) && (
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? t('Common_Saving') : t('Common_Add')}
-          </button>
-        )}
-        </form>
-
-        {phantoms.length > 0 && (
-          <>
-            <h3 className="subsection-title">{t('Members_PendingInvites')}</h3>
-            <ul className="pending-list">
-              {phantoms.map((row) => (
-                <li key={row.member_id} className="pending-row">
-                  <Avatar url={null} initials={initials(row.members)} seed={row.member_id} size={32} />
-                  <span className="match-name">{displayName(row.members)}</span>
+        <section className="together-panel members-section">
+          <h2 className="section-title">{t('Members_InvitePeople')}</h2>
+          {generalInvite && (
+            <div className="invite-card">
+              <div className="invite-qr">
+                <QrCode value={buildInviteUrl(generalInvite.token)} label={t('Members_QrLabel')} />
+              </div>
+              <div className="invite-editor">
+                <span className="invite-label" id="inviteUsesLabel">
+                  {t('Members_UsesLabel')}
+                </span>
+                <div className="invite-stepper" role="group" aria-labelledby="inviteUsesLabel">
                   <button
                     type="button"
-                    className="btn btn-outline match-btn"
-                    onClick={() => copyInvite(row.members)}
+                    className="btn btn-outline stepper-btn"
+                    aria-label={t('Members_FewerUses')}
+                    disabled={inviteSaving || generalInvite.max_uses <= Math.max(1, generalInvite.use_count)}
+                    onClick={() => updateGeneralInvite({ max_uses: generalInvite.max_uses - 1 })}
                   >
-                    {t('Members_Resend')}
+                    −
                   </button>
+                  <strong aria-live="polite">{generalInvite.max_uses}</strong>
+                  <button
+                    type="button"
+                    className="btn btn-outline stepper-btn"
+                    aria-label={t('Members_MoreUses')}
+                    disabled={inviteSaving || generalInvite.max_uses >= MAX_USES_CEILING}
+                    onClick={() => updateGeneralInvite({ max_uses: generalInvite.max_uses + 1 })}
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="invite-hint">
+                  {t('Members_UsedCount', generalInvite.use_count, generalInvite.max_uses)}
+                </span>
+
+                <label className="invite-label" htmlFor="inviteExpiry">
+                  {t('Members_ExpiresLabel')}
+                </label>
+                <div className="field">
+                  <select
+                    id="inviteExpiry"
+                    disabled={inviteSaving}
+                    value={closestExpiryIndex(Date.parse(generalInvite.expires_at) - Date.now())}
+                    onChange={(e) =>
+                      updateGeneralInvite({
+                        expires_at: new Date(Date.now() + EXPIRY_HOURS[Number(e.target.value)] * 3_600_000).toISOString(),
+                      })
+                    }
+                  >
+                    {EXPIRY_KEYS.map((key, i) => (
+                      <option key={key} value={i}>
+                        {t(key)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+          {generalInvite && <div className="invite-code">{generalInvite.token}</div>}
+          <button type="button" className="btn btn-outline" onClick={() => copyInvite()}>
+            {t('Members_CopyLink')}
+          </button>
+
+          {manualLink && (
+            <div className="field">
+              <label htmlFor="manualInviteLink">{t('Members_CopyManually')}</label>
+              <input
+                id="manualInviteLink"
+                readOnly
+                value={manualLink}
+                onFocus={(e) => e.currentTarget.select()}
+              />
+            </div>
+          )}
+
+          <form
+            className="add-by-name"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (canAddByName(nameInput, matches)) handleAddPhantom()
+            }}
+          >
+            <div className="field name-search">
+              <label htmlFor="memberName">{t('Members_AddByName')}</label>
+              <input
+                id="memberName"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  // Enter that confirms an IME composition must not add the member.
+                  if (e.key === 'Enter' && (e.nativeEvent.isComposing || e.keyCode === 229)) e.preventDefault()
+                }}
+                placeholder={t('Members_NamePlaceholder')}
+                disabled={busy}
+              />
+            </div>
+
+          {matches.length > 0 && (
+            <ul className="match-list">
+              {matches.map((m) => (
+                <li key={m.id} className="match-row">
+                  <Avatar url={avatarUrl(m)} initials={initials(m)} seed={m.id} size={32} />
+                  <span className="match-name">{displayName(m)}</span>
+                  {m.account_id ? (
+                    <span className="match-hint">{t('Members_AlreadyOnAxis')}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-outline match-btn"
+                      disabled={busy}
+                      onClick={() => handleLinkExisting(m)}
+                    >
+                      {t('Members_Link')}
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
-          </>
-        )}
-      </section>
+          )}
 
-      <section>
-        <h2 className="section-title">{t('Members_Title')}</h2>
-        <ul className="roster-list">
-          {members.map((row) => {
-            const isYou = row.members.account_id === session?.user.id
-            const isPhantom = !row.members.account_id
-            return (
-              <li key={row.member_id} className="card roster-row">
-                <Avatar url={avatarUrl(row.members)} initials={initials(row.members)} seed={row.member_id} size={40} />
-                <div className="roster-info">
-                  {renamingId === row.member_id ? (
-                    <div className="rename-row">
-                      <input
-                        autoFocus
-                        aria-label={t('Members_RenamePrompt')}
-                        value={renameInput}
-                        onChange={(e) => setRenameInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') confirmRename()
-                          if (e.key === 'Escape') closeRename()
-                        }}
-                      />
-                      <button type="button" className="link-btn" onClick={confirmRename}>
-                        {t('Common_Save')}
-                      </button>
-                      <button type="button" className="link-btn" onClick={() => closeRename()}>
-                        {t('Common_Cancel')}
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="roster-name"
-                        ref={(element) => {
-                          if (element) renameButtonsRef.current.set(row.member_id, element)
-                          else renameButtonsRef.current.delete(row.member_id)
-                        }}
-                        onClick={() => openRename(row)}
-                        aria-label={`${t('Members_RenamePrompt')}: ${displayName(row.members)}`}
-                      >
-                        {displayName(row.members)}
-                      </button>
-                      <div className="roster-caption">
-                        {isYou ? t('Members_You') : isPhantom ? t('Members_Phantom') : ''}
-                      </div>
-                    </>
-                  )}
-                </div>
-                {!isYou && (
-                  <Link
-                    to={`/groups/${groupId}/members/${row.member_id}`}
-                    className="btn btn-outline profile-link"
-                    aria-label={t('Members_ViewProfile', displayName(row.members))}
-                    title={t('Members_ViewProfile', displayName(row.members))}
-                  >
-                    <Icon name="arrow_right" size={18} />
-                  </Link>
-                )}
-                {isPhantom && (
-                  <button
-                    type="button"
-                    className="btn btn-outline remove-btn"
-                    onClick={() => handleRemove(row)}
-                  >
-                    {t('Members_Remove')}
-                  </button>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      </section>
+          {canAddByName(nameInput, matches) && (
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              {busy ? t('Common_Saving') : t('Common_Add')}
+            </button>
+          )}
+          </form>
+
+          {phantoms.length > 0 && (
+            <>
+              <h3 className="subsection-title">{t('Members_PendingInvites')}</h3>
+              <ul className="pending-list">
+                {phantoms.map((row) => (
+                  <li key={row.member_id} className="pending-row">
+                    <Avatar url={null} initials={initials(row.members)} seed={row.member_id} size={32} />
+                    <span className="match-name">{displayName(row.members)}</span>
+                    <button
+                      type="button"
+                      className="btn btn-outline match-btn"
+                      onClick={() => copyInvite(row.members)}
+                    >
+                      {t('Members_Resend')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+
+      </div>
     </div>
   )
 }

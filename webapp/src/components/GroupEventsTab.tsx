@@ -250,7 +250,7 @@ export function GroupEventsTab({ groupId, members }: Props) {
                   )}
 
                   {!ev.is_birthday && (
-                    <div className="rsvp-pill">
+                    <div className="rsvp-pill" role="group" aria-label={`${t('EventDetail_YourResponse')}: ${ev.title}`}>
                       <button
                         type="button"
                         className={myResponse === 'going' ? 'active' : ''}
@@ -295,6 +295,7 @@ export function GroupEventsTab({ groupId, members }: Props) {
                                   ? 'btn btn-outline active'
                                   : 'btn btn-outline'
                               }
+                              aria-pressed={myRow?.car_status === 'offering'}
                               onClick={() => toggleCarOffering(ev.id)}
                             >
                               {t('GroupEvents_HaveCar')}
@@ -307,6 +308,7 @@ export function GroupEventsTab({ groupId, members }: Props) {
                                 ? 'btn btn-outline active'
                                 : 'btn btn-outline'
                             }
+                            aria-pressed={myRow?.car_status === 'needs_ride'}
                             onClick={() => toggleCarNeedsRide(ev.id)}
                           >
                             {t('GroupEvents_NeedRide')}

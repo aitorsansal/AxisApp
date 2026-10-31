@@ -1,0 +1,18 @@
+{
+  "url": "/groups/00000000-0000-0000-0000-000000000100/events/00000000-0000-0000-0000-000000000300",
+  "writes": [
+    {
+      "table": "events",
+      "method": "PATCH",
+      "payload": {
+        "group_id": "00000000-0000-0000-0000-000000000100",
+        "title": "Cena de piso",
+        "description": "Traed postre",
+        "location": "Casa",
+        "starts_at": "2026-11-03T20:00:00.000Z",
+        "ends_at": "2026-11-03T22:00:00.000Z",
+        "needs_transport": true
+      }
+    }
+  ]
+}

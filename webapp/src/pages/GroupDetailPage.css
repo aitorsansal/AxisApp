@@ -1,17 +1,18 @@
-/* Group tabs: large text tabs with an accent underline, not a segmented pill. */
+/* Group navigation and balances. Activity styles are also shared by Event Detail. */
 .tab-pill {
   display: flex;
-  gap: 26px;
+  gap: 28px;
+  border-bottom: 1px solid var(--divider);
 }
 .tab-pill button {
   position: relative;
   border: 0;
   color: var(--text-tertiary);
   background: transparent;
-  padding: 6px 0 10px;
+  padding: 10px 0 16px;
   min-height: 44px;
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 .tab-pill button:hover {
@@ -26,7 +27,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: 4px;
+  height: 2px;
   border-radius: 4px;
   background: var(--primary);
 }
@@ -110,7 +111,8 @@
   margin-bottom: 28px;
 }
 .group-detail-page .app-header {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  align-items: flex-start;
 }
 .group-detail-page .menu-trigger {
   display: flex;
@@ -136,7 +138,8 @@
 .balances-panel {
   background: var(--surface);
   border-radius: var(--radius-lg);
-  padding: 18px 18px 14px;
+  padding: 22px;
+  border: 1px solid transparent;
 }
 .balance-list {
   display: flex;
@@ -144,11 +147,11 @@
 }
 .balance-row.card {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
   grid-template-areas: 'avatar name action' 'avatar value action';
-  gap: 0 12px;
+  gap: 3px 12px;
   align-items: center;
-  padding: 12px 0;
+  padding: 16px 0;
   background: transparent;
   border-radius: 0;
 }
@@ -161,53 +164,56 @@
 .balance-name {
   grid-area: name;
   min-width: 0;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.3;
-  font-weight: 700;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  font-weight: 600;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .balance-value {
   grid-area: value;
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 2px 8px;
+  flex-wrap: wrap;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .balance-value strong {
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 17px;
+  font-weight: 500;
   line-height: 1.35;
 }
 .balance-value span {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--text-tertiary);
 }
 .balance-receive .balance-value strong {
-  color: var(--success);
+  color: var(--balance-positive);
 }
 .balance-pay .balance-value strong {
-  color: var(--danger);
+  color: var(--balance-negative);
 }
 .balance-row .settle-btn {
   grid-area: action;
   width: auto;
   min-height: 44px;
-  padding: 8px 14px;
-  font-size: 13px;
+  padding: 8px 11px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-pill);
 }
 .balance-row .settle-btn:hover:not(:disabled) {
   background: var(--primary);
   color: var(--text-on-accent);
 }
 .currency-note {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
   border-top: 1px solid var(--divider);
   padding-top: 12px;
-  margin: 4px 0 0;
+  margin: 8px 0 0;
 }
 
 /* Activity: loose rows on the page background, each with a category-coloured tile. */
@@ -302,12 +308,9 @@
 }
 @media (max-width: 390px) {
   .tab-pill {
-    gap: 20px;
+    gap: 28px;
   }
   .tab-pill button {
-    font-size: 18px;
-  }
-  .balance-value strong {
     font-size: 16px;
   }
   .activity-row.card {
@@ -329,10 +332,12 @@
     width: auto;
     white-space: nowrap;
   }
+}
+@media (min-width: 1200px) {
   .expense-overview {
-    grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
+    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
     grid-template-areas: 'activity balances';
-    gap: 40px;
+    gap: 28px;
     align-items: start;
   }
   .balances-panel {
@@ -340,5 +345,207 @@
   }
   .activity-panel {
     grid-area: activity;
+  }
+}
+
+
+/* Together header and scoped activity presentation. */
+.group-detail-page .app-header h1 {
+  font-size: clamp(28px, 3vw, 36px);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.04em;
+}
+.group-detail-page .desktop-add {
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  gap: 8px;
+}
+.group-context,
+.group-context-members,
+.group-recurring-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.group-context {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 20px;
+  margin-bottom: 24px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.group-context-members {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.group-context a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.group-context a:hover {
+  text-decoration: underline;
+}
+.group-context-members a {
+  color: var(--text-secondary);
+}
+.group-recurring-link {
+  font-size: 12px;
+}
+.group-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.group-section-heading h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+.group-section-heading > span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+.group-panel-empty {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 16px;
+}
+.group-detail-page .balance-row:first-child {
+  padding-top: 0;
+}
+.group-activity-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  padding: 0 14px;
+  margin-bottom: 18px;
+  color: var(--text-tertiary);
+}
+.group-activity-search > svg {
+  flex-shrink: 0;
+}
+.group-activity-search:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.group-detail-page .activity-search {
+  margin: 0;
+  background: transparent;
+  padding: 12px 0;
+  border: 0;
+  border-radius: 0;
+  font-size: 14px;
+}
+.group-detail-page .activity-search:focus {
+  outline: 0;
+}
+.group-detail-page .activity-list {
+  gap: 0;
+  padding: 6px 18px;
+  background: var(--surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+}
+.group-detail-page .activity-row.card {
+  grid-template-columns: 36px minmax(0, 1fr) fit-content(45%);
+  padding: 16px 0;
+  gap: 12px;
+  border: 0;
+  border-radius: 0;
+}
+.group-detail-page .activity-row + .activity-row {
+  border-top: 1px solid var(--divider);
+}
+.group-detail-page .activity-row.card:hover {
+  background: transparent;
+}
+.group-detail-page .activity-row:hover .activity-desc {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.group-detail-page .activity-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface-elevated);
+}
+.group-detail-page .activity-desc {
+  font-size: 14px;
+  font-weight: 600;
+}
+.group-detail-page .activity-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.group-detail-page .activity-value {
+  min-width: 0;
+}
+.group-detail-page .activity-amount {
+  font-size: 14px;
+  font-weight: 600;
+}
+.group-detail-page .activity-amount,
+.group-detail-page .activity-date,
+.group-detail-page .activity-secondary {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.group-detail-page .activity-date,
+.group-detail-page .activity-secondary {
+  font-size: 11px;
+}
+.group-detail-page .load-more-btn {
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .group-detail-page .balances-panel {
+    padding: 18px;
+  }
+  .group-detail-page .activity-list {
+    padding: 4px 14px;
+  }
+  .group-detail-page .activity-row.card {
+    gap: 10px;
+  }
+  .group-detail-page .balance-value {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+@media (max-width: 370px) {
+  .group-detail-page .activity-row.card {
+    grid-template-columns: 30px minmax(0, 1fr);
+    grid-template-areas: 'icon body' 'icon amount';
+    gap: 4px 10px;
+  }
+  .group-detail-page .activity-icon {
+    grid-area: icon;
+    align-self: start;
+    width: 30px;
+    height: 30px;
+  }
+  .group-detail-page .activity-body {
+    grid-area: body;
+  }
+  .group-detail-page .activity-value {
+    grid-area: amount;
+    flex-direction: row;
+    flex-wrap: wrap;
+    text-align: left;
+    gap: 4px 10px;
+    align-items: baseline;
   }
 }

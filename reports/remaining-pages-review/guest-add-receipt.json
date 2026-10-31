@@ -1,0 +1,29 @@
+{
+  "roster": 5,
+  "names": [
+    "Irene Soler",
+    "Marta Vidal",
+    "Joan Puig",
+    "Lucía Ortega",
+    "Robin QA"
+  ],
+  "writes": [
+    {
+      "table": "members",
+      "method": "POST",
+      "payload": {
+        "display_name": "Robin QA",
+        "created_by": "00000000-0000-0000-0000-000000000001"
+      }
+    },
+    {
+      "table": "group_members",
+      "method": "POST",
+      "payload": {
+        "group_id": "00000000-0000-0000-0000-000000000100",
+        "member_id": "00000000-0000-0000-0000-000000000900"
+      }
+    }
+  ],
+  "clipboard": null
+}

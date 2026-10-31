@@ -5,7 +5,9 @@
   <body style="margin: 0; background: #000">
     <iframe id="frame" title="Mobile viewport" style="width: 390px; height: 900px; border: 0; display: block"></iframe>
     <script>
-      document.getElementById('frame').src = decodeURIComponent(location.hash.slice(1))
+      const showPath = () => { document.getElementById('frame').src = decodeURIComponent(location.hash.slice(1)) }
+      window.addEventListener('hashchange', showPath)
+      showPath()
     </script>
   </body>
 </html>

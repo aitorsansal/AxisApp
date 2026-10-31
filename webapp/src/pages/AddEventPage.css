@@ -1,34 +1,40 @@
+.event-editor-fields {
+  display: grid;
+  gap: 22px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.event-editor-fields .together-panel > .field:last-child {
+  margin-bottom: 0;
+}
 .datetime-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
-
-.datetime-row .field {
-  flex: 1;
-}
-
-.repeat-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.95rem;
-  margin-bottom: 16px;
-}
-
-.repeat-toggle input {
-  width: auto;
-}
-
-.delete-btn {
-  margin-top: 12px;
-}
-
 .datetime-row .field {
   min-width: 0;
 }
+.event-editor-page .repeat-toggle {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  min-height: 44px;
+  margin: 0 0 16px;
+  cursor: pointer;
+}
+.event-editor-page .repeat-toggle:last-child {
+  margin-bottom: 0;
+}
+.event-editor-page .repeat-toggle input {
+  width: 18px;
+}
 @media (max-width: 420px) {
   .datetime-row {
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0;
   }
 }

@@ -23,6 +23,7 @@ import type {
 } from '../lib/types'
 import { AppHeader } from '../components/AppHeader'
 import { Avatar } from '../components/Avatar'
+import '../components/TogetherPage.css'
 import './EventDetailPage.css'
 
 // Same URL as AppConstants.Links.BuildEventUrl, which the Android app claims as an App Link.
@@ -187,7 +188,7 @@ export function EventDetailPage() {
 
   if (!loaded || !event || !group) {
     return (
-      <div className="page">
+      <div className="page page-wide together-page event-detail-page">
         <AppHeader title={t('EventDetail_GenericTitle')} backTo={`/groups/${groupId}?tab=events`} />
         {error ? (
           <p className="error-text" role="alert">
@@ -201,8 +202,6 @@ export function EventDetailPage() {
   }
 
   const showConverted = getShowConverted()
-  const subParts = [formatEventRange(event.starts_at, event.ends_at, language)]
-  if (event.location) subParts.push(event.location)
 
   const seatsOffered = attendees
     .filter((a) => a.car_status === 'offering')
@@ -257,8 +256,9 @@ export function EventDetailPage() {
     : expenses
 
   return (
-    <div className="page">
+    <div className="page page-wide together-page event-detail-page">
       <AppHeader title={event.title} backTo={`/groups/${groupId}?tab=events`} />
+      <p className="page-context"><Link to={`/groups/${groupId}?tab=events`}>{group.name}</Link></p>
       {error && (
         <p className="error-text" role="alert">
           {error}
@@ -288,11 +288,22 @@ export function EventDetailPage() {
         </button>
       </div>
 
-      <p className="event-subcaption">{subParts.join(' · ')}</p>
+      <div className={`event-detail-layout${event.is_birthday ? ' birthday-plan' : ''}`}>
+      <section className="together-panel event-plan" aria-label={t('EventDetail_GenericTitle')}>
+        <div className="event-plan-line">
+          <Icon name="calendar" size={20} />
+          <p className="event-subcaption">{formatEventRange(event.starts_at, event.ends_at, language)}</p>
+        </div>
+        {event.location && <div className="event-plan-line">
+          <Icon name="map_pin" size={20} />
+          <p className="event-subcaption">{event.location}</p>
+        </div>}
       {event.description && <p className="event-description">{event.description}</p>}
 
       {!event.is_birthday && (
-        <div className="rsvp-pill">
+        <div className="event-response">
+          <h2>{t('EventDetail_YourResponse')}</h2>
+        <div className="rsvp-pill" role="group" aria-label={t('EventDetail_YourResponse')}>
           <button
             type="button"
             className={myResponse === 'going' ? 'active' : ''}
@@ -318,10 +329,12 @@ export function EventDetailPage() {
             {t('GroupEvents_NotGoing')}
           </button>
         </div>
+        </div>
       )}
 
       {event.needs_transport && !event.is_birthday && (
         <div className="transport-section">
+          <h3>{t('EventDetail_Transport')}</h3>
           <div className={`transport-summary ${seatsOffered < ridersNeeded ? 'shortfall' : ''}`}>
             {t('GroupEvents_TransportSummary', seatsOffered, ridersNeeded)}
           </div>
@@ -333,6 +346,7 @@ export function EventDetailPage() {
                   className={
                     mine?.car_status === 'offering' ? 'btn btn-outline active' : 'btn btn-outline'
                   }
+                  aria-pressed={mine?.car_status === 'offering'}
                   onClick={toggleCarOffering}
                 >
                   {t('GroupEvents_HaveCar')}
@@ -343,6 +357,7 @@ export function EventDetailPage() {
                 className={
                   mine?.car_status === 'needs_ride' ? 'btn btn-outline active' : 'btn btn-outline'
                 }
+                aria-pressed={mine?.car_status === 'needs_ride'}
                 onClick={toggleCarNeedsRide}
               >
                 {t('GroupEvents_NeedRide')}
@@ -371,8 +386,10 @@ export function EventDetailPage() {
         </div>
       )}
 
-      <section>
-        <h2 className="section-title">{t('EventDetail_Attendees')}</h2>
+      </section>
+
+      {!event.is_birthday && <section className="together-panel event-attendees" aria-labelledby="event-attendees-heading">
+        <h2 id="event-attendees-heading" className="section-title">{t('EventDetail_Attendees')}</h2>
         {goingAttendees.length === 0 &&
         maybeAttendees.length === 0 &&
         notGoingAttendees.length === 0 ? (
@@ -399,11 +416,11 @@ export function EventDetailPage() {
             )}
           </>
         )}
-      </section>
+      </section>}
 
-      <section>
+      <section className="together-panel event-expenses" aria-labelledby="event-expenses-heading">
         <div className="event-expenses-header">
-          <h2 className="section-title">{t('EventDetail_Expenses')}</h2>
+          <h2 id="event-expenses-heading" className="section-title">{t('EventDetail_Expenses')}</h2>
           <Link
             to={`/groups/${groupId}/add-expense?eventId=${eventId}`}
             className="btn btn-outline add-event-expense-btn"
@@ -471,6 +488,7 @@ export function EventDetailPage() {
           </div>
         )}
       </section>
+      </div>
     </div>
   )
 }

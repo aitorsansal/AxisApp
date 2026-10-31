@@ -1,65 +1,72 @@
-/* Accent-filled block. Every text in it is >= 18.66px bold (WCAG large text), because dark text
-   on the Blue/Red presets is just under 4.5:1. */
 .group-balance-hero {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  padding: 4px 0 28px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--divider);
+}
+.group-balance-side {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 22px 24px;
-  margin-bottom: 28px;
-  border-radius: var(--radius-lg);
-  border: 1px solid transparent;
-  background: var(--primary);
-  color: var(--text-on-accent);
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
 }
-.group-balance-hero.settled {
-  background: var(--surface-elevated);
-  color: var(--text-primary);
+.group-balance-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
 }
-.hero-label {
-  font-size: 19px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-.hero-amount {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 12px;
-  font-size: 56px;
-  font-weight: 800;
+.group-balance-amount {
+  font-size: clamp(28px, 3.3vw, 46px);
+  font-weight: 500;
   letter-spacing: -0.045em;
-  line-height: 1.05;
-  font-variant-numeric: tabular-nums;
-}
-.group-balance-hero.settled .hero-amount {
-  font-size: 40px;
-}
-.hero-state {
-  font-size: 22px;
-  letter-spacing: -0.02em;
-}
-.hero-detail {
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
   line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.group-balance-owed .group-balance-amount {
+  color: var(--balance-positive);
+}
+.group-balance-owe .group-balance-amount {
+  color: var(--balance-negative);
+}
+.group-balance-people,
+.group-balance-nothing {
+  color: var(--text-secondary);
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
-.group-balance-hero.settled .hero-detail {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-tertiary);
+.group-balance-nothing {
+  margin-top: 4px;
 }
-@media (min-width: 1000px) {
-  .group-balance-hero {
-    padding: 26px 30px;
-  }
-  .hero-amount {
-    font-size: 80px;
-  }
+.group-balance-hero.settled {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 24px;
+}
+.group-balance-hero.settled > svg,
+.group-balance-hero.settled strong {
+  color: var(--balance-positive);
+}
+.group-balance-hero.settled strong,
+.group-balance-hero.settled span:not(.icon) {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+.group-balance-hero.settled span:not(.icon) {
+  margin-top: 3px;
+  color: var(--text-secondary);
 }
 @media (max-width: 370px) {
-  .hero-amount {
-    font-size: 44px;
+  .group-balance-hero {
+    gap: 16px;
+  }
+  .group-balance-amount {
+    font-size: 27px;
   }
 }

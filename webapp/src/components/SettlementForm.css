@@ -1,106 +1,178 @@
 .modal-dialog.settlement-modal {
   max-width: 620px;
+  padding: 24px;
 }
-
+.modal-dialog.settlement-modal h3 {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  margin-bottom: 12px;
+}
+.settlement-editor-card {
+  background: var(--surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+.settlement-modal .settlement-form .field input,
+.settlement-modal .settlement-form .field select,
+.settlement-modal .settlement-parties {
+  background: var(--surface);
+}
 .settlement-form fieldset {
   border: 0;
   padding: 0;
   margin: 0;
   min-width: 0;
 }
-
+.settlement-intro {
+  margin: 0 0 22px;
+}
+.settlement-hint {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
 .settlement-parties {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: 14px;
+  padding: 18px;
   margin: 0 0 24px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--surface-elevated);
 }
-
-.settlement-parties > dl {
+.settlement-party {
+  display: grid;
+  align-items: center;
+  gap: 14px;
   min-width: 0;
-  margin: 0;
 }
-
-.settlement-parties dt {
+.settlement-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.settlement-person dl {
+  margin: 0;
+  min-width: 0;
+}
+.settlement-person dt {
   color: var(--text-secondary);
-  font-size: 0.875rem;
-  margin-bottom: 6px;
+  font-size: 11px;
+  margin-bottom: 5px;
 }
-
-.settlement-parties dd {
+.settlement-person dd {
   margin: 0;
+  font-size: 14px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-
 .settlement-direction {
   color: var(--text-secondary);
-  justify-self: start;
+  justify-self: center;
   transform: rotate(90deg);
 }
-
+.settlement-details {
+  margin-bottom: 22px;
+}
+.settlement-amount-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+.settlement-amount-row:has(.settlement-currency-field) {
+  grid-template-columns: minmax(0, 1fr) 88px;
+}
+.settlement-form .settlement-amount-row .field {
+  margin-bottom: 8px;
+}
+.settlement-form .field label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+.settlement-form .field input,
+.settlement-form .field select {
+  border-color: transparent;
+  background: var(--surface-elevated);
+}
+.settlement-form .settlement-amount-field input {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+  min-height: 64px;
+  font-variant-numeric: tabular-nums;
+}
+.settlement-form .settlement-currency-field select {
+  min-height: 64px;
+  padding: 10px;
+}
 .settlement-fields {
   display: grid;
-  gap: 0;
+  min-width: 0;
 }
-
 .settlement-fields > .field {
   min-width: 0;
 }
-
-.settlement-hint {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  margin: 8px 0 16px;
+.settlement-details > .settlement-hint {
+  margin: 0 0 12px;
 }
-
+.settlement-details > .settlement-outstanding {
+  padding: 10px 0 14px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--divider);
+}
+.settlement-details > .settlement-fields .field:last-child {
+  margin-bottom: 0;
+}
 .settlement-actions {
   display: flex;
-  flex-wrap: wrap;
   gap: 12px;
 }
-
 .settlement-actions .btn {
-  flex: 1 1 120px;
-  width: auto;
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
 }
-
 .settlement-delete {
-  margin-top: 16px;
+  margin-top: 24px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
 }
-
-.settlement-outstanding {
-  margin: 0 0 16px;
-}
-
 @media (min-width: 640px) {
-  .modal-dialog.settlement-modal {
-    padding: 28px;
-  }
-
-  .settlement-parties {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: center;
-    gap: 20px;
-  }
-
-  .settlement-direction {
-    transform: none;
-  }
-
+  .settlement-parties,
   .settlement-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 20px;
   }
-
+  .settlement-party:last-child {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .settlement-party:last-child .settlement-direction {
+    transform: none;
+  }
   .settlement-actions {
     justify-content: flex-end;
   }
-
   .settlement-actions .btn {
     flex: 0 0 auto;
+    width: auto;
+  }
+}
+@media (max-width: 400px) {
+  .modal-dialog.settlement-modal,
+  .settlement-editor-card {
+    padding: 18px;
+  }
+  .settlement-form .settlement-amount-field input {
+    font-size: 28px;
   }
 }

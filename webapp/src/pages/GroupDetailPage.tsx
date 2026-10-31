@@ -26,7 +26,8 @@ import { Icon } from '../components/Icon'
 import { categoryIcon } from '../lib/icons'
 import { categoryColor } from '../lib/stats'
 import { formatMoney } from '../lib/formatting'
-import { amountText } from '../lib/currencyUnits'
+import { amountText, toMinor } from '../lib/currencyUnits'
+import { GroupIconCircle } from '../components/GroupIconCircle'
 import { formatExpenseAmount, getShowConverted } from '../lib/amountDisplay'
 import { useGroups } from '../context/useGroups'
 import './GroupDetailPage.css'
@@ -320,6 +321,7 @@ export function GroupDetailPage() {
   }
 
   const showConverted = getShowConverted()
+  const visibleBalances = balances.filter((balance) => toMinor(balance.balance, group.currency) !== 0)
 
   return (
     <div className="page page-wide group-detail-page">
@@ -332,7 +334,8 @@ export function GroupDetailPage() {
               to={isEventsTab ? `/groups/${groupId}/events/new` : `/groups/${groupId}/add-expense`}
               className="btn btn-primary add-expense-btn desktop-add"
             >
-              {isEventsTab ? t('GroupEvents_AddEvent') : t('GroupDetail_AddExpenseButton')}
+              <Icon name="plus" size={18} />
+              {(isEventsTab ? t('GroupEvents_AddEvent') : t('GroupDetail_AddExpenseButton')).replace(/^\+\s*/, '')}
             </Link>
             <div className="group-menu" ref={menuRef}>
               <button
@@ -350,11 +353,6 @@ export function GroupDetailPage() {
                   <Link to={`/groups/${groupId}/members`} onClick={() => setIsMenuOpen(false)}>
                     {t('GroupDetail_ViewMembers')}
                   </Link>
-                  {!isEventsTab && (
-                    <Link to={`/groups/${groupId}/recurring`} onClick={() => setIsMenuOpen(false)}>
-                      {t('GroupDetail_ManageRecurring')}
-                    </Link>
-                  )}
                   <button type="button" onClick={openAppearance}>
                     {t('GroupDetail_EditAppearance')}
                   </button>
@@ -382,7 +380,21 @@ export function GroupDetailPage() {
           </>
         }
       />
-      {error && <p className="error-text">{error}</p>}
+      <div className="group-context">
+        <div className="group-context-members">
+          <div aria-hidden="true">
+            <GroupIconCircle name={group.name} color={group.color} icon={group.icon} size={32} />
+          </div>
+          <Link to={`/groups/${groupId}/members`}>{t('Groups_MemberCount', members.length)}</Link>
+          <span aria-hidden="true">·</span>
+          <span>{group.currency}</span>
+        </div>
+        <Link className="group-recurring-link" to={`/groups/${groupId}/recurring`}>
+          <Icon name="repeat" size={16} />
+          {t('GroupDetail_ManageRecurring')}
+        </Link>
+      </div>
+      {error && <p className="error-text" role="alert">{error}</p>}
       {settlementNotice && <p role="status">{settlementNotice}</p>}
 
       <UnsavedChangesDialog blocker={settlementUnsaved.blocker} keepEditing={settlementUnsaved.keepEditing}
@@ -422,7 +434,7 @@ export function GroupDetailPage() {
         </Modal>
       )}
 
-      <div className="tab-pill group-tabs" aria-label={t('GroupDetail_GenericTitle')}>
+      <div className="tab-pill group-tabs" role="group" aria-label={t('GroupDetail_GenericTitle')}>
         {([
           ['expenses', 'GroupDetail_ExpensesTab'],
           ['events', 'GroupDetail_EventsTab'],
@@ -513,17 +525,18 @@ export function GroupDetailPage() {
         <GroupEventsTab groupId={groupId!} members={members} />
       ) : (
         <>
-        {(balances.length > 0 || activity.length > 0) && (
-          <GroupBalanceHero balances={balances} currency={group.currency} memberName={memberName} />
-        )}
+        <GroupBalanceHero balances={balances} currency={group.currency} memberName={memberName} />
         <div className="expense-overview">
-          <section className="balances-panel">
-            <h2 className="section-title">{t('GroupDetail_Balances')}</h2>
-            {balances.length === 0 && (
-              <p className="empty-state small">{t('GroupDetail_BalancesEmpty')}</p>
+          <section className="balances-panel" aria-labelledby="group-balances-heading">
+            <div className="group-section-heading">
+              <h2 id="group-balances-heading">{t('GroupDetail_Balances')}</h2>
+              <span>{group.currency}</span>
+            </div>
+            {visibleBalances.length === 0 && (
+              <p className="group-panel-empty">{t('Summary_NothingPending')}</p>
             )}
             <div className="balance-list">
-              {balances.map((b) => {
+              {visibleBalances.map((b) => {
                 const member = members.find((row) => row.member_id === b.other_member_id)?.members
                 return (
                   <div
@@ -540,7 +553,7 @@ export function GroupDetailPage() {
                       {memberName(b.other_member_id)}
                     </div>
                     <div className="balance-value">
-                      <strong>{formatMoney(b.balance, group.currency, language, true)}</strong>
+                      <strong>{formatMoney(Math.abs(b.balance), group.currency, language)}</strong>
                       <span>
                         {t(
                           b.balance > 0
@@ -551,9 +564,10 @@ export function GroupDetailPage() {
                         )}
                       </span>
                     </div>
-                    {Math.abs(b.balance) >= 0.005 && (
+                    {toMinor(b.balance, group.currency) !== 0 && (
                       <button
                         className="btn btn-outline settle-btn"
+                        aria-label={t('GroupDetail_RecordWith', memberName(b.other_member_id))}
                         disabled={!myMemberId}
                         onClick={(event) => {
                           refreshRevision.current.invalidate()
@@ -574,19 +588,28 @@ export function GroupDetailPage() {
             <p className="currency-note">{t('GroupDetail_CurrencyNote', group.currency)}</p>
           </section>
 
-          <section className="activity-panel">
-            <h2 className="section-title">{t('GroupDetail_RecentActivity')}</h2>
-            <input
-              type="search"
-              className="activity-search"
-              placeholder={t('GroupDetail_SearchExpenses')}
-              aria-label={t('GroupDetail_SearchExpenses')}
-              value={searchQuery}
-              onChange={(e) => {
-                refreshRevision.current.invalidate()
-                setSearchQuery(e.target.value)
-              }}
-            />
+          <section className="activity-panel" aria-labelledby="group-activity-heading">
+            <div className="group-section-heading">
+              <h2 id="group-activity-heading">{t('GroupDetail_RecentActivity')}</h2>
+            </div>
+            <div className="group-activity-search">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" role="presentation" aria-hidden="true">
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path d="m16 16 4 4" />
+              </svg>
+              <input
+                type="search"
+                className="activity-search"
+                placeholder={t('GroupDetail_SearchExpenses')}
+                aria-label={t('GroupDetail_SearchExpenses')}
+                value={searchQuery}
+                onChange={(e) => {
+                  refreshRevision.current.invalidate()
+                  setSearchQuery(e.target.value)
+                }}
+              />
+            </div>
             {(() => {
               const shownActivity = searchResults ?? activity
               if (shownActivity.length === 0) {
@@ -632,7 +655,7 @@ export function GroupDetailPage() {
                             )}
                           </div>
                           <div className="activity-meta">
-                            {t('GroupDetail_PaidBy', memberName(exp.paid_by_member_id))}
+                            {exp.paid_by_member_id === myMemberId ? t('GroupDetail_YouPaid') : t('GroupDetail_PaidBy', memberName(exp.paid_by_member_id))}
                           </div>
                         </div>
                         <div className="activity-value">

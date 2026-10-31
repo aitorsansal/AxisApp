@@ -472,305 +472,331 @@ export function AddExpensePage() {
 
   if (isSettlement && settlementDraft) {
     return (
-      <div className="page">
+      <div className="page expense-page repayment-page">
         <AppHeader title={t('AddExpense_EditSettlementTitle')} backTo={parentPath} />
+        <p className="editor-context">{group.name} <span aria-hidden="true">·</span> {group.currency}</p>
         <UnsavedChangesDialog blocker={unsaved.blocker} keepEditing={unsaved.keepEditing}
           pending={busy} open={unsaved.confirmingClose} onDiscard={unsaved.discardChanges} />
-        <SettlementForm
-          key={settlementDraft.id}
-          initial={settlementDraft}
-          groupId={group.id}
-          members={members}
-          canDelete={canDelete}
-          onDraftChange={setSettlementDraft}
-          onBusyChange={setBusy}
-          onCommitted={unsaved.markSaved}
-          onCancel={() => unsaved.requestClose(() => goBackTo(parentPath))}
-          onSaved={() => goBackTo(parentPath)}
-          onDeleted={() => goBackTo(parentPath)}
-        />
+        <div className="settlement-editor-card">
+          <SettlementForm
+            key={settlementDraft.id}
+            initial={settlementDraft}
+            groupId={group.id}
+            members={members}
+            canDelete={canDelete}
+            onDraftChange={setSettlementDraft}
+            onBusyChange={setBusy}
+            onCommitted={unsaved.markSaved}
+            onCancel={() => unsaved.requestClose(() => goBackTo(parentPath))}
+            onSaved={() => goBackTo(parentPath)}
+            onDeleted={() => goBackTo(parentPath)}
+          />
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="page expense-page">
+    <div className="page page-wide expense-page">
       <AppHeader title={title} backTo={parentPath} />
+      <p className="editor-context">{group.name} <span aria-hidden="true">·</span> {group.currency}</p>
 
-      <UnsavedChangesDialog blocker={unsaved.blocker} keepEditing={unsaved.keepEditing} pending={busy || receiptBusy} />
+      <UnsavedChangesDialog blocker={unsaved.blocker} keepEditing={unsaved.keepEditing} pending={busy || receiptBusy}
+        open={unsaved.confirmingClose} onDiscard={unsaved.discardChanges} />
       <form onSubmit={handleSubmit} className="expense-form">
-        <fieldset className="expense-fields" disabled={busy}>
-        {linkedEventId && linkedEventTitle && (
-          <p className="field-hint linked-event-hint">
-            {t('AddExpense_LinkedToEvent', linkedEventTitle)}
-          </p>
-        )}
-
-        <div className="amount-row">
-          <div className="field amount-field">
-            <label htmlFor="amount">{t('AddExpense_AmountLabel')}</label>
-            <input
-              id="amount"
-              type="text"
-              inputMode="decimal"
-              placeholder={minorUnits(currency) === 0 ? '0' : '0.00'}
-              required
-              value={amount}
-              aria-invalid={showAmountError && parsedAmount.cents === null}
-              aria-describedby="amount-format-hint amount-error"
-              onBlur={() => setShowAmountError(true)}
-              onChange={(e) => { setAmount(e.target.value); setShowAmountError(false); setError(null) }}
-            />
-          </div>
-          <div className="field currency-field">
-            <label htmlFor="currency">{t('AddExpense_Currency')}</label>
-            <select id="currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              {CURRENCIES.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <p id="amount-format-hint" className="amount-format-hint">{t(amountHintKey(currency))}</p>
-        <p id="amount-error" className="error-text" role="status">
-          {showAmountError && parsedAmount.cents === null ? t(amountErrorKey(parsedAmount.error, currency)) : ''}
-        </p>
-
-        <div className="field">
-          <label htmlFor="description">{t('AddExpense_DescriptionLabel')}</label>
-          <input
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('AddExpense_DescriptionPlaceholder')}
-          />
-        </div>
-
-        <fieldset className="payer-picker">
-          <legend>{t('AddExpense_PaidBy')}</legend>
-          <div className="payer-options">
-            {members.map((m) => (
-              <label
-                className={`payer-option${paidBy === m.member_id ? ' selected' : ''}`}
-                key={m.member_id}
-                title={displayName(m.members)}
-              >
-                <input
-                  type="radio"
-                  name="paidBy"
-                  value={m.member_id}
-                  checked={paidBy === m.member_id}
-                  onChange={() => setPaidBy(m.member_id)}
-                />
-                <Avatar url={avatarUrl(m.members)} initials={initials(m.members)} seed={m.member_id} size={44} />
-                <span>{displayName(m.members)}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        {parsedAmount.cents !== null && <div className="field">
-          <div className="split-header">
-            <label>{t('AddExpense_Split')}</label>
-            {!isSettlement && (
-              <div className="split-mode" role="group" aria-label={t('AddExpense_Split')}>
-                <button
-                  type="button"
-                  className={!isManualSplit ? 'active' : ''}
-                  aria-pressed={!isManualSplit}
-                  onClick={handleSplitEqually}
-                >
-                  {t('AddExpense_Equally')}
-                </button>
-                <button
-                  type="button"
-                  className={isManualSplit ? 'active' : ''}
-                  aria-pressed={isManualSplit}
-                  onClick={() => {
-                    if (!isManualSplit)
-                      setShareInputs(
-                        Object.fromEntries(
-                          includedIds.map((id) => [id, displayCents(shareCents[id])]),
-                        ),
-                      )
-                    setIsManualSplit(true)
-                  }}
-                >
-                  {t('AddExpense_Manually')}
-                </button>
-              </div>
+        <fieldset className="expense-fields expense-layout" disabled={busy}>
+          <section className="expense-section expense-details" aria-labelledby="expense-details-heading">
+            <h2 id="expense-details-heading">{t('AddExpense_DetailsTitle')}</h2>
+            {linkedEventId && linkedEventTitle && (
+              <p className="field-hint linked-event-hint">
+                {t('AddExpense_LinkedToEvent', linkedEventTitle)}
+              </p>
             )}
-          </div>
-          <div className="participant-list">
-            {members.map((m) => {
-              const included = participants.has(m.member_id)
-              return (
-                <div key={m.member_id} className="participant-item">
-                  <label className="participant-name">
+
+            <div className="amount-row">
+              <div className="field amount-field">
+                <label htmlFor="amount">{t('AddExpense_AmountLabel')}</label>
+                <input
+                  id="amount"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder={minorUnits(currency) === 0 ? '0' : '0.00'}
+                  required
+                  value={amount}
+                  aria-invalid={showAmountError && parsedAmount.cents === null}
+                  aria-describedby="amount-format-hint amount-error"
+                  onBlur={() => setShowAmountError(true)}
+                  onChange={(e) => { setAmount(e.target.value); setShowAmountError(false); setError(null) }}
+                />
+              </div>
+              <div className="field currency-field">
+                <label htmlFor="currency">{t('AddExpense_Currency')}</label>
+                <select id="currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                  {CURRENCIES.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <p id="amount-format-hint" className="amount-format-hint">{t(amountHintKey(currency))}</p>
+            <p id="amount-error" className="error-text" role="status">
+              {showAmountError && parsedAmount.cents === null ? t(amountErrorKey(parsedAmount.error, currency)) : ''}
+            </p>
+
+            <div className="field">
+              <label htmlFor="description">{t('AddExpense_DescriptionLabel')}</label>
+              <input
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={t('AddExpense_DescriptionPlaceholder')}
+              />
+            </div>
+
+          </section>
+
+          <section className="expense-section expense-people" aria-labelledby="expense-people-heading">
+            <h2 id="expense-people-heading">{t('AddExpense_PeopleTitle')}</h2>
+            <fieldset className="payer-picker">
+              <legend>{t('AddExpense_PaidBy')}</legend>
+              <div className="payer-options">
+                {members.map((m) => (
+                  <label
+                    className={`payer-option${paidBy === m.member_id ? ' selected' : ''}`}
+                    key={m.member_id}
+                    title={displayName(m.members)}
+                  >
                     <input
-                      type="checkbox"
-                      checked={included}
-                      onChange={() => toggleParticipant(m.member_id)}
+                      type="radio"
+                      name="paidBy"
+                      value={m.member_id}
+                      checked={paidBy === m.member_id}
+                      onChange={() => setPaidBy(m.member_id)}
                     />
-                    <Avatar url={avatarUrl(m.members)} initials={initials(m.members)} seed={m.member_id} size={28} />
+                    <Avatar url={avatarUrl(m.members)} initials={initials(m.members)} seed={m.member_id} size={32} />
                     <span>{displayName(m.members)}</span>
                   </label>
-                  {!isSettlement && included && (
-                    <input
-                      className="share-input"
-                      type="text"
-                      inputMode="decimal"
-                      aria-label={t('AmountInput_ShareLabel', displayName(m.members))}
-                      aria-invalid={!useEqualSplit && !!shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null}
-                      aria-describedby={!useEqualSplit && shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null ? `share-error-${m.member_id}` : undefined}
-                      placeholder={minorUnits(currency) === 0 ? '0' : '0.00'}
-                      value={
-                        useEqualSplit
-                          ? displayCents(shareCents[m.member_id])
-                          : (shareInputs[m.member_id] ?? '')
-                      }
-                      onChange={(e) => handleShareChange(m.member_id, e.target.value)}
-                      onBlur={() => setShareTouched((previous) => ({ ...previous, [m.member_id]: true }))}
-                    />
-                  )}
-                  {!useEqualSplit && included && shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null && (
-                    <p id={`share-error-${m.member_id}`} className="error-text share-error" role="status">
-                      {t(amountErrorKey(parsedShares[m.member_id].error, currency))}
-                    </p>
+                ))}
+              </div>
+            </fieldset>
+
+            {parsedAmount.cents === null && <p className="expense-split-hint">{t('AddExpense_SplitNeedsAmount')}</p>}
+            {parsedAmount.cents !== null && <div className="field">
+              <div className="split-header">
+                <h3>{t('AddExpense_Split')}</h3>
+                {!isSettlement && (
+                  <div className="split-mode" role="group" aria-label={t('AddExpense_Split')}>
+                    <button
+                      type="button"
+                      className={!isManualSplit ? 'active' : ''}
+                      aria-pressed={!isManualSplit}
+                      onClick={handleSplitEqually}
+                    >
+                      {t('AddExpense_Equally')}
+                    </button>
+                    <button
+                      type="button"
+                      className={isManualSplit ? 'active' : ''}
+                      aria-pressed={isManualSplit}
+                      onClick={() => {
+                        if (!isManualSplit)
+                          setShareInputs(
+                            Object.fromEntries(
+                              includedIds.map((id) => [id, displayCents(shareCents[id])]),
+                            ),
+                          )
+                        setIsManualSplit(true)
+                      }}
+                    >
+                      {t('AddExpense_Manually')}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="participant-list">
+                {members.map((m) => {
+                  const included = participants.has(m.member_id)
+                  return (
+                    <div key={m.member_id} className="participant-item">
+                      <label className="participant-name">
+                        <input
+                          type="checkbox"
+                          checked={included}
+                          onChange={() => toggleParticipant(m.member_id)}
+                        />
+                        <Avatar url={avatarUrl(m.members)} initials={initials(m.members)} seed={m.member_id} size={28} />
+                        <span>{displayName(m.members)}</span>
+                      </label>
+                      {!isSettlement && included && (
+                        <input
+                          className="share-input"
+                          type="text"
+                          inputMode="decimal"
+                          aria-label={t('AmountInput_ShareLabel', displayName(m.members))}
+                          aria-invalid={!useEqualSplit && !!shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null}
+                          aria-describedby={!useEqualSplit && shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null ? `share-error-${m.member_id}` : undefined}
+                          placeholder={minorUnits(currency) === 0 ? '0' : '0.00'}
+                          value={
+                            useEqualSplit
+                              ? displayCents(shareCents[m.member_id])
+                              : (shareInputs[m.member_id] ?? '')
+                          }
+                          onChange={(e) => handleShareChange(m.member_id, e.target.value)}
+                          onBlur={() => setShareTouched((previous) => ({ ...previous, [m.member_id]: true }))}
+                        />
+                      )}
+                      {!useEqualSplit && included && shareTouched[m.member_id] && parsedShares[m.member_id]?.cents === null && (
+                        <p id={`share-error-${m.member_id}`} className="error-text share-error" role="status">
+                          {t(amountErrorKey(parsedShares[m.member_id].error, currency))}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {!isSettlement && (
+                <p className={`split-remaining${!shareInputsValid || remainingCents !== 0 ? ' split-remaining-off' : ''}`}>
+                  {shareInputsValid ? t('AddExpense_Remaining', displayCents(remainingCents), currency) : t('AmountInput_IncompleteSplit')}
+                </p>
+              )}
+            </div>}
+
+          </section>
+
+          <section className="expense-section expense-extras" aria-labelledby="expense-extras-heading">
+            <h2 id="expense-extras-heading">{t('AddExpense_ExtrasTitle')}</h2>
+            {!isSettlement && (
+              <div className="field">
+                <label htmlFor="category">{t('AddExpense_Category')}</label>
+                <select
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as typeof category)}
+                >
+                  {CATEGORY_KEYS.map((key) => (
+                    <option key={key} value={key}>
+                      {t(`Category_${key}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {canToggleRecurring && (
+              <label className="repeat-toggle">
+                <input
+                  type="checkbox"
+                  checked={isRecurringMode}
+                  onChange={(e) => setIsRecurringMode(e.target.checked)}
+                />
+                {t('AddExpense_Repeat')}
+              </label>
+            )}
+
+            {isRecurringMode ? (
+              <>
+                <div className="field">
+                  <label htmlFor="startDate">{t('AddExpense_StartDateLabel')}</label>
+                  <DateField id="startDate" required value={startDate} onChange={setStartDate} />
+                </div>
+                <div className="field">
+                  <label htmlFor="frequency">{t('AddExpense_Frequency')}</label>
+                  <select
+                    id="frequency"
+                    value={frequency}
+                    onChange={(e) => setFrequency(e.target.value as typeof frequency)}
+                  >
+                    {RECURRING_FREQUENCIES.map((f) => (
+                      <option key={f} value={f}>
+                        {t(`Recurring_Frequency_${f}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <div className="field">
+                <label htmlFor="occurred">{t('AddExpense_DateLabel')}</label>
+                <DateField id="occurred" required value={occurredOn} onChange={setOccurredOn} />
+              </div>
+            )}
+
+            {!isRecurringMode && !isSettlement && (
+              <div className="field">
+                <label>{t('AddExpense_ReceiptPhoto')}</label>
+                {receiptUrl && (
+                  <a href={receiptUrl} target="_blank" rel="noreferrer" className="receipt-preview">
+                    <img src={receiptUrl} alt={t('AddExpense_ReceiptPhoto')} />
+                  </a>
+                )}
+                <div className="receipt-actions">
+                  <button
+                    type="button"
+                    className="btn btn-outline receipt-upload-btn"
+                    disabled={receiptBusy}
+                    onClick={() => receiptInputRef.current?.click()}
+                  >
+                    {receiptBusy
+                      ? t('Common_Saving')
+                      : receiptPath
+                        ? t('AddExpense_ChangePhoto')
+                        : t('AddExpense_AddPhoto')}
+                  </button>
+                  <input
+                    ref={receiptInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleReceiptChange}
+                    disabled={receiptBusy}
+                    hidden
+                  />
+                  {receiptPath && (
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={handleRemoveReceipt}
+                      disabled={receiptBusy}
+                    >
+                      {t('AddExpense_RemovePhoto')}
+                    </button>
                   )}
                 </div>
-              )
-            })}
-          </div>
-          {!isSettlement && (
-            <p className={`split-remaining${!shareInputsValid || remainingCents !== 0 ? ' split-remaining-off' : ''}`}>
-              {shareInputsValid ? t('AddExpense_Remaining', displayCents(remainingCents), currency) : t('AmountInput_IncompleteSplit')}
-            </p>
-          )}
-        </div>}
-
-        {!isSettlement && (
-          <div className="field">
-            <label htmlFor="category">{t('AddExpense_Category')}</label>
-            <select
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as typeof category)}
-            >
-              {CATEGORY_KEYS.map((key) => (
-                <option key={key} value={key}>
-                  {t(`Category_${key}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {canToggleRecurring && (
-          <label className="repeat-toggle">
-            <input
-              type="checkbox"
-              checked={isRecurringMode}
-              onChange={(e) => setIsRecurringMode(e.target.checked)}
-            />
-            {t('AddExpense_Repeat')}
-          </label>
-        )}
-
-        {isRecurringMode ? (
-          <>
-            <div className="field">
-              <label htmlFor="startDate">{t('AddExpense_StartDateLabel')}</label>
-              <DateField id="startDate" required value={startDate} onChange={setStartDate} />
-            </div>
-            <div className="field">
-              <label htmlFor="frequency">{t('AddExpense_Frequency')}</label>
-              <select
-                id="frequency"
-                value={frequency}
-                onChange={(e) => setFrequency(e.target.value as typeof frequency)}
-              >
-                {RECURRING_FREQUENCIES.map((f) => (
-                  <option key={f} value={f}>
-                    {t(`Recurring_Frequency_${f}`)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </>
-        ) : (
-          <div className="field">
-            <label htmlFor="occurred">{t('AddExpense_DateLabel')}</label>
-            <DateField id="occurred" required value={occurredOn} onChange={setOccurredOn} />
-          </div>
-        )}
-
-        {!isRecurringMode && !isSettlement && (
-          <div className="field">
-            <label>{t('AddExpense_ReceiptPhoto')}</label>
-            {receiptUrl && (
-              <a href={receiptUrl} target="_blank" rel="noreferrer" className="receipt-preview">
-                <img src={receiptUrl} alt={t('AddExpense_ReceiptPhoto')} />
-              </a>
+              </div>
             )}
-            <div className="receipt-actions">
+
+          </section>
+
+          <footer className="expense-form-footer">
+            {error && (
+              <p className="error-text" role="alert">
+                {error}
+              </p>
+            )}
+
+            <div className="expense-form-actions">
+            <button type="button" className="btn btn-outline" disabled={busy || receiptBusy}
+              onClick={() => unsaved.requestClose(() => goBackTo(parentPath))}>
+              {t('Common_Cancel')}
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={busy || receiptBusy || !isSplitValid}>
+              {busy ? t('Common_Saving') : t('AddExpense_SaveExpense')}
+            </button>
+            </div>
+
+            {isEditMode && canDelete && (
               <button
                 type="button"
-                className="btn btn-outline receipt-upload-btn"
-                disabled={receiptBusy}
-                onClick={() => receiptInputRef.current?.click()}
+                className="btn btn-danger delete-btn"
+                onClick={handleDelete}
+                disabled={busy}
               >
-                {receiptBusy
-                  ? t('Common_Saving')
-                  : receiptPath
-                    ? t('AddExpense_ChangePhoto')
-                    : t('AddExpense_AddPhoto')}
+                {t('AddExpense_DeleteExpense')}
               </button>
-              <input
-                ref={receiptInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleReceiptChange}
-                disabled={receiptBusy}
-                hidden
-              />
-              {receiptPath && (
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={handleRemoveReceipt}
-                  disabled={receiptBusy}
-                >
-                  {t('AddExpense_RemovePhoto')}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <p className="error-text" role="alert">
-            {error}
-          </p>
-        )}
-
-        <button type="submit" className="btn btn-primary" disabled={busy || receiptBusy || !isSplitValid}>
-          {busy ? t('Common_Saving') : t('AddExpense_SaveExpense')}
-        </button>
-
-        {isEditMode && canDelete && (
-          <button
-            type="button"
-            className="btn btn-danger delete-btn"
-            onClick={handleDelete}
-            disabled={busy}
-          >
-            {t('AddExpense_DeleteExpense')}
-          </button>
-        )}
+            )}
+          </footer>
         </fieldset>
       </form>
     </div>
