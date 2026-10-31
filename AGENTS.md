@@ -46,13 +46,21 @@ What's actually left, in rough order:
    Done: (1) monetary safeguards (converted-amount limit, cross-client stale
    repayments refused), (2) dependable updates (Group Detail auto refresh,
    honest web push state), (3) event context on both clients, plus
-   date-only activity labels on Android. Next: (4) invitations and everyday
-   clarity — guest-add vs. clipboard, explicit copy, join preview, aligned
-   categories/repayment descriptions/dates, translated errors, Enter to add a
-   member, zero-decimal currencies (JPY/KRW/ISK; app assumes two decimals
-   everywhere, design: one minor-units table in SQL mirrored by both
-   clients); (5) accessibility and evidence gaps. The 2026-10-29 web changes
-   are not deployed yet (`npm run deploy --prefix webapp`).
+   date-only activity labels on Android. (4) invitations and everyday
+   clarity, mostly done 2026-10-30: guest-add never touches the clipboard,
+   explicit copy-link with invite reuse, Enter adds a member, the join
+   preview and translated join errors, the web invite card (QR code and
+   max-uses/expiry editor), blank group names refused, event Copy link,
+   settlement descriptions on the event screen, and zero-decimal currencies
+   (see "Invitations" and "Currencies and decimals" below). The rest of step 4
+   was done 2026-10-30 (web deployed, phone-checked, cleanup SQL run): one shared category list with rent/utilities and
+   per-category icons on both clients, Today/Yesterday activity dates on web,
+   and empty repayment descriptions instead of stored localized defaults
+   (CHANGELOG.md "Categories, activity dates and repayment descriptions");
+   (5) accessibility and evidence gaps. The web app was
+   deployed 2026-10-30 with everything above; Android is still 1.1.1 (build
+   11) in the repo and needs a release build before installed copies stop
+   hitting `amount_precision` on JPY/KRW/ISK groups.
 1. **Phase 2.5 — Google Calendar sync**, not started at all — per-user
    Google OAuth separate from Supabase Auth, encrypted token storage/
    refresh, a sync strategy, and reconciling Axis's recurrence model
@@ -125,12 +133,26 @@ pairwise balances are all zero, their `group_balances` net is zero too.
 `group_balances`/`my_group_balances` stay — the Groups list total and
 Group Detail still read them.
 
-Web's "Te deben / Debes" summary (Groups page) and Group Detail's balance
+Web's "Te deben / Debes" summary (`BalanceSummary`, on the Overview at `/`
+and the `/groups` directory) and Group Detail's balance
 hero are built from `my_pairwise_balances` via `lib/balanceSummary.ts`,
 never from summed group nets: positive and negative pairwise rows are
 totalled separately, per currency, with no conversion. A group net would
 hide what you owe one person behind what another owes you. Android has
 neither yet.
+
+## Activity payer labels
+
+Web activity rows (Group Detail, Overview, Event Detail) use the pure
+`webapp/src/lib/activityLabel.ts` and say who was paid for. Only shares other
+than the payer's count: one person → "Marc paid for Bea" / "You paid for Marc"
+/ "Marc paid for you"; two or more → "You paid for N people" (payer not
+counted); payer-only or missing shares → plain "You paid" / "Marc paid".
+Repayments are detected by `is_settlement`, never by share count, and read
+"You paid Marc" / "Marc paid you". Shares come from `expense_shares(member_id)`
+embedded in the same activity query (`ExpenseWithPayer.expense_shares`, read
+only). Implemented 2026-10-31, local, not deployed. Android still uses its own
+"X paid · split N ways" / "X paid Y" copy (`BuildActivityItems`).
 
 ## Repayment review
 
@@ -138,18 +160,23 @@ Android repayments now use `SettlementPage`/`SettlementViewModel` at
 `AppConstants.Routes.Settlement`, for both balance-action creation and
 activity editing. Creation shows a payer/recipient summary, full debt by
 default, editable partial amount/date and an optional note; editing has
-one payer and one recipient instead of expense split controls. Empty notes
-save "Settlement with {person}" / "Saldar deuda con {person}" in the
-creator's language. These are deliberately stored descriptions, just like
-custom notes; editing the payment direction does not regenerate existing
-text. Web uses the same description policy and its own dedicated form.
+one payer and one recipient instead of expense split controls. An empty
+note saves an empty description (`SettlementRules.Description`, web
+`settlementPayload`, and the Android push "settle" action), and every
+reader shows the viewer's own localized `GroupDetail_SettleUp` label for it.
+Don't reintroduce generated description text: until 2026-10-30 it was frozen
+in the creator's language and point of view ("Settlement with Bea" shown to
+Bea). `supabase/settlement_descriptions_cleanup.sql` clears the old stored
+defaults. Custom notes are stored as typed. Web uses the same policy and its
+own dedicated form.
 
 `SettlementRules` preserves unchanged date timestamps and delegates money
 validation to `Models/AmountInput.cs`. The same parser is used for ordinary
 expense totals, manual shares, recurring forms and settlements. Input may
-contain one dot or comma decimal separator, with at most two decimal
-places; grouped, mixed-separator, non-positive and overflowing values are
-rejected without stripping punctuation or rounding. Whitespace at the
+contain one dot or comma decimal separator, with at most as many decimal
+places as the currency has (two, or none for JPY/KRW/ISK — see "Currencies
+and decimals"); grouped, mixed-separator, non-positive and overflowing values
+are rejected without stripping punctuation or rounding. Whitespace at the
 edges is trimmed for parsing, while the field retains its raw text.
 
 `Controls/DecimalInput` is the native attached behaviour for these entries:
@@ -161,9 +188,10 @@ previews; invalid manual shares replace the numerical remainder with a
 validation hint. Both the UI and save commands enforce validity.
 
 Web uses `lib/amountInput.ts` with the same contract, text inputs with
-`inputMode="decimal"`, and integer cents. Its expense, share and settlement
-parsers no longer diverge. Both domain suites consume the same 40-case
-fixture at `tests/amount-input-cases.json`. See
+`inputMode="decimal"`, and integer minor units (cents; whole yen for JPY).
+Its expense, share and settlement parsers no longer diverge. Both domain
+suites consume the same 75-case fixture at `tests/amount-input-cases.json`,
+whose cases carry an optional `currency` (default EUR). See
 `reports/AMOUNT_INPUT_REVIEW.md` for browser and physical-phone checks.
 
 The repayment screen checks balance freshness before creation, but does
@@ -173,6 +201,78 @@ raises `ExpenseSaveCommittedException` if the transaction succeeded but
 its subsequent typed re-fetch failed; the repayment screen treats that
 as saved and never invites a duplicate retry. See
 `reports/ANDROID_SETTLEMENT_REVIEW.md` for physical-device verification.
+
+## Currencies and decimals
+
+JPY, KRW and ISK have no minor unit; every other supported currency (HUF and
+IDR included, on purpose) has two. Added 2026-10-30; CHANGELOG.md's
+"Zero-decimal currencies" entry has the build history.
+
+- **One table, three copies**: `currency_minor_units()` in
+  `supabase/zero_decimal_currencies.sql`, `webapp/src/lib/currencyUnits.ts`
+  and `AxisApp/Models/CurrencyUnits.cs`. A test in each suite reads the SQL
+  file and fails if the lists drift. Change all three together.
+- **Columns stay `numeric(12,2)`**: whole yen are stored as `1500.00`. The
+  9999999999.99 cap applies in every currency (a zero-decimal currency tops
+  out at 9999999999 whole units).
+- **The database enforces it**: new or changed amounts/shares with more
+  decimals than their currency allows raise `amount_precision` (SQLSTATE
+  22003), like `converted_amount_too_large`; both clients translate it.
+  Conversions round to the GROUP currency's units, for the total and every
+  share. The equal-split fairness check in `save_expense()`/
+  `save_recurring_expense()` allows one smallest unit (`currency_minor_step()`)
+  instead of a hard-coded cent. Rows written before this keep their fractional
+  values and are not re-checked unless their amount changes.
+- **Clients**: parsers take the currency (`parseAmountInput(text, currency)` /
+  `AmountInput.Parse(text, currency, out ...)`); a decimal part in a
+  zero-decimal currency is rejected with its own "no decimals" error, never
+  rounded, and `1.000` is rejected too. Splits, balances, repayments, the
+  pair breakdown, CSV/PDF exports, the widget and every display format take
+  their decimals from the currency; web `formatMoney` and C#
+  `CurrencyUnits.Text`/`FormatString` are the only formatters. Web money maths
+  uses integer minor units (`toMinor`/`fromMinor`); Android uses `decimal`.
+  Which currency applies: the expense currency for the amount and shares, the
+  group currency for balances, stats and repayments.
+- **Gotcha**: switching the currency while editing an expense keeps the typed
+  text and revalidates it (a typed `100.50` switched to JPY shows the
+  no-decimals message), it never rewrites it. Android's `ExpenseParticipant`
+  carries its own `Currency` for that reason.
+
+## Invitations
+
+Current-state facts (CHANGELOG.md's "Invitations and join flow" entry has the
+history):
+
+- **Adding a guest by name only adds the member.** It never mints an invite or
+  writes the clipboard. Copying a link is always an explicit tap (web "Copy
+  link", per-guest "Copy invite link"; Android "Copy link"), with a manual-copy
+  field as the fallback when the browser blocks the clipboard. Enter adds the
+  member on both clients, gated like the Add button: nothing happens while a
+  phantom suggestion is showing (that needs a deliberate Link tap), and an IME
+  composition Enter is ignored.
+- **Invite reuse**: both clients reuse the group's newest usable invite per
+  (group, target member) instead of minting one per visit. Ordering is
+  `created_at` then `expires_at` (`SupabaseInvitesRepository.GetOrCreateAsync`,
+  web `fetchOrCreateInvite`/`pickReusableInvite`). `Invite.CreatedAt` is
+  `ignoreOnInsert`: before the fix every Android-created invite stored
+  `created_at = 0001-01-01`, which made "newest" arbitrary. Old rows still tie
+  at year 1 and sort by expiry; `supabase/invites_broken_dates_cleanup.sql` is
+  the optional one-off cleanup.
+- **Web invite card** (`MembersPage.tsx`, `components/QrCode.tsx`): QR (SVG via
+  `qrcode-generator`, dark on light), max-uses stepper (floor at `use_count`,
+  ceiling 20) and expiry picker (1 hour, 1 day, 7 days, 30 days), the same as
+  Android's `InviteToGroupPage`. Only `max_uses`/`expires_at` are editable
+  (`protect_invite_columns`).
+- **Join preview**: `preview_invite(p_token)` (`supabase/invite_preview.sql`,
+  `security definer`, read-only) returns a status plus, for `ok` and
+  `already_member` only, the group name/currency/member count and the claimed
+  phantom's name. It mirrors `redeem_invite()`'s checks in the same order; change
+  both together. Web `JoinGroupPage` and Android `JoinGroupPage` show the card
+  before Join and translate every redeem error (`lib/invitePreview.ts`,
+  `Models/InvitePreview.cs`). A failed or unrecognised preview just means no
+  card; deep links still only prefill the code.
+- Blank group names are refused by both clients and by
+  `groups_name_not_blank` (`supabase/group_name_not_blank.sql`, `NOT VALID`).
 
 ## Stats tab
 
@@ -225,7 +325,11 @@ this area again:
   decorating every bar of a single magnitude chart. A category keeps the
   same palette slot everywhere via its position in
   `AppConstants.Categories.Keys`, never by a chart's own per-render sort
-  order.
+  order. There are 10 categories and 8 slots: keys past slot 8 (utilities),
+  `other`, empty and unknown keys fold into one neutral "Other" line in the
+  trend (`TrendKey`/web `trendKey`). Never generate extra hues. The category
+  list and glyphs (`AppConstants.Categories.Glyph`, web `categoryIcon`) are
+  checked against each other by a web drift test.
 - **`CategoryDisplay.Label`/`Services/MemberDisplay.cs`** are the shared
   resolvers for a category key → localized label and a member → display
   name — both `GroupStatsViewModel` and `MemberProfileViewModel` (and
@@ -696,7 +800,7 @@ dotnet run --project tests/AxisApp.RegressionTests
 # Web app regression tests (node:test, mirrors the C# checks against
 # webapp/src/lib/expenseMath.ts, dates.ts, serializedUpdates.ts,
 # coalescedWrites.ts, recurringSchedule.ts, stats.ts, amountDisplay.ts,
-# pairBreakdown.ts)
+# pairBreakdown.ts, activityLabel.ts and more)
 npm test --prefix webapp
 ```
 
@@ -715,7 +819,7 @@ Expenses and recurring templates now have nullable `split_mode` (`equal`/`manual
 
 ## Web expense unsaved changes (2026-10-28)
 
-Web now uses createBrowserRouter/RouterProvider with the existing route tree/providers. `useUnsavedChanges` and `UnsavedChangesDialog` protect ordinary and recurring AddExpensePage edits; repayments and events are not wired yet. `expenseEditorSnapshot` normalizes valid amounts and participant order while preserving split intent and invalid input. The baseline is keyed to the loaded account/route; keep token refreshes from reloading the form. Call `markSaved()` only after a confirmed successful save/delete, immediately before navigation. Native beforeunload handles document exits; internal navigation uses useBlocker. Deep-entry ancestry reconstruction dispatches popstate to synchronize router history indices; retest cold-link Back/Forward if changing that code. Isolated browser fixtures live in `webapp/tests/unsaved.vite.config.ts`; never use the fixture config for production. See `reports/UNSAVED_WEB_REVIEW.md`. The web stage is local, not deployed. Android expense/recurring protection is now installed and device-verified; see the following section.
+Web now uses createBrowserRouter/RouterProvider with the existing route tree/providers. `useUnsavedChanges` and `UnsavedChangesDialog` protect ordinary and recurring AddExpensePage edits (events and repayments were added later; see the next section). `expenseEditorSnapshot` normalizes valid amounts and participant order while preserving split intent and invalid input. The baseline is keyed to the loaded account/route; keep token refreshes from reloading the form. Call `markSaved()` only after a confirmed successful save/delete, immediately before navigation. Native beforeunload handles document exits; internal navigation uses useBlocker. Deep-entry ancestry reconstruction dispatches popstate to synchronize router history indices; retest cold-link Back/Forward if changing that code. Isolated browser fixtures live in `webapp/tests/unsaved.vite.config.ts`; never use the fixture config for production. See `reports/UNSAVED_WEB_REVIEW.md`. Deployed with the later web releases. Android expense/recurring protection is now installed and device-verified; see the following section.
 
 ## Android expense unsaved changes (2026-10-28)
 
@@ -730,3 +834,26 @@ Android is clean-built/installed, but native tap-through QA remains pending.
 The earlier paragraphs below record expense/recurring implementation history.
 
 AddExpensePage subscribes to Shell.Navigating while visible and uses GetDeferral/DisplayAlertAsync to protect ordinary/recurring edits. ExpenseEditorSnapshot normalizes actual editable values; UnsavedEditGuard captures only fully loaded data and compares on navigation. MarkCommitted is called only after confirmed repository success before leaving. Pending operations cancel attempted navigation and show a wait alert without holding a deferral. Keep or native-dialog dismissal cancels the original route; Discard completes it. Never start a second GoToAsync while a navigation deferral is pending. Native 1.1.0 (10) was installed and tested on the connected phone; details/data inventory are in `reports/ANDROID_UNSAVED_REVIEW.md`. Events, repayments and crash-recovery drafts remain separate work. No additional SQL is required.
+
+
+## Accessibility rules (stabilisation step 5, 2026-10-30)
+
+Icon-only actions need localized SemanticProperties.Description on their inner Label;
+a name on its wrapping Border does not reach Android TalkBack. Border-only colour
+swatches are the verified exception. Use AutomationProperties.ExcludedWithChildren
+for decorative containers; IsInAccessibleTree=False alone does not hide descendants.
+Every XAML file using loc:Translate must declare xmlns:loc, even if XamlC succeeds.
+Tab and range accessible names include localized Common_Selected through
+SelectedNameConverter; appearance pickers use A11y.Selectable. ProfileCircle's
+AccessibleName names the Groups account control while ordinary avatars retain initials.
+
+Use DynamicResource Focus for accent-coloured text on dark surfaces; Primary is a
+fill and can fail text contrast. Blue Primary is now #6177D8, Red #C55D59 (mirrored
+in web accent/groupAppearance/index.css), to reach 4.5:1 with TextOnAccent #08101F.
+SectionHeader is a semantic heading; stats expose textual chart summaries.
+See reports/ACCESSIBILITY_REVIEW.md for evidence and remaining manual checks.
+For adb-only Debug installs, build with -p:EmbedAssembliesIntoApk=true: a normal
+Fast Deployment APK contains no assemblies and will abort without IDE deployment.
+
+The manual TalkBack walkthrough was explicitly removed from scope by the user; keep
+the accessibility fixes, but do not list that walkthrough as a release requirement.

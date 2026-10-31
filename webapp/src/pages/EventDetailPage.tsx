@@ -1,4 +1,5 @@
 import { Icon } from '../components/Icon'
+import { activityLabel } from '../lib/activityLabel'
 import { categoryIcon } from '../lib/icons'
 import { formatExpenseAmount, getShowConverted } from '../lib/amountDisplay'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -76,7 +77,7 @@ export function EventDetailPage() {
       supabase
         .from('expenses')
         .select(
-          'id, group_id, paid_by_member_id, amount, currency, amount_in_group_currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id',
+          'id, group_id, paid_by_member_id, amount, currency, amount_in_group_currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id, expense_shares(member_id)',
         )
         .eq('event_id', eventId)
         .order('occurred_at', { ascending: false }),
@@ -463,12 +464,21 @@ export function EventDetailPage() {
                     )}
                   </div>
                   <div className="activity-meta">
-                    {displayName(
-                      members.find((m) => m.member_id === exp.paid_by_member_id)?.members ?? {
-                        id: '',
-                        display_name: t('GroupDetail_SomeoneCapitalized'),
-                      },
-                    )}{' '}
+                    {(() => {
+                      const label = activityLabel(
+                        {
+                          isSettlement: exp.is_settlement,
+                          payerId: exp.paid_by_member_id,
+                          shareMemberIds: exp.expense_shares?.map((s) => s.member_id),
+                          viewerId: myMemberId,
+                        },
+                        (id) => {
+                          const row = members.find((m) => m.member_id === id)
+                          return row ? displayName(row.members) : t('GroupDetail_SomeoneCapitalized')
+                        },
+                      )
+                      return t(label.key, ...label.args)
+                    })()}{' '}
                     · {activityDate(exp.occurred_at, language, { today: t('Common_Today'), yesterday: t('Common_Yesterday') })}
                   </div>
                 </div>

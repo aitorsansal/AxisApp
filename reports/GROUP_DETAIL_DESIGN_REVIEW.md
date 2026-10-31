@@ -37,3 +37,7 @@ Isolated preview: `npm.cmd run dev --prefix webapp -- --config tests/visual.vite
 Example: `/groups/00000000-0000-0000-0000-000000000100?qaLanguage=en&qaGroup=offset`.
 Other `qaGroup` states: `settled`, `empty`, `owed-only`, `large`, `jpy`.
 Never deploy using the fixture configuration.
+
+## Follow-up: payer labels (2026-10-31, local, not deployed)
+
+The activity payer line now names who an expense covered. One person other than the payer reads "Marc paid for Bea", "You paid for Marc" or "Marc paid for you". Two or more read "You paid for N people", without counting the payer. A payer-only expense keeps "You paid" / "Marc paid". Repayments read "You paid Marc" / "Marc paid you". Shares are embedded in the same activity query (`expense_shares(member_id)`), so initial load, load more and search all carry them. The rule is in `lib/activityLabel.ts`. 33 web regressions and the production build pass, and the user checked it in the local app. See CHANGELOG.md, "Activity payer labels (web)".

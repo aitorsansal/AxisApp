@@ -161,7 +161,7 @@ The original card groups these observations; it does not assign a separate W num
 | Event-linked expense date format differs. | Already cross-referenced in section 3. |
 | Green balance gradient ends in mauve with weak text contrast. | Visual consistency and readability; measure contrast. |
 | Default display name exposes an email to group members. | Decide the intended identity/privacy experience; no unauthorized access is established. |
-| Payer line uses the user's name instead of “You paid.” | Copy preference. |
+| Payer line uses the user's name instead of “You paid.” | Implemented on web: viewer-localized “You paid”, extended 2026-10-31 to name who was paid for (CHANGELOG.md, “Activity payer labels (web)”). Android unchanged. |
 | Destructive actions use native confirms/prompts inconsistently. | Review action-specific safeguards; one confirmation is not automatically inadequate for every action. |
 | Negative input is rejected but still produces negative share previews. | Invalid-state presentation, despite successful save validation. |
 | Location has no map link; event expenses do not prefill the event title. | Two convenience improvements; track separately if implemented. |

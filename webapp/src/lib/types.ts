@@ -47,6 +47,7 @@ export interface ExpenseWithPayer {
   split_mode?: SplitMode | null
   receipt_path: string | null
   event_id: string | null
+  expense_shares?: { member_id: string }[]
 }
 
 export interface Invite {

@@ -133,12 +133,26 @@ pairwise balances are all zero, their `group_balances` net is zero too.
 `group_balances`/`my_group_balances` stay — the Groups list total and
 Group Detail still read them.
 
-Web's "Te deben / Debes" summary (Groups page) and Group Detail's balance
+Web's "Te deben / Debes" summary (`BalanceSummary`, on the Overview at `/`
+and the `/groups` directory) and Group Detail's balance
 hero are built from `my_pairwise_balances` via `lib/balanceSummary.ts`,
 never from summed group nets: positive and negative pairwise rows are
 totalled separately, per currency, with no conversion. A group net would
 hide what you owe one person behind what another owes you. Android has
 neither yet.
+
+## Activity payer labels
+
+Web activity rows (Group Detail, Overview, Event Detail) use the pure
+`webapp/src/lib/activityLabel.ts` and say who was paid for. Only shares other
+than the payer's count: one person → "Marc paid for Bea" / "You paid for Marc"
+/ "Marc paid for you"; two or more → "You paid for N people" (payer not
+counted); payer-only or missing shares → plain "You paid" / "Marc paid".
+Repayments are detected by `is_settlement`, never by share count, and read
+"You paid Marc" / "Marc paid you". Shares come from `expense_shares(member_id)`
+embedded in the same activity query (`ExpenseWithPayer.expense_shares`, read
+only). Implemented 2026-10-31, local, not deployed. Android still uses its own
+"X paid · split N ways" / "X paid Y" copy (`BuildActivityItems`).
 
 ## Repayment review
 
@@ -786,7 +800,7 @@ dotnet run --project tests/AxisApp.RegressionTests
 # Web app regression tests (node:test, mirrors the C# checks against
 # webapp/src/lib/expenseMath.ts, dates.ts, serializedUpdates.ts,
 # coalescedWrites.ts, recurringSchedule.ts, stats.ts, amountDisplay.ts,
-# pairBreakdown.ts)
+# pairBreakdown.ts, activityLabel.ts and more)
 npm test --prefix webapp
 ```
 
@@ -805,7 +819,7 @@ Expenses and recurring templates now have nullable `split_mode` (`equal`/`manual
 
 ## Web expense unsaved changes (2026-10-28)
 
-Web now uses createBrowserRouter/RouterProvider with the existing route tree/providers. `useUnsavedChanges` and `UnsavedChangesDialog` protect ordinary and recurring AddExpensePage edits; repayments and events are not wired yet. `expenseEditorSnapshot` normalizes valid amounts and participant order while preserving split intent and invalid input. The baseline is keyed to the loaded account/route; keep token refreshes from reloading the form. Call `markSaved()` only after a confirmed successful save/delete, immediately before navigation. Native beforeunload handles document exits; internal navigation uses useBlocker. Deep-entry ancestry reconstruction dispatches popstate to synchronize router history indices; retest cold-link Back/Forward if changing that code. Isolated browser fixtures live in `webapp/tests/unsaved.vite.config.ts`; never use the fixture config for production. See `reports/UNSAVED_WEB_REVIEW.md`. The web stage is local, not deployed. Android expense/recurring protection is now installed and device-verified; see the following section.
+Web now uses createBrowserRouter/RouterProvider with the existing route tree/providers. `useUnsavedChanges` and `UnsavedChangesDialog` protect ordinary and recurring AddExpensePage edits (events and repayments were added later; see the next section). `expenseEditorSnapshot` normalizes valid amounts and participant order while preserving split intent and invalid input. The baseline is keyed to the loaded account/route; keep token refreshes from reloading the form. Call `markSaved()` only after a confirmed successful save/delete, immediately before navigation. Native beforeunload handles document exits; internal navigation uses useBlocker. Deep-entry ancestry reconstruction dispatches popstate to synchronize router history indices; retest cold-link Back/Forward if changing that code. Isolated browser fixtures live in `webapp/tests/unsaved.vite.config.ts`; never use the fixture config for production. See `reports/UNSAVED_WEB_REVIEW.md`. Deployed with the later web releases. Android expense/recurring protection is now installed and device-verified; see the following section.
 
 ## Android expense unsaved changes (2026-10-28)
 

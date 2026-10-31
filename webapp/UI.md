@@ -48,7 +48,7 @@ No database schema, authentication, settlement RPC or Android implementation cha
 
 Group Detail now extends the Together dashboard's design: lighter header/tabs, visible member and recurring links, separate directional balance totals, quieter pairwise rows and a filled activity list. The summary never calls cancelling debts settled. Existing repayments, tab URLs, search and refresh behaviour are retained. New activity styling is scoped so Event Detail keeps its own layout.
 
-Build, 32 regression tests and lint pass. Browser fixture checks cover 25 viewport/state/accent combinations plus search, tabs and repayment opening/cancellation. See [Group Detail review](../reports/GROUP_DETAIL_DESIGN_REVIEW.md). Other page structures still await their design pass.
+Build, 32 regression tests and lint pass. Browser fixture checks cover 25 viewport/state/accent combinations plus search, tabs and repayment opening/cancellation. See [Group Detail review](../reports/GROUP_DETAIL_DESIGN_REVIEW.md). The remaining pages were extended later the same day (see below).
 
 ## Together expense and repayment forms — 31 October 2026 (deployed)
 
@@ -63,3 +63,7 @@ Event Detail/editors, Group Events, Members, recurring expenses and member profi
 Build, 32 regressions and lint pass. See [remaining page review](../reports/REMAINING_PAGES_DESIGN_REVIEW.md) for 62 layout cases, screenshots, mocked interaction checks and their limits.
 
 Deployment: the Together page updates above are live as of 31 October 2026. See [deployment receipt](../reports/WEB_DEPLOYMENT_2026-10-31.md).
+
+## Activity payer labels — 31 October 2026 (local, not deployed)
+
+Activity rows on Group Detail, Overview and Event Detail say who was paid for: "Marc paid for Bea", "You paid for 4 people" (payer not counted), "Marc paid you" for repayments, and plain "You paid" when the payer is the only share. The rule is in `src/lib/activityLabel.ts`, and the shares come from the same query. Android copy is unchanged.

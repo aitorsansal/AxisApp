@@ -18,6 +18,7 @@ import { categoryIcon, iconGlyphs } from '../src/lib/icons.ts'
 import { activityDate, expenseTimestamp, isCalendarDate, localDateInput, localDateTimeToIso, formatEventRange } from '../src/lib/dates.ts'
 import { isSettlementDate, settlementCents, settlementParties, settlementPayload } from '../src/lib/settlements.ts'
 import { strings } from '../src/lib/i18n/strings.ts'
+import { activityLabel } from '../src/lib/activityLabel.ts'
 import { assertSupabaseConfig } from '../src/lib/runtimeConfig.ts'
 import { eventEditorSnapshot, settlementEditorSnapshot } from '../src/lib/formEditorSnapshots.ts'
 import { RefreshRevision } from '../src/lib/refreshRevision.ts'
@@ -581,4 +582,28 @@ test('activity dates compare local calendar days, like Android FormatRelative', 
   assert.equal(activityDate(new Date(2026, 9, 28).toISOString(), 'es', labels, now), '28 oct')
   assert.equal(activityDate(new Date(2025, 9, 28).toISOString(), 'en', labels, now), 'Oct 28, 2025')
   assert.equal(activityDate(new Date(2025, 9, 28).toISOString(), 'es', labels, now), '28 oct 2025')
+})
+
+test('activity label says who a payment was for', () => {
+  const names = { me: 'Me', marc: 'Marc', bea: 'Bea', c: 'Cy', d: 'Di', e: 'Ed' }
+  const name = (id) => names[id]
+  const label = (payerId, shareMemberIds, extra = {}) => {
+    const l = activityLabel({ isSettlement: false, payerId, shareMemberIds, viewerId: 'me', ...extra }, name)
+    return [l.key, ...l.args]
+  }
+  assert.deepEqual(label('marc', ['marc', 'bea']), ['GroupDetail_PaidFor', 'Marc', 'Bea'])
+  assert.deepEqual(label('marc', ['marc', 'me']), ['GroupDetail_PaidForYou', 'Marc'])
+  assert.deepEqual(label('me', ['me', 'bea']), ['GroupDetail_YouPaidFor', 'Bea'])
+  assert.deepEqual(label('marc', ['marc', 'bea', 'c', 'd', 'e']), ['GroupDetail_PaidForCount', 'Marc', 4])
+  assert.deepEqual(label('me', ['me', 'bea', 'c', 'd', 'e']), ['GroupDetail_YouPaidForCount', 4])
+  assert.deepEqual(label('marc', ['bea', 'c']), ['GroupDetail_PaidForCount', 'Marc', 2])
+  assert.deepEqual(label('marc', ['marc']), ['GroupDetail_PaidBy', 'Marc'])
+  assert.deepEqual(label('me', ['me']), ['GroupDetail_YouPaid'])
+  assert.deepEqual(label('marc', undefined), ['GroupDetail_PaidBy', 'Marc'])
+  assert.deepEqual(label('marc', ['bea', 'bea', 'marc']), ['GroupDetail_PaidFor', 'Marc', 'Bea'])
+  assert.deepEqual(label('me', ['marc'], { isSettlement: true }), ['GroupDetail_YouPaidTo', 'Marc'])
+  assert.deepEqual(label('marc', ['me'], { isSettlement: true }), ['GroupDetail_PaidToYou', 'Marc'])
+  assert.deepEqual(label('marc', ['bea'], { isSettlement: true }), ['GroupDetail_PaidTo', 'Marc', 'Bea'])
+  assert.deepEqual(label('marc', [], { isSettlement: true }), ['GroupDetail_PaidBy', 'Marc'])
+  assert.deepEqual(label('marc', ['bea'], { viewerId: null }), ['GroupDetail_PaidFor', 'Marc', 'Bea'])
 })

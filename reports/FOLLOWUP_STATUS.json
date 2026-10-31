@@ -1,0 +1,6 @@
+{
+  "Your own payments use your name in the sentence": [
+    "Implemented on web; user-checked locally; not deployed",
+    "Web activity already used viewer-localized \"You paid\". On 31 October rows on Group Detail, Overview and Event Detail also started naming who was paid for: \"Marc paid for Bea\", \"Marc paid for you\", \"You paid for 4 people\" (payer not counted), and \"You paid Marc\" / \"Marc paid you\" for repayments. The rule is in webapp/src/lib/activityLabel.ts, covered by the web regressions (33 pass). The user checked it in the local app. Android keeps \"X paid · split N ways\" / \"X paid Y\". See CHANGELOG.md, \"Activity payer labels (web)\"."
+  ]
+}

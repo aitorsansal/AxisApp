@@ -11,7 +11,7 @@ Date: 2026-10-30. Implemented on `main` and deployed to production.
 - Desktop navigation keeps group links available. Mobile has labelled Overview/Agenda/Profile navigation and a group section on the overview. The reorderable directory is retained at `/groups` under Manage groups.
 - The global Add expense action chooses the group before entering the existing editor. Review balances reveals real per-person debts and links to the owning group, preserving the existing repayment workflow and safeguards.
 - Profile retains all eight accent presets and adds Controls only / Subtle surfaces. Preferences persist per browser. Neutral main backgrounds and financial/status meanings remain consistent.
-- Shared tokens, self-hosted Manrope and an accent-aware linked-spaces header mark establish the design foundation. Remaining page layouts retain their existing structure pending the next design pass. Launcher/PWA bitmap icons have not been redesigned.
+- Shared tokens, self-hosted Manrope and an accent-aware linked-spaces header mark establish the design foundation. Remaining page layouts retained their existing structure at the time; they were extended and deployed on 31 October (see REMAINING_PAGES_DESIGN_REVIEW.md). Launcher/PWA bitmap icons have not been redesigned.
 - New copy is available in English and Castilian Spanish.
 
 ## Data and write behaviour
@@ -48,3 +48,7 @@ During this review a separate fixture server was started on port 5186 because 51
 Authenticated operation against live data, real multi-client Realtime/reconnect delivery and physical phone interaction are not verified in this pass. Existing financial save code was not rewritten. Global typography/surfaces now apply to existing pages; their structural redesign remains a later slice.
 
 Deployed with `npm run deploy --prefix webapp` on 2026-10-30. Cloudflare Worker `axisapp-webapp`, version `f27da25f-a7d7-4a63-8cdd-9cbebc15e8c8`. Post-deploy smoke checks passed for `/`, `/profile` and the expected JavaScript entry. This confirms delivery of the built assets; authenticated live-data verification remains outstanding.
+
+## Follow-up: payer labels (2026-10-31, local, not deployed)
+
+Recent activity rows use the same payer labels as Group Detail ("Marc paid for Bea", "You paid for 4 people", "Marc paid you"). Names resolve through each row's own group members and aliases; the viewer comes from `currentMember`. The shares are embedded in the existing bounded activity query. See CHANGELOG.md, "Activity payer labels (web)".

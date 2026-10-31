@@ -10,6 +10,7 @@ import { activityDate } from '../lib/dates'
 import { formatMoney } from '../lib/formatting'
 import { formatExpenseAmount, getShowConverted } from '../lib/amountDisplay'
 import { categoryIcon } from '../lib/icons'
+import { activityLabel } from '../lib/activityLabel'
 import { RefreshRevision } from '../lib/refreshRevision'
 import { useLiveRefresh } from '../lib/useLiveRefresh'
 import type { ExpenseWithPayer, RecurringExpense } from '../lib/types'
@@ -38,7 +39,7 @@ export function OverviewFeed() {
         const result = await supabase
           .from('expenses')
           .select(
-            'id, group_id, paid_by_member_id, amount, currency, amount_in_group_currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id',
+            'id, group_id, paid_by_member_id, amount, currency, amount_in_group_currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id, expense_shares(member_id)',
           )
           .in('group_id', ids)
           .order('occurred_at', { ascending: false })
@@ -109,7 +110,18 @@ export function OverviewFeed() {
         {expenses?.map((expense) => {
           const group = groups?.find((g) => g.id === expense.group_id)
           if (!group) return null
-          const payer = group.members.find((m) => m.id === expense.paid_by_member_id)
+          const label = activityLabel(
+            {
+              isSettlement: expense.is_settlement,
+              payerId: expense.paid_by_member_id,
+              shareMemberIds: expense.expense_shares?.map((s) => s.member_id),
+              viewerId: memberId,
+            },
+            (id) => {
+              const member = group.members.find((m) => m.id === id)
+              return member ? displayName(member) : t('GroupDetail_SomeoneCapitalized')
+            },
+          )
           const amount = formatExpenseAmount(expense, group.currency, language, getShowConverted())
           return (
             <Link
@@ -124,7 +136,7 @@ export function OverviewFeed() {
                     t(expense.is_settlement ? 'GroupDetail_SettleUp' : 'GroupDetail_ExpenseFallback')}
                 </h3>
                 <p>
-                  {t('GroupDetail_PaidBy', payer ? displayName(payer) : t('GroupDetail_SomeoneCapitalized'))}
+                  {t(label.key, ...label.args)}
                 </p>
                 <p>
                   {group.name} ·{' '}

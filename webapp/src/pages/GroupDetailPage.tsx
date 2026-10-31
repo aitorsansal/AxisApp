@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, type CSSProperties } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { activityLabel } from '../lib/activityLabel'
 import { useGoBackTo } from '../lib/navigation'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
@@ -90,7 +91,7 @@ export function GroupDetailPage() {
   )
 
   const activitySelect =
-    'id, group_id, paid_by_member_id, amount, currency, amount_in_group_currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id'
+    'id, group_id, paid_by_member_id, amount, currency, amount_in_group_currency, description, category, occurred_at, created_at, is_settlement, receipt_path, event_id, expense_shares(member_id)'
 
   const load = useCallback(async ({ background = false, includeActivity = true }: {
     background?: boolean
@@ -655,7 +656,18 @@ export function GroupDetailPage() {
                             )}
                           </div>
                           <div className="activity-meta">
-                            {exp.paid_by_member_id === myMemberId ? t('GroupDetail_YouPaid') : t('GroupDetail_PaidBy', memberName(exp.paid_by_member_id))}
+                            {(() => {
+                              const label = activityLabel(
+                                {
+                                  isSettlement: exp.is_settlement,
+                                  payerId: exp.paid_by_member_id,
+                                  shareMemberIds: exp.expense_shares?.map((s) => s.member_id),
+                                  viewerId: myMemberId,
+                                },
+                                memberName,
+                              )
+                              return t(label.key, ...label.args)
+                            })()}
                           </div>
                         </div>
                         <div className="activity-value">

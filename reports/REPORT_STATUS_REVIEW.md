@@ -1,5 +1,10 @@
 # Combined report status review — 28 October 2026
 
+## Activity payer labels — 31 October 2026
+
+- **"Your own payments use your name in the sentence" — implemented on web.** Rows on Group Detail, Overview and Event Detail now name who an expense covered, not just who paid: "Marc paid for Bea", "You paid for 4 people" (the payer isn't counted) and "Marc paid you" for repayments. Card status comes from `FOLLOWUP_STATUS.json`; details are in [CHANGELOG.md](../CHANGELOG.md) ("Activity payer labels (web)").
+- **Evidence:** 33 web regressions and the production build pass, and the user checked it in the local app. Not deployed; Android wording unchanged.
+
 ## Stabilisation step 4 — 30 October 2026
 
 Recorded in [CHANGELOG.md](../CHANGELOG.md) ("Categories, activity dates and repayment descriptions"); card statuses come from `STEP4_STATUS.json`.

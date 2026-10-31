@@ -39,3 +39,7 @@ These checks do not replace a physical-phone, spoken screen-reader or real multi
 Normal application: http://localhost:5173/.
 Isolated fixture: npm.cmd run dev --prefix webapp -- --config tests/visual.vite.config.ts --port 5187.
 Use qaPages=default, long, empty or many. qaPages=save-error injects a failed page write. These are development fixtures; never deploy with the fixture configuration.
+
+## Follow-up: payer labels (2026-10-31, local, not deployed)
+
+Event Detail's linked-expense meta line showed only the payer's name. It now shows the shared payer label before the date, e.g. "Marc paid for Bea · Today", or "You paid Marc" for a repayment. See CHANGELOG.md, "Activity payer labels (web)".
