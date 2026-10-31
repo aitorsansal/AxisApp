@@ -599,14 +599,14 @@ Group Detail balances/activity (2026-10-29) refresh without Realtime on both cli
   do not replace it with bare upserts. `eventAttendance.ts` shares response/transport
   transitions with the existing group and event pages. See
   `reports/OVERVIEW_REVIEW.md` for scope and verification. This first design slice
-  is deployed. Group Detail was extended locally on 2026-10-31 (not deployed):
+  is deployed. Group Detail was extended and deployed on 2026-10-31:
   directional balances, lighter header/tabs and clearer activity. See
   `reports/GROUP_DETAIL_DESIGN_REVIEW.md`. Expense/recurring and repayment forms
-  were extended locally the same day (not deployed); see `reports/FORMS_DESIGN_REVIEW.md`.
+  were extended and deployed the same day; see `reports/FORMS_DESIGN_REVIEW.md`.
   Their financial rules are unchanged. Event Detail/forms, Group Events, Members,
-  recurring lists and member profiles were also extended locally on 2026-10-31
-  (not deployed); see `reports/REMAINING_PAGES_DESIGN_REVIEW.md`. Standalone
-  account/setup pages retain their existing structures.
+  recurring lists and member profiles were also extended and deployed on 2026-10-31; see `reports/REMAINING_PAGES_DESIGN_REVIEW.md`. Standalone
+  account/setup pages retain their existing structures. Deployment receipt:
+  `reports/WEB_DEPLOYMENT_2026-10-31.md`.
   Visual fixture: `npm run dev --prefix webapp -- --config tests/visual.vite.config.ts`
   (port 5175; `?qaLanguage=en&qaOverview=interactive` enables in-memory attendance
   writes; `qaOverview=settled|owe-zero|mixed|no-events|empty|events-error|activity-error|save-error`

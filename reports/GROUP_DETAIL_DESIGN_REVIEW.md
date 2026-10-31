@@ -1,6 +1,6 @@
 # Group Detail Together design
 
-Date: 2026-10-31. Implemented locally; not deployed.
+Date: 2026-10-31. Deployed from source commit b2367da. See [deployment receipt](./WEB_DEPLOYMENT_2026-10-31.md).
 
 ## Changes
 

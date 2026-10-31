@@ -2640,3 +2640,9 @@ Build, 32 web regressions and lint pass. Browser fixtures cover 28 layout cases,
 Extended Together to Event Detail and event forms, Group Events cards, Members, recurring expenses and pairwise member profiles. Common typography/panels/actions live in TogetherPage.css. Event forms gain guarded Cancel; birthday detail omits RSVP/attendee sections. Members presents the roster first with visible name-edit icons; recurring schedules expose Active/Paused status; pairwise cards retain signed explanations and link to their groups.
 
 Build, 32 regressions and lint pass. 62 responsive/state/language fixture checks fit without horizontal overflow; desktop/phone screenshots were inspected. Mocked interaction checks cover RSVP/transport transitions, event validation/editing, clipboard-free guest adds, explicit copying, recurring pause/resume and profile expansion/reconciliation. No live data or native code was changed. See reports/REMAINING_PAGES_DESIGN_REVIEW.md.
+
+## Together web deployment ? 2026-10-31
+
+Deployed source commit b2367da with npm.cmd run deploy --prefix webapp to Cloudflare Worker axisapp-webapp, version f83438ae-2851-48c9-813e-4d6d57f4febb. Group Detail, expense/repayment forms, event pages, Members, recurring lists and member profiles are now live on app.axisapp.aitorsansal.com.
+
+Production build and smoke checks passed for /, /profile and the expected entry. A read-only signed-in Group Detail check confirmed the new context, directional summary, activity and stylesheet. No live writes were performed. See reports/WEB_DEPLOYMENT_2026-10-31.md for the receipt and verification limits.

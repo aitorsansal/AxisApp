@@ -44,20 +44,22 @@ No database schema, authentication, settlement RPC or Android implementation cha
 - Initial event-load errors now show an alert and retry action instead of remaining on the loading message. This recovery branch was reviewed in source, without forcing a live server outage.
 - This polish pass created no additional records and changed no existing records.
 
-## Together Group Detail — 31 October 2026 (local, not deployed)
+## Together Group Detail — 31 October 2026 (deployed)
 
 Group Detail now extends the Together dashboard's design: lighter header/tabs, visible member and recurring links, separate directional balance totals, quieter pairwise rows and a filled activity list. The summary never calls cancelling debts settled. Existing repayments, tab URLs, search and refresh behaviour are retained. New activity styling is scoped so Event Detail keeps its own layout.
 
 Build, 32 regression tests and lint pass. Browser fixture checks cover 25 viewport/state/accent combinations plus search, tabs and repayment opening/cancellation. See [Group Detail review](../reports/GROUP_DETAIL_DESIGN_REVIEW.md). Other page structures still await their design pass.
 
-## Together expense and repayment forms — 31 October 2026 (local, not deployed)
+## Together expense and repayment forms — 31 October 2026 (deployed)
 
 Expense forms now group details, people/split and date/extras into neutral sections, side by side on wide screens and stacked on phones. Payer radio tiles wrap; primary/secondary actions match Together. Cancel retains unsaved-change protection. Repayment creation and editing share the same amount, party-summary and field styling. Receipt previews contain rather than crop the image.
 
 Build, 32 regression tests and lint pass. The browser fixture exercises layouts, split/currency/recurrence interaction, guarded cancellation, held/failed saves and partial repayments. See [form review](../reports/FORMS_DESIGN_REVIEW.md) for precise coverage and limits.
 
-## Remaining Together pages — 31 October 2026 (local, not deployed)
+## Remaining Together pages — 31 October 2026 (deployed)
 
 Event Detail/editors, Group Events, Members, recurring expenses and member profiles now use Together layouts. TogetherPage.css supplies common lighter headers, filled panels and rounded actions. The roster is prominent; event response/transport and attendee sections are separate; recurring status and pairwise explanations stay explicit. Existing save, permission, financial and refresh rules are retained.
 
 Build, 32 regressions and lint pass. See [remaining page review](../reports/REMAINING_PAGES_DESIGN_REVIEW.md) for 62 layout cases, screenshots, mocked interaction checks and their limits.
+
+Deployment: the Together page updates above are live as of 31 October 2026. See [deployment receipt](../reports/WEB_DEPLOYMENT_2026-10-31.md).
